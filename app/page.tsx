@@ -11,9 +11,9 @@ interface Market {
   sport: string
 }
 
-const SPORT_TABS = ['NBA', 'NHL', 'NCAAB', 'UFC', 'MLB', 'NFL', 'MLS']
+const SPORT_TABS = ['NBA']
 const SPORT_ICONS: Record<string, string> = {
-  NBA: '🏀', NHL: '🏒', NCAAB: '🎓', UFC: '🥊', MLB: '⚾', NFL: '🏈', MLS: '⚽',
+  NBA: '🏀',
 }
 
 function vol(n: number) {

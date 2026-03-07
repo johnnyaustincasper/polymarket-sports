@@ -2,12 +2,6 @@ import { NextResponse } from 'next/server'
 
 const SPORT_KEYWORDS: Record<string, string[]> = {
   NBA: ['nba'],
-  NHL: ['nhl'],
-  NCAAB: ['ncaab', 'ncaa'],
-  NFL: ['nfl'],
-  MLB: ['mlb'],
-  UFC: ['ufc', 'mma'],
-  MLS: ['mls'],
 }
 
 function detectSport(text: string): string {
