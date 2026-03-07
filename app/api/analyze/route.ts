@@ -3,184 +3,201 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-async function fetchTeamStats(teamName: string): Promise<any> {
+async function safeFetch(url: string, opts: RequestInit = {}): Promise<any> {
   try {
-    // Search ESPN for team
-    const res = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams?limit=30`,
-      { next: { revalidate: 3600 } }
-    )
-    const data = await res.json()
-    const teams = data?.sports?.[0]?.leagues?.[0]?.teams || []
-    const match = teams.find((t: any) =>
-      t.team.displayName.toLowerCase().includes(teamName.toLowerCase().split(' ').pop() || '') ||
-      teamName.toLowerCase().includes(t.team.name.toLowerCase())
-    )
-    if (!match) return null
-
-    const teamId = match.team.id
-
-    // Get team stats
-    const statsRes = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}`,
-      { next: { revalidate: 3600 } }
-    )
-    const teamData = await statsRes.json()
-
-    // Get team injuries
-    const injuryRes = await fetch(
-      `https://site.api.espn.com/apis/v2/sports/basketball/nba/teams/${teamId}/injuries`,
-      { next: { revalidate: 1800 } }
-    )
-    const injuryData = injuryRes.ok ? await injuryRes.json() : null
-
-    return { teamData, injuryData, teamId }
-  } catch {
-    return null
-  }
+    const res = await fetch(url, { ...opts, next: { revalidate: 300 } } as any)
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
 }
 
-async function fetchGameData(teamA: string, teamB: string): Promise<string> {
+async function safeTextFetch(url: string): Promise<string> {
   try {
-    const [dataA, dataB] = await Promise.all([
-      fetchTeamStats(teamA),
-      fetchTeamStats(teamB),
-    ])
+    const res = await fetch(url, { next: { revalidate: 300 } } as any)
+    if (!res.ok) return ''
+    return await res.text()
+  } catch { return '' }
+}
 
-    let context = ''
+function extractText(html: string, maxChars = 3000): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxChars)
+}
 
-    if (dataA?.teamData) {
-      const t = dataA.teamData.team
-      const record = t.record?.items?.[0]?.summary || 'N/A'
-      const standing = t.standingSummary || ''
-      context += `\n${teamA}: Record ${record}. ${standing}.`
+async function getESPNTeamId(teamName: string): Promise<string | null> {
+  const data = await safeFetch('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams?limit=30')
+  const teams = data?.sports?.[0]?.leagues?.[0]?.teams || []
+  const keyword = teamName.toLowerCase().split(' ').pop() || ''
+  const match = teams.find((t: any) =>
+    t.team.displayName.toLowerCase().includes(keyword) ||
+    t.team.name.toLowerCase().includes(keyword)
+  )
+  return match?.team?.id || null
+}
 
-      // Injuries
-      const injuries = dataA.injuryData?.injuries || []
-      if (injuries.length > 0) {
-        const injList = injuries.slice(0, 5).map((i: any) =>
-          `${i.athlete?.displayName} (${i.status})`
-        ).join(', ')
-        context += ` Injuries: ${injList}.`
-      } else {
-        context += ` No significant injuries reported.`
-      }
-    }
+async function getTeamData(teamName: string) {
+  const teamId = await getESPNTeamId(teamName)
+  if (!teamId) return { stats: null, injuries: [] }
 
-    if (dataB?.teamData) {
-      const t = dataB.teamData.team
-      const record = t.record?.items?.[0]?.summary || 'N/A'
-      const standing = t.standingSummary || ''
-      context += `\n${teamB}: Record ${record}. ${standing}.`
+  const [teamData, injuryData] = await Promise.all([
+    safeFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}`),
+    safeFetch(`https://site.api.espn.com/apis/v2/sports/basketball/nba/teams/${teamId}/injuries`),
+  ])
 
-      const injuries = dataB.injuryData?.injuries || []
-      if (injuries.length > 0) {
-        const injList = injuries.slice(0, 5).map((i: any) =>
-          `${i.athlete?.displayName} (${i.status})`
-        ).join(', ')
-        context += ` Injuries: ${injList}.`
-      } else {
-        context += ` No significant injuries reported.`
-      }
-    }
+  const injuries = (injuryData?.injuries || []).slice(0, 6).map((i: any) => ({
+    name: i.athlete?.displayName,
+    status: i.status,
+    detail: i.details?.type || '',
+  }))
 
-    // Get today's scoreboard for any additional context
-    const scoreRes = await fetch(
-      'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
-      { next: { revalidate: 60 } }
-    )
-    const scoreData = await scoreRes.json()
-    const matchingGame = scoreData?.events?.find((e: any) => {
-      const teams = e.competitions?.[0]?.competitors?.map((c: any) => c.team?.displayName?.toLowerCase()) || []
-      return teams.some((t: string) => t.includes(teamA.toLowerCase().split(' ').pop() || '')) &&
-             teams.some((t: string) => t.includes(teamB.toLowerCase().split(' ').pop() || ''))
-    })
+  return { stats: teamData?.team, injuries, teamId }
+}
 
-    if (matchingGame) {
-      const comp = matchingGame.competitions?.[0]
-      const home = comp?.competitors?.find((c: any) => c.homeAway === 'home')
-      const away = comp?.competitors?.find((c: any) => c.homeAway === 'away')
-      context += `\nGame info: ${away?.team?.displayName} @ ${home?.team?.displayName}.`
+async function scrapeInjuryNews(teamA: string, teamB: string): Promise<string> {
+  const teamALast = teamA.split(' ').pop() || teamA
+  const teamBLast = teamB.split(' ').pop() || teamB
 
-      // Season series
-      const leaders = comp?.leaders || []
-      if (leaders.length > 0) {
-        context += ` Stat leaders available.`
-      }
-    }
+  // Hit ESPN injury pages for both teams
+  const sources = [
+    `https://www.espn.com/nba/injuries`,
+    `https://www.cbssports.com/nba/injuries/`,
+  ]
 
-    return context
-  } catch {
-    return ''
+  const results: string[] = []
+
+  for (const url of sources) {
+    const html = await safeTextFetch(url)
+    if (!html) continue
+    const text = extractText(html, 5000)
+    // Find relevant sections
+    const lower = text.toLowerCase()
+    const idxA = lower.indexOf(teamALast.toLowerCase())
+    const idxB = lower.indexOf(teamBLast.toLowerCase())
+    if (idxA > -1) results.push(text.slice(Math.max(0, idxA - 100), idxA + 500))
+    if (idxB > -1) results.push(text.slice(Math.max(0, idxB - 100), idxB + 500))
+    if (results.length >= 4) break
   }
+
+  return results.join('\n\n').slice(0, 3000)
+}
+
+async function getStandings(): Promise<string> {
+  const data = await safeFetch('https://site.api.espn.com/apis/v2/sports/basketball/nba/standings')
+  if (!data) return ''
+  try {
+    const entries: string[] = []
+    for (const conf of data.children || []) {
+      for (const div of conf.standings?.entries || conf.entries || []) {
+        const team = div.team?.displayName
+        const stats = div.stats || []
+        const wins = stats.find((s: any) => s.name === 'wins')?.value
+        const losses = stats.find((s: any) => s.name === 'losses')?.value
+        const gb = stats.find((s: any) => s.name === 'gamesBehind')?.value
+        if (team) entries.push(`${team}: ${wins}-${losses} (${gb} GB)`)
+      }
+    }
+    return entries.join(', ')
+  } catch { return '' }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { teamA, teamB, sport, polyOddsA, polyOddsB, question, recordA, recordB } = await req.json()
+    const { teamA, teamB, polyOddsA, polyOddsB, recordA, recordB } = await req.json()
 
-    // Pull real ESPN data
-    const espnContext = await fetchGameData(teamA, teamB)
+    // Parallel data fetch: ESPN stats + injuries + standings + web scrape
+    const [dataA, dataB, injuryNews, standings] = await Promise.all([
+      getTeamData(teamA),
+      getTeamData(teamB),
+      scrapeInjuryNews(teamA, teamB),
+      getStandings(),
+    ])
 
-    const prompt = `You are a sharp NBA betting analyst. Give a detailed, data-driven breakdown of this game for someone who only bets on who wins outright.
+    // Build context block
+    let context = `GAME: ${teamA} (${recordA || 'N/A'}) vs ${teamB} (${recordB || 'N/A'})\n`
+    context += `POLYMARKET ODDS: ${teamA} ${polyOddsA}% | ${teamB} ${polyOddsB}%\n\n`
 
-Game: ${question}
-${teamA} record: ${recordA || 'unknown'} — Polymarket win probability: ${polyOddsA}%
-${teamB} record: ${recordB || 'unknown'} — Polymarket win probability: ${polyOddsB}%
+    if (standings) context += `CURRENT NBA STANDINGS:\n${standings}\n\n`
 
-ESPN Data:
-${espnContext || 'Use your training data for this matchup.'}
+    if (dataA.injuries.length > 0) {
+      context += `${teamA.toUpperCase()} INJURY REPORT (ESPN):\n`
+      dataA.injuries.forEach((i: any) => context += `- ${i.name}: ${i.status} ${i.detail ? `(${i.detail})` : ''}\n`)
+      context += '\n'
+    } else {
+      context += `${teamA.toUpperCase()} INJURY REPORT: No players listed on ESPN injury report.\n\n`
+    }
 
-Write your analysis in this format — be specific, use real stats and player names where you know them:
+    if (dataB.injuries.length > 0) {
+      context += `${teamB.toUpperCase()} INJURY REPORT (ESPN):\n`
+      dataB.injuries.forEach((i: any) => context += `- ${i.name}: ${i.status} ${i.detail ? `(${i.detail})` : ''}\n`)
+      context += '\n'
+    } else {
+      context += `${teamB.toUpperCase()} INJURY REPORT: No players listed on ESPN injury report.\n\n`
+    }
 
-🏀 **[Away Team] vs [Home Team]**
-*[Venue if known] | [Game time]*
+    if (injuryNews) {
+      context += `LATEST INJURY NEWS (web):\n${injuryNews}\n\n`
+    }
 
-**Win Probability:** [Team A] ${polyOddsA}% | [Team B] ${polyOddsB}%
+    const prompt = `You are a sharp NBA betting analyst. A bettor wants to know who to pick to WIN this game outright — no spreads, no props, just who wins.
 
-**Standings:** [Team A record + conference rank] | [Team B record + conference rank]
+Use the real data below combined with your training knowledge of this season's stats, trends, and matchups to write a comprehensive betting breakdown.
 
-**Season Series:** [Head-to-head record this season, notable games]
+${context}
+
+Write the analysis in this exact format:
+
+🏀 **${teamA} vs ${teamB}**
+
+**Win Probability:** ${teamA} ${polyOddsA}% | ${teamB} ${polyOddsB}%
+
+**Standings:** [conference records, playoff positioning for both teams]
+
+**Season Series:** [head-to-head record this season, any notable games between them]
 
 ---
 
 📊 **Offensive & Defensive Rankings**
 
-**[Team A]**
-[2-3 sentences on their offense — PPG, FG%, 3P%, ball movement. Then 1-2 on defense.]
+**${teamA}**
+[2-3 sentences: PPG, FG%, 3P%, key playmakers, pace. Then defensive ranking/style.]
 
-**[Team B]**
-[2-3 sentences on their offense — PPG, FG%, 3P%, ball movement. Then 1-2 on defense.]
+**${teamB}**
+[2-3 sentences: PPG, FG%, 3P%, key playmakers, pace. Then defensive ranking/style.]
 
 ---
 
 🏥 **Injury Report**
 
-**[Team A]:** [List key injuries with status — Out/Questionable/Day-to-day]
-**[Team B]:** [List key injuries with status]
+**${teamA}:** [Use the ESPN data above. Note any impact on tonight's game.]
+**${teamB}:** [Use the ESPN data above. Note any impact on tonight's game.]
 
 ---
 
 💪 **Strengths & Weaknesses**
 
-**[Team A]**
-• Strengths: [Key players, what they do well in this matchup]
-• Weaknesses: [What could beat them tonight]
+**${teamA}**
+• Strengths: [specific to this matchup]
+• Weaknesses: [specific to this matchup]
 
-**[Team B]**
-• Strengths: [Key players, what they do well in this matchup]
-• Weaknesses: [What could beat them tonight]
+**${teamB}**
+• Strengths: [specific to this matchup]  
+• Weaknesses: [specific to this matchup]
 
 ---
 
-🎯 **Underdog Case for [lower % team]**
-[3-4 specific reasons why the underdog could win, with stats/context]
+🎯 **Underdog Case for ${polyOddsA < polyOddsB ? teamA : teamB} (~${Math.min(polyOddsA, polyOddsB)}%)**
+[3-4 specific reasons with stats and context why the underdog could win]
 
-**Bottom line:** [1-2 sentence final pick recommendation. Be direct — name a team.]`
+**⚡ Bottom line:** [Direct pick. Name the team. 2 sentences max.]`
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
+      max_tokens: 1800,
       messages: [{ role: 'user', content: prompt }],
     })
 
