@@ -1,23 +1,66 @@
 import { NextResponse } from 'next/server'
 
-const SPORT_KEYWORDS: Record<string, string[]> = {
-  NBA: ['nba'],
+// Fetch NBA standings/records from ESPN
+async function fetchTeamRecords(): Promise<Record<string, { abbr: string; record: string }>> {
+  try {
+    const res = await fetch(
+      'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams?limit=30',
+      { next: { revalidate: 3600 } }
+    )
+    if (!res.ok) return {}
+    const data = await res.json()
+    const map: Record<string, { abbr: string; record: string }> = {}
+    for (const entry of data?.sports?.[0]?.leagues?.[0]?.teams || []) {
+      const t = entry.team
+      const name = t.displayName?.toLowerCase()
+      const nickname = t.name?.toLowerCase()
+      const abbr = t.abbreviation
+      const record = t.record?.items?.[0]?.summary || ''
+      if (name) map[name] = { abbr, record }
+      if (nickname) map[nickname] = { abbr, record }
+    }
+    return map
+  } catch {
+    return {}
+  }
 }
 
-function detectSport(text: string): string {
-  const t = text.toLowerCase()
-  for (const [sport, keywords] of Object.entries(SPORT_KEYWORDS)) {
-    if (keywords.some(k => t.includes(k))) return sport
+// Fetch today's NBA schedule from ESPN
+async function fetchTodayGames(): Promise<Record<string, { time: string; homeAbbr: string; awayAbbr: string }>> {
+  try {
+    const res = await fetch(
+      'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
+      { next: { revalidate: 60 } }
+    )
+    if (!res.ok) return {}
+    const data = await res.json()
+    const map: Record<string, { time: string; homeAbbr: string; awayAbbr: string }> = {}
+    for (const event of data?.events || []) {
+      const comp = event.competitions?.[0]
+      if (!comp) continue
+      const home = comp.competitors?.find((c: any) => c.homeAway === 'home')
+      const away = comp.competitors?.find((c: any) => c.homeAway === 'away')
+      const status = event.status?.type?.shortDetail || ''
+      const homeAbbr = home?.team?.abbreviation || ''
+      const awayAbbr = away?.team?.abbreviation || ''
+      const homeName = home?.team?.displayName?.toLowerCase() || ''
+      const awayName = away?.team?.displayName?.toLowerCase() || ''
+      map[`${awayName}-${homeName}`] = { time: status, homeAbbr, awayAbbr }
+      map[`${homeName}-${awayName}`] = { time: status, homeAbbr, awayAbbr }
+    }
+    return map
+  } catch {
+    return {}
   }
-  return 'OTHER'
 }
 
 export async function GET() {
   try {
-    // Use events endpoint — each event is a matchup with winner market embedded
+    const [teamRecords, todayGames] = await Promise.all([fetchTeamRecords(), fetchTodayGames()])
+
     const res = await fetch(
       'https://gamma-api.polymarket.com/events?active=true&closed=false&limit=200&order=volume&ascending=false',
-      { headers: { Accept: 'application/json' }, next: { revalidate: 30 } }
+      { headers: { Accept: 'application/json' }, next: { revalidate: 60 } }
     )
     if (!res.ok) throw new Error(`API error: ${res.status}`)
     const events: any[] = await res.json()
@@ -25,15 +68,13 @@ export async function GET() {
     const markets: any[] = []
 
     for (const event of events) {
-      const sport = detectSport(event.title || event.slug || '')
-      if (sport === 'OTHER') continue
+      const title = (event.title || '').toLowerCase()
+      if (!title.includes('nba')) continue
 
-      // Find the winner market (2 outcomes, "who wins" style)
       const winnerMarket = (event.markets || []).find((m: any) => {
         const outcomes = JSON.parse(m.outcomes || '[]')
         const prices = JSON.parse(m.outcomePrices || '[]')
         if (outcomes.length !== 2) return false
-        // Both outcomes should have prices that roughly sum to 1
         const sum = prices.reduce((a: number, b: string) => a + parseFloat(b), 0)
         return sum > 0.8 && sum < 1.2
       })
@@ -46,16 +87,31 @@ export async function GET() {
       const outcomes = JSON.parse(winnerMarket.outcomes || '[]') as string[]
       const prices = JSON.parse(winnerMarket.outcomePrices || '[]') as string[]
 
+      // Look up records and abbrs
+      const enriched = outcomes.map((name: string, i: number) => {
+        const key = name.toLowerCase()
+        const info = teamRecords[key] || {}
+        return {
+          name,
+          abbr: (info as any).abbr || name.split(' ').pop()?.toUpperCase().slice(0, 3) || name.slice(0, 3).toUpperCase(),
+          record: (info as any).record || '',
+          price: parseFloat(prices[i] || '0'),
+        }
+      })
+
+      // Find game time
+      const teamAKey = enriched[0]?.name?.toLowerCase()
+      const teamBKey = enriched[1]?.name?.toLowerCase()
+      const gameKey = `${teamAKey}-${teamBKey}`
+      const gameInfo = todayGames[gameKey] || {}
+
       markets.push({
         id: event.id,
-        question: event.title || winnerMarket.question,
+        question: event.title,
         volume,
-        outcomes: outcomes.map((name: string, i: number) => ({
-          name,
-          price: parseFloat(prices[i] || '0'),
-        })),
-        sport,
-        gameStartTime: event.startDate || winnerMarket.gameStartTime,
+        outcomes: enriched,
+        sport: 'NBA',
+        gameTime: (gameInfo as any).time || '',
       })
     }
 
