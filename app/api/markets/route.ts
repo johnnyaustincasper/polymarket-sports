@@ -52,7 +52,18 @@ export async function GET() {
           endDate: m.endDate,
         }
       })
-      .filter((m: any) => SPORTS_SET.has(m.sport))
+      .filter((m: any) => {
+        if (!SPORTS_SET.has(m.sport)) return false
+        // Only head-to-head game markets: must have exactly 2 outcomes
+        if (m.outcomes.length !== 2) return false
+        // Must look like "Team A vs. Team B" or "Team A vs Team B" or "NBA: X vs Y"
+        const q = m.question.toLowerCase()
+        if (!q.includes(' vs') && !q.includes(' at ')) return false
+        // Exclude props, awards, season markets
+        const exclude = ['mvp', 'champion', 'title', 'playoff', 'draft', 'series', 'season', 'award', 'win the', 'make the', 'finish', 'total', 'points', 'rebounds', 'assists', 'score', 'lead', 'half', 'quarter', 'overtime', 'sweep']
+        if (exclude.some(e => q.includes(e))) return false
+        return true
+      })
       .sort((a: any, b: any) => b.volume - a.volume)
 
     return NextResponse.json(markets)
