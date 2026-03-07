@@ -9,7 +9,6 @@ interface Market {
   volume: number
   outcomes: Outcome[]
   sport: string
-  gameStartTime?: string
 }
 
 const SPORT_TABS = ['NBA', 'NHL', 'NCAAB', 'UFC', 'MLB', 'NFL', 'MLS']
@@ -23,30 +22,88 @@ function vol(n: number) {
   return `$${n}`
 }
 
-function GameCard({ market }: { market: Market }) {
+function GameCard({ market, sport }: { market: Market; sport: string }) {
   const [a, b] = market.outcomes
   const pctA = Math.round((a?.price || 0) * 100)
   const pctB = Math.round((b?.price || 0) * 100)
+  const [analysis, setAnalysis] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
+
+  const getAnalysis = async () => {
+    if (analysis) { setOpen(!open); return }
+    setLoading(true)
+    setOpen(true)
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: market.question,
+          sport,
+          teamA: a?.name,
+          teamB: b?.name,
+          polyOddsA: pctA,
+          polyOddsB: pctB,
+        }),
+      })
+      const data = await res.json()
+      setAnalysis(data.analysis || 'Analysis unavailable.')
+    } catch {
+      setAnalysis('Could not load analysis. Try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Parse bold markdown for display
+  const renderAnalysis = (text: string) => {
+    return text.split('\n').map((line, i) => {
+      const boldLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      return <p key={i} className="text-sm text-gray-300 leading-relaxed mb-1" dangerouslySetInnerHTML={{ __html: boldLine }} />
+    })
+  }
 
   return (
-    <div className="border-b border-gray-800 py-5">
-      {/* Matchup title */}
-      <div className="flex justify-between items-start mb-4">
-        <p className="text-white font-semibold text-base leading-snug pr-4">{market.question}</p>
-        <span className="text-gray-500 text-xs whitespace-nowrap">{vol(market.volume)}</span>
+    <div className="border-b border-gray-800 py-4">
+      {/* Teams + odds */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="flex-1">
+          <p className="text-white font-semibold text-base leading-snug">{market.question}</p>
+          <p className="text-gray-500 text-xs mt-0.5">{vol(market.volume)} vol</p>
+        </div>
       </div>
 
-      {/* Win % buttons */}
-      <div className="flex gap-2">
-        <button className="flex-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-2xl py-4 text-center transition-colors">
-          <div className="text-white font-bold text-xl">{pctA}%</div>
-          <div className="text-blue-200 text-xs mt-0.5 truncate px-1">{a?.name}</div>
-        </button>
-        <button className="flex-1 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 rounded-2xl py-4 text-center transition-colors">
-          <div className="text-white font-bold text-xl">{pctB}%</div>
-          <div className="text-purple-200 text-xs mt-0.5 truncate px-1">{b?.name}</div>
-        </button>
+      {/* Win % */}
+      <div className="flex gap-2 mb-3">
+        <div className="flex-1 bg-blue-900/50 border border-blue-800 rounded-xl py-3 text-center">
+          <div className="text-white font-bold text-lg">{pctA}%</div>
+          <div className="text-blue-300 text-xs mt-0.5 truncate px-2">{a?.name}</div>
+        </div>
+        <div className="flex-1 bg-purple-900/50 border border-purple-800 rounded-xl py-3 text-center">
+          <div className="text-white font-bold text-lg">{pctB}%</div>
+          <div className="text-purple-300 text-xs mt-0.5 truncate px-2">{b?.name}</div>
+        </div>
       </div>
+
+      {/* Get Pick button */}
+      <button
+        onClick={getAnalysis}
+        className="w-full py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-white text-sm font-semibold transition-colors"
+      >
+        {loading ? '⏳ Analyzing...' : open && analysis ? '▲ Hide Analysis' : '🎯 Get Pick'}
+      </button>
+
+      {/* Analysis */}
+      {open && (
+        <div className="mt-3 bg-gray-900 rounded-xl p-4">
+          {loading ? (
+            <p className="text-gray-400 text-sm text-center">Analyzing matchup...</p>
+          ) : (
+            <div>{analysis && renderAnalysis(analysis)}</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -63,13 +120,13 @@ export default function Home() {
       if (!res.ok) throw new Error()
       setMarkets(await res.json())
       setUpdated(new Date())
-    } catch { /* keep old data */ }
+    } catch { }
     finally { setLoading(false) }
   }
 
   useEffect(() => {
     load()
-    const t = setInterval(load, 30_000)
+    const t = setInterval(load, 60_000)
     return () => clearInterval(t)
   }, [])
 
@@ -79,7 +136,6 @@ export default function Home() {
 
   const displayed = markets.filter(m => m.sport === activeSport)
 
-  // Auto-switch to first available sport
   useEffect(() => {
     if (!loading && !counts[activeSport]) {
       const first = SPORT_TABS.find(s => counts[s] > 0)
@@ -88,10 +144,9 @@ export default function Home() {
   }, [loading, markets])
 
   return (
-    <div className="max-w-md mx-auto bg-gray-950 min-h-screen pb-8">
-      {/* Header */}
+    <div className="max-w-md mx-auto bg-gray-950 min-h-screen pb-10">
       <div className="px-4 pt-8 pb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Sports</h1>
+        <h1 className="text-2xl font-bold text-white">Sports Intel</h1>
         {updated && (
           <span className="text-xs text-gray-500">
             {updated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -99,8 +154,8 @@ export default function Home() {
         )}
       </div>
 
-      {/* Sport tabs */}
-      <div className="flex gap-1 px-3 pb-1 overflow-x-auto border-b border-gray-800">
+      {/* Tabs */}
+      <div className="flex gap-1 px-3 pb-0 overflow-x-auto border-b border-gray-800">
         {SPORT_TABS.map(sport => {
           const count = counts[sport] || 0
           const active = activeSport === sport
@@ -108,33 +163,24 @@ export default function Home() {
             <button
               key={sport}
               onClick={() => count > 0 && setActiveSport(sport)}
-              className={`flex-shrink-0 flex flex-col items-center px-3 pt-2 pb-2 rounded-t-lg transition-colors ${
+              className={`flex-shrink-0 flex flex-col items-center px-3 pt-2 pb-2 transition-colors ${
                 active ? 'border-b-2 border-white' : ''
               } ${count === 0 ? 'opacity-25 cursor-default' : 'cursor-pointer'}`}
             >
               <span className="text-xl">{SPORT_ICONS[sport]}</span>
-              <span className={`text-xs font-semibold mt-0.5 ${active ? 'text-white' : 'text-gray-400'}`}>
-                {sport}
-              </span>
-              {count > 0 && (
-                <span className="text-xs text-gray-600">{count}</span>
-              )}
+              <span className={`text-xs font-semibold mt-0.5 ${active ? 'text-white' : 'text-gray-500'}`}>{sport}</span>
+              {count > 0 && <span className="text-xs text-gray-600">{count}</span>}
             </button>
           )
         })}
       </div>
 
-      {/* Game list */}
       <div className="px-4 mt-2">
-        {loading && (
-          <p className="text-center text-gray-500 text-sm py-20">Loading...</p>
-        )}
+        {loading && <p className="text-center text-gray-500 text-sm py-20">Loading games...</p>}
         {!loading && displayed.length === 0 && (
-          <p className="text-center text-gray-500 text-sm py-20">
-            No {activeSport} games right now
-          </p>
+          <p className="text-center text-gray-500 text-sm py-20">No {activeSport} games right now</p>
         )}
-        {displayed.map(m => <GameCard key={m.id} market={m} />)}
+        {displayed.map(m => <GameCard key={m.id} market={m} sport={activeSport} />)}
       </div>
     </div>
   )
