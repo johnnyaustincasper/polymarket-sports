@@ -1,146 +1,170 @@
 import { NextResponse } from 'next/server'
 
-interface Team {
-  name: string
-  abbr: string
-  record: string
-  score?: string
-}
-
-interface Game {
-  id: string
-  homeTeam: Team
-  awayTeam: Team
-  gameTime: string
-  status: string
-  homeOdds: number
-  awayOdds: number
-  polymarketId?: string
-}
-
-// All NBA team name variations → standardized name
 const TEAM_ALIASES: Record<string, string> = {
-  'atlanta hawks': 'Atlanta Hawks', 'hawks': 'Atlanta Hawks',
-  'boston celtics': 'Boston Celtics', 'celtics': 'Boston Celtics',
-  'brooklyn nets': 'Brooklyn Nets', 'nets': 'Brooklyn Nets',
-  'charlotte hornets': 'Charlotte Hornets', 'hornets': 'Charlotte Hornets',
-  'chicago bulls': 'Chicago Bulls', 'bulls': 'Chicago Bulls',
-  'cleveland cavaliers': 'Cleveland Cavaliers', 'cavaliers': 'Cleveland Cavaliers', 'cavs': 'Cleveland Cavaliers',
-  'dallas mavericks': 'Dallas Mavericks', 'mavericks': 'Dallas Mavericks', 'mavs': 'Dallas Mavericks',
-  'denver nuggets': 'Denver Nuggets', 'nuggets': 'Denver Nuggets',
-  'detroit pistons': 'Detroit Pistons', 'pistons': 'Detroit Pistons',
-  'golden state warriors': 'Golden State Warriors', 'warriors': 'Golden State Warriors',
-  'houston rockets': 'Houston Rockets', 'rockets': 'Houston Rockets',
-  'indiana pacers': 'Indiana Pacers', 'pacers': 'Indiana Pacers',
-  'la clippers': 'LA Clippers', 'los angeles clippers': 'LA Clippers', 'clippers': 'LA Clippers',
-  'la lakers': 'LA Lakers', 'los angeles lakers': 'LA Lakers', 'lakers': 'LA Lakers',
-  'memphis grizzlies': 'Memphis Grizzlies', 'grizzlies': 'Memphis Grizzlies',
-  'miami heat': 'Miami Heat', 'heat': 'Miami Heat',
-  'milwaukee bucks': 'Milwaukee Bucks', 'bucks': 'Milwaukee Bucks',
-  'minnesota timberwolves': 'Minnesota Timberwolves', 'timberwolves': 'Minnesota Timberwolves', 'wolves': 'Minnesota Timberwolves',
-  'new orleans pelicans': 'New Orleans Pelicans', 'pelicans': 'New Orleans Pelicans',
-  'new york knicks': 'New York Knicks', 'knicks': 'New York Knicks',
-  'oklahoma city thunder': 'Oklahoma City Thunder', 'thunder': 'Oklahoma City Thunder', 'okc': 'Oklahoma City Thunder',
-  'orlando magic': 'Orlando Magic', 'magic': 'Orlando Magic',
-  'philadelphia 76ers': 'Philadelphia 76ers', '76ers': 'Philadelphia 76ers', 'sixers': 'Philadelphia 76ers',
-  'phoenix suns': 'Phoenix Suns', 'suns': 'Phoenix Suns',
-  'portland trail blazers': 'Portland Trail Blazers', 'trail blazers': 'Portland Trail Blazers', 'blazers': 'Portland Trail Blazers',
-  'sacramento kings': 'Sacramento Kings', 'kings': 'Sacramento Kings',
-  'san antonio spurs': 'San Antonio Spurs', 'spurs': 'San Antonio Spurs',
-  'toronto raptors': 'Toronto Raptors', 'raptors': 'Toronto Raptors',
-  'utah jazz': 'Utah Jazz', 'jazz': 'Utah Jazz',
-  'washington wizards': 'Washington Wizards', 'wizards': 'Washington Wizards',
+  'atlanta hawks': 'hawks', 'boston celtics': 'celtics', 'brooklyn nets': 'nets',
+  'charlotte hornets': 'hornets', 'chicago bulls': 'bulls', 'cleveland cavaliers': 'cavaliers',
+  'dallas mavericks': 'mavericks', 'denver nuggets': 'nuggets', 'detroit pistons': 'pistons',
+  'golden state warriors': 'warriors', 'houston rockets': 'rockets', 'indiana pacers': 'pacers',
+  'la clippers': 'clippers', 'los angeles clippers': 'clippers',
+  'la lakers': 'lakers', 'los angeles lakers': 'lakers',
+  'memphis grizzlies': 'grizzlies', 'miami heat': 'heat', 'milwaukee bucks': 'bucks',
+  'minnesota timberwolves': 'timberwolves', 'new orleans pelicans': 'pelicans',
+  'new york knicks': 'knicks', 'oklahoma city thunder': 'thunder',
+  'orlando magic': 'magic', 'philadelphia 76ers': '76ers',
+  'phoenix suns': 'suns', 'portland trail blazers': 'trail blazers',
+  'sacramento kings': 'kings', 'san antonio spurs': 'spurs',
+  'toronto raptors': 'raptors', 'utah jazz': 'jazz', 'washington wizards': 'wizards',
 }
 
-function normalize(name: string): string {
-  return TEAM_ALIASES[name.toLowerCase()] || name
+function teamSlug(name: string): string {
+  return TEAM_ALIASES[name.toLowerCase()] || name.toLowerCase().split(' ').pop() || name.toLowerCase()
 }
 
-export async function GET() {
+async function getPolymarketOdds(awayName: string, homeName: string, dateStr: string): Promise<{ awayOdds: number; homeOdds: number } | null> {
   try {
-    // Step 1: Get today's NBA games from ESPN
+    const awaySlug = teamSlug(awayName)
+    const homeSlug = teamSlug(homeName)
+
+    // Try multiple slug formats Polymarket uses
+    const slugsToTry = [
+      `nba-${awaySlug.replace(/\s+/g, '-')}-${homeSlug.replace(/\s+/g, '-')}-${dateStr}`,
+      `nba-${awaySlug.replace(/\s+/g, '-')}-vs-${homeSlug.replace(/\s+/g, '-')}-${dateStr}`,
+    ]
+
+    for (const slug of slugsToTry) {
+      const res = await fetch(`https://gamma-api.polymarket.com/events?slug=${slug}`, {
+        next: { revalidate: 60 }
+      })
+      if (!res.ok) continue
+      const events = await res.json()
+      if (!events?.length) continue
+
+      const event = events[0]
+      const winMarket = (event.markets || []).find((m: any) => {
+        const outcomes = JSON.parse(m.outcomes || '[]')
+        return outcomes.length === 2
+      })
+      if (!winMarket) continue
+
+      const outcomes = JSON.parse(winMarket.outcomes || '[]') as string[]
+      const prices = JSON.parse(winMarket.outcomePrices || '[]') as string[]
+
+      // Match away/home to outcomes
+      const awayIdx = outcomes.findIndex((o: string) =>
+        o.toLowerCase().includes(awaySlug) || awaySlug.includes(o.toLowerCase().split(' ').pop() || '')
+      )
+      const homeIdx = awayIdx === 0 ? 1 : 0
+
+      return {
+        awayOdds: parseFloat(prices[awayIdx >= 0 ? awayIdx : 0] || '0.5'),
+        homeOdds: parseFloat(prices[homeIdx] || '0.5'),
+      }
+    }
+
+    // Fallback: search by title keyword
+    const searchRes = await fetch(
+      `https://gamma-api.polymarket.com/events?active=true&closed=false&limit=50&tag_slug=nba-game-lines`,
+      { next: { revalidate: 60 } }
+    )
+    if (searchRes.ok) {
+      const events: any[] = await searchRes.json()
+      for (const event of events) {
+        const title = (event.title || '').toLowerCase()
+        if (title.includes(awaySlug) && title.includes(homeSlug)) {
+          const winMarket = (event.markets || []).find((m: any) => {
+            const outcomes = JSON.parse(m.outcomes || '[]')
+            return outcomes.length === 2
+          })
+          if (!winMarket) continue
+          const outcomes = JSON.parse(winMarket.outcomes || '[]') as string[]
+          const prices = JSON.parse(winMarket.outcomePrices || '[]') as string[]
+          const awayIdx = outcomes.findIndex((o: string) => o.toLowerCase().includes(awaySlug))
+          return {
+            awayOdds: parseFloat(prices[awayIdx >= 0 ? awayIdx : 0] || '0.5'),
+            homeOdds: parseFloat(prices[awayIdx === 0 ? 1 : 0] || '0.5'),
+          }
+        }
+      }
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const dateParam = searchParams.get('date') // YYYYMMDD format
+
+    const dateStr = dateParam || new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const espnDate = dateStr // ESPN uses YYYYMMDD
+
     const espnRes = await fetch(
-      'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${espnDate}`,
       { next: { revalidate: 60 } }
     )
     const espnData = await espnRes.json()
     const events = espnData?.events || []
 
-    if (events.length === 0) {
-      return NextResponse.json([])
-    }
+    if (events.length === 0) return NextResponse.json([])
 
-    // Step 2: Get Polymarket NBA game odds
-    // Search for recent NBA game events on Polymarket
-    const polyRes = await fetch(
-      'https://gamma-api.polymarket.com/events?active=true&closed=false&limit=500&tag_slug=nba-game-lines',
-      { next: { revalidate: 60 } }
-    )
-    const polyEvents: any[] = polyRes.ok ? await polyRes.json() : []
+    // Format date for Polymarket slugs: YYYY-MM-DD
+    const polyDate = `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}`
 
-    // Also try the general search with "NBA:" prefix
-    const polyRes2 = await fetch(
-      'https://gamma-api.polymarket.com/events?active=true&closed=false&limit=500&order=startDate&ascending=false',
-      { next: { revalidate: 60 } }
-    )
-    const polyEvents2: any[] = polyRes2.ok ? await polyRes2.json() : []
-
-    // Combine and filter for NBA game matchups only
-    const allPolyEvents = [...polyEvents, ...polyEvents2]
-    const nbaMatchups = allPolyEvents.filter((e: any) => {
-      const title = (e.title || '').toLowerCase()
-      return title.includes('nba') && title.includes('vs')
-    })
-
-    // Build odds lookup: normalized team name → win probability
-    const oddsMap: Record<string, number> = {}
-    for (const event of nbaMatchups) {
-      for (const market of (event.markets || [])) {
-        const outcomes = JSON.parse(market.outcomes || '[]') as string[]
-        const prices = JSON.parse(market.outcomePrices || '[]') as string[]
-        if (outcomes.length !== 2) continue
-        outcomes.forEach((name: string, i: number) => {
-          const normalized = normalize(name)
-          oddsMap[normalized] = parseFloat(prices[i] || '0')
-        })
-      }
-    }
-
-    // Step 3: Build game list from ESPN + attach Polymarket odds
-    const games: Game[] = events.map((event: any) => {
+    const games = await Promise.all(events.map(async (event: any) => {
       const comp = event.competitions?.[0]
       const home = comp?.competitors?.find((c: any) => c.homeAway === 'home')
       const away = comp?.competitors?.find((c: any) => c.homeAway === 'away')
 
-      const homeName = normalize(home?.team?.displayName || '')
-      const awayName = normalize(away?.team?.displayName || '')
-      const homeAbbr = home?.team?.abbreviation || ''
-      const awayAbbr = away?.team?.abbreviation || ''
+      const homeName = home?.team?.displayName || ''
+      const awayName = away?.team?.displayName || ''
       const homeRecord = home?.records?.[0]?.summary || ''
       const awayRecord = away?.records?.[0]?.summary || ''
       const homeScore = home?.score || ''
       const awayScore = away?.score || ''
-      const statusDetail = event.status?.type?.shortDetail || ''
-      const startTime = event.date
-        ? new Date(event.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })
-        : ''
       const isLive = event.status?.type?.state === 'in'
-      const gameTime = isLive ? `LIVE — ${statusDetail}` : startTime
+      const isPost = event.status?.type?.state === 'post'
+      const statusDetail = event.status?.type?.shortDetail || ''
 
-      // Get odds from Polymarket or fallback to 50/50
-      const homeOdds = oddsMap[homeName] || 0.5
-      const awayOdds = oddsMap[awayName] || (1 - homeOdds)
+      const gameDate = new Date(event.date)
+      const startTime = gameDate.toLocaleTimeString('en-US', {
+        hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago'
+      })
+
+      let gameTime = startTime
+      if (isLive) gameTime = `LIVE — ${statusDetail}`
+      else if (isPost) gameTime = 'Final'
+
+      // Try to get real Polymarket odds
+      const odds = await getPolymarketOdds(awayName, homeName, polyDate)
 
       return {
         id: event.id,
-        homeTeam: { name: homeName, abbr: homeAbbr, record: homeRecord, score: homeScore },
-        awayTeam: { name: awayName, abbr: awayAbbr, record: awayRecord, score: awayScore },
+        homeTeam: {
+          name: homeName,
+          abbr: home?.team?.abbreviation || '',
+          record: homeRecord,
+          score: homeScore,
+        },
+        awayTeam: {
+          name: awayName,
+          abbr: away?.team?.abbreviation || '',
+          record: awayRecord,
+          score: awayScore,
+        },
         gameTime,
+        gameDate: event.date,
         status: event.status?.type?.state || 'pre',
-        homeOdds,
-        awayOdds,
+        homeOdds: odds?.homeOdds ?? 0.5,
+        awayOdds: odds?.awayOdds ?? 0.5,
+        hasRealOdds: odds !== null,
       }
-    })
+    }))
+
+    // Sort by game time
+    games.sort((a: any, b: any) => new Date(a.gameDate).getTime() - new Date(b.gameDate).getTime())
 
     return NextResponse.json(games)
   } catch (err) {
