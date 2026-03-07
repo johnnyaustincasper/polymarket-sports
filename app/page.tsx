@@ -2,78 +2,49 @@
 
 import { useEffect, useState } from 'react'
 
-interface Outcome {
-  name: string
-  price: number
-}
-
+interface Outcome { name: string; price: number }
 interface Market {
   id: string
   question: string
   volume: number
   outcomes: Outcome[]
   sport: string
-  status: string
-  endDate?: string
+  gameStartTime?: string
 }
 
-const SPORT_TABS = ['NBA', 'NHL', 'NCAAB', 'UFC', 'MLS', 'MLB', 'NFL']
-
+const SPORT_TABS = ['NBA', 'NHL', 'NCAAB', 'UFC', 'MLB', 'NFL', 'MLS']
 const SPORT_ICONS: Record<string, string> = {
-  NBA: '🏀',
-  NHL: '🏒',
-  NCAAB: '🎓',
-  UFC: '🥊',
-  MLS: '⚽',
-  MLB: '⚾',
-  NFL: '🏈',
+  NBA: '🏀', NHL: '🏒', NCAAB: '🎓', UFC: '🥊', MLB: '⚾', NFL: '🏈', MLS: '⚽',
 }
 
-function getProbColor(pct: number): string {
-  if (pct >= 65) return 'bg-purple-600'
-  if (pct <= 35) return 'bg-blue-600'
-  return 'bg-gray-600'
-}
-
-function parseTeams(question: string): [string, string] {
-  // "NBA: Lakers vs. Celtics 2026-03-06" → ["Lakers", "Celtics"]
-  const cleaned = question.replace(/^(NBA|NHL|NCAAB|NFL|MLB|MLS|UFC):\s*/i, '').replace(/\d{4}-\d{2}-\d{2}.*$/, '').trim()
-  const parts = cleaned.split(/\s+vs\.?\s+/i)
-  return [parts[0]?.trim() || '', parts[1]?.trim() || '']
+function vol(n: number) {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`
+  return `$${n}`
 }
 
 function GameCard({ market }: { market: Market }) {
-  const vol = market.volume >= 1000000
-    ? `$${(market.volume / 1000000).toFixed(1)}M`
-    : `$${(market.volume / 1000).toFixed(0)}K`
-
-  const [teamA, teamB] = parseTeams(market.question)
-  const outcomeA = market.outcomes.find(o => o.name.toLowerCase().includes(teamA.split(' ').pop()?.toLowerCase() || '')) || market.outcomes[0]
-  const outcomeB = market.outcomes.find(o => o !== outcomeA) || market.outcomes[1]
-
-  const pctA = Math.round((outcomeA?.price || 0) * 100)
-  const pctB = Math.round((outcomeB?.price || 0) * 100)
+  const [a, b] = market.outcomes
+  const pctA = Math.round((a?.price || 0) * 100)
+  const pctB = Math.round((b?.price || 0) * 100)
 
   return (
-    <div className="border-b border-gray-800 py-4">
-      {/* Teams */}
-      <div className="mb-3 space-y-1">
-        <div className="flex justify-between items-center">
-          <span className="text-white font-medium text-base">{teamA || outcomeA?.name}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-white font-medium text-base">{teamB || outcomeB?.name}</span>
-          <span className="text-gray-500 text-xs">{vol} vol</span>
-        </div>
+    <div className="border-b border-gray-800 py-5">
+      {/* Matchup title */}
+      <div className="flex justify-between items-start mb-4">
+        <p className="text-white font-semibold text-base leading-snug pr-4">{market.question}</p>
+        <span className="text-gray-500 text-xs whitespace-nowrap">{vol(market.volume)}</span>
       </div>
 
-      {/* Probability buttons */}
+      {/* Win % buttons */}
       <div className="flex gap-2">
-        <button className={`flex-1 py-3 rounded-xl font-bold text-white text-sm ${getProbColor(pctA)}`}>
-          {outcomeA?.name?.split(' ').pop()?.toUpperCase()} {pctA}%
+        <button className="flex-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-2xl py-4 text-center transition-colors">
+          <div className="text-white font-bold text-xl">{pctA}%</div>
+          <div className="text-blue-200 text-xs mt-0.5 truncate px-1">{a?.name}</div>
         </button>
-        <button className={`flex-1 py-3 rounded-xl font-bold text-white text-sm ${getProbColor(pctB)}`}>
-          {outcomeB?.name?.split(' ').pop()?.toUpperCase()} {pctB}%
+        <button className="flex-1 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 rounded-2xl py-4 text-center transition-colors">
+          <div className="text-white font-bold text-xl">{pctB}%</div>
+          <div className="text-purple-200 text-xs mt-0.5 truncate px-1">{b?.name}</div>
         </button>
       </div>
     </div>
@@ -84,98 +55,86 @@ export default function Home() {
   const [markets, setMarkets] = useState<Market[]>([])
   const [loading, setLoading] = useState(true)
   const [activeSport, setActiveSport] = useState('NBA')
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [updated, setUpdated] = useState<Date | null>(null)
 
-  const fetchMarkets = async () => {
+  const load = async () => {
     try {
       const res = await fetch('/api/markets')
-      if (!res.ok) throw new Error('Failed')
-      const data = await res.json()
-      setMarkets(data)
-      setLastUpdated(new Date())
-    } catch {
-      // silent fail — keep showing old data
-    } finally {
-      setLoading(false)
-    }
+      if (!res.ok) throw new Error()
+      setMarkets(await res.json())
+      setUpdated(new Date())
+    } catch { /* keep old data */ }
+    finally { setLoading(false) }
   }
 
   useEffect(() => {
-    fetchMarkets()
-    const interval = setInterval(fetchMarkets, 30000)
-    return () => clearInterval(interval)
+    load()
+    const t = setInterval(load, 30_000)
+    return () => clearInterval(t)
   }, [])
 
-  // Count per sport for tab badges
-  const sportCounts = markets.reduce((acc, m) => {
-    acc[m.sport] = (acc[m.sport] || 0) + 1
-    return acc
+  const counts = markets.reduce((acc, m) => {
+    acc[m.sport] = (acc[m.sport] || 0) + 1; return acc
   }, {} as Record<string, number>)
 
-  const availableSports = SPORT_TABS.filter(s => sportCounts[s] > 0)
   const displayed = markets.filter(m => m.sport === activeSport)
 
-  // Auto-select first available sport
+  // Auto-switch to first available sport
   useEffect(() => {
-    if (!loading && availableSports.length > 0 && !sportCounts[activeSport]) {
-      setActiveSport(availableSports[0])
+    if (!loading && !counts[activeSport]) {
+      const first = SPORT_TABS.find(s => counts[s] > 0)
+      if (first) setActiveSport(first)
     }
   }, [loading, markets])
 
   return (
-    <div className="max-w-md mx-auto bg-gray-950 min-h-screen">
+    <div className="max-w-md mx-auto bg-gray-950 min-h-screen pb-8">
       {/* Header */}
-      <div className="px-4 pt-6 pb-2 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Sports</h1>
-        <span className="text-xs text-gray-500">
-          {lastUpdated ? `${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
-        </span>
+      <div className="px-4 pt-8 pb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white">Sports</h1>
+        {updated && (
+          <span className="text-xs text-gray-500">
+            {updated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
       </div>
 
       {/* Sport tabs */}
-      <div className="flex gap-1 px-4 pb-3 overflow-x-auto scrollbar-hide border-b border-gray-800">
+      <div className="flex gap-1 px-3 pb-1 overflow-x-auto border-b border-gray-800">
         {SPORT_TABS.map(sport => {
-          const count = sportCounts[sport] || 0
-          const isActive = activeSport === sport
+          const count = counts[sport] || 0
+          const active = activeSport === sport
           return (
             <button
               key={sport}
-              onClick={() => setActiveSport(sport)}
-              disabled={count === 0}
-              className={`flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-lg transition-colors ${
-                isActive ? 'bg-gray-800' : count === 0 ? 'opacity-30' : 'hover:bg-gray-900'
-              }`}
+              onClick={() => count > 0 && setActiveSport(sport)}
+              className={`flex-shrink-0 flex flex-col items-center px-3 pt-2 pb-2 rounded-t-lg transition-colors ${
+                active ? 'border-b-2 border-white' : ''
+              } ${count === 0 ? 'opacity-25 cursor-default' : 'cursor-pointer'}`}
             >
-              <span className="text-lg">{SPORT_ICONS[sport]}</span>
-              <span className={`text-xs mt-0.5 font-medium ${isActive ? 'text-white' : 'text-gray-500'}`}>{sport}</span>
+              <span className="text-xl">{SPORT_ICONS[sport]}</span>
+              <span className={`text-xs font-semibold mt-0.5 ${active ? 'text-white' : 'text-gray-400'}`}>
+                {sport}
+              </span>
               {count > 0 && (
-                <span className="text-xs text-gray-500">{count}</span>
+                <span className="text-xs text-gray-600">{count}</span>
               )}
             </button>
           )
         })}
       </div>
 
-      {/* Games */}
-      <div className="px-4">
-        {/* Games tab selector */}
-        <div className="flex gap-6 py-3 border-b border-gray-800 mb-1">
-          <span className="text-white font-semibold text-sm border-b-2 border-white pb-2">Games</span>
-        </div>
-
+      {/* Game list */}
+      <div className="px-4 mt-2">
         {loading && (
-          <div className="text-center py-20 text-gray-500 text-sm">Loading markets...</div>
+          <p className="text-center text-gray-500 text-sm py-20">Loading...</p>
         )}
-
         {!loading && displayed.length === 0 && (
-          <div className="text-center py-20 text-gray-500 text-sm">
-            No {activeSport} games available right now
-          </div>
+          <p className="text-center text-gray-500 text-sm py-20">
+            No {activeSport} games right now
+          </p>
         )}
-
-        {displayed.map(market => (
-          <GameCard key={market.id} market={market} />
-        ))}
+        {displayed.map(m => <GameCard key={m.id} market={m} />)}
       </div>
     </div>
   )
