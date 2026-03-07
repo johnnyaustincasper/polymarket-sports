@@ -20,69 +20,72 @@ function teamSlug(name: string): string {
   return TEAM_ALIASES[name.toLowerCase()] || name.toLowerCase().split(' ').pop() || name.toLowerCase()
 }
 
-async function getPolymarketOdds(awayName: string, homeName: string, dateStr: string): Promise<{ awayOdds: number; homeOdds: number } | null> {
+// ESPN abbreviation → Polymarket 3-letter slug
+const ESPN_TO_POLY: Record<string, string> = {
+  ATL: 'atl', BOS: 'bos', BKN: 'bkn', CHA: 'cha', CHI: 'chi',
+  CLE: 'cle', DAL: 'dal', DEN: 'den', DET: 'det', GSW: 'gs',
+  HOU: 'hou', IND: 'ind', LAC: 'lac', LAL: 'lal', MEM: 'mem',
+  MIA: 'mia', MIL: 'mil', MIN: 'min', NOP: 'no', NYK: 'ny',
+  OKC: 'okc', ORL: 'orl', PHI: 'phi', PHX: 'phx', POR: 'por',
+  SAC: 'sac', SAS: 'sas', TOR: 'tor', UTA: 'utah', WAS: 'wsh',
+}
+
+async function getPolymarketOdds(
+  awayAbbr: string, homeAbbr: string,
+  awayName: string, homeName: string,
+  dateStr: string
+): Promise<{ awayOdds: number; homeOdds: number } | null> {
   try {
-    const awaySlug = teamSlug(awayName)
-    const homeSlug = teamSlug(homeName)
+    const awayPoly = ESPN_TO_POLY[awayAbbr] || awayAbbr.toLowerCase()
+    const homePoly = ESPN_TO_POLY[homeAbbr] || homeAbbr.toLowerCase()
 
-    // Try multiple slug formats Polymarket uses
-    const slugsToTry = [
-      `nba-${awaySlug.replace(/\s+/g, '-')}-${homeSlug.replace(/\s+/g, '-')}-${dateStr}`,
-      `nba-${awaySlug.replace(/\s+/g, '-')}-vs-${homeSlug.replace(/\s+/g, '-')}-${dateStr}`,
-    ]
+    // Primary slug format: nba-[away]-[home]-YYYY-MM-DD
+    const slug = `nba-${awayPoly}-${homePoly}-${dateStr}`
+    const res = await fetch(`https://gamma-api.polymarket.com/events?slug=${slug}`, {
+      next: { revalidate: 60 }
+    })
 
-    for (const slug of slugsToTry) {
-      const res = await fetch(`https://gamma-api.polymarket.com/events?slug=${slug}`, {
-        next: { revalidate: 60 }
-      })
-      if (!res.ok) continue
+    if (res.ok) {
       const events = await res.json()
-      if (!events?.length) continue
-
-      const event = events[0]
-      const winMarket = (event.markets || []).find((m: any) => {
-        const outcomes = JSON.parse(m.outcomes || '[]')
-        return outcomes.length === 2
-      })
-      if (!winMarket) continue
-
-      const outcomes = JSON.parse(winMarket.outcomes || '[]') as string[]
-      const prices = JSON.parse(winMarket.outcomePrices || '[]') as string[]
-
-      // Match away/home to outcomes
-      const awayIdx = outcomes.findIndex((o: string) =>
-        o.toLowerCase().includes(awaySlug) || awaySlug.includes(o.toLowerCase().split(' ').pop() || '')
-      )
-      const homeIdx = awayIdx === 0 ? 1 : 0
-
-      return {
-        awayOdds: parseFloat(prices[awayIdx >= 0 ? awayIdx : 0] || '0.5'),
-        homeOdds: parseFloat(prices[homeIdx] || '0.5'),
+      if (events?.length) {
+        const market = events[0].markets?.[0]
+        if (market) {
+          const outcomes = JSON.parse(market.outcomes || '[]') as string[]
+          const prices = JSON.parse(market.outcomePrices || '[]') as string[]
+          // outcomes[0] is typically the away team nickname
+          const awayNick = awayName.split(' ').pop()?.toLowerCase() || ''
+          const awayIdx = outcomes.findIndex((o: string) => o.toLowerCase().includes(awayNick))
+          const homeIdx = awayIdx === 0 ? 1 : 0
+          return {
+            awayOdds: parseFloat(prices[awayIdx >= 0 ? awayIdx : 0] || '0.5'),
+            homeOdds: parseFloat(prices[homeIdx] || '0.5'),
+          }
+        }
       }
     }
 
-    // Fallback: search by title keyword
-    const searchRes = await fetch(
-      `https://gamma-api.polymarket.com/events?active=true&closed=false&limit=50&tag_slug=nba-game-lines`,
+    // Fallback: scan all upcoming NBA events by nickname match
+    const allRes = await fetch(
+      'https://gamma-api.polymarket.com/events?active=true&closed=false&limit=200&tag_slug=nba&order=startDate&ascending=false',
       { next: { revalidate: 60 } }
     )
-    if (searchRes.ok) {
-      const events: any[] = await searchRes.json()
-      for (const event of events) {
-        const title = (event.title || '').toLowerCase()
-        if (title.includes(awaySlug) && title.includes(homeSlug)) {
-          const winMarket = (event.markets || []).find((m: any) => {
-            const outcomes = JSON.parse(m.outcomes || '[]')
-            return outcomes.length === 2
-          })
-          if (!winMarket) continue
-          const outcomes = JSON.parse(winMarket.outcomes || '[]') as string[]
-          const prices = JSON.parse(winMarket.outcomePrices || '[]') as string[]
-          const awayIdx = outcomes.findIndex((o: string) => o.toLowerCase().includes(awaySlug))
-          return {
-            awayOdds: parseFloat(prices[awayIdx >= 0 ? awayIdx : 0] || '0.5'),
-            homeOdds: parseFloat(prices[awayIdx === 0 ? 1 : 0] || '0.5'),
-          }
+    if (!allRes.ok) return null
+    const allEvents: any[] = await allRes.ok ? await allRes.json() : []
+    const awayNick = awayName.split(' ').pop()?.toLowerCase() || ''
+    const homeNick = homeName.split(' ').pop()?.toLowerCase() || ''
+
+    for (const event of allEvents) {
+      const title = (event.title || '').toLowerCase()
+      if (title.includes(awayNick) && title.includes(homeNick)) {
+        const market = event.markets?.[0]
+        if (!market) continue
+        const outcomes = JSON.parse(market.outcomes || '[]') as string[]
+        const prices = JSON.parse(market.outcomePrices || '[]') as string[]
+        if (outcomes.length !== 2) continue
+        const awayIdx = outcomes.findIndex((o: string) => o.toLowerCase().includes(awayNick))
+        return {
+          awayOdds: parseFloat(prices[awayIdx >= 0 ? awayIdx : 0] || '0.5'),
+          homeOdds: parseFloat(prices[awayIdx === 0 ? 1 : 0] || '0.5'),
         }
       }
     }
@@ -138,7 +141,10 @@ export async function GET(req: Request) {
       else if (isPost) gameTime = 'Final'
 
       // Try to get real Polymarket odds
-      const odds = await getPolymarketOdds(awayName, homeName, polyDate)
+      const odds = await getPolymarketOdds(
+        away?.team?.abbreviation || '', home?.team?.abbreviation || '',
+        awayName, homeName, polyDate
+      )
 
       return {
         id: event.id,
