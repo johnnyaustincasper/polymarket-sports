@@ -2,54 +2,50 @@
 
 import { useEffect, useState } from 'react'
 
-interface Outcome {
-  name: string
-  abbr: string
-  record: string
-  price: number
-}
-
-interface Market {
+interface Team { name: string; abbr: string; record: string; score?: string }
+interface Game {
   id: string
-  question: string
-  volume: number
-  outcomes: Outcome[]
-  sport: string
-  gameTime?: string
+  homeTeam: Team
+  awayTeam: Team
+  gameTime: string
+  status: string
+  homeOdds: number
+  awayOdds: number
 }
 
-function btnColor(pct: number, idx: number): string {
-  if (pct >= 80) return idx === 0 ? 'bg-blue-600' : 'bg-blue-600'
-  if (pct >= 60) return 'bg-pink-600'
-  if (pct <= 20) return 'bg-gray-700 text-gray-400'
-  return 'bg-blue-500'
+function btnColor(pct: number): string {
+  if (pct >= 70) return 'bg-blue-600'
+  if (pct >= 50) return 'bg-indigo-500'
+  if (pct >= 35) return 'bg-purple-600'
+  return 'bg-gray-700'
 }
 
-function GameCard({ market }: { market: Market }) {
-  const [a, b] = market.outcomes
-  const pctA = Math.round((a?.price || 0) * 100)
-  const pctB = Math.round((b?.price || 0) * 100)
+function GameCard({ game }: { game: Game }) {
+  const homePct = Math.round(game.homeOdds * 100)
+  const awayPct = Math.round(game.awayOdds * 100)
+  const isLive = game.status === 'in'
+
   const [analysis, setAnalysis] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false)
   const [open, setOpen] = useState(false)
 
   const getAnalysis = async () => {
     if (analysis) { setOpen(!open); return }
-    setLoading(true)
+    setLoadingAnalysis(true)
     setOpen(true)
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          question: market.question,
+          question: `NBA: ${game.awayTeam.name} vs ${game.homeTeam.name}`,
           sport: 'NBA',
-          teamA: a?.name,
-          teamB: b?.name,
-          recordA: a?.record,
-          recordB: b?.record,
-          polyOddsA: pctA,
-          polyOddsB: pctB,
+          teamA: game.awayTeam.name,
+          teamB: game.homeTeam.name,
+          recordA: game.awayTeam.record,
+          recordB: game.homeTeam.record,
+          polyOddsA: awayPct,
+          polyOddsB: homePct,
         }),
       })
       const data = await res.json()
@@ -57,7 +53,7 @@ function GameCard({ market }: { market: Market }) {
     } catch {
       setAnalysis('Could not load analysis. Try again.')
     } finally {
-      setLoading(false)
+      setLoadingAnalysis(false)
     }
   }
 
@@ -69,49 +65,60 @@ function GameCard({ market }: { market: Market }) {
 
   return (
     <div className="py-5 border-b border-gray-800">
-      {/* Game time */}
-      {market.gameTime && (
-        <p className="text-gray-500 text-xs mb-2">{market.gameTime}</p>
-      )}
+      {/* Game time / status */}
+      <div className="flex items-center gap-2 mb-3">
+        {isLive && <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">LIVE</span>}
+        <span className="text-gray-400 text-sm">{game.gameTime}</span>
+      </div>
 
       {/* Teams */}
-      <div className="mb-3 space-y-1.5">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">👟</span>
+      <div className="space-y-2 mb-4">
+        {/* Away team */}
+        <div className="flex items-center justify-between">
           <div>
-            <span className="text-white font-semibold text-base">{a?.name}</span>
-            {a?.record && <span className="text-gray-500 text-sm ml-2">{a.record}</span>}
+            <span className="text-white font-semibold text-base">{game.awayTeam.name}</span>
+            {game.awayTeam.record && (
+              <span className="text-gray-500 text-sm ml-2">{game.awayTeam.record}</span>
+            )}
           </div>
+          {isLive && game.awayTeam.score && (
+            <span className="text-white font-bold text-xl">{game.awayTeam.score}</span>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">👟</span>
+        {/* Home team */}
+        <div className="flex items-center justify-between">
           <div>
-            <span className="text-white font-semibold text-base">{b?.name}</span>
-            {b?.record && <span className="text-gray-500 text-sm ml-2">{b.record}</span>}
+            <span className="text-white font-semibold text-base">{game.homeTeam.name}</span>
+            {game.homeTeam.record && (
+              <span className="text-gray-500 text-sm ml-2">{game.homeTeam.record}</span>
+            )}
           </div>
+          {isLive && game.homeTeam.score && (
+            <span className="text-white font-bold text-xl">{game.homeTeam.score}</span>
+          )}
         </div>
       </div>
 
-      {/* Buttons */}
+      {/* Odds buttons */}
       <div className="flex gap-2 mb-3">
         <button
           onClick={getAnalysis}
-          className={`flex-1 py-3.5 rounded-2xl font-bold text-white text-base ${btnColor(pctA, 0)}`}
+          className={`flex-1 py-3.5 rounded-2xl font-bold text-white text-base transition-opacity hover:opacity-90 ${btnColor(awayPct)}`}
         >
-          {a?.abbr} {pctA}%
+          {game.awayTeam.abbr} {awayPct}%
         </button>
         <button
           onClick={getAnalysis}
-          className={`flex-1 py-3.5 rounded-2xl font-bold text-white text-base ${btnColor(pctB, 1)}`}
+          className={`flex-1 py-3.5 rounded-2xl font-bold text-white text-base transition-opacity hover:opacity-90 ${btnColor(homePct)}`}
         >
-          {b?.abbr} {pctB}%
+          {game.homeTeam.abbr} {homePct}%
         </button>
       </div>
 
-      {/* Analysis panel */}
+      {/* Analysis */}
       {open && (
-        <div className="bg-gray-900 rounded-2xl p-4">
-          {loading
+        <div className="bg-gray-900 rounded-2xl p-4 mt-1">
+          {loadingAnalysis
             ? <p className="text-gray-400 text-sm text-center py-2">Analyzing matchup...</p>
             : <div>{analysis && renderAnalysis(analysis)}</div>
           }
@@ -122,7 +129,7 @@ function GameCard({ market }: { market: Market }) {
 }
 
 export default function Home() {
-  const [markets, setMarkets] = useState<Market[]>([])
+  const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [updated, setUpdated] = useState<Date | null>(null)
 
@@ -130,7 +137,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/markets')
       if (!res.ok) throw new Error()
-      setMarkets(await res.json())
+      setGames(await res.json())
       setUpdated(new Date())
     } catch { }
     finally { setLoading(false) }
@@ -145,29 +152,34 @@ export default function Home() {
   return (
     <div className="max-w-md mx-auto bg-black min-h-screen pb-10">
       {/* Header */}
-      <div className="px-4 pt-8 pb-2 flex items-center justify-between sticky top-0 bg-black z-10 border-b border-gray-800">
+      <div className="px-4 pt-8 pb-3 flex items-center justify-between sticky top-0 bg-black z-10 border-b border-gray-800">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🏀</span>
           <h1 className="text-xl font-bold text-white">NBA Intel</h1>
         </div>
-        {updated && (
-          <span className="text-xs text-gray-500">
-            {updated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {updated && (
+            <span className="text-xs text-gray-500">
+              {updated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <button onClick={load} className="text-gray-400 text-lg">↻</button>
+        </div>
       </div>
 
-      {/* Games tab */}
-      <div className="px-4 pt-2 pb-0 border-b border-gray-800">
+      {/* Tab */}
+      <div className="px-4 pt-3 pb-0 border-b border-gray-800">
         <span className="text-white font-semibold text-sm pb-2 border-b-2 border-white inline-block">Games</span>
       </div>
 
       <div className="px-4">
-        {loading && <p className="text-center text-gray-500 text-sm py-20">Loading games...</p>}
-        {!loading && markets.length === 0 && (
-          <p className="text-center text-gray-500 text-sm py-20">No NBA games right now</p>
+        {loading && <p className="text-center text-gray-500 text-sm py-20">Loading today's games...</p>}
+        {!loading && games.length === 0 && (
+          <div className="text-center py-20">
+            <p className="text-gray-500 text-sm">No NBA games today</p>
+          </div>
         )}
-        {markets.map(m => <GameCard key={m.id} market={m} />)}
+        {games.map(g => <GameCard key={g.id} game={g} />)}
       </div>
     </div>
   )
