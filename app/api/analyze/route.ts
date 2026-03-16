@@ -202,46 +202,35 @@ Use ALL the live data below plus your knowledge of this season's stats, player p
 
 ${context}
 
-Write a comprehensive betting breakdown in this exact format:
+IMPORTANT: Structure your response using EXACTLY these section headers (copy them verbatim):
 
-🏀 **${teamA} vs ${teamB}**
+###🎲 Win Probability
+${teamA}: ${polyOddsA}% | ${teamB}: ${polyOddsB}%
+[1-2 sentences on what these odds mean and whether they look right]
 
-**Win Probability:** ${teamA} ${polyOddsA}% | ${teamB} ${polyOddsB}%
+###📊 Standings
+[Conference record + playoff position for each team. Keep it brief.]
 
-**Standings:** [Conference record + playoff position for each team from standings data above]
+###🔁 Season Series
+[Head-to-head this season — who leads, score breakdown, any patterns]
 
-**Season Series:** [Head-to-head this season — who leads, any patterns]
+###📈 Offense & Defense
+**${teamA}:** [PPG, FG%, 3P%, top scorer, pace, defensive rank]
+**${teamB}:** [PPG, FG%, 3P%, top scorer, pace, defensive rank]
 
----
+###🏥 Injury Report
+**${teamA}:** [Each player: Name — STATUS — Injury — Impact]
+**${teamB}:** [Each player: Name — STATUS — Injury — Impact]
 
-📊 **Offensive & Defensive Rankings**
+###💪 Matchup Breakdown
+**${teamA} edges:** [2-3 specific advantages tonight]
+**${teamB} edges:** [2-3 specific advantages tonight]
 
-**${teamA}**
-[PPG, FG%, 3P%, key playmakers with stats, pace/style, defensive ranking]
+###🎯 Underdog Case
+[Why ${polyOddsA < polyOddsB ? teamA : teamB} at ${Math.min(polyOddsA, polyOddsB)}% has value — 3 reasons]
 
-**${teamB}**
-[PPG, FG%, 3P%, key playmakers with stats, pace/style, defensive ranking]
-
----
-
-🏥 **Injury Report — ${today}**
-
-**${teamA}:** [From live data above: each player, status, injury, impact on tonight]
-**${teamB}:** [From live data above: each player, status, injury, impact on tonight]
-
----
-
-💪 **Matchup Breakdown**
-
-**${teamA} advantages:** [2-3 specific stat-backed edges in THIS matchup]
-**${teamB} advantages:** [2-3 specific stat-backed edges in THIS matchup]
-
----
-
-🎯 **Underdog Case for ${polyOddsA < polyOddsB ? teamA : teamB} (~${Math.min(polyOddsA, polyOddsB)}%)**
-[3 specific reasons why the underdog has real value tonight]
-
-**⚡ Pick:** [Name the team. One sentence. Be direct.]`
+###⚡ The Pick
+[Team name. One sentence. Be direct and confident.]`
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',

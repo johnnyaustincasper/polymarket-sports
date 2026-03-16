@@ -125,50 +125,26 @@ function AnalysisSection({ title, emoji, content }: { title: string; emoji: stri
 }
 
 function parseAnalysis(text: string): { title: string; emoji: string; content: string }[] {
-  // Split on --- dividers or emoji header lines
+  // Prompt outputs sections delimited by: ###EMOJI TITLE
+  const lines = text.split('\n')
   const sections: { title: string; emoji: string; content: string }[] = []
-  const sectionDefs = [
-    { key: 'Win Probability', emoji: '🎲', title: 'Win Probability' },
-    { key: 'Standings', emoji: '📊', title: 'Standings' },
-    { key: 'Season Series', emoji: '🔁', title: 'Season Series' },
-    { key: 'Offensive & Defensive', emoji: '📈', title: 'Offense & Defense' },
-    { key: 'Injury Report', emoji: '🏥', title: 'Injury Report' },
-    { key: 'Matchup Breakdown', emoji: '💪', title: 'Matchup Breakdown' },
-    { key: 'Underdog Case', emoji: '🎯', title: 'Underdog Case' },
-    { key: 'Pick', emoji: '⚡', title: 'The Pick' },
-  ]
+  let current: { title: string; emoji: string; lines: string[] } | null = null
 
-  let remaining = text
-    .replace(/^🏀.*$/m, '')        // remove title line
-    .replace(/^---+$/gm, '')       // remove dividers
-    .trim()
-
-  for (let i = 0; i < sectionDefs.length; i++) {
-    const def = sectionDefs[i]
-    const nextDef = sectionDefs[i + 1]
-
-    // Find this section header (handles **Header** and plain Header)
-    const headerPattern = new RegExp(`\\*?\\*?(?:📊|📈|🏥|💪|🎯|⚡|🎲|🔁)?\\s*\\*?\\*?${def.key}[^\\n]*`, 'i')
-    const match = remaining.match(headerPattern)
-    if (!match) continue
-
-    const start = remaining.indexOf(match[0]) + match[0].length
-
-    // Find where next section starts
-    let end = remaining.length
-    if (nextDef) {
-      const nextPattern = new RegExp(`\\*?\\*?(?:📊|📈|🏥|💪|🎯|⚡|🎲|🔁)?\\s*\\*?\\*?${nextDef.key}[^\\n]*`, 'i')
-      const nextMatch = remaining.slice(start).match(nextPattern)
-      if (nextMatch) end = start + remaining.slice(start).indexOf(nextMatch[0])
-    }
-
-    const content = remaining.slice(start, end).trim()
-    if (content.length > 5) {
-      sections.push({ title: def.title, emoji: def.emoji, content })
+  for (const line of lines) {
+    const m = line.match(/^###(\S+)\s+(.+)$/)
+    if (m) {
+      if (current && current.lines.join('\n').trim().length > 3) {
+        sections.push({ emoji: current.emoji, title: current.title, content: current.lines.join('\n').trim() })
+      }
+      current = { emoji: m[1], title: m[2].trim(), lines: [] }
+    } else if (current) {
+      current.lines.push(line)
     }
   }
+  if (current && current.lines.join('\n').trim().length > 3) {
+    sections.push({ emoji: current.emoji, title: current.title, content: current.lines.join('\n').trim() })
+  }
 
-  // If parsing failed, return raw as single section
   if (!sections.length) {
     return [{ title: 'Analysis', emoji: '✦', content: text }]
   }
