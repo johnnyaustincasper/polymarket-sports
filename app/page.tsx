@@ -90,6 +90,91 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
   )
 }
 
+// ─── Analysis Section Card ────────────────────────────────────────────────────
+function AnalysisSection({ title, emoji, content }: { title: string; emoji: string; content: string }) {
+  // Parse bullet points and bold text into clean elements
+  const lines = content.split('\n').filter(l => l.trim())
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4 mb-3">
+      <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-3">{emoji} {title}</p>
+      <div className="flex flex-col gap-1.5">
+        {lines.map((line, i) => {
+          const trimmed = line.trim()
+          if (!trimmed) return null
+          // Bold headers like **TeamName**
+          if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+            return <p key={i} className="text-white font-bold text-sm mt-1">{trimmed.replace(/\*\*/g, '')}</p>
+          }
+          // Bullet points
+          if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
+            const text = trimmed.replace(/^[•\-*]\s*/, '').replace(/\*\*(.*?)\*\*/g, '$1')
+            return (
+              <div key={i} className="flex gap-2">
+                <span className="text-amber-400/60 mt-0.5 flex-shrink-0">·</span>
+                <p className="text-white/65 text-sm leading-snug">{text}</p>
+              </div>
+            )
+          }
+          // Bold inline text cleanup
+          const cleaned = trimmed.replace(/\*\*(.*?)\*\*/g, '$1')
+          return <p key={i} className="text-white/65 text-sm leading-snug">{cleaned}</p>
+        })}
+      </div>
+    </div>
+  )
+}
+
+function parseAnalysis(text: string): { title: string; emoji: string; content: string }[] {
+  // Split on --- dividers or emoji header lines
+  const sections: { title: string; emoji: string; content: string }[] = []
+  const sectionDefs = [
+    { key: 'Win Probability', emoji: '🎲', title: 'Win Probability' },
+    { key: 'Standings', emoji: '📊', title: 'Standings' },
+    { key: 'Season Series', emoji: '🔁', title: 'Season Series' },
+    { key: 'Offensive & Defensive', emoji: '📈', title: 'Offense & Defense' },
+    { key: 'Injury Report', emoji: '🏥', title: 'Injury Report' },
+    { key: 'Matchup Breakdown', emoji: '💪', title: 'Matchup Breakdown' },
+    { key: 'Underdog Case', emoji: '🎯', title: 'Underdog Case' },
+    { key: 'Pick', emoji: '⚡', title: 'The Pick' },
+  ]
+
+  let remaining = text
+    .replace(/^🏀.*$/m, '')        // remove title line
+    .replace(/^---+$/gm, '')       // remove dividers
+    .trim()
+
+  for (let i = 0; i < sectionDefs.length; i++) {
+    const def = sectionDefs[i]
+    const nextDef = sectionDefs[i + 1]
+
+    // Find this section header (handles **Header** and plain Header)
+    const headerPattern = new RegExp(`\\*?\\*?(?:📊|📈|🏥|💪|🎯|⚡|🎲|🔁)?\\s*\\*?\\*?${def.key}[^\\n]*`, 'i')
+    const match = remaining.match(headerPattern)
+    if (!match) continue
+
+    const start = remaining.indexOf(match[0]) + match[0].length
+
+    // Find where next section starts
+    let end = remaining.length
+    if (nextDef) {
+      const nextPattern = new RegExp(`\\*?\\*?(?:📊|📈|🏥|💪|🎯|⚡|🎲|🔁)?\\s*\\*?\\*?${nextDef.key}[^\\n]*`, 'i')
+      const nextMatch = remaining.slice(start).match(nextPattern)
+      if (nextMatch) end = start + remaining.slice(start).indexOf(nextMatch[0])
+    }
+
+    const content = remaining.slice(start, end).trim()
+    if (content.length > 5) {
+      sections.push({ title: def.title, emoji: def.emoji, content })
+    }
+  }
+
+  // If parsing failed, return raw as single section
+  if (!sections.length) {
+    return [{ title: 'Analysis', emoji: '✦', content: text }]
+  }
+  return sections
+}
+
 // ─── AI Analysis Modal ────────────────────────────────────────────────────────
 function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
   const [analysis, setAnalysis] = useState('')
@@ -110,18 +195,36 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
       .catch(() => { setAnalysis('Failed to load analysis.'); setLoading(false) })
   }, [])
 
+  const sections = analysis ? parseAnalysis(analysis) : []
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/80 backdrop-blur-sm" onClick={onClose}>
-      <div className="flex-1 overflow-y-auto max-w-md w-full mx-auto bg-zinc-900 border-x border-white/10 px-5 py-6" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="text-white/30 text-sm mb-4 flex items-center gap-1">← Close</button>
-        <p className="text-white/30 text-xs mb-1">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
-        <h3 className="text-white font-black text-lg mb-4">AI Breakdown</h3>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(16px)' }}>
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-5 pt-5 pb-3 max-w-md mx-auto w-full">
+        <div>
+          <p className="text-white/30 text-xs">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
+          <h3 className="text-white font-black text-lg leading-tight">AI Breakdown</h3>
+        </div>
+        <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white/50 text-lg">×</button>
+      </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-4 pb-8 max-w-md mx-auto w-full">
         {loading ? (
-          <div className="flex flex-col gap-3">
-            {[1,2,3,4,5].map(i => <div key={i} className="h-4 rounded-full bg-white/10 animate-pulse" style={{ width: `${60+i*7}%` }} />)}
+          <div className="flex flex-col gap-3 mt-2">
+            {[80,65,90,70,85].map((w,i) => (
+              <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="h-2.5 rounded-full bg-white/10 animate-pulse mb-3" style={{ width: '40%' }} />
+                {[w, w-15, w+5, w-10].map((pw,j) => (
+                  <div key={j} className="h-2 rounded-full bg-white/8 animate-pulse mb-2" style={{ width: `${pw}%` }} />
+                ))}
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="text-white/70 text-sm leading-relaxed whitespace-pre-wrap">{analysis}</div>
+          <div className="mt-2">
+            {sections.map((s, i) => <AnalysisSection key={i} title={s.title} emoji={s.emoji} content={s.content} />)}
+          </div>
         )}
       </div>
     </div>

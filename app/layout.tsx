@@ -7,12 +7,10 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'NBA Lines',
   },
-  other: {
-    'mobile-web-app-capable': 'yes',
-  },
+  other: { 'mobile-web-app-capable': 'yes' },
 }
 
 export const viewport: Viewport = {
@@ -21,7 +19,6 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -30,7 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body className="bg-black text-white min-h-screen">{children}</body>
+      <body style={{ background: 'linear-gradient(135deg, #0a0a1a 0%, #0d1520 40%, #0a1208 100%)' }} className="text-white min-h-screen">
+        {children}
+      </body>
     </html>
   )
 }
