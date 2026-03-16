@@ -514,7 +514,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             {game.hasSpreadOdds && game.dkSpread != null && (() => {
               const edge = Math.abs(game.spreadLine - game.dkSpread) >= 1.5
               return (
-                <div className={`grid grid-cols-3 items-center py-1.5 px-2 rounded-xl mb-1 ${edge ? 'bg-amber-50 border border-amber-400/20' : 'bg-white/3'}`}>
+                <div style={edge ? { background: 'rgba(251,191,36,0.15)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(251,191,36,0.3)' } : { background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.4)' }} className="grid grid-cols-3 items-center py-1.5 px-2 rounded-xl mb-1">
                   <span className="text-zinc-400 text-[11px]">Spread</span>
                   <span className="text-center text-zinc-500 text-[11px] font-mono">{game.dkSpread > 0 ? '+' : ''}{game.dkSpread}</span>
                   <div className="flex items-center justify-center gap-1">
@@ -527,7 +527,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             {game.hasTotalOdds && game.dkTotal != null && (() => {
               const edge = Math.abs(game.totalLine - game.dkTotal) >= 2
               return (
-                <div className={`grid grid-cols-3 items-center py-1.5 px-2 rounded-xl ${edge ? 'bg-amber-50 border border-amber-400/20' : 'bg-white/3'}`}>
+                <div style={edge ? { background: 'rgba(251,191,36,0.15)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(251,191,36,0.3)' } : { background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.4)' }} className="grid grid-cols-3 items-center py-1.5 px-2 rounded-xl">
                   <span className="text-zinc-400 text-[11px]">Total</span>
                   <span className="text-center text-zinc-500 text-[11px] font-mono">{game.dkTotal}</span>
                   <div className="flex items-center justify-center gap-1">
