@@ -160,10 +160,14 @@ async function getPolyOdds(
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const dateParam = searchParams.get('date') || new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const toCST = (d: Date) => {
+      const cst = new Date(d.toLocaleString('en-US', { timeZone: 'America/Chicago' }))
+      return cst.toISOString().slice(0, 10).replace(/-/g, '')
+    }
+    const dateParam = searchParams.get('date') || toCST(new Date())
 
     // Use date param for historical; omit for today (gets live scores)
-    const isToday = dateParam === new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const isToday = dateParam === toCST(new Date())
     const espnUrl = isToday
       ? 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
       : `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateParam}`
