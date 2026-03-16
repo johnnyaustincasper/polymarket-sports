@@ -30,6 +30,10 @@ interface Game {
   overOdds: number
   underOdds: number
   hasTotalOdds: boolean
+  dkSpread: number | null
+  dkTotal: number | null
+  dkDetails: string
+  hasDkOdds: boolean
 }
 
 const pct = (v: number) => Math.round(v * 100)
@@ -236,6 +240,62 @@ function GameCard({ game }: { game: Game }) {
 
       {!game.hasWinnerOdds && !game.hasSpreadOdds && !game.hasTotalOdds && (
         <p className="text-center text-white/20 text-[10px] mt-3">Lines open closer to tip-off</p>
+      )}
+
+      {/* DraftKings vs Polymarket comparison */}
+      {game.hasDkOdds && (game.hasSpreadOdds || game.hasTotalOdds) && (
+        <div className="mt-3 pt-3 border-t border-white/5">
+          <p className="text-[10px] font-semibold text-white/25 uppercase tracking-widest mb-2">Line Comparison</p>
+          <div className="grid grid-cols-3 text-[10px] text-white/30 text-center mb-1">
+            <span className="text-left">Market</span>
+            <span>DraftKings</span>
+            <span>Polymarket</span>
+          </div>
+
+          {/* Spread comparison */}
+          {game.hasSpreadOdds && game.dkSpread != null && (() => {
+            const polySpread = game.spreadLine
+            const diff = Math.abs(polySpread - game.dkSpread)
+            const hasEdge = diff >= 1.5
+            return (
+              <div className={`grid grid-cols-3 items-center py-1.5 px-2 rounded-xl mb-1 ${hasEdge ? 'bg-amber-400/10 border border-amber-400/20' : 'bg-white/3'}`}>
+                <span className="text-white/50 text-[11px]">Spread</span>
+                <span className="text-center text-white/70 text-[11px] font-mono">
+                  {game.dkSpread > 0 ? '+' : ''}{game.dkSpread}
+                </span>
+                <div className="flex items-center justify-center gap-1">
+                  <span className={`text-[11px] font-mono ${hasEdge ? 'text-amber-300 font-bold' : 'text-white/70'}`}>
+                    {polySpread > 0 ? '+' : ''}{polySpread}
+                  </span>
+                  {hasEdge && <span className="text-amber-400 text-[10px]">⚡</span>}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Total comparison */}
+          {game.hasTotalOdds && game.dkTotal != null && (() => {
+            const diff = Math.abs(game.totalLine - game.dkTotal)
+            const hasEdge = diff >= 2
+            return (
+              <div className={`grid grid-cols-3 items-center py-1.5 px-2 rounded-xl ${hasEdge ? 'bg-amber-400/10 border border-amber-400/20' : 'bg-white/3'}`}>
+                <span className="text-white/50 text-[11px]">Total</span>
+                <span className="text-center text-white/70 text-[11px] font-mono">{game.dkTotal}</span>
+                <div className="flex items-center justify-center gap-1">
+                  <span className={`text-[11px] font-mono ${hasEdge ? 'text-amber-300 font-bold' : 'text-white/70'}`}>
+                    {game.totalLine}
+                  </span>
+                  {hasEdge && <span className="text-amber-400 text-[10px]">⚡</span>}
+                </div>
+              </div>
+            )
+          })()}
+
+          {(game.hasSpreadOdds && game.dkSpread != null && Math.abs(game.spreadLine - game.dkSpread) >= 1.5) ||
+           (game.hasTotalOdds && game.dkTotal != null && Math.abs(game.totalLine - game.dkTotal) >= 2) ? (
+            <p className="text-amber-400/70 text-[10px] mt-2 text-center">⚡ Lines diverge — potential edge</p>
+          ) : null}
+        </div>
       )}
     </GlassCard>
   )

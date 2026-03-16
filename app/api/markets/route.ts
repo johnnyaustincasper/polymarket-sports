@@ -185,6 +185,12 @@ export async function GET(req: Request) {
 
       const odds = await getPolyOdds(awayAbbr, homeAbbr, awayName, homeName)
 
+      // DraftKings odds from ESPN
+      const dk = comp?.odds?.[0]
+      const dkSpread: number | null = dk?.spread ?? null          // negative = home fav
+      const dkTotal: number | null = dk?.overUnder ?? null
+      const dkDetails: string = dk?.details ?? ''                 // e.g. "SAC -3.5"
+
       return {
         id: event.id,
         homeTeam: {
@@ -208,6 +214,11 @@ export async function GET(req: Request) {
         gameTime,
         gameDate: event.date,
         status: event.status?.type?.state || 'pre',
+        // DraftKings
+        dkSpread,
+        dkTotal,
+        dkDetails,
+        hasDkOdds: dk != null,
         ...odds,
       }
     }))
