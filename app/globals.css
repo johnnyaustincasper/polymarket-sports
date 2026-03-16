@@ -5,8 +5,11 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-html, body {
-  background: #f0f2f5 !important;
+html {
+  background: #dfe8f5;
+}
+body {
+  background: transparent !important;
 }
 
 

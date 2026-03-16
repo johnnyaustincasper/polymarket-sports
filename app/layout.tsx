@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body style={{ background: '#f0f2f5', minHeight: '100dvh' }} className="text-zinc-900">
+      <body style={{ background: 'transparent', minHeight: '100dvh' }} className="text-zinc-900">
         {children}
       </body>
     </html>

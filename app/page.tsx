@@ -607,13 +607,13 @@ export default function Home() {
   return (
     <main className="min-h-screen text-zinc-900 relative">
       {/* Ambient blobs */}
-      <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: -1 }}>
-        <div style={{ position: 'absolute', top: '-160px', left: '-160px', width: '800px', height: '800px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(147,197,253,0.6) 0%, transparent 70%)', filter: 'blur(40px)' }} />
-        <div style={{ position: 'absolute', top: '40%', right: '-160px', width: '700px', height: '700px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(252,211,77,0.5) 0%, transparent 70%)', filter: 'blur(40px)' }} />
-        <div style={{ position: 'absolute', bottom: '-100px', left: '33%', width: '600px', height: '600px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(110,231,183,0.45) 0%, transparent 70%)', filter: 'blur(40px)' }} />
+      <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
+        <div style={{ position: 'absolute', top: '-200px', left: '-200px', width: '900px', height: '900px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,179,237,0.75) 0%, transparent 65%)', filter: 'blur(60px)' }} />
+        <div style={{ position: 'absolute', top: '35%', right: '-200px', width: '800px', height: '800px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(251,191,36,0.65) 0%, transparent 65%)', filter: 'blur(60px)' }} />
+        <div style={{ position: 'absolute', bottom: '-150px', left: '30%', width: '700px', height: '700px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(52,211,153,0.6) 0%, transparent 65%)', filter: 'blur(60px)' }} />
       </div>
 
-      <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10">
+      <div style={{ position: "relative", zIndex: 1 }} className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
