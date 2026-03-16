@@ -600,52 +600,81 @@ export default function Home() {
   const final = games.filter(g => g.status === 'post')
   const pendingBets = bets.filter(b => b.result === 'pending').length
 
+  const logBet = (b: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) =>
+    saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])
+
   return (
-    <main className="min-h-screen text-zinc-900 relative" style={{ background: "transparent" }}>
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-200/40 blur-3xl" />
-        <div className="absolute top-1/3 -right-24 w-80 h-80 rounded-full bg-amber-200/40 blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-72 h-72 rounded-full bg-emerald-200/30 blur-3xl" />
+    <main className="min-h-screen text-zinc-900 relative">
+      {/* Ambient blobs — fixed so they cover full viewport */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute -top-40 -left-40 w-[700px] h-[700px] rounded-full bg-blue-200/50 blur-3xl" />
+        <div className="absolute top-1/2 -right-40 w-[600px] h-[600px] rounded-full bg-amber-200/40 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] rounded-full bg-emerald-200/30 blur-3xl" />
       </div>
 
-      <div className="relative max-w-md mx-auto px-4 py-8">
+      <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10">
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-black tracking-tight">NBA <span className="text-amber-500">Lines</span></h1>
-            <p className="text-zinc-400 text-xs mt-0.5">Polymarket · DraftKings · AI</p>
+            <h1 className="text-3xl font-black tracking-tight">NBA <span className="text-amber-500">Lines</span></h1>
+            <p className="text-zinc-400 text-sm mt-0.5">Polymarket · DraftKings · AI Analysis</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowTracker(true)} className="relative w-9 h-9 rounded-full bg-black/4 border border-black/8 backdrop-blur flex items-center justify-center text-zinc-500 hover:bg-black/6 transition-all text-base">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+              {days.map(day => (
+                <button key={day.value} onClick={() => setDate(day.value)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${date === day.value ? 'bg-amber-50 border-amber-300 text-amber-600' : 'bg-black/5 border-black/8 text-zinc-500 hover:bg-black/10'}`}>{day.label}</button>
+              ))}
+            </div>
+            <button onClick={() => setShowTracker(true)} className="relative flex-shrink-0 w-9 h-9 rounded-full bg-black/5 border border-black/8 flex items-center justify-center text-zinc-500 hover:bg-black/10 transition-all">
               📋
-              {pendingBets > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black text-[9px] font-black flex items-center justify-center">{pendingBets}</span>}
+              {pendingBets > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-white text-[9px] font-black flex items-center justify-center">{pendingBets}</span>}
             </button>
-            <button onClick={() => { setLoading(true); fetchGames() }} className="w-9 h-9 rounded-full bg-black/4 border border-black/8 backdrop-blur flex items-center justify-center text-zinc-500 hover:bg-black/6 transition-all text-lg">↻</button>
+            <button onClick={() => { setLoading(true); fetchGames() }} className="flex-shrink-0 w-9 h-9 rounded-full bg-black/5 border border-black/8 flex items-center justify-center text-zinc-500 hover:bg-black/10 transition-all text-lg">↻</button>
           </div>
         </div>
 
-        {/* Date nav */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4 no-scrollbar">
-          {days.map(day => (
-            <button key={day.value} onClick={() => setDate(day.value)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${date === day.value ? 'bg-amber-50 border-amber-300 text-amber-600' : 'bg-black/4 border-black/8 text-zinc-400 hover:bg-black/6'}`}>{day.label}</button>
-          ))}
-        </div>
-
-        {lastUpdated && <p className="text-[10px] text-zinc-300 text-right mb-2">{lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>}
+        {lastUpdated && <p className="text-[11px] text-zinc-400 text-right mb-4">Updated {lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>}
 
         {loading ? (
-          <div className="flex flex-col gap-3">{[1,2,3].map(i => <div key={i} className="rounded-3xl h-44 bg-black/4 border border-black/8 animate-pulse" />)}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="rounded-3xl h-56 bg-black/5 border border-black/8 animate-pulse" />)}
+          </div>
         ) : games.length === 0 ? (
-          <GlassCard className="p-12 text-center"><p className="text-zinc-400">No games scheduled</p></GlassCard>
+          <GlassCard className="p-16 text-center"><p className="text-zinc-400 text-lg">No games scheduled</p></GlassCard>
         ) : (
-          <>
-            {live.length > 0 && <div className="mb-5"><div className="flex items-center gap-2 mb-2"><span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" /><span className="text-[11px] font-semibold text-red-500 uppercase tracking-widest">Live Now</span></div>{live.map(g => <GameCard key={g.id} game={g} onLogBet={(b) => saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])} />)}</div>}
-            {upcoming.length > 0 && <div className="mb-5"><p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">Upcoming</p>{upcoming.map(g => <GameCard key={g.id} game={g} onLogBet={(b) => saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])} />)}</div>}
-            {final.length > 0 && <div className="mb-5"><p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">Final</p>{final.map(g => <GameCard key={g.id} game={g} onLogBet={(b) => saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])} />)}</div>}
-          </>
+          <div className="space-y-8">
+            {live.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-xs font-bold text-red-500 uppercase tracking-widest">Live Now</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {live.map(g => <GameCard key={g.id} game={g} onLogBet={logBet} />)}
+                </div>
+              </section>
+            )}
+            {upcoming.length > 0 && (
+              <section>
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Upcoming</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {upcoming.map(g => <GameCard key={g.id} game={g} onLogBet={logBet} />)}
+                </div>
+              </section>
+            )}
+            {final.length > 0 && (
+              <section>
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Final</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {final.map(g => <GameCard key={g.id} game={g} onLogBet={logBet} />)}
+                </div>
+              </section>
+            )}
+          </div>
         )}
 
-        <p className="text-center text-zinc-300 text-[10px] mt-4">Prediction market odds · Not financial advice</p>
+        <p className="text-center text-zinc-300 text-xs mt-10">Prediction market odds · Not financial advice</p>
       </div>
 
       {showTracker && <BetTracker bets={bets} onUpdate={saveBets} onClose={() => setShowTracker(false)} />}
