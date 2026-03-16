@@ -30,6 +30,9 @@ interface PolyOdds {
   overOdds: number
   underOdds: number
   hasTotalOdds: boolean
+  polyWinnerUrl: string | null
+  polySpreadUrl: string | null
+  polyTotalUrl: string | null
 }
 
 function teamMatchesKeywords(teamName: string, abbr: string, title: string): boolean {
@@ -56,6 +59,7 @@ async function getPolyOdds(
     homeWinOdds: 0.5, awayWinOdds: 0.5, hasWinnerOdds: false,
     spreadLine: 0, spreadHomeOdds: 0.5, spreadAwayOdds: 0.5, spreadFavoriteTeam: '', hasSpreadOdds: false,
     totalLine: 0, overOdds: 0.5, underOdds: 0.5, hasTotalOdds: false,
+    polyWinnerUrl: null, polySpreadUrl: null, polyTotalUrl: null,
   }
 
   try {
@@ -94,6 +98,8 @@ async function getPolyOdds(
     const totalMarket = markets
       .filter(m => (m.question || '').toLowerCase().includes('o/u'))
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
+
+    const polySlug = (m: any) => m?.slug ? `https://polymarket.com/event/${m.slug}` : null
 
     const result = { ...defaultOdds }
 
@@ -140,6 +146,10 @@ async function getPolyOdds(
         result.hasTotalOdds = true
       }
     }
+
+    result.polyWinnerUrl = polySlug(winnerMarket) || polySlug(event) || null
+    result.polySpreadUrl = polySlug(spreadMarket) || polySlug(event) || null
+    result.polyTotalUrl  = polySlug(totalMarket)  || polySlug(event) || null
 
     return result
   } catch {
