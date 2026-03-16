@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body style={{ background: 'linear-gradient(135deg, #0a0a1a 0%, #0d1520 40%, #0a1208 100%)' }} className="text-white min-h-screen">
+      <body style={{ background: 'linear-gradient(135deg, #0a0a1a 0%, #0d1520 40%, #0a1208 100%)', minHeight: '100dvh' }} className="text-white">
         {children}
       </body>
     </html>

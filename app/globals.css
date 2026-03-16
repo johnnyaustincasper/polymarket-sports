@@ -4,3 +4,16 @@
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+html, body {
+  background: linear-gradient(135deg, #0a0a1a 0%, #0d1520 40%, #0a1208 100%) !important;
+  background-attachment: fixed !important;
+}
+
+@keyframes bubble-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.06); opacity: 1; }
+  50% { box-shadow: 0 0 12px 2px rgba(255,255,255,0.10); opacity: 0.85; }
+}
+.bubble-unread {
+  animation: bubble-pulse 2s ease-in-out infinite;
+}

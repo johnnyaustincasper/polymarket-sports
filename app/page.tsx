@@ -197,8 +197,12 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
 
   const sections = analysis ? parseAnalysis(analysis) : []
   const [expanded, setExpanded] = useState<number | null>(null)
+  const [read, setRead] = useState<Set<number>>(new Set())
 
-  const toggle = (i: number) => setExpanded(prev => prev === i ? null : i)
+  const toggle = (i: number) => {
+    setExpanded(prev => prev === i ? null : i)
+    setRead(prev => new Set(prev).add(i))
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(20px)' }}>
@@ -223,10 +227,11 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
             {sections.map((s, i) => {
               const isOpen = expanded === i
               const isPick = s.title === 'The Pick'
+              const isRead = read.has(i)
               return (
                 <div
                   key={i}
-                  className={`rounded-2xl border backdrop-blur overflow-hidden transition-all ${
+                  className={`rounded-2xl border backdrop-blur overflow-hidden transition-all ${!isRead ? 'bubble-unread' : ''} ${
                     isPick
                       ? 'border-amber-400/30 bg-amber-400/8'
                       : isOpen
