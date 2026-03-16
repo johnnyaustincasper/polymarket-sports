@@ -27,7 +27,7 @@ const pct = (v: number) => Math.round(v * 100)
 
 function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-3xl border border-black/8 bg-white/70 backdrop-blur-2xl shadow-[0_2px_24px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] ${className}`}>
+    <div style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.7)', boxShadow: '0 4px 32px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)' }} className={`rounded-3xl ${className}`}>
       {children}
     </div>
   )
@@ -373,6 +373,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
   const dkTotalDiff = game.hasDkOdds && game.hasTotalOdds && game.dkTotal != null
     ? Math.abs(game.totalLine - game.dkTotal) : 0
   const hasEdge = dkSpreadDiff >= 1.5 || dkTotalDiff >= 2
+  const [showEdgeInfo, setShowEdgeInfo] = useState(false)
 
   return (
     <>
@@ -384,7 +385,26 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             <span className={`text-[11px] font-medium ${isLive ? 'text-red-500' : isFinal ? 'text-zinc-400' : 'text-zinc-500'}`}>
               {isLive ? `LIVE · ${game.gameTime}` : isFinal ? 'Final' : game.gameTime}
             </span>
-            {hasEdge && <span className="text-[10px] bg-amber-50 border border-amber-300 text-amber-600 px-1.5 py-0.5 rounded-full font-semibold" title="Polymarket line differs significantly from DraftKings — potential mispricing">⚡ Line Discrepancy vs DraftKings</span>}
+            {hasEdge && (
+              <div className="relative">
+                <button onClick={() => setShowEdgeInfo(v => !v)} className="text-[10px] bg-amber-50 border border-amber-300 text-amber-600 px-1.5 py-0.5 rounded-full font-semibold">
+                  ⚡ Line Discrepancy vs DraftKings {showEdgeInfo ? '▴' : '▾'}
+                </button>
+                {showEdgeInfo && (
+                  <div style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }} className="absolute left-0 top-7 z-20 w-72 rounded-2xl border border-amber-200 p-3 shadow-xl">
+                    <p className="text-amber-600 font-bold text-xs mb-1.5">⚡ What does this mean?</p>
+                    <p className="text-zinc-600 text-[11px] leading-relaxed mb-2">Polymarket's line on this game is significantly different from DraftKings. That gap = a potential edge.</p>
+                    <p className="text-zinc-700 font-semibold text-[11px] mb-1">How to profit:</p>
+                    <ul className="text-zinc-600 text-[11px] leading-relaxed space-y-1">
+                      <li>• <strong>Bet both sides:</strong> Place opposing bets on Polymarket and DraftKings to lock in a guaranteed profit regardless of outcome (arbitrage).</li>
+                      <li>• <strong>Fade the sharp line:</strong> DraftKings has professional bettors setting their lines. If Polymarket is way off, bet the DK-aligned side on Polymarket.</li>
+                      <li>• <strong>Move fast:</strong> These gaps close quickly as the market corrects.</li>
+                    </ul>
+                    <p className="text-zinc-300 text-[10px] mt-2">Not financial advice. Always check vig before placing.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <button
             onClick={() => setShowAnalysis(true)}
@@ -586,11 +606,11 @@ export default function Home() {
 
   return (
     <main className="min-h-screen text-zinc-900 relative">
-      {/* Ambient blobs — fixed so they cover full viewport */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-        <div className="absolute -top-40 -left-40 w-[700px] h-[700px] rounded-full bg-blue-200/50 blur-3xl" />
-        <div className="absolute top-1/2 -right-40 w-[600px] h-[600px] rounded-full bg-amber-200/40 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] rounded-full bg-emerald-200/30 blur-3xl" />
+      {/* Ambient blobs */}
+      <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: -1 }}>
+        <div style={{ position: 'absolute', top: '-160px', left: '-160px', width: '800px', height: '800px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(147,197,253,0.6) 0%, transparent 70%)', filter: 'blur(40px)' }} />
+        <div style={{ position: 'absolute', top: '40%', right: '-160px', width: '700px', height: '700px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(252,211,77,0.5) 0%, transparent 70%)', filter: 'blur(40px)' }} />
+        <div style={{ position: 'absolute', bottom: '-100px', left: '33%', width: '600px', height: '600px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(110,231,183,0.45) 0%, transparent 70%)', filter: 'blur(40px)' }} />
       </div>
 
       <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10">
