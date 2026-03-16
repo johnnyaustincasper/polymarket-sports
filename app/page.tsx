@@ -37,7 +37,7 @@ function OddsChip({ top, bottom, hot, href, onClick }: {
   top: string; bottom: string; hot: boolean; href?: string | null; onClick?: () => void
 }) {
   const cls = `flex flex-col items-center justify-center rounded-2xl px-2 py-2 min-w-[72px] border transition-all cursor-pointer active:scale-95 ${
-    hot ? 'bg-violet-500 border-violet-300 text-white shadow-[0_2px_12px_rgba(139,92,246,0.35)]'
+    hot ? 'bg-rose-500 border-rose-300 text-white shadow-[0_2px_12px_rgba(244,63,94,0.35)]'
         : 'bg-black/5 border-black/10 text-zinc-600'
   }`
   const content = (
@@ -73,18 +73,18 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
         <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-5" />
         <p className="text-zinc-400 text-xs mb-1">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
         <h3 className="text-zinc-900 font-black text-lg mb-1">{betLabel}</h3>
-        <p className="text-violet-500 text-sm mb-5">{pct(odds)}% implied probability</p>
+        <p className="text-rose-500 text-sm mb-5">{pct(odds)}% implied probability</p>
         <label className="text-zinc-400 text-xs block mb-1">Stake (USDC)</label>
         <input
           type="number" value={stake} onChange={e => setStake(e.target.value)}
-          className="w-full bg-black/4 border border-black/8 rounded-xl px-4 py-3 text-white text-lg font-bold mb-3 focus:outline-none focus:border-violet-300"
+          className="w-full bg-black/4 border border-black/8 rounded-xl px-4 py-3 text-white text-lg font-bold mb-3 focus:outline-none focus:border-rose-300"
         />
         <p className="text-zinc-400 text-xs mb-5">
           Win: <span className="text-white">${payout.toFixed(2)}</span> · Net: <span className="text-green-400">+${(payout - parseFloat(stake || '0')).toFixed(2)}</span>
         </p>
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-3 rounded-2xl bg-black/4 border border-black/8 text-zinc-500 font-semibold">Cancel</button>
-          <button onClick={save} className="flex-1 py-3 rounded-2xl bg-violet-50 border border-violet-300 text-violet-600 font-bold">Log Bet</button>
+          <button onClick={save} className="flex-1 py-3 rounded-2xl bg-rose-50 border border-rose-300 text-rose-600 font-bold">Log Bet</button>
         </div>
       </div>
     </div>
@@ -111,7 +111,7 @@ function AnalysisSection({ title, emoji, content }: { title: string; emoji: stri
             const text = trimmed.replace(/^[•\-*]\s*/, '').replace(/\*\*(.*?)\*\*/g, '$1')
             return (
               <div key={i} className="flex gap-2">
-                <span className="text-violet-500/60 mt-0.5 flex-shrink-0">·</span>
+                <span className="text-rose-500/60 mt-0.5 flex-shrink-0">·</span>
                 <p className="text-zinc-600 text-sm leading-snug">{text}</p>
               </div>
             )
@@ -210,7 +210,7 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
                   key={i}
                   className={`rounded-2xl border backdrop-blur overflow-hidden transition-all ${
                     isPick
-                      ? 'border-violet-300 bg-violet-50'
+                      ? 'border-rose-300 bg-rose-50'
                       : isOpen
                         ? 'border-black/12 bg-black/6'
                         : 'border-black/8 bg-black/4'
@@ -223,7 +223,7 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-lg">{s.emoji}</span>
-                      <span className={`text-sm font-bold ${isPick ? 'text-violet-600' : 'text-zinc-700'}`}>{s.title}</span>
+                      <span className={`text-sm font-bold ${isPick ? 'text-rose-600' : 'text-zinc-700'}`}>{s.title}</span>
                     </div>
                     <span className={`text-zinc-400 text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▾</span>
                   </button>
@@ -240,7 +240,7 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
                           if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
                             return (
                               <div key={j} className="flex gap-2">
-                                <span className="text-violet-500/50 flex-shrink-0 mt-0.5">·</span>
+                                <span className="text-rose-500/50 flex-shrink-0 mt-0.5">·</span>
                                 <p className="text-zinc-600 text-sm leading-snug">{trimmed.replace(/^[•\-*]\s*/, '').replace(/\*\*(.*?)\*\*/g, '$1')}</p>
                               </div>
                             )
@@ -387,12 +387,12 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             </span>
             {hasEdge && (
               <div className="relative">
-                <button onClick={() => setShowEdgeInfo(v => !v)} className="text-[10px] bg-violet-50 border border-violet-300 text-violet-600 px-1.5 py-0.5 rounded-full font-semibold">
+                <button onClick={() => setShowEdgeInfo(v => !v)} className="text-[10px] bg-rose-50 border border-rose-300 text-rose-600 px-1.5 py-0.5 rounded-full font-semibold">
                   ⚡ Line Discrepancy vs DraftKings {showEdgeInfo ? '▴' : '▾'}
                 </button>
                 {showEdgeInfo && (
-                  <div style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }} className="absolute left-0 top-7 z-20 w-72 rounded-2xl border border-violet-200 p-3 shadow-xl">
-                    <p className="text-violet-600 font-bold text-xs mb-1.5">⚡ What does this mean?</p>
+                  <div style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }} className="absolute left-0 top-7 z-20 w-72 rounded-2xl border border-rose-200 p-3 shadow-xl">
+                    <p className="text-rose-600 font-bold text-xs mb-1.5">⚡ What does this mean?</p>
                     <p className="text-zinc-600 text-[11px] leading-relaxed mb-2">Polymarket's line on this game is significantly different from DraftKings. That gap = a potential edge.</p>
                     <p className="text-zinc-700 font-semibold text-[11px] mb-1">How to profit:</p>
                     <ul className="text-zinc-600 text-[11px] leading-relaxed space-y-1">
@@ -514,12 +514,12 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             {game.hasSpreadOdds && game.dkSpread != null && (() => {
               const edge = Math.abs(game.spreadLine - game.dkSpread) >= 1.5
               return (
-                <div style={edge ? { background: 'rgba(139,92,246,0.12)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(139,92,246,0.3)' } : { background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.4)' }} className="grid grid-cols-3 items-center py-1.5 px-2 rounded-xl mb-1">
+                <div style={edge ? { background: 'rgba(244,63,94,0.12)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(244,63,94,0.3)' } : { background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.4)' }} className="grid grid-cols-3 items-center py-1.5 px-2 rounded-xl mb-1">
                   <span className="text-zinc-400 text-[11px]">Spread</span>
                   <span className="text-center text-zinc-500 text-[11px] font-mono">{game.dkSpread > 0 ? '+' : ''}{game.dkSpread}</span>
                   <div className="flex items-center justify-center gap-1">
-                    <span className={`text-[11px] font-mono ${edge ? 'text-violet-600 font-bold' : 'text-zinc-500'}`}>{game.spreadLine > 0 ? '+' : ''}{game.spreadLine}</span>
-                    {edge && <span className="text-violet-500">⚡</span>}
+                    <span className={`text-[11px] font-mono ${edge ? 'text-rose-600 font-bold' : 'text-zinc-500'}`}>{game.spreadLine > 0 ? '+' : ''}{game.spreadLine}</span>
+                    {edge && <span className="text-rose-500">⚡</span>}
                   </div>
                 </div>
               )
@@ -527,12 +527,12 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             {game.hasTotalOdds && game.dkTotal != null && (() => {
               const edge = Math.abs(game.totalLine - game.dkTotal) >= 2
               return (
-                <div style={edge ? { background: 'rgba(139,92,246,0.12)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(139,92,246,0.3)' } : { background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.4)' }} className="grid grid-cols-3 items-center py-1.5 px-2 rounded-xl">
+                <div style={edge ? { background: 'rgba(244,63,94,0.12)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(244,63,94,0.3)' } : { background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.4)' }} className="grid grid-cols-3 items-center py-1.5 px-2 rounded-xl">
                   <span className="text-zinc-400 text-[11px]">Total</span>
                   <span className="text-center text-zinc-500 text-[11px] font-mono">{game.dkTotal}</span>
                   <div className="flex items-center justify-center gap-1">
-                    <span className={`text-[11px] font-mono ${edge ? 'text-violet-600 font-bold' : 'text-zinc-500'}`}>{game.totalLine}</span>
-                    {edge && <span className="text-violet-500">⚡</span>}
+                    <span className={`text-[11px] font-mono ${edge ? 'text-rose-600 font-bold' : 'text-zinc-500'}`}>{game.totalLine}</span>
+                    {edge && <span className="text-rose-500">⚡</span>}
                   </div>
                 </div>
               )
@@ -613,18 +613,18 @@ export default function Home() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-black tracking-tight">NBA <span className="text-violet-500">Lines</span></h1>
+            <h1 className="text-3xl font-black tracking-tight">NBA <span className="text-rose-500">Lines</span></h1>
             <p className="text-zinc-400 text-sm mt-0.5">Polymarket · DraftKings · AI Analysis</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
               {days.map(day => (
-                <button key={day.value} onClick={() => setDate(day.value)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${date === day.value ? 'bg-violet-50 border-violet-300 text-violet-600' : 'bg-black/5 border-black/8 text-zinc-500 hover:bg-black/10'}`}>{day.label}</button>
+                <button key={day.value} onClick={() => setDate(day.value)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${date === day.value ? 'bg-rose-50 border-rose-300 text-rose-600' : 'bg-black/5 border-black/8 text-zinc-500 hover:bg-black/10'}`}>{day.label}</button>
               ))}
             </div>
             <button onClick={() => setShowTracker(true)} className="relative flex-shrink-0 w-9 h-9 rounded-full bg-black/5 border border-black/8 flex items-center justify-center text-zinc-500 hover:bg-black/10 transition-all">
               📋
-              {pendingBets > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-violet-500 text-white text-[9px] font-black flex items-center justify-center">{pendingBets}</span>}
+              {pendingBets > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center">{pendingBets}</span>}
             </button>
             <button onClick={() => { setLoading(true); fetchGames() }} className="flex-shrink-0 w-9 h-9 rounded-full bg-black/5 border border-black/8 flex items-center justify-center text-zinc-500 hover:bg-black/10 transition-all text-lg">↻</button>
           </div>
