@@ -195,7 +195,7 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
         {loading ? (
           <div className="flex flex-col gap-2 mt-1">
             {[1,2,3,4,5,6,7].map(i => (
-              <div key={i} className="h-12 rounded-2xl bg-black/4 border border-black/8 animate-pulse" />
+              <div key={i} className="h-12 rounded-2xl bg-black/4 border border-black/8" />
             ))}
           </div>
         ) : (
