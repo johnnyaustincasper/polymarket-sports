@@ -601,7 +601,7 @@ export default function Home() {
   const pendingBets = bets.filter(b => b.result === 'pending').length
 
   return (
-    <main className="min-h-screen text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0a0a1a 0%, #0d1520 40%, #0a1208 100%)' }}>
+    <main className="min-h-screen text-white relative" style={{ background: 'transparent' }}>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-600/10 blur-3xl" />
         <div className="absolute top-1/3 -right-24 w-80 h-80 rounded-full bg-amber-500/8 blur-3xl" />
@@ -612,7 +612,7 @@ export default function Home() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-black tracking-tight">NBA <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">Lines</span></h1>
+            <h1 className="text-2xl font-black tracking-tight">NBA <span className="text-amber-400">Lines</span></h1>
             <p className="text-white/25 text-xs mt-0.5">Polymarket · DraftKings · AI</p>
           </div>
           <div className="flex items-center gap-2">
