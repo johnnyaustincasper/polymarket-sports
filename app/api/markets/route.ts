@@ -1,120 +1,164 @@
 import { NextResponse } from 'next/server'
 
-const TEAM_ALIASES: Record<string, string> = {
-  'atlanta hawks': 'hawks', 'boston celtics': 'celtics', 'brooklyn nets': 'nets',
-  'charlotte hornets': 'hornets', 'chicago bulls': 'bulls', 'cleveland cavaliers': 'cavaliers',
-  'dallas mavericks': 'mavericks', 'denver nuggets': 'nuggets', 'detroit pistons': 'pistons',
-  'golden state warriors': 'warriors', 'houston rockets': 'rockets', 'indiana pacers': 'pacers',
-  'la clippers': 'clippers', 'los angeles clippers': 'clippers',
-  'la lakers': 'lakers', 'los angeles lakers': 'lakers',
-  'memphis grizzlies': 'grizzlies', 'miami heat': 'heat', 'milwaukee bucks': 'bucks',
-  'minnesota timberwolves': 'timberwolves', 'new orleans pelicans': 'pelicans',
-  'new york knicks': 'knicks', 'oklahoma city thunder': 'thunder',
-  'orlando magic': 'magic', 'philadelphia 76ers': '76ers',
-  'phoenix suns': 'suns', 'portland trail blazers': 'trail blazers',
-  'sacramento kings': 'kings', 'san antonio spurs': 'spurs',
-  'toronto raptors': 'raptors', 'utah jazz': 'jazz', 'washington wizards': 'wizards',
+const GAMMA_API = 'https://gamma-api.polymarket.com'
+
+const ESPN_TO_POLY: Record<string, string[]> = {
+  ATL: ['hawks', 'atlanta'], BOS: ['celtics', 'boston'], BKN: ['nets', 'brooklyn'],
+  CHA: ['hornets', 'charlotte'], CHI: ['bulls', 'chicago'], CLE: ['cavaliers', 'cleveland'],
+  DAL: ['mavericks', 'dallas'], DEN: ['nuggets', 'denver'], DET: ['pistons', 'detroit'],
+  GSW: ['warriors', 'golden state'], HOU: ['rockets', 'houston'], IND: ['pacers', 'indiana'],
+  LAC: ['clippers', 'clippers'], LAL: ['lakers', 'los angeles lakers', 'lakers'],
+  MEM: ['grizzlies', 'memphis'], MIA: ['heat', 'miami'], MIL: ['bucks', 'milwaukee'],
+  MIN: ['timberwolves', 'minnesota'], NOP: ['pelicans', 'new orleans'],
+  NYK: ['knicks', 'new york'], OKC: ['thunder', 'oklahoma city'],
+  ORL: ['magic', 'orlando'], PHI: ['76ers', 'philadelphia'],
+  PHX: ['suns', 'phoenix'], POR: ['trail blazers', 'portland'],
+  SAC: ['kings', 'sacramento'], SAS: ['spurs', 'san antonio'],
+  TOR: ['raptors', 'toronto'], UTA: ['jazz', 'utah'], WAS: ['wizards', 'washington'],
 }
 
-function teamSlug(name: string): string {
-  return TEAM_ALIASES[name.toLowerCase()] || name.toLowerCase().split(' ').pop() || name.toLowerCase()
+interface PolyOdds {
+  homeWinOdds: number
+  awayWinOdds: number
+  hasWinnerOdds: boolean
+  spreadLine: number
+  spreadHomeOdds: number
+  spreadAwayOdds: number
+  spreadFavoriteTeam: string
+  hasSpreadOdds: boolean
+  totalLine: number
+  overOdds: number
+  underOdds: number
+  hasTotalOdds: boolean
 }
 
-// ESPN abbreviation → Polymarket 3-letter slug
-const ESPN_TO_POLY: Record<string, string> = {
-  ATL: 'atl', BOS: 'bos', BKN: 'bkn', CHA: 'cha', CHI: 'chi',
-  CLE: 'cle', DAL: 'dal', DEN: 'den', DET: 'det', GSW: 'gs',
-  HOU: 'hou', IND: 'ind', LAC: 'lac', LAL: 'lal', MEM: 'mem',
-  MIA: 'mia', MIL: 'mil', MIN: 'min', NOP: 'no', NYK: 'ny',
-  OKC: 'okc', ORL: 'orl', PHI: 'phi', PHX: 'phx', POR: 'por',
-  SAC: 'sac', SAS: 'sas', TOR: 'tor', UTA: 'utah', WAS: 'wsh',
+function teamMatchesKeywords(teamName: string, abbr: string, title: string): boolean {
+  const t = title.toLowerCase()
+  const keywords = ESPN_TO_POLY[abbr] || [teamName.split(' ').pop()!.toLowerCase()]
+  return keywords.some(k => t.includes(k))
 }
 
-async function getPolymarketOdds(
+function parseSpreadLine(question: string): number {
+  const m = question.match(/\(([+-]?\d+\.?\d*)\)/)
+  return m ? parseFloat(m[1]) : 0
+}
+
+function parseTotalLine(question: string): number {
+  const m = question.match(/O\/U\s*(\d+\.?\d*)/)
+  return m ? parseFloat(m[1]) : 0
+}
+
+async function getPolyOdds(
   awayAbbr: string, homeAbbr: string,
   awayName: string, homeName: string,
-  dateStr: string
-): Promise<{ awayOdds: number; homeOdds: number } | null> {
-  try {
-    const awayPoly = ESPN_TO_POLY[awayAbbr] || awayAbbr.toLowerCase()
-    const homePoly = ESPN_TO_POLY[homeAbbr] || homeAbbr.toLowerCase()
+): Promise<PolyOdds> {
+  const defaultOdds: PolyOdds = {
+    homeWinOdds: 0.5, awayWinOdds: 0.5, hasWinnerOdds: false,
+    spreadLine: 0, spreadHomeOdds: 0.5, spreadAwayOdds: 0.5, spreadFavoriteTeam: '', hasSpreadOdds: false,
+    totalLine: 0, overOdds: 0.5, underOdds: 0.5, hasTotalOdds: false,
+  }
 
-    // Primary slug format: nba-[away]-[home]-YYYY-MM-DD
-    const slug = `nba-${awayPoly}-${homePoly}-${dateStr}`
-    const res = await fetch(`https://gamma-api.polymarket.com/events?slug=${slug}`, {
+  try {
+    const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=nba&limit=200`, {
       next: { revalidate: 60 }
     })
+    if (!res.ok) return defaultOdds
+    const events: any[] = await res.json()
 
-    if (res.ok) {
-      const events = await res.json()
-      if (events?.length) {
-        const market = events[0].markets?.[0]
-        if (market) {
-          const outcomes = JSON.parse(market.outcomes || '[]') as string[]
-          const prices = JSON.parse(market.outcomePrices || '[]') as string[]
-          // outcomes[0] is typically the away team nickname
-          const awayNick = awayName.split(' ').pop()?.toLowerCase() || ''
-          const awayIdx = outcomes.findIndex((o: string) => o.toLowerCase().includes(awayNick))
-          const homeIdx = awayIdx === 0 ? 1 : 0
-          return {
-            awayOdds: parseFloat(prices[awayIdx >= 0 ? awayIdx : 0] || '0.5'),
-            homeOdds: parseFloat(prices[homeIdx] || '0.5'),
-          }
-        }
+    // Find matching event
+    const event = events.find(e => {
+      const title = (e.title || '').toLowerCase()
+      return teamMatchesKeywords(awayName, awayAbbr, title) &&
+             teamMatchesKeywords(homeName, homeAbbr, title)
+    })
+    if (!event) return defaultOdds
+
+    const markets: any[] = event.markets || []
+
+    // Winner market: just "TeamA vs. TeamB" or "TeamA vs TeamB" with no colon
+    const winnerMarket = markets
+      .filter(m => {
+        const q = (m.question || '').toLowerCase()
+        return !q.includes(':') && !q.includes('o/u') &&
+               teamMatchesKeywords(awayName, awayAbbr, q) &&
+               teamMatchesKeywords(homeName, homeAbbr, q)
+      })
+      .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
+
+    // Spread market: "Spread: TeamX (-N.5)"
+    const spreadMarket = markets
+      .filter(m => (m.question || '').toLowerCase().startsWith('spread:'))
+      .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
+
+    // Total market: "TeamA vs TeamB: O/U N.5"
+    const totalMarket = markets
+      .filter(m => (m.question || '').toLowerCase().includes('o/u'))
+      .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
+
+    const result = { ...defaultOdds }
+
+    if (winnerMarket) {
+      const outcomes: string[] = JSON.parse(winnerMarket.outcomes || '[]')
+      const prices: string[] = JSON.parse(winnerMarket.outcomePrices || '[]')
+      if (outcomes.length === 2 && prices.length === 2) {
+        const homeKeywords = ESPN_TO_POLY[homeAbbr] || [homeName.split(' ').pop()!.toLowerCase()]
+        const homeIdx = outcomes.findIndex(o => homeKeywords.some(k => o.toLowerCase().includes(k)))
+        const awayIdx = homeIdx === 0 ? 1 : 0
+        result.homeWinOdds = parseFloat(prices[homeIdx >= 0 ? homeIdx : 1] || '0.5')
+        result.awayWinOdds = parseFloat(prices[awayIdx] || '0.5')
+        result.hasWinnerOdds = true
       }
     }
 
-    // Fallback: scan all upcoming NBA events by nickname match
-    const allRes = await fetch(
-      'https://gamma-api.polymarket.com/events?active=true&closed=false&limit=200&tag_slug=nba&order=startDate&ascending=false',
-      { next: { revalidate: 60 } }
-    )
-    if (!allRes.ok) return null
-    const allEvents: any[] = await allRes.ok ? await allRes.json() : []
-    const awayNick = awayName.split(' ').pop()?.toLowerCase() || ''
-    const homeNick = homeName.split(' ').pop()?.toLowerCase() || ''
-
-    for (const event of allEvents) {
-      const title = (event.title || '').toLowerCase()
-      if (title.includes(awayNick) && title.includes(homeNick)) {
-        const market = event.markets?.[0]
-        if (!market) continue
-        const outcomes = JSON.parse(market.outcomes || '[]') as string[]
-        const prices = JSON.parse(market.outcomePrices || '[]') as string[]
-        if (outcomes.length !== 2) continue
-        const awayIdx = outcomes.findIndex((o: string) => o.toLowerCase().includes(awayNick))
-        return {
-          awayOdds: parseFloat(prices[awayIdx >= 0 ? awayIdx : 0] || '0.5'),
-          homeOdds: parseFloat(prices[awayIdx === 0 ? 1 : 0] || '0.5'),
-        }
+    if (spreadMarket) {
+      const outcomes: string[] = JSON.parse(spreadMarket.outcomes || '[]')
+      const prices: string[] = JSON.parse(spreadMarket.outcomePrices || '[]')
+      const line = parseSpreadLine(spreadMarket.question || '')
+      if (outcomes.length === 2 && prices.length === 2 && line !== 0) {
+        // Favorite team is the one in the spread (the one with negative line)
+        const favTeamName = (outcomes[0] || '').toLowerCase()
+        const homeKeywords = ESPN_TO_POLY[homeAbbr] || [homeName.split(' ').pop()!.toLowerCase()]
+        const favIsHome = homeKeywords.some(k => favTeamName.includes(k))
+        result.spreadLine = favIsHome ? line : -line  // from home perspective
+        result.spreadHomeOdds = parseFloat(prices[favIsHome ? 0 : 1] || '0.5')
+        result.spreadAwayOdds = parseFloat(prices[favIsHome ? 1 : 0] || '0.5')
+        result.spreadFavoriteTeam = favIsHome ? homeAbbr : awayAbbr
+        result.hasSpreadOdds = true
       }
     }
 
-    return null
+    if (totalMarket) {
+      const outcomes: string[] = JSON.parse(totalMarket.outcomes || '[]')
+      const prices: string[] = JSON.parse(totalMarket.outcomePrices || '[]')
+      const line = parseTotalLine(totalMarket.question || '')
+      if (outcomes.length === 2 && prices.length === 2 && line > 0) {
+        const overIdx = outcomes.findIndex(o => o.toLowerCase() === 'over')
+        const underIdx = overIdx === 0 ? 1 : 0
+        result.totalLine = line
+        result.overOdds = parseFloat(prices[overIdx >= 0 ? overIdx : 0] || '0.5')
+        result.underOdds = parseFloat(prices[underIdx] || '0.5')
+        result.hasTotalOdds = true
+      }
+    }
+
+    return result
   } catch {
-    return null
+    return defaultOdds
   }
 }
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const dateParam = searchParams.get('date') // YYYYMMDD format
-
-    const dateStr = dateParam || new Date().toISOString().slice(0, 10).replace(/-/g, '')
-    const espnDate = dateStr // ESPN uses YYYYMMDD
+    const dateParam = searchParams.get('date') || new Date().toISOString().slice(0, 10).replace(/-/g, '')
 
     const espnRes = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${espnDate}`,
-      { next: { revalidate: 60 } }
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateParam}`,
+      { next: { revalidate: 30 } }
     )
     const espnData = await espnRes.json()
     const events = espnData?.events || []
-
-    if (events.length === 0) return NextResponse.json([])
-
-    // Format date for Polymarket slugs: YYYY-MM-DD
-    const polyDate = `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}`
+    if (!events.length) return NextResponse.json([])
 
     const games = await Promise.all(events.map(async (event: any) => {
       const comp = event.competitions?.[0]
@@ -123,58 +167,53 @@ export async function GET(req: Request) {
 
       const homeName = home?.team?.displayName || ''
       const awayName = away?.team?.displayName || ''
-      const homeRecord = home?.records?.[0]?.summary || ''
-      const awayRecord = away?.records?.[0]?.summary || ''
-      const homeScore = home?.score || ''
-      const awayScore = away?.score || ''
+      const homeAbbr = home?.team?.abbreviation || ''
+      const awayAbbr = away?.team?.abbreviation || ''
       const isLive = event.status?.type?.state === 'in'
       const isPost = event.status?.type?.state === 'post'
       const statusDetail = event.status?.type?.shortDetail || ''
-
       const gameDate = new Date(event.date)
       const startTime = gameDate.toLocaleTimeString('en-US', {
         hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago'
       })
 
       let gameTime = startTime
-      if (isLive) gameTime = `LIVE — ${statusDetail}`
+      if (isLive) gameTime = statusDetail
       else if (isPost) gameTime = 'Final'
 
-      // Try to get real Polymarket odds
-      const odds = await getPolymarketOdds(
-        away?.team?.abbreviation || '', home?.team?.abbreviation || '',
-        awayName, homeName, polyDate
-      )
+      const odds = await getPolyOdds(awayAbbr, homeAbbr, awayName, homeName)
 
       return {
         id: event.id,
         homeTeam: {
           name: homeName,
-          abbr: home?.team?.abbreviation || '',
-          record: homeRecord,
-          score: homeScore,
+          abbr: homeAbbr,
+          record: home?.records?.[0]?.summary || '',
+          score: home?.score || '',
+          logo: home?.team?.logo || '',
+          color: home?.team?.color || '334155',
+          alternateColor: home?.team?.alternateColor || '94a3b8',
         },
         awayTeam: {
           name: awayName,
-          abbr: away?.team?.abbreviation || '',
-          record: awayRecord,
-          score: awayScore,
+          abbr: awayAbbr,
+          record: away?.records?.[0]?.summary || '',
+          score: away?.score || '',
+          logo: away?.team?.logo || '',
+          color: away?.team?.color || '334155',
+          alternateColor: away?.team?.alternateColor || '94a3b8',
         },
         gameTime,
         gameDate: event.date,
         status: event.status?.type?.state || 'pre',
-        homeOdds: odds?.homeOdds ?? 0.5,
-        awayOdds: odds?.awayOdds ?? 0.5,
-        hasRealOdds: odds !== null,
+        ...odds,
       }
     }))
 
-    // Sort by game time
     games.sort((a: any, b: any) => new Date(a.gameDate).getTime() - new Date(b.gameDate).getTime())
-
     return NextResponse.json(games)
   } catch (err) {
-    console.error('Error:', err)
+    console.error(err)
     return NextResponse.json([], { status: 500 })
   }
 }
