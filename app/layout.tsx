@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a1a',
+  themeColor: '#f0f2f5',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body style={{ background: 'linear-gradient(135deg, #0a0a1a 0%, #0d1520 40%, #0a1208 100%)', minHeight: '100dvh' }} className="text-white">
+      <body style={{ background: '#f0f2f5', minHeight: '100dvh' }} className="text-zinc-900">
         {children}
       </body>
     </html>

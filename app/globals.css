@@ -6,20 +6,12 @@
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 html, body {
-  background: #0a0a1a !important;
-}
-
-body {
-  background: linear-gradient(135deg, #0a0a1a 0%, #0d1520 40%, #0a1208 100%) fixed !important;
-  padding-top: env(safe-area-inset-top);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  padding-bottom: env(safe-area-inset-bottom);
+  background: #f0f2f5 !important;
 }
 
 @keyframes bubble-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.06); opacity: 1; }
-  50% { box-shadow: 0 0 12px 2px rgba(255,255,255,0.10); opacity: 0.85; }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0.06); }
+  50% { box-shadow: 0 0 14px 3px rgba(0,0,0,0.10); }
 }
 .bubble-unread {
   animation: bubble-pulse 2s ease-in-out infinite;

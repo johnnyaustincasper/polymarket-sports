@@ -26,7 +26,7 @@ const pct = (v: number) => Math.round(v * 100)
 
 function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-3xl border border-white/10 bg-white/5 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)] ${className}`}>
+    <div className={`rounded-3xl border border-black/8 bg-white/70 backdrop-blur-2xl shadow-[0_2px_24px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] ${className}`}>
       {children}
     </div>
   )
@@ -36,8 +36,8 @@ function OddsChip({ top, bottom, hot, href, onClick }: {
   top: string; bottom: string; hot: boolean; href?: string | null; onClick?: () => void
 }) {
   const cls = `flex flex-col items-center justify-center rounded-2xl px-2 py-2 min-w-[72px] border transition-all cursor-pointer active:scale-95 ${
-    hot ? 'bg-amber-400/20 border-amber-400/40 text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.2)]'
-        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+    hot ? 'bg-amber-400 border-amber-300 text-white shadow-[0_2px_12px_rgba(251,146,60,0.35)]'
+        : 'bg-black/5 border-black/10 text-zinc-600'
   }`
   const content = (
     <>
@@ -68,22 +68,22 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
   }
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md bg-zinc-900 border border-white/10 rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md bg-white/90 border border-black/8 rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
         <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-5" />
-        <p className="text-white/40 text-xs mb-1">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
-        <h3 className="text-white font-black text-lg mb-1">{betLabel}</h3>
-        <p className="text-amber-400 text-sm mb-5">{pct(odds)}% implied probability</p>
-        <label className="text-white/40 text-xs block mb-1">Stake (USDC)</label>
+        <p className="text-zinc-400 text-xs mb-1">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
+        <h3 className="text-zinc-900 font-black text-lg mb-1">{betLabel}</h3>
+        <p className="text-amber-500 text-sm mb-5">{pct(odds)}% implied probability</p>
+        <label className="text-zinc-400 text-xs block mb-1">Stake (USDC)</label>
         <input
           type="number" value={stake} onChange={e => setStake(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-lg font-bold mb-3 focus:outline-none focus:border-amber-400/40"
+          className="w-full bg-black/4 border border-black/8 rounded-xl px-4 py-3 text-white text-lg font-bold mb-3 focus:outline-none focus:border-amber-300"
         />
-        <p className="text-white/30 text-xs mb-5">
+        <p className="text-zinc-400 text-xs mb-5">
           Win: <span className="text-white">${payout.toFixed(2)}</span> · Net: <span className="text-green-400">+${(payout - parseFloat(stake || '0')).toFixed(2)}</span>
         </p>
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/50 font-semibold">Cancel</button>
-          <button onClick={save} className="flex-1 py-3 rounded-2xl bg-amber-400/20 border border-amber-400/40 text-amber-300 font-bold">Log Bet</button>
+          <button onClick={onClose} className="flex-1 py-3 rounded-2xl bg-black/4 border border-black/8 text-zinc-500 font-semibold">Cancel</button>
+          <button onClick={save} className="flex-1 py-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-600 font-bold">Log Bet</button>
         </div>
       </div>
     </div>
@@ -95,29 +95,29 @@ function AnalysisSection({ title, emoji, content }: { title: string; emoji: stri
   // Parse bullet points and bold text into clean elements
   const lines = content.split('\n').filter(l => l.trim())
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4 mb-3">
-      <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest mb-3">{emoji} {title}</p>
+    <div className="rounded-2xl border border-black/8 bg-black/4 backdrop-blur p-4 mb-3">
+      <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-3">{emoji} {title}</p>
       <div className="flex flex-col gap-1.5">
         {lines.map((line, i) => {
           const trimmed = line.trim()
           if (!trimmed) return null
           // Bold headers like **TeamName**
           if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
-            return <p key={i} className="text-white font-bold text-sm mt-1">{trimmed.replace(/\*\*/g, '')}</p>
+            return <p key={i} className="text-zinc-800 font-bold text-sm mt-1">{trimmed.replace(/\*\*/g, '')}</p>
           }
           // Bullet points
           if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
             const text = trimmed.replace(/^[•\-*]\s*/, '').replace(/\*\*(.*?)\*\*/g, '$1')
             return (
               <div key={i} className="flex gap-2">
-                <span className="text-amber-400/60 mt-0.5 flex-shrink-0">·</span>
-                <p className="text-white/65 text-sm leading-snug">{text}</p>
+                <span className="text-amber-500/60 mt-0.5 flex-shrink-0">·</span>
+                <p className="text-zinc-600 text-sm leading-snug">{text}</p>
               </div>
             )
           }
           // Bold inline text cleanup
           const cleaned = trimmed.replace(/\*\*(.*?)\*\*/g, '$1')
-          return <p key={i} className="text-white/65 text-sm leading-snug">{cleaned}</p>
+          return <p key={i} className="text-zinc-600 text-sm leading-snug">{cleaned}</p>
         })}
       </div>
     </div>
@@ -205,21 +205,21 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(20px)' }}>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(240,242,245,0.95)", backdropFilter: "blur(24px)" }}>
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-6 pb-4 max-w-md mx-auto w-full flex-shrink-0">
         <div>
-          <p className="text-white/30 text-xs">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
-          <h3 className="text-white font-black text-base">AI Breakdown</h3>
+          <p className="text-zinc-400 text-xs">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
+          <h3 className="text-zinc-900 font-black text-base">AI Breakdown</h3>
         </div>
-        <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white/40 text-xl">×</button>
+        <button onClick={onClose} className="w-9 h-9 rounded-full bg-black/6 border border-black/8 flex items-center justify-center text-zinc-400 text-xl">×</button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-10 max-w-md mx-auto w-full">
         {loading ? (
           <div className="flex flex-col gap-2 mt-1">
             {[1,2,3,4,5,6,7].map(i => (
-              <div key={i} className="h-12 rounded-2xl bg-white/6 border border-white/10 animate-pulse" />
+              <div key={i} className="h-12 rounded-2xl bg-black/4 border border-black/8 animate-pulse" />
             ))}
           </div>
         ) : (
@@ -233,10 +233,10 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
                   key={i}
                   className={`rounded-2xl border backdrop-blur overflow-hidden transition-all ${!isRead ? 'bubble-unread' : ''} ${
                     isPick
-                      ? 'border-amber-400/30 bg-amber-400/8'
+                      ? 'border-amber-300 bg-amber-50'
                       : isOpen
-                        ? 'border-white/20 bg-white/10'
-                        : 'border-white/10 bg-white/5'
+                        ? 'border-black/12 bg-black/6'
+                        : 'border-black/8 bg-black/4'
                   }`}
                 >
                   {/* Bubble header — always visible, tap to toggle */}
@@ -246,29 +246,29 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-lg">{s.emoji}</span>
-                      <span className={`text-sm font-bold ${isPick ? 'text-amber-300' : 'text-white/80'}`}>{s.title}</span>
+                      <span className={`text-sm font-bold ${isPick ? 'text-amber-600' : 'text-zinc-700'}`}>{s.title}</span>
                     </div>
-                    <span className={`text-white/30 text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▾</span>
+                    <span className={`text-zinc-400 text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▾</span>
                   </button>
 
                   {/* Expanded content */}
                   {isOpen && (
-                    <div className="px-4 pb-4 border-t border-white/8">
+                    <div className="px-4 pb-4 border-t border-black/6">
                       <div className="flex flex-col gap-1.5 mt-3">
                         {s.content.split('\n').filter(l => l.trim()).map((line, j) => {
                           const trimmed = line.trim()
                           if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
-                            return <p key={j} className="text-white font-bold text-sm mt-1">{trimmed.replace(/\*\*/g, '')}</p>
+                            return <p key={j} className="text-zinc-800 font-bold text-sm mt-1">{trimmed.replace(/\*\*/g, '')}</p>
                           }
                           if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
                             return (
                               <div key={j} className="flex gap-2">
-                                <span className="text-amber-400/50 flex-shrink-0 mt-0.5">·</span>
-                                <p className="text-white/65 text-sm leading-snug">{trimmed.replace(/^[•\-*]\s*/, '').replace(/\*\*(.*?)\*\*/g, '$1')}</p>
+                                <span className="text-amber-500/50 flex-shrink-0 mt-0.5">·</span>
+                                <p className="text-zinc-600 text-sm leading-snug">{trimmed.replace(/^[•\-*]\s*/, '').replace(/\*\*(.*?)\*\*/g, '$1')}</p>
                               </div>
                             )
                           }
-                          return <p key={j} className="text-white/65 text-sm leading-snug">{trimmed.replace(/\*\*(.*?)\*\*/g, '$1')}</p>
+                          return <p key={j} className="text-zinc-600 text-sm leading-snug">{trimmed.replace(/\*\*(.*?)\*\*/g, '$1')}</p>
                         })}
                       </div>
                     </div>
@@ -301,25 +301,25 @@ function BetTracker({ bets, onUpdate, onClose }: {
   }, 0)
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/80 backdrop-blur-sm">
-      <div className="flex-1 overflow-y-auto max-w-md w-full mx-auto bg-zinc-900 border-x border-white/10 px-5 py-6">
-        <button onClick={onClose} className="text-white/30 text-sm mb-4 flex items-center gap-1">← Close</button>
-        <h3 className="text-white font-black text-lg mb-1">Bet Tracker</h3>
+    <div className="fixed inset-0 z-50 flex flex-col bg-white/80 backdrop-blur-2xl">
+      <div className="flex-1 overflow-y-auto max-w-md w-full mx-auto bg-white/90 border-x border-black/8 px-5 py-6">
+        <button onClick={onClose} className="text-zinc-400 text-sm mb-4 flex items-center gap-1">← Close</button>
+        <h3 className="text-zinc-900 font-black text-lg mb-1">Bet Tracker</h3>
 
         {settled.length > 0 && (
           <GlassCard className="p-4 mb-4">
             <div className="grid grid-cols-3 text-center">
               <div>
-                <p className="text-white/30 text-[10px] uppercase tracking-wider">Bets</p>
-                <p className="text-white font-bold text-lg">{settled.length}</p>
+                <p className="text-zinc-400 text-[10px] uppercase tracking-wider">Bets</p>
+                <p className="text-zinc-900 font-bold text-lg">{settled.length}</p>
               </div>
               <div>
-                <p className="text-white/30 text-[10px] uppercase tracking-wider">Staked</p>
-                <p className="text-white font-bold text-lg">${totalStaked.toFixed(0)}</p>
+                <p className="text-zinc-400 text-[10px] uppercase tracking-wider">Staked</p>
+                <p className="text-zinc-900 font-bold text-lg">${totalStaked.toFixed(0)}</p>
               </div>
               <div>
-                <p className="text-white/30 text-[10px] uppercase tracking-wider">P&L</p>
-                <p className={`font-bold text-lg ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <p className="text-zinc-400 text-[10px] uppercase tracking-wider">P&L</p>
+                <p className={`font-bold text-lg ${totalPnl >= 0 ? 'text-green-400' : 'text-red-500'}`}>
                   {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
                 </p>
               </div>
@@ -329,19 +329,19 @@ function BetTracker({ bets, onUpdate, onClose }: {
 
         {pending.length > 0 && (
           <>
-            <p className="text-[11px] text-white/30 uppercase tracking-widest mb-2">Pending</p>
+            <p className="text-[11px] text-zinc-400 uppercase tracking-widest mb-2">Pending</p>
             {pending.map(b => (
               <GlassCard key={b.id} className="p-3 mb-2">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <p className="text-white text-xs font-bold">{b.betLabel}</p>
-                    <p className="text-white/40 text-[10px]">{b.matchup} · ${b.stake}</p>
+                    <p className="text-zinc-800 text-xs font-bold">{b.betLabel}</p>
+                    <p className="text-zinc-400 text-[10px]">{b.matchup} · ${b.stake}</p>
                   </div>
-                  <button onClick={() => remove(b.id)} className="text-white/20 text-xs">✕</button>
+                  <button onClick={() => remove(b.id)} className="text-zinc-300 text-xs">✕</button>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setResult(b.id, 'win')} className="flex-1 py-1.5 rounded-xl bg-green-400/20 border border-green-400/30 text-green-400 text-xs font-bold">Win</button>
-                  <button onClick={() => setResult(b.id, 'loss')} className="flex-1 py-1.5 rounded-xl bg-red-400/20 border border-red-400/30 text-red-400 text-xs font-bold">Loss</button>
+                  <button onClick={() => setResult(b.id, 'win')} className="flex-1 py-1.5 rounded-xl bg-green-500/20 border border-green-400/30 text-green-400 text-xs font-bold">Win</button>
+                  <button onClick={() => setResult(b.id, 'loss')} className="flex-1 py-1.5 rounded-xl bg-red-400/20 border border-red-400/30 text-red-500 text-xs font-bold">Loss</button>
                 </div>
               </GlassCard>
             ))}
@@ -350,18 +350,18 @@ function BetTracker({ bets, onUpdate, onClose }: {
 
         {settled.length > 0 && (
           <>
-            <p className="text-[11px] text-white/30 uppercase tracking-widest mb-2 mt-4">Settled</p>
+            <p className="text-[11px] text-zinc-400 uppercase tracking-widest mb-2 mt-4">Settled</p>
             {settled.map(b => (
-              <div key={b.id} className="flex items-center justify-between py-2 border-b border-white/5">
+              <div key={b.id} className="flex items-center justify-between py-2 border-b border-black/5">
                 <div>
-                  <p className="text-white text-xs font-semibold">{b.betLabel}</p>
-                  <p className="text-white/30 text-[10px]">{b.matchup} · ${b.stake}</p>
+                  <p className="text-zinc-900 text-xs font-semibold">{b.betLabel}</p>
+                  <p className="text-zinc-400 text-[10px]">{b.matchup} · ${b.stake}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-bold ${b.result === 'win' ? 'text-green-400' : 'text-red-400'}`}>
+                  <span className={`text-xs font-bold ${b.result === 'win' ? 'text-green-400' : 'text-red-500'}`}>
                     {b.result === 'win' ? `+$${(b.stake / b.odds - b.stake).toFixed(2)}` : `-$${b.stake}`}
                   </span>
-                  <button onClick={() => remove(b.id)} className="text-white/20 text-[10px]">✕</button>
+                  <button onClick={() => remove(b.id)} className="text-zinc-300 text-[10px]">✕</button>
                 </div>
               </div>
             ))}
@@ -370,8 +370,8 @@ function BetTracker({ bets, onUpdate, onClose }: {
 
         {bets.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-white/30 text-sm">No bets logged yet</p>
-            <p className="text-white/20 text-xs mt-1">Tap any odds chip to log a bet</p>
+            <p className="text-zinc-400 text-sm">No bets logged yet</p>
+            <p className="text-zinc-300 text-xs mt-1">Tap any odds chip to log a bet</p>
           </div>
         )}
       </div>
@@ -404,14 +404,14 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
-            <span className={`text-[11px] font-medium ${isLive ? 'text-red-400' : isFinal ? 'text-white/30' : 'text-white/50'}`}>
+            <span className={`text-[11px] font-medium ${isLive ? 'text-red-500' : isFinal ? 'text-zinc-400' : 'text-zinc-500'}`}>
               {isLive ? `LIVE · ${game.gameTime}` : isFinal ? 'Final' : game.gameTime}
             </span>
-            {hasEdge && <span className="text-[10px] bg-amber-400/20 border border-amber-400/30 text-amber-300 px-1.5 py-0.5 rounded-full font-semibold">⚡ Edge</span>}
+            {hasEdge && <span className="text-[10px] bg-amber-50 border border-amber-300 text-amber-600 px-1.5 py-0.5 rounded-full font-semibold">⚡ Edge</span>}
           </div>
           <button
             onClick={() => setShowAnalysis(true)}
-            className="text-[10px] text-white/30 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full hover:bg-white/10 hover:text-white/60 transition-all"
+            className="text-[10px] text-zinc-400 bg-black/4 border border-black/8 px-2.5 py-1 rounded-full hover:bg-black/6 hover:text-zinc-500 transition-all"
           >
             Analyze ✦
           </button>
@@ -421,25 +421,25 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
         {(isLive || isFinal) ? (
           <div className="flex items-center justify-between mb-3 px-1">
             <div className="flex items-center gap-2">
-              {game.awayTeam.logo ? <img src={game.awayTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] font-black">{game.awayTeam.abbr.slice(0,2)}</div>}
-              <span className="text-white font-black text-2xl">{game.awayTeam.score}</span>
+              {game.awayTeam.logo ? <img src={game.awayTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-black/6 flex items-center justify-center text-white text-[10px] font-black">{game.awayTeam.abbr.slice(0,2)}</div>}
+              <span className="text-zinc-900 font-black text-2xl">{game.awayTeam.score}</span>
             </div>
-            <span className="text-white/20">—</span>
+            <span className="text-zinc-300">—</span>
             <div className="flex items-center gap-2">
-              <span className="text-white font-black text-2xl">{game.homeTeam.score}</span>
-              {game.homeTeam.logo ? <img src={game.homeTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] font-black">{game.homeTeam.abbr.slice(0,2)}</div>}
+              <span className="text-zinc-900 font-black text-2xl">{game.homeTeam.score}</span>
+              {game.homeTeam.logo ? <img src={game.homeTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-black/6 flex items-center justify-center text-white text-[10px] font-black">{game.homeTeam.abbr.slice(0,2)}</div>}
             </div>
           </div>
         ) : (
           <div className="flex items-center justify-between mb-3 px-1">
             <div className="flex items-center gap-2">
-              {game.awayTeam.logo ? <img src={game.awayTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] font-black">{game.awayTeam.abbr.slice(0,2)}</div>}
-              <div><p className="text-white text-sm font-bold">{game.awayTeam.abbr}</p><p className="text-white/30 text-[10px]">{game.awayTeam.record}</p></div>
+              {game.awayTeam.logo ? <img src={game.awayTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-black/6 flex items-center justify-center text-white text-[10px] font-black">{game.awayTeam.abbr.slice(0,2)}</div>}
+              <div><p className="text-zinc-800 text-sm font-bold">{game.awayTeam.abbr}</p><p className="text-zinc-400 text-[10px]">{game.awayTeam.record}</p></div>
             </div>
-            <span className="text-white/20 text-xs">@</span>
+            <span className="text-zinc-300 text-xs">@</span>
             <div className="flex items-center gap-2 flex-row-reverse">
-              {game.homeTeam.logo ? <img src={game.homeTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] font-black">{game.homeTeam.abbr.slice(0,2)}</div>}
-              <div className="text-right"><p className="text-white text-sm font-bold">{game.homeTeam.abbr}</p><p className="text-white/30 text-[10px]">{game.homeTeam.record}</p></div>
+              {game.homeTeam.logo ? <img src={game.homeTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-black/6 flex items-center justify-center text-white text-[10px] font-black">{game.homeTeam.abbr.slice(0,2)}</div>}
+              <div className="text-right"><p className="text-zinc-800 text-sm font-bold">{game.homeTeam.abbr}</p><p className="text-zinc-400 text-[10px]">{game.homeTeam.record}</p></div>
             </div>
           </div>
         )}
@@ -447,12 +447,12 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
         {/* Win prob bar */}
         {game.hasWinnerOdds && (
           <div className="mb-3">
-            <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-1 rounded-full bg-black/6 overflow-hidden">
               <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400" style={{ width: `${pct(game.homeWinOdds)}%` }} />
             </div>
             <div className="flex justify-between mt-1">
-              <span className="text-white/30 text-[10px]">{game.awayTeam.abbr} {pct(game.awayWinOdds)}%</span>
-              <span className="text-white/30 text-[10px]">{game.homeTeam.abbr} {pct(game.homeWinOdds)}%</span>
+              <span className="text-zinc-400 text-[10px]">{game.awayTeam.abbr} {pct(game.awayWinOdds)}%</span>
+              <span className="text-zinc-400 text-[10px]">{game.homeTeam.abbr} {pct(game.homeWinOdds)}%</span>
             </div>
           </div>
         )}
@@ -462,63 +462,63 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
           <div className="mt-1">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-24 flex-shrink-0" />
-              <div className="min-w-[72px] text-center text-[10px] text-white/25 font-semibold uppercase tracking-wider">Winner</div>
-              <div className="min-w-[72px] text-center text-[10px] text-white/25 font-semibold uppercase tracking-wider">Spread</div>
-              <div className="min-w-[72px] text-center text-[10px] text-white/25 font-semibold uppercase tracking-wider">Total</div>
+              <div className="min-w-[72px] text-center text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Winner</div>
+              <div className="min-w-[72px] text-center text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Spread</div>
+              <div className="min-w-[72px] text-center text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Total</div>
             </div>
 
             {/* Away row */}
             <div className="flex items-center gap-2 mb-2">
               <div className="w-24 flex-shrink-0 flex items-center gap-1.5">
                 {game.awayTeam.logo ? <img src={game.awayTeam.logo} className="w-6 h-6 object-contain" /> : null}
-                <span className="text-white text-xs font-bold">{game.awayTeam.abbr}</span>
+                <span className="text-zinc-800 text-xs font-bold">{game.awayTeam.abbr}</span>
               </div>
               {game.hasWinnerOdds
                 ? <OddsChip top="WIN" bottom={String(pct(game.awayWinOdds))} hot={pct(game.awayWinOdds) >= 55} href={game.polyWinnerUrl} />
-                : <div className="min-w-[72px] text-center text-white/20 text-xs">—</div>}
+                : <div className="min-w-[72px] text-center text-zinc-300 text-xs">—</div>}
               {game.hasSpreadOdds
                 ? <OddsChip top={awaySpreadLabel} bottom={String(pct(awaySpreadOdds))} hot={pct(awaySpreadOdds) >= 55} href={game.polySpreadUrl} />
-                : <div className="min-w-[72px] text-center text-white/20 text-xs">—</div>}
+                : <div className="min-w-[72px] text-center text-zinc-300 text-xs">—</div>}
               {game.hasTotalOdds
                 ? <OddsChip top={`O ${game.totalLine}`} bottom={String(pct(game.overOdds))} hot={pct(game.overOdds) >= 55} href={game.polyTotalUrl} />
-                : <div className="min-w-[72px] text-center text-white/20 text-xs">—</div>}
+                : <div className="min-w-[72px] text-center text-zinc-300 text-xs">—</div>}
             </div>
 
             {/* Home row */}
             <div className="flex items-center gap-2">
               <div className="w-24 flex-shrink-0 flex items-center gap-1.5">
                 {game.homeTeam.logo ? <img src={game.homeTeam.logo} className="w-6 h-6 object-contain" /> : null}
-                <span className="text-white text-xs font-bold">{game.homeTeam.abbr}</span>
+                <span className="text-zinc-800 text-xs font-bold">{game.homeTeam.abbr}</span>
               </div>
               {game.hasWinnerOdds
                 ? <OddsChip top="WIN" bottom={String(pct(game.homeWinOdds))} hot={pct(game.homeWinOdds) >= 55} href={game.polyWinnerUrl} />
-                : <div className="min-w-[72px] text-center text-white/20 text-xs">—</div>}
+                : <div className="min-w-[72px] text-center text-zinc-300 text-xs">—</div>}
               {game.hasSpreadOdds
                 ? <OddsChip top={homeSpreadLabel} bottom={String(pct(homeSpreadOdds))} hot={pct(homeSpreadOdds) >= 55} href={game.polySpreadUrl} />
-                : <div className="min-w-[72px] text-center text-white/20 text-xs">—</div>}
+                : <div className="min-w-[72px] text-center text-zinc-300 text-xs">—</div>}
               {game.hasTotalOdds
                 ? <OddsChip top={`U ${game.totalLine}`} bottom={String(pct(game.underOdds))} hot={pct(game.underOdds) >= 55} href={game.polyTotalUrl} />
-                : <div className="min-w-[72px] text-center text-white/20 text-xs">—</div>}
+                : <div className="min-w-[72px] text-center text-zinc-300 text-xs">—</div>}
             </div>
           </div>
         )}
 
         {/* DK comparison */}
         {game.hasDkOdds && (game.hasSpreadOdds || game.hasTotalOdds) && (
-          <div className="mt-3 pt-3 border-t border-white/5">
-            <p className="text-[10px] font-semibold text-white/20 uppercase tracking-widest mb-2">vs DraftKings</p>
-            <div className="grid grid-cols-3 text-[10px] text-white/25 text-center mb-1">
+          <div className="mt-3 pt-3 border-t border-black/5">
+            <p className="text-[10px] font-semibold text-zinc-300 uppercase tracking-widest mb-2">vs DraftKings</p>
+            <div className="grid grid-cols-3 text-[10px] text-zinc-400 text-center mb-1">
               <span className="text-left">Market</span><span>DK</span><span>Poly</span>
             </div>
             {game.hasSpreadOdds && game.dkSpread != null && (() => {
               const edge = Math.abs(game.spreadLine - game.dkSpread) >= 1.5
               return (
-                <div className={`grid grid-cols-3 items-center py-1.5 px-2 rounded-xl mb-1 ${edge ? 'bg-amber-400/10 border border-amber-400/20' : 'bg-white/3'}`}>
-                  <span className="text-white/40 text-[11px]">Spread</span>
-                  <span className="text-center text-white/60 text-[11px] font-mono">{game.dkSpread > 0 ? '+' : ''}{game.dkSpread}</span>
+                <div className={`grid grid-cols-3 items-center py-1.5 px-2 rounded-xl mb-1 ${edge ? 'bg-amber-50 border border-amber-400/20' : 'bg-white/3'}`}>
+                  <span className="text-zinc-400 text-[11px]">Spread</span>
+                  <span className="text-center text-zinc-500 text-[11px] font-mono">{game.dkSpread > 0 ? '+' : ''}{game.dkSpread}</span>
                   <div className="flex items-center justify-center gap-1">
-                    <span className={`text-[11px] font-mono ${edge ? 'text-amber-300 font-bold' : 'text-white/60'}`}>{game.spreadLine > 0 ? '+' : ''}{game.spreadLine}</span>
-                    {edge && <span className="text-amber-400">⚡</span>}
+                    <span className={`text-[11px] font-mono ${edge ? 'text-amber-600 font-bold' : 'text-zinc-500'}`}>{game.spreadLine > 0 ? '+' : ''}{game.spreadLine}</span>
+                    {edge && <span className="text-amber-500">⚡</span>}
                   </div>
                 </div>
               )
@@ -526,12 +526,12 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             {game.hasTotalOdds && game.dkTotal != null && (() => {
               const edge = Math.abs(game.totalLine - game.dkTotal) >= 2
               return (
-                <div className={`grid grid-cols-3 items-center py-1.5 px-2 rounded-xl ${edge ? 'bg-amber-400/10 border border-amber-400/20' : 'bg-white/3'}`}>
-                  <span className="text-white/40 text-[11px]">Total</span>
-                  <span className="text-center text-white/60 text-[11px] font-mono">{game.dkTotal}</span>
+                <div className={`grid grid-cols-3 items-center py-1.5 px-2 rounded-xl ${edge ? 'bg-amber-50 border border-amber-400/20' : 'bg-white/3'}`}>
+                  <span className="text-zinc-400 text-[11px]">Total</span>
+                  <span className="text-center text-zinc-500 text-[11px] font-mono">{game.dkTotal}</span>
                   <div className="flex items-center justify-center gap-1">
-                    <span className={`text-[11px] font-mono ${edge ? 'text-amber-300 font-bold' : 'text-white/60'}`}>{game.totalLine}</span>
-                    {edge && <span className="text-amber-400">⚡</span>}
+                    <span className={`text-[11px] font-mono ${edge ? 'text-amber-600 font-bold' : 'text-zinc-500'}`}>{game.totalLine}</span>
+                    {edge && <span className="text-amber-500">⚡</span>}
                   </div>
                 </div>
               )
@@ -540,7 +540,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
         )}
 
         {!game.hasWinnerOdds && !game.hasSpreadOdds && !game.hasTotalOdds && (
-          <p className="text-center text-white/20 text-[10px] mt-2">Lines open closer to tip-off</p>
+          <p className="text-center text-zinc-300 text-[10px] mt-2">Lines open closer to tip-off</p>
         )}
       </GlassCard>
 
@@ -601,51 +601,51 @@ export default function Home() {
   const pendingBets = bets.filter(b => b.result === 'pending').length
 
   return (
-    <main className="min-h-screen text-white relative" style={{ background: 'transparent' }}>
+    <main className="min-h-screen text-zinc-900 relative" style={{ background: "transparent" }}>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-600/10 blur-3xl" />
-        <div className="absolute top-1/3 -right-24 w-80 h-80 rounded-full bg-amber-500/8 blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-72 h-72 rounded-full bg-emerald-600/8 blur-3xl" />
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-200/40 blur-3xl" />
+        <div className="absolute top-1/3 -right-24 w-80 h-80 rounded-full bg-amber-200/40 blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-72 h-72 rounded-full bg-emerald-200/30 blur-3xl" />
       </div>
 
       <div className="relative max-w-md mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-black tracking-tight">NBA <span className="text-amber-400">Lines</span></h1>
-            <p className="text-white/25 text-xs mt-0.5">Polymarket · DraftKings · AI</p>
+            <h1 className="text-2xl font-black tracking-tight">NBA <span className="text-amber-500">Lines</span></h1>
+            <p className="text-zinc-400 text-xs mt-0.5">Polymarket · DraftKings · AI</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowTracker(true)} className="relative w-9 h-9 rounded-full bg-white/5 border border-white/10 backdrop-blur flex items-center justify-center text-white/50 hover:bg-white/10 transition-all text-base">
+            <button onClick={() => setShowTracker(true)} className="relative w-9 h-9 rounded-full bg-black/4 border border-black/8 backdrop-blur flex items-center justify-center text-zinc-500 hover:bg-black/6 transition-all text-base">
               📋
               {pendingBets > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black text-[9px] font-black flex items-center justify-center">{pendingBets}</span>}
             </button>
-            <button onClick={() => { setLoading(true); fetchGames() }} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 backdrop-blur flex items-center justify-center text-white/50 hover:bg-white/10 transition-all text-lg">↻</button>
+            <button onClick={() => { setLoading(true); fetchGames() }} className="w-9 h-9 rounded-full bg-black/4 border border-black/8 backdrop-blur flex items-center justify-center text-zinc-500 hover:bg-black/6 transition-all text-lg">↻</button>
           </div>
         </div>
 
         {/* Date nav */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4 no-scrollbar">
           {days.map(day => (
-            <button key={day.value} onClick={() => setDate(day.value)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${date === day.value ? 'bg-amber-400/20 border-amber-400/40 text-amber-300' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>{day.label}</button>
+            <button key={day.value} onClick={() => setDate(day.value)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${date === day.value ? 'bg-amber-50 border-amber-300 text-amber-600' : 'bg-black/4 border-black/8 text-zinc-400 hover:bg-black/6'}`}>{day.label}</button>
           ))}
         </div>
 
-        {lastUpdated && <p className="text-[10px] text-white/20 text-right mb-2">{lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>}
+        {lastUpdated && <p className="text-[10px] text-zinc-300 text-right mb-2">{lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>}
 
         {loading ? (
-          <div className="flex flex-col gap-3">{[1,2,3].map(i => <div key={i} className="rounded-3xl h-44 bg-white/5 border border-white/10 animate-pulse" />)}</div>
+          <div className="flex flex-col gap-3">{[1,2,3].map(i => <div key={i} className="rounded-3xl h-44 bg-black/4 border border-black/8 animate-pulse" />)}</div>
         ) : games.length === 0 ? (
-          <GlassCard className="p-12 text-center"><p className="text-white/40">No games scheduled</p></GlassCard>
+          <GlassCard className="p-12 text-center"><p className="text-zinc-400">No games scheduled</p></GlassCard>
         ) : (
           <>
-            {live.length > 0 && <div className="mb-5"><div className="flex items-center gap-2 mb-2"><span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" /><span className="text-[11px] font-semibold text-red-400 uppercase tracking-widest">Live Now</span></div>{live.map(g => <GameCard key={g.id} game={g} onLogBet={(b) => saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])} />)}</div>}
-            {upcoming.length > 0 && <div className="mb-5"><p className="text-[11px] font-semibold text-white/25 uppercase tracking-widest mb-2">Upcoming</p>{upcoming.map(g => <GameCard key={g.id} game={g} onLogBet={(b) => saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])} />)}</div>}
-            {final.length > 0 && <div className="mb-5"><p className="text-[11px] font-semibold text-white/25 uppercase tracking-widest mb-2">Final</p>{final.map(g => <GameCard key={g.id} game={g} onLogBet={(b) => saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])} />)}</div>}
+            {live.length > 0 && <div className="mb-5"><div className="flex items-center gap-2 mb-2"><span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" /><span className="text-[11px] font-semibold text-red-500 uppercase tracking-widest">Live Now</span></div>{live.map(g => <GameCard key={g.id} game={g} onLogBet={(b) => saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])} />)}</div>}
+            {upcoming.length > 0 && <div className="mb-5"><p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">Upcoming</p>{upcoming.map(g => <GameCard key={g.id} game={g} onLogBet={(b) => saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])} />)}</div>}
+            {final.length > 0 && <div className="mb-5"><p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">Final</p>{final.map(g => <GameCard key={g.id} game={g} onLogBet={(b) => saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])} />)}</div>}
           </>
         )}
 
-        <p className="text-center text-white/10 text-[10px] mt-4">Prediction market odds · Not financial advice</p>
+        <p className="text-center text-zinc-300 text-[10px] mt-4">Prediction market odds · Not financial advice</p>
       </div>
 
       {showTracker && <BetTracker bets={bets} onUpdate={saveBets} onClose={() => setShowTracker(false)} />}
