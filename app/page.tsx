@@ -231,7 +231,7 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
               return (
                 <div
                   key={i}
-                  className={`rounded-2xl border backdrop-blur overflow-hidden transition-all ${!isRead ? 'bubble-unread' : ''} ${
+                  className={`rounded-2xl border backdrop-blur overflow-hidden transition-all ${
                     isPick
                       ? 'border-amber-300 bg-amber-50'
                       : isOpen
