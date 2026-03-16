@@ -27,7 +27,7 @@ const pct = (v: number) => Math.round(v * 100)
 
 function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.7)', boxShadow: '0 4px 32px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)' }} className={`rounded-3xl ${className}`}>
+    <div style={{ background: 'rgba(255,255,255,0.35)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 4px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)' }} className={`rounded-3xl ${className}`}>
       {children}
     </div>
   )
@@ -606,12 +606,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen text-zinc-900 relative">
-      {/* Ambient blobs */}
-      <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
-        <div style={{ position: 'absolute', top: '-200px', left: '-200px', width: '900px', height: '900px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,179,237,0.75) 0%, transparent 65%)', filter: 'blur(60px)' }} />
-        <div style={{ position: 'absolute', top: '35%', right: '-200px', width: '800px', height: '800px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(251,191,36,0.65) 0%, transparent 65%)', filter: 'blur(60px)' }} />
-        <div style={{ position: 'absolute', bottom: '-150px', left: '30%', width: '700px', height: '700px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(52,211,153,0.6) 0%, transparent 65%)', filter: 'blur(60px)' }} />
-      </div>
+
 
       <div style={{ position: "relative", zIndex: 1 }} className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-6 lg:py-10">
 
