@@ -166,11 +166,9 @@ export async function GET(req: Request) {
     }
     const dateParam = searchParams.get('date') || toCST(new Date())
 
-    // Use date param for historical; omit for today (gets live scores)
+    // Always pass date explicitly — ESPN's dateless endpoint lags behind after games end
     const isToday = dateParam === toCST(new Date())
-    const espnUrl = isToday
-      ? 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
-      : `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateParam}`
+    const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateParam}`
     const espnRes = await fetch(espnUrl, { next: { revalidate: 30 } })
     const espnData = await espnRes.json()
     const events = espnData?.events || []
