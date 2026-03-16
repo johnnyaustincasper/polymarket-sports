@@ -384,7 +384,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             <span className={`text-[11px] font-medium ${isLive ? 'text-red-500' : isFinal ? 'text-zinc-400' : 'text-zinc-500'}`}>
               {isLive ? `LIVE · ${game.gameTime}` : isFinal ? 'Final' : game.gameTime}
             </span>
-            {hasEdge && <span className="text-[10px] bg-amber-50 border border-amber-300 text-amber-600 px-1.5 py-0.5 rounded-full font-semibold">⚡ Edge</span>}
+            {hasEdge && <span className="text-[10px] bg-amber-50 border border-amber-300 text-amber-600 px-1.5 py-0.5 rounded-full font-semibold" title="Polymarket line differs significantly from DraftKings — potential mispricing">⚡ Line Discrepancy vs DraftKings</span>}
           </div>
           <button
             onClick={() => setShowAnalysis(true)}
@@ -486,7 +486,8 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
         {/* DK comparison */}
         {game.hasDkOdds && (game.hasSpreadOdds || game.hasTotalOdds) && (
           <div className="mt-3 pt-3 border-t border-black/5">
-            <p className="text-[10px] font-semibold text-zinc-300 uppercase tracking-widest mb-2">vs DraftKings</p>
+            <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-1">Line Comparison vs DraftKings</p>
+            <p className="text-[9px] text-zinc-300 mb-2">⚡ = Polymarket line differs from DK — potential value bet</p>
             <div className="grid grid-cols-3 text-[10px] text-zinc-400 text-center mb-1">
               <span className="text-left">Market</span><span>DK</span><span>Poly</span>
             </div>
