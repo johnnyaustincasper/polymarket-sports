@@ -196,79 +196,81 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
   }, [])
 
   const sections = analysis ? parseAnalysis(analysis) : []
-  const [active, setActive] = useState<number | null>(null)
-  const activeSection = active !== null ? sections[active] : null
+  const [expanded, setExpanded] = useState<number | null>(null)
+
+  const toggle = (i: number) => setExpanded(prev => prev === i ? null : i)
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(20px)' }}>
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-6 pb-4 max-w-md mx-auto w-full flex-shrink-0">
-        <div className="flex items-center gap-3">
-          {activeSection && (
-            <button onClick={() => setActive(null)} className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white/50 text-sm">←</button>
-          )}
-          <div>
-            <p className="text-white/30 text-xs">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
-            <h3 className="text-white font-black text-base leading-tight">
-              {activeSection ? `${activeSection.emoji} ${activeSection.title}` : 'AI Breakdown'}
-            </h3>
-          </div>
+        <div>
+          <p className="text-white/30 text-xs">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
+          <h3 className="text-white font-black text-base">AI Breakdown</h3>
         </div>
-        <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white/40 text-xl leading-none">×</button>
+        <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white/40 text-xl">×</button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-10 max-w-md mx-auto w-full">
         {loading ? (
-          /* Loading: bubble skeletons */
-          <div className="flex flex-wrap gap-2 mt-2">
-            {['Win Probability','Standings','Offense & Defense','Injury Report','Matchup','Underdog Case','The Pick'].map((label, i) => (
-              <div key={i} className="h-10 rounded-full bg-white/8 animate-pulse border border-white/10" style={{ width: `${80 + (i % 3) * 30}px` }} />
+          <div className="flex flex-col gap-2 mt-1">
+            {[1,2,3,4,5,6,7].map(i => (
+              <div key={i} className="h-12 rounded-2xl bg-white/6 border border-white/10 animate-pulse" />
             ))}
           </div>
-        ) : activeSection ? (
-          /* Detail view */
-          <div className="mt-1">
-            <AnalysisSection title={activeSection.title} emoji={activeSection.emoji} content={activeSection.content} />
-            {/* Next / prev nav */}
-            <div className="flex gap-2 mt-2">
-              {active! > 0 && (
-                <button onClick={() => setActive(active! - 1)} className="flex-1 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/40 text-sm font-semibold">
-                  ← {sections[active! - 1].emoji} {sections[active! - 1].title}
-                </button>
-              )}
-              {active! < sections.length - 1 && (
-                <button onClick={() => setActive(active! + 1)} className="flex-1 py-3 rounded-2xl bg-amber-400/15 border border-amber-400/25 text-amber-300 text-sm font-semibold">
-                  {sections[active! + 1].emoji} {sections[active! + 1].title} →
-                </button>
-              )}
-            </div>
-          </div>
         ) : (
-          /* Bubble grid */
-          <div className="mt-2">
-            <p className="text-white/20 text-xs mb-4">Tap a section to dive in</p>
-            <div className="flex flex-wrap gap-2">
-              {sections.map((s, i) => (
-                <button
+          <div className="flex flex-col gap-2 mt-1">
+            {sections.map((s, i) => {
+              const isOpen = expanded === i
+              const isPick = s.title === 'The Pick'
+              return (
+                <div
                   key={i}
-                  onClick={() => setActive(i)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/12 bg-white/6 backdrop-blur active:scale-95 transition-all hover:bg-white/12 hover:border-white/20"
+                  className={`rounded-2xl border backdrop-blur overflow-hidden transition-all ${
+                    isPick
+                      ? 'border-amber-400/30 bg-amber-400/8'
+                      : isOpen
+                        ? 'border-white/20 bg-white/10'
+                        : 'border-white/10 bg-white/5'
+                  }`}
                 >
-                  <span className="text-base">{s.emoji}</span>
-                  <span className="text-white/80 text-sm font-semibold">{s.title}</span>
-                </button>
-              ))}
-            </div>
+                  {/* Bubble header — always visible, tap to toggle */}
+                  <button
+                    className="w-full flex items-center justify-between px-4 py-3.5 text-left"
+                    onClick={() => toggle(i)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{s.emoji}</span>
+                      <span className={`text-sm font-bold ${isPick ? 'text-amber-300' : 'text-white/80'}`}>{s.title}</span>
+                    </div>
+                    <span className={`text-white/30 text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▾</span>
+                  </button>
 
-            {/* Quick pick always visible at bottom */}
-            {sections.find(s => s.title === 'The Pick') && (
-              <div className="mt-5 rounded-2xl border border-amber-400/25 bg-amber-400/8 p-4">
-                <p className="text-amber-400/60 text-[10px] font-bold uppercase tracking-widest mb-2">⚡ The Pick</p>
-                <p className="text-white/80 text-sm leading-relaxed">
-                  {sections.find(s => s.title === 'The Pick')!.content.split('\n').filter(l => l.trim())[0]?.replace(/\*\*/g, '') || ''}
-                </p>
-              </div>
-            )}
+                  {/* Expanded content */}
+                  {isOpen && (
+                    <div className="px-4 pb-4 border-t border-white/8">
+                      <div className="flex flex-col gap-1.5 mt-3">
+                        {s.content.split('\n').filter(l => l.trim()).map((line, j) => {
+                          const trimmed = line.trim()
+                          if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+                            return <p key={j} className="text-white font-bold text-sm mt-1">{trimmed.replace(/\*\*/g, '')}</p>
+                          }
+                          if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
+                            return (
+                              <div key={j} className="flex gap-2">
+                                <span className="text-amber-400/50 flex-shrink-0 mt-0.5">·</span>
+                                <p className="text-white/65 text-sm leading-snug">{trimmed.replace(/^[•\-*]\s*/, '').replace(/\*\*(.*?)\*\*/g, '$1')}</p>
+                              </div>
+                            )
+                          }
+                          return <p key={j} className="text-white/65 text-sm leading-snug">{trimmed.replace(/\*\*(.*?)\*\*/g, '$1')}</p>
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
