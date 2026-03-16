@@ -152,10 +152,12 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const dateParam = searchParams.get('date') || new Date().toISOString().slice(0, 10).replace(/-/g, '')
 
-    const espnRes = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateParam}`,
-      { next: { revalidate: 30 } }
-    )
+    // Use date param for historical; omit for today (gets live scores)
+    const isToday = dateParam === new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const espnUrl = isToday
+      ? 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
+      : `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateParam}`
+    const espnRes = await fetch(espnUrl, { next: { revalidate: 30 } })
     const espnData = await espnRes.json()
     const events = espnData?.events || []
     if (!events.length) return NextResponse.json([])

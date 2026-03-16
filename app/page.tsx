@@ -9,7 +9,6 @@ interface Team {
   score: string
   logo: string
   color: string
-  alternateColor: string
 }
 
 interface Game {
@@ -33,63 +32,75 @@ interface Game {
   hasTotalOdds: boolean
 }
 
-function pct(val: number) {
-  return Math.round(val * 100)
-}
+const pct = (v: number) => Math.round(v * 100)
 
-function OddsButton({ label, sublabel, value, highlight }: {
-  label: string
-  sublabel?: string
-  value: number
-  highlight?: boolean
-}) {
-  const p = pct(value)
-  const isHot = p >= 55
+function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`flex flex-col items-center justify-center rounded-xl px-3 py-2 min-w-[80px] ${
-      isHot
-        ? 'bg-amber-500 text-black'
-        : 'bg-zinc-800 text-zinc-200'
-    }`}>
-      {sublabel && <span className="text-[11px] font-medium opacity-80 mb-0.5">{sublabel}</span>}
-      <span className="text-base font-bold">{p}%</span>
-      {label && <span className="text-[10px] opacity-70 mt-0.5">{label}</span>}
+    <div className={`
+      rounded-3xl border border-white/10
+      bg-white/5 backdrop-blur-2xl
+      shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)]
+      ${className}
+    `}>
+      {children}
     </div>
   )
 }
 
-function TeamBadge({ team, winOdds, align }: { team: Team; winOdds: number; align: 'left' | 'right' }) {
+function OddsChip({ top, bottom, hot }: { top: string; bottom: string; hot: boolean }) {
   return (
-    <div className={`flex flex-col items-center gap-1 w-20 ${align === 'right' ? 'items-end' : 'items-start'}`}>
-      <div
-        className="w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-sm shadow-lg"
-        style={{ backgroundColor: `#${team.color}` }}
-      >
-        {team.abbr}
-      </div>
-      <span className="text-white text-xs font-bold">{team.abbr}</span>
-      <span className="text-zinc-400 text-[10px]">{team.record}</span>
+    <div className={`
+      flex flex-col items-center justify-center rounded-2xl px-2 py-2 min-w-[72px]
+      border transition-all
+      ${hot
+        ? 'bg-amber-400/20 border-amber-400/40 text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.2)]'
+        : 'bg-white/5 border-white/10 text-white/60'
+      }
+    `}>
+      <span className="text-[10px] font-medium opacity-70 leading-tight">{top}</span>
+      <span className="text-sm font-bold leading-tight">{bottom}%</span>
     </div>
   )
 }
 
-function WinProbBar({ homeOdds, awayOdds, homeAbbr, awayAbbr }: {
-  homeOdds: number; awayOdds: number; homeAbbr: string; awayAbbr: string
+function TeamRow({ team, winOdds, spreadOdds, spreadLabel, totalOdds, totalLabel, isOver }: {
+  team: Team
+  winOdds: number
+  spreadOdds: number
+  spreadLabel: string
+  totalOdds: number
+  totalLabel: string
+  isOver: boolean
 }) {
-  const hp = pct(homeOdds)
-  const ap = pct(awayOdds)
   return (
-    <div className="w-full px-2 my-3">
-      <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
-        <span>{awayAbbr} {ap}%</span>
-        <span>{homeAbbr} {hp}%</span>
+    <div className="flex items-center gap-2">
+      {/* Team */}
+      <div className="flex items-center gap-2 w-24 flex-shrink-0">
+        {team.logo
+          ? <img src={team.logo} className="w-7 h-7 object-contain" alt={team.abbr} />
+          : (
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-black"
+              style={{ backgroundColor: `#${team.color || '334155'}` }}
+            >
+              {team.abbr.slice(0, 2)}
+            </div>
+          )
+        }
+        <div>
+          <p className="text-white text-xs font-bold leading-tight">{team.abbr}</p>
+          <p className="text-white/40 text-[10px] leading-tight">{team.record}</p>
+        </div>
       </div>
-      <div className="h-1.5 rounded-full bg-zinc-700 overflow-hidden">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all"
-          style={{ width: `${hp}%` }}
-        />
-      </div>
+
+      {/* Winner */}
+      <OddsChip top="WIN" bottom={String(pct(winOdds))} hot={pct(winOdds) >= 55} />
+
+      {/* Spread */}
+      <OddsChip top={spreadLabel} bottom={String(pct(spreadOdds))} hot={pct(spreadOdds) >= 55} />
+
+      {/* Total */}
+      <OddsChip top={totalLabel} bottom={String(pct(totalOdds))} hot={pct(totalOdds) >= 55} />
     </div>
   )
 }
@@ -97,132 +108,136 @@ function WinProbBar({ homeOdds, awayOdds, homeAbbr, awayAbbr }: {
 function GameCard({ game }: { game: Game }) {
   const isLive = game.status === 'in'
   const isFinal = game.status === 'post'
-  const spreadFromHome = game.spreadLine
-  const homeIsFav = spreadFromHome < 0
-  const homeSpreadLabel = spreadFromHome > 0 ? `+${spreadFromHome}` : `${spreadFromHome}`
-  const awaySpreadLabel = spreadFromHome > 0 ? `${-spreadFromHome}` : `+${-spreadFromHome}`
+
+  // Spread labels from each team's perspective
+  const homeSpreadLabel = game.spreadLine < 0
+    ? `${game.spreadLine}`
+    : `+${game.spreadLine}`
+  const awaySpreadLabel = game.spreadLine < 0
+    ? `+${-game.spreadLine}`
+    : `${-game.spreadLine}`
+
+  const awaySpreadOdds = game.spreadLine < 0 ? game.spreadAwayOdds : game.spreadHomeOdds
+  const homeSpreadOdds = game.spreadLine < 0 ? game.spreadHomeOdds : game.spreadAwayOdds
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-3">
-      {/* Header: status */}
+    <GlassCard className="p-4 mb-3">
+      {/* Status bar */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          {isLive && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
-          <span className={`text-xs font-semibold ${isLive ? 'text-red-400' : isFinal ? 'text-zinc-500' : 'text-zinc-400'}`}>
-            {isLive ? `LIVE · ${game.gameTime}` : isFinal ? 'Final' : game.gameTime}
+          {isLive && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+              <span className="text-red-400 text-[11px] font-semibold tracking-wide">LIVE</span>
+            </span>
+          )}
+          <span className={`text-[11px] font-medium ${isLive ? 'text-white/70' : isFinal ? 'text-white/40' : 'text-white/50'}`}>
+            {isLive ? game.gameTime : isFinal ? 'Final' : game.gameTime}
           </span>
         </div>
-        <span className="text-[10px] text-zinc-600 uppercase tracking-wider">NBA</span>
+        <span className="text-[10px] text-white/20 font-medium uppercase tracking-widest">NBA</span>
       </div>
 
-      {/* Teams + Score */}
-      <div className="flex items-center justify-between mb-2">
-        <TeamBadge team={game.awayTeam} winOdds={game.awayWinOdds} align="left" />
-
-        <div className="flex flex-col items-center gap-1">
-          {(isLive || isFinal) ? (
-            <div className="flex items-center gap-3">
-              <span className="text-white text-2xl font-black">{game.awayTeam.score}</span>
-              <span className="text-zinc-600 text-sm">–</span>
-              <span className="text-white text-2xl font-black">{game.homeTeam.score}</span>
-            </div>
-          ) : (
-            <span className="text-zinc-400 text-sm">vs</span>
-          )}
+      {/* Score (live/final) */}
+      {(isLive || isFinal) && (
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+            {game.awayTeam.logo
+              ? <img src={game.awayTeam.logo} className="w-8 h-8 object-contain" alt={game.awayTeam.abbr} />
+              : <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] font-black">{game.awayTeam.abbr.slice(0,2)}</div>
+            }
+            <span className="text-white font-black text-2xl">{game.awayTeam.score}</span>
+          </div>
+          <span className="text-white/20 text-sm">—</span>
+          <div className="flex items-center gap-2">
+            <span className="text-white font-black text-2xl">{game.homeTeam.score}</span>
+            {game.homeTeam.logo
+              ? <img src={game.homeTeam.logo} className="w-8 h-8 object-contain" alt={game.homeTeam.abbr} />
+              : <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] font-black">{game.homeTeam.abbr.slice(0,2)}</div>
+            }
+          </div>
         </div>
+      )}
 
-        <TeamBadge team={game.homeTeam} winOdds={game.homeWinOdds} align="right" />
-      </div>
-
-      {/* Win probability bar */}
+      {/* Win prob bar (when odds available) */}
       {game.hasWinnerOdds && (
-        <WinProbBar
-          homeOdds={game.homeWinOdds}
-          awayOdds={game.awayWinOdds}
-          homeAbbr={game.homeTeam.abbr}
-          awayAbbr={game.awayTeam.abbr}
-        />
-      )}
-
-      {/* Game Lines */}
-      {(game.hasWinnerOdds || game.hasSpreadOdds || game.hasTotalOdds) && (
-        <div className="mt-3 pt-3 border-t border-zinc-800">
-          <p className="text-xs text-zinc-500 font-semibold uppercase tracking-widest mb-2">Game Lines</p>
-
-          {/* Header row */}
-          <div className="grid grid-cols-4 text-[11px] text-zinc-500 text-center mb-1 px-1">
-            <span className="text-left">Team</span>
-            <span>Winner</span>
-            <span>Spread</span>
-            <span>Totals</span>
+        <div className="mb-3">
+          <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400"
+              style={{ width: `${pct(game.homeWinOdds)}%` }}
+            />
           </div>
-
-          {/* Away row */}
-          <div className="grid grid-cols-4 items-center gap-1 mb-2">
-            <span className="text-white text-xs font-bold">{game.awayTeam.abbr}</span>
-            {game.hasWinnerOdds
-              ? <OddsButton label="" value={game.awayWinOdds} />
-              : <div className="text-zinc-600 text-xs text-center">—</div>}
-            {game.hasSpreadOdds
-              ? <OddsButton label="" sublabel={homeIsFav ? awaySpreadLabel : homeSpreadLabel} value={homeIsFav ? game.spreadAwayOdds : game.spreadHomeOdds} />
-              : <div className="text-zinc-600 text-xs text-center">—</div>}
-            {game.hasTotalOdds
-              ? <OddsButton label="" sublabel={`O ${game.totalLine}`} value={game.overOdds} />
-              : <div className="text-zinc-600 text-xs text-center">—</div>}
-          </div>
-
-          {/* Home row */}
-          <div className="grid grid-cols-4 items-center gap-1">
-            <span className="text-white text-xs font-bold">{game.homeTeam.abbr}</span>
-            {game.hasWinnerOdds
-              ? <OddsButton label="" value={game.homeWinOdds} />
-              : <div className="text-zinc-600 text-xs text-center">—</div>}
-            {game.hasSpreadOdds
-              ? <OddsButton label="" sublabel={homeIsFav ? homeSpreadLabel : awaySpreadLabel} value={homeIsFav ? game.spreadHomeOdds : game.spreadAwayOdds} />
-              : <div className="text-zinc-600 text-xs text-center">—</div>}
-            {game.hasTotalOdds
-              ? <OddsButton label="" sublabel={`U ${game.totalLine}`} value={game.underOdds} />
-              : <div className="text-zinc-600 text-xs text-center">—</div>}
+          <div className="flex justify-between mt-1">
+            <span className="text-white/40 text-[10px]">{game.awayTeam.abbr} {pct(game.awayWinOdds)}%</span>
+            <span className="text-white/40 text-[10px]">{game.homeTeam.abbr} {pct(game.homeWinOdds)}%</span>
           </div>
         </div>
       )}
 
-      {/* No odds available */}
+      {/* Lines table */}
+      {(game.hasWinnerOdds || game.hasSpreadOdds || game.hasTotalOdds) ? (
+        <div className="mt-1">
+          {/* Column headers */}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-24 flex-shrink-0" />
+            <div className="min-w-[72px] text-center text-[10px] text-white/30 font-semibold uppercase tracking-wider">Winner</div>
+            <div className="min-w-[72px] text-center text-[10px] text-white/30 font-semibold uppercase tracking-wider">Spread</div>
+            <div className="min-w-[72px] text-center text-[10px] text-white/30 font-semibold uppercase tracking-wider">Total</div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <TeamRow
+              team={game.awayTeam}
+              winOdds={game.hasWinnerOdds ? game.awayWinOdds : 0.5}
+              spreadOdds={game.hasSpreadOdds ? awaySpreadOdds : 0.5}
+              spreadLabel={game.hasSpreadOdds ? awaySpreadLabel : '—'}
+              totalOdds={game.hasTotalOdds ? game.overOdds : 0.5}
+              totalLabel={game.hasTotalOdds ? `O ${game.totalLine}` : '—'}
+              isOver
+            />
+            <TeamRow
+              team={game.homeTeam}
+              winOdds={game.hasWinnerOdds ? game.homeWinOdds : 0.5}
+              spreadOdds={game.hasSpreadOdds ? homeSpreadOdds : 0.5}
+              spreadLabel={game.hasSpreadOdds ? homeSpreadLabel : '—'}
+              totalOdds={game.hasTotalOdds ? game.underOdds : 0.5}
+              totalLabel={game.hasTotalOdds ? `U ${game.totalLine}` : '—'}
+              isOver={false}
+            />
+          </div>
+        </div>
+      ) : (
+        /* No odds yet — show matchup */
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {game.awayTeam.logo
+              ? <img src={game.awayTeam.logo} className="w-8 h-8 object-contain" />
+              : <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] font-black">{game.awayTeam.abbr.slice(0,2)}</div>
+            }
+            <div>
+              <p className="text-white text-sm font-bold">{game.awayTeam.abbr}</p>
+              <p className="text-white/40 text-[10px]">{game.awayTeam.record}</p>
+            </div>
+          </div>
+          <span className="text-white/20 text-xs">vs</span>
+          <div className="flex items-center gap-2 flex-row-reverse">
+            {game.homeTeam.logo
+              ? <img src={game.homeTeam.logo} className="w-8 h-8 object-contain" />
+              : <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] font-black">{game.homeTeam.abbr.slice(0,2)}</div>
+            }
+            <div className="text-right">
+              <p className="text-white text-sm font-bold">{game.homeTeam.abbr}</p>
+              <p className="text-white/40 text-[10px]">{game.homeTeam.record}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!game.hasWinnerOdds && !game.hasSpreadOdds && !game.hasTotalOdds && (
-        <div className="mt-3 pt-3 border-t border-zinc-800 text-center text-zinc-600 text-xs">
-          Polymarket lines open closer to tip-off
-        </div>
+        <p className="text-center text-white/20 text-[10px] mt-3">Lines open closer to tip-off</p>
       )}
-    </div>
-  )
-}
-
-function DateNav({ selected, onChange }: { selected: string; onChange: (d: string) => void }) {
-  const days = Array.from({ length: 5 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() + i - 1)
-    return {
-      label: i === 1 ? 'Today' : i === 0 ? 'Yest' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' }),
-      value: d.toISOString().slice(0, 10).replace(/-/g, ''),
-    }
-  })
-
-  return (
-    <div className="flex gap-2 overflow-x-auto pb-1 mb-4 no-scrollbar">
-      {days.map(day => (
-        <button
-          key={day.value}
-          onClick={() => onChange(day.value)}
-          className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-            selected === day.value
-              ? 'bg-amber-500 text-black'
-              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-          }`}
-        >
-          {day.label}
-        </button>
-      ))}
-    </div>
+    </GlassCard>
   )
 }
 
@@ -237,11 +252,9 @@ export default function Home() {
     try {
       const res = await fetch(`/api/markets?date=${date}`)
       const data = await res.json()
-      setGames(data)
+      setGames(Array.isArray(data) ? data : [])
       setLastUpdated(new Date())
-    } catch (e) {
-      console.error(e)
-    } finally {
+    } catch { /* silent */ } finally {
       setLoading(false)
     }
   }, [date])
@@ -249,82 +262,117 @@ export default function Home() {
   useEffect(() => {
     setLoading(true)
     fetchGames()
-    const interval = setInterval(fetchGames, 60000) // refresh every minute
-    return () => clearInterval(interval)
+    const iv = setInterval(fetchGames, 60000)
+    return () => clearInterval(iv)
   }, [fetchGames])
 
-  const liveGames = games.filter(g => g.status === 'in')
-  const upcomingGames = games.filter(g => g.status === 'pre')
-  const finalGames = games.filter(g => g.status === 'post')
+  const days = Array.from({ length: 5 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() + i - 2)
+    return {
+      label: i === 2 ? 'Today' : i === 1 ? 'Yest' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      value: d.toISOString().slice(0, 10).replace(/-/g, ''),
+    }
+  })
+
+  const live = games.filter(g => g.status === 'in')
+  const upcoming = games.filter(g => g.status === 'pre')
+  const final = games.filter(g => g.status === 'post')
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="max-w-md mx-auto px-4 py-6">
+    <main
+      className="min-h-screen text-white relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #0a0a1a 0%, #0d1520 40%, #0a1208 100%)',
+      }}
+    >
+      {/* Ambient blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-600/10 blur-3xl" />
+        <div className="absolute top-1/3 -right-24 w-80 h-80 rounded-full bg-amber-500/8 blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-72 h-72 rounded-full bg-emerald-600/8 blur-3xl" />
+      </div>
+
+      <div className="relative max-w-md mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-black text-white tracking-tight">NBA Lines</h1>
-            <p className="text-zinc-500 text-xs mt-0.5">
-              Powered by <span className="text-amber-400">Polymarket</span>
-            </p>
+            <h1 className="text-2xl font-black tracking-tight">
+              NBA <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">Lines</span>
+            </h1>
+            <p className="text-white/30 text-xs mt-0.5">Polymarket Odds</p>
           </div>
           <button
             onClick={() => { setLoading(true); fetchGames() }}
-            className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:bg-zinc-700 transition-all"
+            className="w-9 h-9 rounded-full bg-white/5 border border-white/10 backdrop-blur flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all text-lg"
           >
             ↻
           </button>
         </div>
 
-        {/* Date Nav */}
-        <DateNav selected={date} onChange={setDate} />
+        {/* Date picker */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4 no-scrollbar">
+          {days.map(day => (
+            <button
+              key={day.value}
+              onClick={() => setDate(day.value)}
+              className={`
+                flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all
+                ${date === day.value
+                  ? 'bg-amber-400/20 border-amber-400/40 text-amber-300'
+                  : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/60'}
+              `}
+            >
+              {day.label}
+            </button>
+          ))}
+        </div>
 
-        {/* Last updated */}
         {lastUpdated && (
-          <p className="text-[10px] text-zinc-600 mb-3 text-right">
-            Updated {lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+          <p className="text-[10px] text-white/20 text-right mb-2">
+            {lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
           </p>
         )}
 
         {loading ? (
           <div className="flex flex-col gap-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-2xl h-48 animate-pulse" />
+            {[1,2,3].map(i => (
+              <div key={i} className="rounded-3xl h-44 bg-white/5 border border-white/10 animate-pulse" />
             ))}
           </div>
         ) : games.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-zinc-500 text-lg">No games scheduled</p>
-            <p className="text-zinc-600 text-sm mt-1">Try a different date</p>
-          </div>
+          <GlassCard className="p-12 text-center">
+            <p className="text-white/40 text-lg">No games scheduled</p>
+            <p className="text-white/20 text-sm mt-1">Try another date</p>
+          </GlassCard>
         ) : (
           <>
-            {liveGames.length > 0 && (
-              <section className="mb-4">
+            {live.length > 0 && (
+              <div className="mb-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  <h2 className="text-xs font-semibold text-red-400 uppercase tracking-widest">Live</h2>
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                  <span className="text-[11px] font-semibold text-red-400 uppercase tracking-widest">Live Now</span>
                 </div>
-                {liveGames.map(g => <GameCard key={g.id} game={g} />)}
-              </section>
+                {live.map(g => <GameCard key={g.id} game={g} />)}
+              </div>
             )}
-            {upcomingGames.length > 0 && (
-              <section className="mb-4">
-                <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2">Upcoming</h2>
-                {upcomingGames.map(g => <GameCard key={g.id} game={g} />)}
-              </section>
+            {upcoming.length > 0 && (
+              <div className="mb-5">
+                <p className="text-[11px] font-semibold text-white/30 uppercase tracking-widest mb-2">Upcoming</p>
+                {upcoming.map(g => <GameCard key={g.id} game={g} />)}
+              </div>
             )}
-            {finalGames.length > 0 && (
-              <section className="mb-4">
-                <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2">Final</h2>
-                {finalGames.map(g => <GameCard key={g.id} game={g} />)}
-              </section>
+            {final.length > 0 && (
+              <div className="mb-5">
+                <p className="text-[11px] font-semibold text-white/30 uppercase tracking-widest mb-2">Final</p>
+                {final.map(g => <GameCard key={g.id} game={g} />)}
+              </div>
             )}
           </>
         )}
 
-        <p className="text-center text-zinc-700 text-[10px] mt-6">
-          Odds from Polymarket prediction markets · Not financial advice
+        <p className="text-center text-white/15 text-[10px] mt-4">
+          Prediction market odds · Not financial advice
         </p>
       </div>
     </main>
