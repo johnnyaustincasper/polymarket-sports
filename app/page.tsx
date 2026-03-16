@@ -15,6 +15,7 @@ interface Game {
   totalLine: number; overOdds: number; underOdds: number; hasTotalOdds: boolean
   dkSpread: number | null; dkTotal: number | null; dkDetails: string; hasDkOdds: boolean
   polyWinnerUrl: string | null; polySpreadUrl: string | null; polyTotalUrl: string | null
+  venue: { name: string; location: string } | null
 }
 interface BetLog {
   id: string; gameId: string; matchup: string; betType: string
@@ -412,7 +413,10 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
               {game.awayTeam.logo ? <img src={game.awayTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-black/6 flex items-center justify-center text-white text-[10px] font-black">{game.awayTeam.abbr.slice(0,2)}</div>}
               <div><p className="text-zinc-800 text-sm font-bold">{game.awayTeam.abbr}</p><p className="text-zinc-400 text-[10px]">{game.awayTeam.record}</p></div>
             </div>
-            <span className="text-zinc-300 text-xs">@</span>
+            <div className="text-center">
+              <span className="text-zinc-300 text-xs">@</span>
+              {game.venue && <p className="text-[10px] text-zinc-400 leading-tight mt-0.5">{game.venue.name}<br/><span className="text-zinc-300">{game.venue.location}</span></p>}
+            </div>
             <div className="flex items-center gap-2 flex-row-reverse">
               {game.homeTeam.logo ? <img src={game.homeTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-black/6 flex items-center justify-center text-white text-[10px] font-black">{game.homeTeam.abbr.slice(0,2)}</div>}
               <div className="text-right"><p className="text-zinc-800 text-sm font-bold">{game.homeTeam.abbr}</p><p className="text-zinc-400 text-[10px]">{game.homeTeam.record}</p></div>

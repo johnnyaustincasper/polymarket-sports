@@ -225,6 +225,7 @@ export async function GET(req: Request) {
         },
         gameTime,
         gameDate: event.date,
+        venue: (() => { const v = competition.venue; if (!v) return null; const city = v.address?.city || ''; const state = v.address?.state || ''; return { name: v.fullName || '', location: [city, state].filter(Boolean).join(', ') } })(),
         status: event.status?.type?.state || 'pre',
         // DraftKings
         dkSpread,
