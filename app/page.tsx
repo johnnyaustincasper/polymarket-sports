@@ -196,34 +196,79 @@ function AnalysisModal({ game, onClose }: { game: Game; onClose: () => void }) {
   }, [])
 
   const sections = analysis ? parseAnalysis(analysis) : []
+  const [active, setActive] = useState<number | null>(null)
+  const activeSection = active !== null ? sections[active] : null
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(16px)' }}>
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-3 max-w-md mx-auto w-full">
-        <div>
-          <p className="text-white/30 text-xs">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
-          <h3 className="text-white font-black text-lg leading-tight">AI Breakdown</h3>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(20px)' }}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-6 pb-4 max-w-md mx-auto w-full flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {activeSection && (
+            <button onClick={() => setActive(null)} className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white/50 text-sm">←</button>
+          )}
+          <div>
+            <p className="text-white/30 text-xs">{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
+            <h3 className="text-white font-black text-base leading-tight">
+              {activeSection ? `${activeSection.emoji} ${activeSection.title}` : 'AI Breakdown'}
+            </h3>
+          </div>
         </div>
-        <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white/50 text-lg">×</button>
+        <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white/40 text-xl leading-none">×</button>
       </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-8 max-w-md mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 pb-10 max-w-md mx-auto w-full">
         {loading ? (
-          <div className="flex flex-col gap-3 mt-2">
-            {[80,65,90,70,85].map((w,i) => (
-              <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="h-2.5 rounded-full bg-white/10 animate-pulse mb-3" style={{ width: '40%' }} />
-                {[w, w-15, w+5, w-10].map((pw,j) => (
-                  <div key={j} className="h-2 rounded-full bg-white/8 animate-pulse mb-2" style={{ width: `${pw}%` }} />
-                ))}
-              </div>
+          /* Loading: bubble skeletons */
+          <div className="flex flex-wrap gap-2 mt-2">
+            {['Win Probability','Standings','Offense & Defense','Injury Report','Matchup','Underdog Case','The Pick'].map((label, i) => (
+              <div key={i} className="h-10 rounded-full bg-white/8 animate-pulse border border-white/10" style={{ width: `${80 + (i % 3) * 30}px` }} />
             ))}
           </div>
+        ) : activeSection ? (
+          /* Detail view */
+          <div className="mt-1">
+            <AnalysisSection title={activeSection.title} emoji={activeSection.emoji} content={activeSection.content} />
+            {/* Next / prev nav */}
+            <div className="flex gap-2 mt-2">
+              {active! > 0 && (
+                <button onClick={() => setActive(active! - 1)} className="flex-1 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/40 text-sm font-semibold">
+                  ← {sections[active! - 1].emoji} {sections[active! - 1].title}
+                </button>
+              )}
+              {active! < sections.length - 1 && (
+                <button onClick={() => setActive(active! + 1)} className="flex-1 py-3 rounded-2xl bg-amber-400/15 border border-amber-400/25 text-amber-300 text-sm font-semibold">
+                  {sections[active! + 1].emoji} {sections[active! + 1].title} →
+                </button>
+              )}
+            </div>
+          </div>
         ) : (
+          /* Bubble grid */
           <div className="mt-2">
-            {sections.map((s, i) => <AnalysisSection key={i} title={s.title} emoji={s.emoji} content={s.content} />)}
+            <p className="text-white/20 text-xs mb-4">Tap a section to dive in</p>
+            <div className="flex flex-wrap gap-2">
+              {sections.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActive(i)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/12 bg-white/6 backdrop-blur active:scale-95 transition-all hover:bg-white/12 hover:border-white/20"
+                >
+                  <span className="text-base">{s.emoji}</span>
+                  <span className="text-white/80 text-sm font-semibold">{s.title}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Quick pick always visible at bottom */}
+            {sections.find(s => s.title === 'The Pick') && (
+              <div className="mt-5 rounded-2xl border border-amber-400/25 bg-amber-400/8 p-4">
+                <p className="text-amber-400/60 text-[10px] font-bold uppercase tracking-widest mb-2">⚡ The Pick</p>
+                <p className="text-white/80 text-sm leading-relaxed">
+                  {sections.find(s => s.title === 'The Pick')!.content.split('\n').filter(l => l.trim())[0]?.replace(/\*\*/g, '') || ''}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
