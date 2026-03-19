@@ -559,7 +559,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
   const [date, setDate] = useState(today)
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
@@ -589,7 +589,7 @@ export default function Home() {
   useEffect(() => { setLoading(true); fetchGames(); const iv = setInterval(fetchGames, 60000); return () => clearInterval(iv) }, [fetchGames])
 
   const days = Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() + i - 2)
+    const nowCST = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' })); const d = new Date(nowCST); d.setDate(d.getDate() + i - 2)
     return {
       label: i === 2 ? 'Today' : i === 1 ? 'Yest' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       value: d.toISOString().slice(0, 10).replace(/-/g, ''),
