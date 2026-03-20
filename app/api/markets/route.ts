@@ -92,60 +92,54 @@ async function getPolyOdds(
   }
 
   try {
-    // NCAAB: use ncaa-basketball tag (per-game markets exist with full team names)
-    // NBA: no per-game markets currently; fall through to DK odds only
-    if (sport !== 'ncaab') return defaultOdds
-
-    const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=ncaa-basketball&limit=200`, {
+    const tagSlug = sport === 'ncaab' ? 'ncaab' : 'nba'
+    const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=${tagSlug}&limit=200`, {
       next: { revalidate: 60 }
     })
     if (!res.ok) return defaultOdds
     const events: any[] = await res.json()
 
-    // NCAAB titles are "Team A vs. Team B" using full displayName
-    const awayLower = awayName.toLowerCase()
-    const homeLower = homeName.toLowerCase()
     const event = events.find(e => {
       const title = (e.title || '').toLowerCase()
-      // Try full name match first, then keyword fallback
-      const awayMatch = title.includes(awayLower) ||
-        teamMatchesKeywords(awayName, awayAbbr, title, sport)
-      const homeMatch = title.includes(homeLower) ||
-        teamMatchesKeywords(homeName, homeAbbr, title, sport)
-      return awayMatch && homeMatch
+      return teamMatchesKeywords(awayName, awayAbbr, title, sport) &&
+             teamMatchesKeywords(homeName, homeAbbr, title, sport)
     })
     if (!event) return defaultOdds
 
     const markets: any[] = event.markets || []
-    const polySlug = (m: any) => m?.slug ? `https://polymarket.com/event/${m.slug}` :
-      event?.slug ? `https://polymarket.com/event/${event.slug}` : null
-    const result = { ...defaultOdds }
 
-    // Winner market: the main event market (outcomes = team names)
     const winnerMarket = markets
       .filter(m => {
         const q = (m.question || '').toLowerCase()
-        return !q.includes('spread') && !q.includes('o/u') &&
-               (q.includes(awayLower.split(' ')[0]) || q.includes(homeLower.split(' ')[0]))
+        return !q.includes(':') && !q.includes('o/u') &&
+               teamMatchesKeywords(awayName, awayAbbr, q, sport) &&
+               teamMatchesKeywords(homeName, homeAbbr, q, sport)
       })
-      .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0] || markets[0]
+      .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
+
+    const spreadMarket = markets
+      .filter(m => (m.question || '').toLowerCase().startsWith('spread:'))
+      .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
+
+    const totalMarket = markets
+      .filter(m => (m.question || '').toLowerCase().includes('o/u'))
+      .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
+
+    const polySlug = (m: any) => m?.slug ? `https://polymarket.com/event/${m.slug}` : null
+    const result = { ...defaultOdds }
 
     if (winnerMarket) {
       const outcomes: string[] = JSON.parse(winnerMarket.outcomes || '[]')
       const prices: string[] = JSON.parse(winnerMarket.outcomePrices || '[]')
       if (outcomes.length === 2 && prices.length === 2) {
-        const homeIdx = outcomes.findIndex(o => o.toLowerCase().includes(homeLower.split(' ')[0]))
+        const homeKw = getKeywords(homeName, homeAbbr, sport)
+        const homeIdx = outcomes.findIndex(o => homeKw.some(k => o.toLowerCase().includes(k)))
         const awayIdx = homeIdx === 0 ? 1 : 0
         result.homeWinOdds = parseFloat(prices[homeIdx >= 0 ? homeIdx : 1] || '0.5')
         result.awayWinOdds = parseFloat(prices[awayIdx] || '0.5')
         result.hasWinnerOdds = true
-        result.polyWinnerUrl = polySlug(winnerMarket)
       }
     }
-
-    const spreadMarket = markets
-      .filter(m => (m.question || '').toLowerCase().startsWith('spread:'))
-      .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     if (spreadMarket) {
       const outcomes: string[] = JSON.parse(spreadMarket.outcomes || '[]')
@@ -153,19 +147,15 @@ async function getPolyOdds(
       const line = parseSpreadLine(spreadMarket.question || '')
       if (outcomes.length === 2 && prices.length === 2 && line !== 0) {
         const favTeamName = (outcomes[0] || '').toLowerCase()
-        const favIsHome = favTeamName.includes(homeLower.split(' ')[0])
+        const homeKw = getKeywords(homeName, homeAbbr, sport)
+        const favIsHome = homeKw.some(k => favTeamName.includes(k))
         result.spreadLine = favIsHome ? line : -line
         result.spreadHomeOdds = parseFloat(prices[favIsHome ? 0 : 1] || '0.5')
         result.spreadAwayOdds = parseFloat(prices[favIsHome ? 1 : 0] || '0.5')
         result.spreadFavoriteTeam = favIsHome ? homeAbbr : awayAbbr
         result.hasSpreadOdds = true
-        result.polySpreadUrl = polySlug(spreadMarket)
       }
     }
-
-    const totalMarket = markets
-      .filter(m => (m.question || '').toLowerCase().includes('o/u'))
-      .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     if (totalMarket) {
       const outcomes: string[] = JSON.parse(totalMarket.outcomes || '[]')
@@ -178,9 +168,12 @@ async function getPolyOdds(
         result.overOdds = parseFloat(prices[overIdx >= 0 ? overIdx : 0] || '0.5')
         result.underOdds = parseFloat(prices[underIdx] || '0.5')
         result.hasTotalOdds = true
-        result.polyTotalUrl = polySlug(totalMarket)
       }
     }
+
+    result.polyWinnerUrl = polySlug(winnerMarket) || polySlug(event) || null
+    result.polySpreadUrl = polySlug(spreadMarket) || polySlug(event) || null
+    result.polyTotalUrl  = polySlug(totalMarket)  || polySlug(event) || null
 
     return result
   } catch {
