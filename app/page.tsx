@@ -431,7 +431,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
           <div className="flex items-center justify-between mb-3 px-1">
             <div className="flex items-center gap-2">
               {game.awayTeam.logo ? <img src={game.awayTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-black/6 flex items-center justify-center text-white text-[10px] font-black">{game.awayTeam.abbr.slice(0,2)}</div>}
-              <div><p className="text-zinc-800 text-sm font-bold">{game.awayTeam.abbr}</p><p className="text-zinc-700 text-[10px]">{game.awayTeam.record}</p></div>
+              <div><p className="text-zinc-800 text-sm font-bold">{(game.awayTeam as any).rank ? <span className="text-indigo-500 font-black text-[10px] mr-0.5">#{(game.awayTeam as any).rank}</span> : null}{game.awayTeam.abbr}</p><p className="text-zinc-700 text-[10px]">{game.awayTeam.record}</p></div>
             </div>
             <div className="text-center">
               <span className="text-zinc-700 text-xs">@</span>
@@ -439,7 +439,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             </div>
             <div className="flex items-center gap-2 flex-row-reverse">
               {game.homeTeam.logo ? <img src={game.homeTeam.logo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-black/6 flex items-center justify-center text-white text-[10px] font-black">{game.homeTeam.abbr.slice(0,2)}</div>}
-              <div className="text-right"><p className="text-zinc-800 text-sm font-bold">{game.homeTeam.abbr}</p><p className="text-zinc-700 text-[10px]">{game.homeTeam.record}</p></div>
+              <div className="text-right"><p className="text-zinc-800 text-sm font-bold">{(game.homeTeam as any).rank ? <span className="text-indigo-500 font-black text-[10px] mr-0.5">#{(game.homeTeam as any).rank}</span> : null}{game.homeTeam.abbr}</p><p className="text-zinc-700 text-[10px]">{game.homeTeam.record}</p></div>
             </div>
           </div>
         )}
@@ -561,6 +561,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
 export default function Home() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
   const [date, setDate] = useState(today)
+  const [sport, setSport] = useState<'nba' | 'ncaab'>('nba')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -580,11 +581,11 @@ export default function Home() {
 
   const fetchGames = useCallback(async () => {
     try {
-      const res = await fetch(`/api/markets?date=${date}`)
+      const res = await fetch(`/api/markets?date=${date}&sport=${sport}`)
       setGames(Array.isArray(await res.clone().json()) ? await res.json() : [])
       setLastUpdated(new Date())
     } catch { } finally { setLoading(false) }
-  }, [date])
+  }, [date, sport])
 
   useEffect(() => { setLoading(true); fetchGames(); const iv = setInterval(fetchGames, 60000); return () => clearInterval(iv) }, [fetchGames])
 
@@ -613,7 +614,13 @@ export default function Home() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-black tracking-tight">NBA <span className="text-indigo-600">Lines</span></h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-black tracking-tight">{sport === 'nba' ? 'NBA' : 'NCAAB'} <span className="text-indigo-600">Lines</span></h1>
+              <div className="flex rounded-xl overflow-hidden border border-black/10 text-xs font-bold">
+                <button onClick={() => { setSport('nba'); setLoading(true) }} className={`px-3 py-1.5 transition-all ${sport === 'nba' ? 'bg-indigo-600 text-white' : 'bg-black/5 text-zinc-600 hover:bg-black/10'}`}>NBA</button>
+                <button onClick={() => { setSport('ncaab'); setLoading(true) }} className={`px-3 py-1.5 transition-all ${sport === 'ncaab' ? 'bg-indigo-600 text-white' : 'bg-black/5 text-zinc-600 hover:bg-black/10'}`}>NCAAB</button>
+              </div>
+            </div>
             <p className="text-zinc-700 text-sm mt-0.5">Polymarket · DraftKings · AI Analysis</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
