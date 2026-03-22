@@ -7,15 +7,15 @@ const ESPN_TO_POLY: Record<string, string[]> = {
   ATL: ['hawks', 'atlanta'], BOS: ['celtics', 'boston'], BKN: ['nets', 'brooklyn'],
   CHA: ['hornets', 'charlotte'], CHI: ['bulls', 'chicago'], CLE: ['cavaliers', 'cleveland'],
   DAL: ['mavericks', 'dallas'], DEN: ['nuggets', 'denver'], DET: ['pistons', 'detroit'],
-  GSW: ['warriors', 'golden state'], HOU: ['rockets', 'houston'], IND: ['pacers', 'indiana'],
+  GSW: ['warriors', 'golden state'], GS: ['warriors', 'golden state'], HOU: ['rockets', 'houston'], IND: ['pacers', 'indiana'],
   LAC: ['clippers', 'clippers'], LAL: ['lakers', 'los angeles lakers', 'lakers'],
   MEM: ['grizzlies', 'memphis'], MIA: ['heat', 'miami'], MIL: ['bucks', 'milwaukee'],
-  MIN: ['timberwolves', 'minnesota'], NOP: ['pelicans', 'new orleans'],
+  MIN: ['timberwolves', 'minnesota'], NOP: ['pelicans', 'new orleans'], NO: ['pelicans', 'new orleans'],
   NYK: ['knicks', 'new york'], NY: ['knicks', 'new york'], OKC: ['thunder', 'oklahoma city'],
   ORL: ['magic', 'orlando'], PHI: ['76ers', 'philadelphia'],
   PHX: ['suns', 'phoenix'], POR: ['trail blazers', 'portland'],
-  SAC: ['kings', 'sacramento'], SAS: ['spurs', 'san antonio'],
-  TOR: ['raptors', 'toronto'], UTA: ['jazz', 'utah'], WAS: ['wizards', 'washington'], WSH: ['wizards', 'washington'],
+  SAC: ['kings', 'sacramento'], SAS: ['spurs', 'san antonio'], SA: ['spurs', 'san antonio'],
+  TOR: ['raptors', 'toronto'], UTA: ['jazz', 'utah'], UTAH: ['jazz', 'utah'], WAS: ['wizards', 'washington'], WSH: ['wizards', 'washington'],
 }
 
 // NCAAB: ESPN abbr → Polymarket-friendly keywords (school name first)
