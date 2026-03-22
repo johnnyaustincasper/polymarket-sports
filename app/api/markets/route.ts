@@ -11,11 +11,11 @@ const ESPN_TO_POLY: Record<string, string[]> = {
   LAC: ['clippers', 'clippers'], LAL: ['lakers', 'los angeles lakers', 'lakers'],
   MEM: ['grizzlies', 'memphis'], MIA: ['heat', 'miami'], MIL: ['bucks', 'milwaukee'],
   MIN: ['timberwolves', 'minnesota'], NOP: ['pelicans', 'new orleans'],
-  NYK: ['knicks', 'new york'], OKC: ['thunder', 'oklahoma city'],
+  NYK: ['knicks', 'new york'], NY: ['knicks', 'new york'], OKC: ['thunder', 'oklahoma city'],
   ORL: ['magic', 'orlando'], PHI: ['76ers', 'philadelphia'],
   PHX: ['suns', 'phoenix'], POR: ['trail blazers', 'portland'],
   SAC: ['kings', 'sacramento'], SAS: ['spurs', 'san antonio'],
-  TOR: ['raptors', 'toronto'], UTA: ['jazz', 'utah'], WAS: ['wizards', 'washington'],
+  TOR: ['raptors', 'toronto'], UTA: ['jazz', 'utah'], WAS: ['wizards', 'washington'], WSH: ['wizards', 'washington'],
 }
 
 // NCAAB: ESPN abbr → Polymarket-friendly keywords (school name first)
@@ -23,7 +23,7 @@ const NCAAB_TO_POLY: Record<string, string[]> = {
   DUKE: ['duke'], UK: ['kentucky'], KU: ['kansas'], UNC: ['north carolina', 'unc'],
   GONZ: ['gonzaga'], HOU: ['houston'], MARQ: ['marquette'], ARIZ: ['arizona'],
   PURD: ['purdue'], CREI: ['creighton'], TENN: ['tennessee'], AUB: ['auburn'],
-  IOWA: ['iowa st', 'iowa state'], MSST: ['michigan st', 'michigan state'],
+  IOWA: ['iowa', 'iowa hawkeyes'], ISU: ['iowa state', 'iowa st'], MSST: ['michigan st', 'michigan state'],
   BAMA: ['alabama'], UCLA: ['ucla'], MEM: ['memphis'], ARK: ['arkansas'],
   KSU: ['kansas st', 'kansas state'], ILL: ['illinois'], TCU: ['tcu'],
   MICH: ['michigan'], IND: ['indiana'], OSU: ['ohio st', 'ohio state'],
