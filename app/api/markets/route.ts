@@ -92,12 +92,26 @@ async function getPolyOdds(
   }
 
   try {
-    const tagSlug = sport === 'ncaab' ? 'ncaab' : 'nba'
-    const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=${tagSlug}&limit=200`, {
-      next: { revalidate: 60 }
-    })
-    if (!res.ok) return defaultOdds
-    const events: any[] = await res.json()
+    // For NCAAB try march-madness first, then ncaa-basketball fallback; NBA uses nba
+    let events: any[] = []
+    if (sport === 'ncaab') {
+      for (const slug of ['march-madness', 'ncaa-basketball', 'ncaab']) {
+        const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=${slug}&limit=200`, {
+          next: { revalidate: 60 }
+        })
+        if (res.ok) {
+          const data: any[] = await res.json()
+          if (data.length) { events = data; break }
+        }
+      }
+    } else {
+      const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=nba&limit=200`, {
+        next: { revalidate: 60 }
+      })
+      if (!res.ok) return defaultOdds
+      events = await res.json()
+    }
+    if (!events.length) return defaultOdds
 
     const event = events.find(e => {
       const title = (e.title || '').toLowerCase()
