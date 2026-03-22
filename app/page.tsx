@@ -540,28 +540,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
           </div>
         )}
 
-        {/* DK-only lines: show when no Poly data but DK is available */}
-        {!game.hasWinnerOdds && !game.hasSpreadOdds && !game.hasTotalOdds && game.hasDkOdds && (game.dkSpread != null || game.dkTotal != null) && (
-          <div className="mt-3 pt-3 border-t border-black/5">
-            <p className="text-[10px] font-semibold text-zinc-700 uppercase tracking-widest mb-2">DraftKings Lines</p>
-            <div className="flex gap-2">
-              {game.dkSpread != null && (
-                <div style={{ background: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.6)' }} className="flex-1 rounded-2xl px-3 py-2 text-center">
-                  <p className="text-[10px] text-zinc-700 font-semibold uppercase tracking-wider mb-0.5">Spread</p>
-                  <p className="text-sm font-bold text-zinc-900">{game.dkDetails || (game.dkSpread > 0 ? `+${game.dkSpread}` : `${game.dkSpread}`)}</p>
-                </div>
-              )}
-              {game.dkTotal != null && (
-                <div style={{ background: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.6)' }} className="flex-1 rounded-2xl px-3 py-2 text-center">
-                  <p className="text-[10px] text-zinc-700 font-semibold uppercase tracking-wider mb-0.5">Total</p>
-                  <p className="text-sm font-bold text-zinc-900">O/U {game.dkTotal}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {!game.hasWinnerOdds && !game.hasSpreadOdds && !game.hasTotalOdds && !game.hasDkOdds && (
+        {!game.hasWinnerOdds && !game.hasSpreadOdds && !game.hasTotalOdds && (
           <p className="text-center text-zinc-700 text-[10px] mt-2">Lines open closer to tip-off</p>
         )}
       </GlassCard>
