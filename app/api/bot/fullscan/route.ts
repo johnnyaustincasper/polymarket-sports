@@ -5,10 +5,9 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 const GAMMA_API = 'https://gamma-api.polymarket.com'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function americanToProb(american: string): number {
-  const n = parseFloat(american)
+// ── Odds helpers ──────────────────────────────────────────────────────────────
+function americanToProb(ml: string): number {
+  const n = parseFloat(ml)
   if (isNaN(n)) return 0.5
   return n < 0 ? (-n) / (-n + 100) : 100 / (n + 100)
 }
@@ -16,6 +15,7 @@ function removeVig(p1: number, p2: number): [number, number] {
   const t = p1 + p2; return [p1 / t, p2 / t]
 }
 
+// ── Polymarket team matching ──────────────────────────────────────────────────
 const ESPN_TO_POLY: Record<string, string[]> = {
   ATL:['hawks','atlanta'],BOS:['celtics','boston'],BKN:['nets','brooklyn'],
   CHA:['hornets','charlotte'],CHI:['bulls','chicago'],CLE:['cavaliers','cleveland'],
@@ -42,117 +42,210 @@ function matchTitle(abbr: string, name: string, title: string) {
   return getKw(abbr, name).some(k => title.toLowerCase().includes(k))
 }
 
-async function braveSearch(query: string, freshness = 'pw'): Promise<string> {
-  if (!BRAVE_KEY) return ''
+// ── Brave web search ──────────────────────────────────────────────────────────
+async function braveSearch(query: string, freshness = 'pw'): Promise<{ title: string; url: string; snippet: string }[]> {
+  if (!BRAVE_KEY) return []
   try {
     const res = await fetch(
       `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5&freshness=${freshness}`,
       { headers: { Accept: 'application/json', 'X-Subscription-Token': BRAVE_KEY }, signal: AbortSignal.timeout(7000) }
     )
-    if (!res.ok) return ''
+    if (!res.ok) return []
     const data = await res.json()
-    return (data.web?.results || []).slice(0, 4).map((r: any) => `${r.title}: ${r.description}`).join('\n')
+    return (data.web?.results || []).slice(0, 5).map((r: any) => ({
+      title: r.title || '',
+      url: r.url || '',
+      snippet: r.description || '',
+    }))
+  } catch { return [] }
+}
+
+// ── Scrape full article text ──────────────────────────────────────────────────
+async function fetchArticleText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NBAEdgeBot/1.0)' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return ''
+    const html = await res.text()
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ').trim()
+    // Return the most relevant 3000 chars
+    return text.slice(0, 3000)
   } catch { return '' }
 }
 
-// ── ESPN authoritative status layer ──────────────────────────────────────────
-// Fetches ESPN NBA news + team-specific news to get hard facts on suspensions/injuries
-async function getEspnTeamStatus(teamId: string, teamName: string): Promise<string> {
+// ── ESPN authoritative player/team status ─────────────────────────────────────
+async function getLeagueStatus(): Promise<string> {
   try {
-    const res = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/news?limit=15`,
-      { next: { revalidate: 300 } }
-    )
+    const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/news?limit=50', { next: { revalidate: 300 } })
     if (!res.ok) return ''
     const data = await res.json()
-    const headlines: string[] = (data.articles || [])
-      .map((a: any) => a.headline || '')
-      .filter((h: string) => h.length > 0)
-    return headlines.length ? `${teamName} ESPN news:\n${headlines.join('\n')}` : ''
-  } catch { return '' }
-}
-
-async function getEspnLeagueStatus(): Promise<string> {
-  try {
-    const res = await fetch(
-      'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/news?limit=50',
-      { next: { revalidate: 300 } }
-    )
-    if (!res.ok) return ''
-    const data = await res.json()
-    const statusKeywords = ['suspend','out for','ruled out','injur','questionable','doubtful','gtd','will not play','scratched','inactive','banned','fined','technic','altercation','arrested','traded']
+    const keywords = ['suspend','out for','ruled out','injur','questionable','doubtful','will not play','inactive','scratched','banned','fined','waived','traded','arrested','altercation','technic']
     const relevant = (data.articles || [])
       .map((a: any) => a.headline || '')
-      .filter((h: string) => statusKeywords.some(k => h.toLowerCase().includes(k)))
-    return relevant.length ? `LEAGUE-WIDE OFFICIAL STATUS (ESPN — treat as fact):\n${relevant.join('\n')}` : ''
+      .filter((h: string) => keywords.some(k => h.toLowerCase().includes(k)))
+    return relevant.join('\n')
   } catch { return '' }
 }
 
-// ── Get star players from ESPN roster ────────────────────────────────────────
+async function getTeamNews(teamId: string): Promise<string> {
+  try {
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/news?limit=10`, { next: { revalidate: 300 } })
+    if (!res.ok) return ''
+    const data = await res.json()
+    return (data.articles || []).map((a: any) => a.headline || '').filter(Boolean).join('\n')
+  } catch { return '' }
+}
+
+// ── ESPN team stats ───────────────────────────────────────────────────────────
+interface TeamStats {
+  avgPoints: number; avgPointsAllowed: number
+  avgAssists: number; avgTurnovers: number; avgRebounds: number
+  fieldGoalPct: number; threePointPct: number; freeThrowPct: number
+  record: string; homeRecord: string; awayRecord: string
+  lastTenGames: string; restDays: number; streak: string
+}
+
+async function getTeamStats(teamId: string): Promise<TeamStats | null> {
+  try {
+    const [statsRes, schedRes] = await Promise.all([
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/statistics`, { next: { revalidate: 3600 } }),
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/schedule`, { next: { revalidate: 3600 } }),
+    ])
+
+    const statsData = statsRes.ok ? await statsRes.json() : null
+    const schedData = schedRes.ok ? await schedRes.json() : null
+
+    // Parse stats
+    let avgPoints = 0, avgRebounds = 0, avgAssists = 0, avgTurnovers = 0
+    let fieldGoalPct = 0, threePointPct = 0, freeThrowPct = 0, avgPointsAllowed = 0
+
+    if (statsData) {
+      const cats = statsData.results?.stats?.categories || []
+      for (const cat of cats) {
+        for (const s of cat.stats || []) {
+          const val = parseFloat(s.value) || 0
+          switch (s.name) {
+            case 'avgPoints': avgPoints = val; break
+            case 'avgRebounds': avgRebounds = val; break
+            case 'avgAssists': avgAssists = val; break
+            case 'avgTurnovers': avgTurnovers = val; break
+            case 'fieldGoalPct': fieldGoalPct = val; break
+            case 'threePointPct': threePointPct = val; break
+            case 'freeThrowPct': freeThrowPct = val; break
+            case 'avgPointsAllowed': avgPointsAllowed = val; break
+          }
+        }
+      }
+    }
+
+    // Parse schedule for rest days, last 10 games, streak
+    let restDays = 0, lastTenGames = '', streak = '', record = '', homeRecord = '', awayRecord = ''
+    if (schedData) {
+      const events = schedData.events || []
+      const completed = events.filter((e: any) => e.competitions?.[0]?.status?.type?.completed)
+      
+      if (completed.length > 0) {
+        const lastGame = completed[completed.length - 1]
+        const lastDate = new Date(lastGame.date)
+        restDays = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+
+        // Last 10
+        const last10 = completed.slice(-10)
+        const wins = last10.filter((e: any) => {
+          const comp = e.competitions[0]
+          const team = comp.competitors.find((c: any) => c.id === teamId)
+          return team?.winner
+        }).length
+        lastTenGames = `${wins}-${10 - wins} last 10`
+
+        // Current streak
+        let streakCount = 0
+        let streakType = ''
+        for (let i = completed.length - 1; i >= 0; i--) {
+          const comp = completed[i].competitions[0]
+          const team = comp.competitors.find((c: any) => c.id === teamId)
+          const won = team?.winner
+          if (i === completed.length - 1) { streakType = won ? 'W' : 'L'; streakCount = 1 }
+          else if ((won && streakType === 'W') || (!won && streakType === 'L')) streakCount++
+          else break
+        }
+        streak = streakCount > 0 ? `${streakType}${streakCount}` : ''
+      }
+
+      // Record from team info
+      const teamRecord = schedData.team?.record?.items || []
+      for (const r of teamRecord) {
+        if (r.type === 'total') record = r.summary || ''
+        if (r.type === 'home') homeRecord = r.summary || ''
+        if (r.type === 'road') awayRecord = r.summary || ''
+      }
+    }
+
+    return { avgPoints, avgPointsAllowed, avgAssists, avgTurnovers, avgRebounds, fieldGoalPct, threePointPct, freeThrowPct, record, homeRecord, awayRecord, lastTenGames, restDays, streak }
+  } catch { return null }
+}
+
+// ── Star players from ESPN roster ─────────────────────────────────────────────
 async function getStarPlayers(teamId: string): Promise<string[]> {
   try {
-    const res = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/roster`,
-      { next: { revalidate: 3600 } }
-    )
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/roster`, { next: { revalidate: 3600 } })
     if (!res.ok) return []
     const data = await res.json()
     const athletes: any[] = data.athletes?.flatMap((g: any) => g.items || []) || []
-    // Sort by jersey number as a rough proxy, but prefer known stars
-    // Take first 5 (usually sorted by importance in ESPN)
     return athletes.slice(0, 5).map((a: any) => a.displayName || a.fullName || '').filter(Boolean)
   } catch { return [] }
 }
 
-// ── Deep player intel search ──────────────────────────────────────────────────
+// ── Deep player intel (personal life, off-court signals) ──────────────────────
 async function getPlayerIntel(playerName: string): Promise<string> {
-  // Search for personal life news — the stuff that moves markets but books miss
-  const queries = [
-    `"${playerName}" 2026 personal life news`,
-    `"${playerName}" divorce OR arrest OR suspended OR family OR death OR drama OR beef OR controversy`,
-  ]
-  const results = await Promise.all(queries.map(q => braveSearch(q, 'pm')))
-  const combined = results.filter(Boolean).join('\n')
-  return combined ? `${playerName}:\n${combined}` : ''
+  const results = await braveSearch(
+    `"${playerName}" divorce OR arrest OR suspended OR "family tragedy" OR death OR drama OR controversy OR beef OR altercation 2026`,
+    'pm'
+  )
+  if (!results.length) return ''
+  // Fetch the most relevant article
+  const topResult = results.find(r => !r.url.includes('youtube') && !r.url.includes('twitter'))
+  const fullText = topResult ? await fetchArticleText(topResult.url) : ''
+  const snippets = results.map(r => `${r.title}: ${r.snippet}`).join('\n')
+  return fullText
+    ? `${playerName}: ${snippets}\n[Article excerpt]: ${fullText.slice(0, 800)}`
+    : `${playerName}: ${snippets}`
 }
 
-// ── Team culture / locker room search ────────────────────────────────────────
-async function getTeamIntel(teamName: string): Promise<string> {
-  const result = await braveSearch(
-    `${teamName} NBA locker room drama trade rumors controversy 2026`, 'pm'
-  )
-  return result ? `${teamName} team intel:\n${result}` : ''
+// ── H2H history ───────────────────────────────────────────────────────────────
+async function getH2H(awayAbbr: string, homeName: string): Promise<string> {
+  const results = await braveSearch(`${awayAbbr} ${homeName} NBA head to head last 5 games history 2025 2026`, 'py')
+  return results.map(r => r.title + ': ' + r.snippet).join('\n')
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
-
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const bankroll = parseFloat(searchParams.get('bankroll') || '200')
+
   try {
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
 
-    // 1. ESPN games
-    const espnRes = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today}`,
-      { next: { revalidate: 120 } }
-    )
+    // ESPN games + Polymarket + league status — all in parallel
+    const [espnRes, polyRes, leagueStatus] = await Promise.all([
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today}`, { next: { revalidate: 120 } }),
+      fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=nba&limit=200`, { next: { revalidate: 60 } }),
+      getLeagueStatus(),
+    ])
+
     const espnData = await espnRes.json()
+    const polyEvents: any[] = await polyRes.json()
     const events: any[] = (espnData.events || []).filter(
       (e: any) => e.competitions?.[0]?.status?.type?.state === 'pre'
     )
 
-    // 2. Polymarket events
-    const polyRes = await fetch(
-      `${GAMMA_API}/events?active=true&closed=false&tag_slug=nba&limit=200`,
-      { next: { revalidate: 60 } }
-    )
-    const polyEvents: any[] = await polyRes.json()
-
-    // 3. Fetch authoritative league-wide status once
-    const leagueStatus = await getEspnLeagueStatus()
-
-    // 4. Build game context for each matchup
     const gameContexts: string[] = []
 
     for (const event of events) {
@@ -167,13 +260,16 @@ export async function GET(req: Request) {
       const awayAbbr = away.team.abbreviation
       const homeName = home.team.displayName
       const awayName = away.team.displayName
+      const homeId = home.team.id
+      const awayId = away.team.id
       const gameTime = new Date(comp.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })
+      const today2 = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-      // DK moneyline
+      // DK moneyline + spread
       const oddsArr: any[] = comp.odds || []
       const dk = oddsArr.find((o: any) => o.provider?.name?.toLowerCase().includes('draft')) || oddsArr[0]
-      const dkHomeML: string = dk?.moneyline?.home?.close?.odds || ''
-      const dkAwayML: string = dk?.moneyline?.away?.close?.odds || ''
+      const dkHomeML = dk?.moneyline?.home?.close?.odds || ''
+      const dkAwayML = dk?.moneyline?.away?.close?.odds || ''
       const dkSpread = dk?.spread ?? null
       const dkTotal = dk?.overUnder ?? null
 
@@ -183,15 +279,13 @@ export async function GET(req: Request) {
         dkHomeImplied = h; dkAwayImplied = a
       }
 
-      // Polymarket match
+      // Polymarket
       const polyEvent = polyEvents.find(e => {
         const t = (e.title || '').toLowerCase()
         return matchTitle(awayAbbr, awayName, t) && matchTitle(homeAbbr, homeName, t)
       })
-
-      let polySection = 'No Polymarket market found.'
-      let polyAwayPrice = 0, polyHomePrice = 0
-      let awayEdge = 0, homeEdge = 0
+      let polyLine = 'No Polymarket market found.'
+      let awayEdge = 0, homeEdge = 0, polyAwayPrice = 0, polyHomePrice = 0
 
       if (polyEvent) {
         const markets: any[] = polyEvent.markets || []
@@ -214,119 +308,125 @@ export async function GET(req: Request) {
             polyAwayPrice = parseFloat(prices[awayIdx]) || 0
             awayEdge = dkAwayImplied - polyAwayPrice
             homeEdge = dkHomeImplied - polyHomePrice
+            polyLine = `${awayName}: ${(polyAwayPrice*100).toFixed(1)}¢ | ${homeName}: ${(polyHomePrice*100).toFixed(1)}¢ | Volume: $${((winnerMarket.volumeNum||0)/1000).toFixed(0)}k`
           }
-          polySection = `Polymarket winner market: ${awayName} ${(polyAwayPrice*100).toFixed(1)}¢ | ${homeName} ${(polyHomePrice*100).toFixed(1)}¢`
         }
       }
 
-      const edgeSection = dkHomeML
-        ? `DK moneyline: ${awayName} ${dkAwayML} (${(dkAwayImplied*100).toFixed(1)}% implied) | ${homeName} ${dkHomeML} (${(dkHomeImplied*100).toFixed(1)}% implied)
-Edge vs Poly: ${awayName} ${awayEdge >= 0 ? '+' : ''}${(awayEdge*100).toFixed(1)}¢ | ${homeName} ${homeEdge >= 0 ? '+' : ''}${(homeEdge*100).toFixed(1)}¢
-${dkSpread != null ? `DK Spread: ${dkSpread > 0 ? '+' : ''}${dkSpread} | DK Total: ${dkTotal}` : ''}`
-        : 'No DK odds available.'
-
-      // Star players + news/narrative — all in parallel
-      const today2 = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      const homeId = home.team.id
-      const awayId = away.team.id
-
-      const [homeTeamNews, awayTeamNews, gameNews, homeStars, awayStars, homeTeamIntel, awayTeamIntel] = await Promise.all([
-        getEspnTeamStatus(homeId, homeName),
-        getEspnTeamStatus(awayId, awayName),
-        braveSearch(`${awayName} ${homeName} NBA preview ${today2}`, 'pd'),
+      // All data fetches in parallel
+      const [homeStats, awayStats, homeStars, awayStars, homeTeamNews, awayTeamNews, previewResults, h2h] = await Promise.all([
+        getTeamStats(homeId),
+        getTeamStats(awayId),
         getStarPlayers(homeId),
         getStarPlayers(awayId),
-        getTeamIntel(homeName),
-        getTeamIntel(awayName),
+        getTeamNews(homeId),
+        getTeamNews(awayId),
+        braveSearch(`${awayName} vs ${homeName} NBA preview prediction ${today2}`, 'pd'),
+        getH2H(awayAbbr, homeName),
       ])
 
-      // Per-player intel for top 3 stars each team
+      // Fetch full text of best preview article
+      const bestPreviewUrl = previewResults.find(r =>
+        !r.url.includes('youtube') && (r.url.includes('espn') || r.url.includes('cbs') || r.url.includes('bleacher') || r.url.includes('athletic'))
+      )?.url || previewResults[0]?.url || ''
+      const previewFullText = bestPreviewUrl ? await fetchArticleText(bestPreviewUrl) : ''
+
+      // Per-player intel — top 3 per team
       const allStars = Array.from(new Set([...awayStars.slice(0,3), ...homeStars.slice(0,3)]))
-      const playerIntelResults = await Promise.all(allStars.map(p => getPlayerIntel(p)))
-      const playerIntel = playerIntelResults.filter(Boolean).join('\n\n')
+      const playerIntelRaw = await Promise.all(allStars.map(p => getPlayerIntel(p)))
+      const playerIntel = playerIntelRaw.filter(Boolean).join('\n\n')
+
+      // Format stats
+      const fmtStats = (stats: TeamStats | null, name: string, isHome: boolean): string => {
+        if (!stats) return `${name}: Stats unavailable`
+        const side = isHome ? `Home: ${stats.homeRecord}` : `Away: ${stats.awayRecord}`
+        return [
+          `${name} (${stats.record}, ${side}):`,
+          `  Streak: ${stats.streak} | Last 10: ${stats.lastTenGames} | Rest: ${stats.restDays} day(s) since last game`,
+          `  Offense: ${stats.avgPoints.toFixed(1)} PPG | ${stats.fieldGoalPct.toFixed(1)}% FG | ${stats.threePointPct.toFixed(1)}% 3P | ${stats.avgAssists.toFixed(1)} APG`,
+          `  Defense: ${stats.avgPointsAllowed > 0 ? stats.avgPointsAllowed.toFixed(1) + ' allowed/g' : 'N/A'} | ${stats.avgTurnovers.toFixed(1)} TOV/g`,
+        ].join('\n')
+      }
 
       gameContexts.push(`
-=== ${awayName.toUpperCase()} @ ${homeName.toUpperCase()} · ${gameTime} CT ===
-${edgeSection}
-${polySection}
+════════════════════════════════════════
+${awayName.toUpperCase()} (${away.team.abbreviation}) @ ${homeName.toUpperCase()} (${home.team.abbreviation})
+Tip-off: ${gameTime} CT
+════════════════════════════════════════
 
-KEY PLAYERS — ${awayName}: ${awayStars.join(', ') || 'Unknown'} | ${homeName}: ${homeStars.join(', ') || 'Unknown'}
+📊 TEAM STATS & FORM:
+${fmtStats(awayStats, awayName, false)}
 
-OFFICIAL ESPN TEAM NEWS (authoritative — injuries/suspensions are FACTS):
-${[homeTeamNews, awayTeamNews].filter(Boolean).join('\n') || 'No official news'}
+${fmtStats(homeStats, homeName, true)}
 
-GAME PREVIEW (context):
-${gameNews || 'None found'}
+💰 BETTING LINES:
+DK Moneyline: ${awayName} ${dkAwayML} (${(dkAwayImplied*100).toFixed(1)}% sharp implied) | ${homeName} ${dkHomeML} (${(dkHomeImplied*100).toFixed(1)}% sharp implied)
+DK Spread: ${dkSpread !== null ? `${awayAbbr} ${dkSpread > 0 ? '+' : ''}${-dkSpread} / ${homeAbbr} ${dkSpread > 0 ? '-' : '+'}${Math.abs(dkSpread)}` : 'N/A'} | Total: ${dkTotal ?? 'N/A'}
+Polymarket: ${polyLine}
+Price Edge: ${awayName} ${awayEdge >= 0 ? '+' : ''}${(awayEdge*100).toFixed(1)}¢ | ${homeName} ${homeEdge >= 0 ? '+' : ''}${(homeEdge*100).toFixed(1)}¢
 
-PLAYER INTEL — personal life, off-court signals (Brave search):
-${playerIntel || 'Nothing significant found'}
+📰 OFFICIAL ESPN TEAM NEWS (authoritative — injuries/suspensions are FACTS):
+${awayName}: ${awayTeamNews || 'No recent news'}
+${homeName}: ${homeTeamNews || 'No recent news'}
 
-LOCKER ROOM / TEAM INTEL:
-${[homeTeamIntel, awayTeamIntel].filter(Boolean).join('\n') || 'Nothing significant found'}`)
+📋 GAME PREVIEW (full article):
+${previewFullText ? previewFullText.slice(0, 1500) : previewResults.map(r => r.title + ': ' + r.snippet).join('\n') || 'None found'}
+
+🔄 HEAD-TO-HEAD HISTORY:
+${h2h || 'No recent H2H data found'}
+
+🕵️ PLAYER INTEL — personal life, off-court signals:
+${playerIntel || 'No significant off-court signals found'}
+`)
     }
 
     if (gameContexts.length === 0) {
       return NextResponse.json({ report: 'No pre-game NBA games found today.' })
     }
 
-    // 4. Sonnet synthesizes everything into actionable picks
     const message = await client.messages.create({
       model: 'claude-sonnet-4-5',
-      max_tokens: 2048,
+      max_tokens: 3000,
       messages: [{
         role: 'user',
-        content: `You are an elite sharp sports bettor advising a friend on how to trade NBA games on Polymarket today. Your bankroll to work with is $${bankroll} USDC.
+        content: `You are an elite sharp sports bettor with deep NBA knowledge. Your job is to give the most accurate, well-reasoned betting analysis possible on today's NBA slate for Polymarket. Bankroll: $${bankroll} USDC.
 
-${leagueStatus ? `⚠️ AUTHORITATIVE PLAYER STATUS — FROM ESPN (treat these as hard facts, not rumors):\n${leagueStatus}\n` : ''}
+${leagueStatus ? `⚠️ LEAGUE-WIDE OFFICIAL STATUS — FROM ESPN (HARD FACTS — do not contradict these):
+${leagueStatus}
+
+` : ''}HOW POLYMARKET BETTING WORKS:
+- Buy YES shares for a team at their price (e.g. 45¢/share)
+- Each share pays $1.00 if that team wins
+- Shares = dollars ÷ price. Profit = shares × $1.00 − dollars spent
+- Edge = DK sharp implied % minus Poly price. Positive = Poly is cheap = value bet.
+
 CRITICAL RULES:
-- If ESPN says a player is suspended → they ARE suspended. Do not say they might play.
-- If ESPN news says suspension was rescinded/overturned → they ARE playing. Update accordingly.
-- Never contradict official ESPN status with search snippets or previews.
-- Be consistent — if a player is out, factor it into the line and confidence level.
+- ESPN official status overrides everything. Suspended = out. Rescinded = playing.
+- Consider ALL factors: price edge + team form + rest + injuries + personal signals
+- Be specific — name the players, cite the stats, explain the reasoning
+- Size bets by conviction: Strong (15-25% of bankroll), Lean (5-10%), Pass (0%)
+- Total bets must not exceed bankroll
 
-
-**How Polymarket works (use this for your math):**
-- You buy YES shares for a team at their current price (e.g. 45¢ per share)
-- Each share pays out $1.00 if that team wins, $0 if they lose
-- So if you buy $45 worth of shares at 45¢, you get 100 shares
-- If they win: 100 shares × $1.00 = $100 back → $55 profit
-- If they lose: $0 back → $45 loss
-- Formula: shares = dollars_spent / price_per_share. Payout if win = shares × $1.00. Profit = payout - cost.
-
-**Three signals to analyze:**
-1. **PRICE EDGE**: Polymarket price vs DraftKings implied probability. If DK implies 60% but Poly has them at 52¢, that's an 8¢ edge — Poly is underpricing them. Buy cheap, profit when market corrects OR hold to resolution.
-
-2. **INJURY/FATIGUE EDGE**: Key player out or questionable, back-to-back games, travel fatigue, load management. A star sitting out can flip a line by 10+ points.
-
-3. **LIFE/NARRATIVE EDGE — this is the most important and most overlooked signal:**
-   - Star player going through a divorce or breakup → distraction, emotional drain, affects focus
-   - Death in family → could make them play harder (tribute game) OR devastate them
-   - Arrest, legal trouble, public scandal → distraction and possible suspension
-   - Locker room beef, trade demands, unhappy player → affects team chemistry
-   - Revenge game (traded away, released, booed by fans) → massive motivation
-   - Contract year → extra motivation
-   - A player just won a personal award or got engaged → elevated mood/confidence
-   Books price injuries fast. They NEVER price personal life situations — that's where the edge lives.
-
-Today's games (total bankroll: $${bankroll}):
+TODAY'S GAMES — FULL ANALYSIS DATA:
 ${gameContexts.join('\n')}
 
----
+════════════════════════════════════════
+For EACH game provide:
 
-For each game give:
-**[TEAM A] @ [TEAM B]**
-- Verdict: STRONG BET / LEAN / PASS
-- The trade: "Buy [Team X] YES at [price]¢ — put $[amount] on it. You'd get [shares] shares. If they win: $[return] back, $[profit] profit. If they lose: -$[amount]."
-- Why: 1-2 sentences combining price edge + any narrative signals
-- Confidence: X/10
-
-Size bets based on edge strength and confidence. Strong edges get 15-25% of bankroll. Leans get 5-10%. Passes get $0. Total allocation should not exceed the bankroll.
+**[AWAY] @ [HOME]**
+Verdict: STRONG BET / LEAN / PASS
+Side: Which team and why
+The Trade: "Put $X on [Team] YES at [price]¢. You get [shares] shares. Win: $[return] (+$[profit]). Loss: -$[cost]."
+Key Factors: 3-5 bullet points covering the most important stats, rest, injuries, narrative
+Confidence: X/10
+════════════════════════════════════════
 
 End with:
-**⚡ TOP PICK OF THE DAY**
-Full breakdown of your single best bet — the trade, the edge, the reasoning, and exactly what to do on Polymarket.
 
-Be conversational and direct, like you're texting a friend real money advice.`
+⚡ TOP PICK OF THE DAY
+Your single best bet with full reasoning. Be specific about exactly what to buy and why.
+
+Be sharp. Be direct. Think like someone putting real money on this.`
       }]
     })
 
