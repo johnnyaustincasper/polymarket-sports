@@ -341,28 +341,13 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
       {/* ── Hologram projector wrapper ── */}
       <div className="mb-10" style={{ position: 'relative' }}>
 
-        {/* Volumetric projection beam — widens from base upward */}
+        {/* Subtle projection beam — single soft cone, barely there */}
         <div style={{
-          position: 'absolute', bottom: 0, left: '20%', right: '20%', height: '100%',
-          background: `linear-gradient(0deg,
-            rgba(0,220,255,0.18) 0%,
-            rgba(0,220,255,0.07) 40%,
-            rgba(0,220,255,0.02) 75%,
-            transparent 100%
-          )`,
-          clipPath: 'polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)',
+          position: 'absolute', bottom: 0, left: '25%', right: '25%', height: '80%',
+          background: `linear-gradient(0deg, rgba(0,220,255,0.06) 0%, rgba(0,220,255,0.02) 60%, transparent 100%)`,
+          clipPath: 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)',
           pointerEvents: 'none', zIndex: 0,
-          animation: 'beam-breathe 4s ease-in-out infinite',
-          filter: 'blur(8px)',
-        }} />
-        {/* Inner beam — tighter, brighter */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: '35%', right: '35%', height: '60%',
-          background: `linear-gradient(0deg, rgba(0,240,255,0.22) 0%, rgba(0,240,255,0.04) 80%, transparent 100%)`,
-          clipPath: 'polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%)',
-          pointerEvents: 'none', zIndex: 0,
-          animation: 'beam-breathe 4s ease-in-out infinite 0.5s',
-          filter: 'blur(4px)',
+          filter: 'blur(12px)',
         }} />
 
         {/* The hologram content — no background, pure projection */}
@@ -566,70 +551,35 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
         </div>{/* end card content */}
         </div>{/* end holo-card */}
 
-        {/* ── Realistic projector base ── */}
-        <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'center', marginTop: 0, height: 64 }}>
-          {/* Base shadow / floor reflection */}
+        {/* ── Projector base — subtle ── */}
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'center', height: 40 }}>
+          {/* Outer ring — slow CW, very faint */}
           <div style={{
-            position: 'absolute', bottom: 0, left: '15%', right: '15%', height: 10,
-            background: 'radial-gradient(ellipse at center, rgba(0,240,255,0.15) 0%, transparent 70%)',
-            filter: 'blur(4px)',
+            position: 'absolute', bottom: 6,
+            width: 80, height: 80, borderRadius: '50%',
+            border: '1px solid rgba(0,240,255,0.1)',
+            animation: 'ring-cw 20s linear infinite',
           }} />
-
-          {/* Outer ring — slow CW */}
+          {/* Inner ring — CCW, slightly more visible */}
           <div style={{
-            position: 'absolute', bottom: 8,
-            width: 110, height: 110,
-            borderRadius: '50%',
-            border: '1px solid rgba(0,240,255,0.2)',
-            boxShadow: '0 0 8px rgba(0,240,255,0.1)',
-            animation: 'ring-cw 16s linear infinite',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            {/* tick marks on outer ring */}
-            {[0,45,90,135,180,225,270,315].map(deg => (
-              <div key={deg} style={{
-                position: 'absolute', width: 3, height: 3, borderRadius: '50%',
-                background: 'rgba(0,240,255,0.5)',
-                top: '50%', left: '50%',
-                transform: `rotate(${deg}deg) translateY(-54px) translate(-50%, -50%)`,
-              }} />
-            ))}
-          </div>
-
-          {/* Middle ring — faster CCW, dashed feel */}
-          <div style={{
-            position: 'absolute', bottom: 8,
-            width: 78, height: 78,
-            borderRadius: '50%',
-            border: '1px dashed rgba(0,240,255,0.35)',
-            boxShadow: '0 0 12px rgba(0,240,255,0.15)',
-            animation: 'ring-ccw 9s linear infinite',
+            position: 'absolute', bottom: 6,
+            width: 48, height: 48, borderRadius: '50%',
+            border: '1px solid rgba(0,240,255,0.18)',
+            animation: 'ring-ccw 12s linear infinite',
           }} />
-
-          {/* Inner ring — pulsing */}
+          {/* Base disc */}
           <div style={{
-            position: 'absolute', bottom: 8,
-            width: 48, height: 48,
-            borderRadius: '50%',
-            border: '1.5px solid rgba(0,240,255,0.5)',
-            animation: 'ring-pulse 2.5s ease-in-out infinite',
+            position: 'absolute', bottom: 6,
+            width: 90, height: 8, borderRadius: '50%',
+            background: 'radial-gradient(ellipse at center, rgba(0,240,255,0.1) 0%, transparent 70%)',
           }} />
-
-          {/* Flat base disc */}
+          {/* Core dot */}
           <div style={{
-            position: 'absolute', bottom: 8,
-            width: 120, height: 12,
-            borderRadius: '50%',
-            background: 'linear-gradient(180deg, rgba(0,240,255,0.12) 0%, rgba(0,240,255,0.04) 100%)',
-            boxShadow: '0 0 20px rgba(0,240,255,0.15)',
-          }} />
-
-          {/* Emitter core — center glowing dot */}
-          <div style={{
-            position: 'absolute', bottom: 11,
-            width: 10, height: 10, borderRadius: '50%',
-            background: '#00f0ff',
-            animation: 'core-pulse 2s ease-in-out infinite',
+            position: 'absolute', bottom: 9,
+            width: 6, height: 6, borderRadius: '50%',
+            background: 'rgba(0,240,255,0.9)',
+            boxShadow: '0 0 8px rgba(0,240,255,0.6), 0 0 16px rgba(0,240,255,0.2)',
+            animation: 'core-pulse 3s ease-in-out infinite',
           }} />
         </div>
 
