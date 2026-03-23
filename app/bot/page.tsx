@@ -43,6 +43,14 @@ interface ScanResult {
   signals: Signal[]
 }
 
+interface SavedScan {
+  id: string
+  report: string
+  gamesAnalyzed: number
+  scannedAt: string
+  bankroll: number
+}
+
 function fmt(n: number) { return (n * 100).toFixed(1) + '¢' }
 function fmtEdge(n: number) { return (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '¢' }
 function fmtTime(iso: string) {
@@ -65,9 +73,25 @@ export default function BotPage() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'edge'>('all')
   const [narratives, setNarratives] = useState<Record<string, NarrativeSignal | 'loading' | 'error'>>({})
-  const [fullScan, setFullScan] = useState<{ report: string; gamesAnalyzed: number; scannedAt: string } | null>(null)
+  const [fullScan, setFullScan] = useState<SavedScan | null>(null)
   const [fullScanLoading, setFullScanLoading] = useState(false)
   const [bankroll, setBankroll] = useState(200)
+  const [savedScans, setSavedScans] = useState<SavedScan[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [activeHistoryScan, setActiveHistoryScan] = useState<SavedScan | null>(null)
+
+  useEffect(() => {
+    const stored = localStorage.getItem('poly-scans')
+    if (stored) setSavedScans(JSON.parse(stored))
+  }, [])
+
+  function persistScan(scan: SavedScan) {
+    const stored = localStorage.getItem('poly-scans')
+    const existing: SavedScan[] = stored ? JSON.parse(stored) : []
+    const updated = [scan, ...existing].slice(0, 50) // keep last 50
+    localStorage.setItem('poly-scans', JSON.stringify(updated))
+    setSavedScans(updated)
+  }
 
   async function runFullScan() {
     setFullScanLoading(true)
@@ -75,9 +99,19 @@ export default function BotPage() {
     try {
       const res = await fetch(`/api/bot/fullscan?bankroll=${bankroll}`)
       const json = await res.json()
-      setFullScan(json)
-    } catch { setFullScan({ report: 'Scan failed.', gamesAnalyzed: 0, scannedAt: new Date().toISOString() }) }
+      const scan: SavedScan = { ...json, bankroll, id: crypto.randomUUID() }
+      setFullScan(scan)
+      persistScan(scan)
+    } catch {
+      const scan: SavedScan = { report: 'Scan failed.', gamesAnalyzed: 0, scannedAt: new Date().toISOString(), bankroll, id: crypto.randomUUID() }
+      setFullScan(scan)
+    }
     finally { setFullScanLoading(false) }
+  }
+
+  function deleteScans() {
+    localStorage.removeItem('poly-scans')
+    setSavedScans([])
   }
 
   async function scan() {
@@ -141,6 +175,17 @@ export default function BotPage() {
             </h1>
             <p style={{ color: C.textSecondary, fontSize: 11, letterSpacing: '0.06em', marginTop: 4 }}>Polymarket vs DraftKings · Paper Trading</p>
           </div>
+          <button onClick={() => setShowHistory(true)} style={{
+            padding: '8px 14px', borderRadius: 12, fontSize: 11, fontWeight: 800,
+            letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+            background: 'rgba(0,240,255,0.05)', border: `1px solid ${C.border}`,
+            color: C.textSecondary, marginRight: 8, position: 'relative',
+          }}>
+            ◷ History
+            {savedScans.length > 0 && (
+              <span style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: C.purple, color: '#fff', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{savedScans.length}</span>
+            )}
+          </button>
           <button onClick={scan} disabled={loading} style={{
             padding: '8px 16px', borderRadius: 12, fontSize: 11, fontWeight: 800,
             letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
@@ -219,46 +264,7 @@ export default function BotPage() {
                 </p>
                 <p style={{ color: C.textSecondary, fontSize: 10 }}>{new Date(fullScan.scannedAt).toLocaleTimeString()}</p>
               </div>
-              <div style={{ color: C.textPrimary, fontSize: 13, lineHeight: 1.75 }}>
-                {fullScan.report.split('\n').map((line, i) => {
-                  const t = line.trim()
-                  if (!t) return <div key={i} style={{ height: 8 }} />
-                  // Bold **text**
-                  const parts = t.split(/\*\*(.*?)\*\*/g)
-                  const rendered = parts.map((p, j) =>
-                    j % 2 === 1
-                      ? <span key={j} style={{ color: '#e0d0ff', fontWeight: 800 }}>{p}</span>
-                      : <span key={j}>{p}</span>
-                  )
-                  // TOP PICK line
-                  if (t.toLowerCase().includes('top pick')) {
-                    return (
-                      <div key={i} style={{
-                        margin: '12px 0 6px', padding: '10px 14px', borderRadius: 12,
-                        background: 'rgba(0,240,255,0.07)', border: '1px solid rgba(0,240,255,0.2)',
-                        color: C.cyan, fontWeight: 800, fontSize: 13,
-                      }}>{rendered}</div>
-                    )
-                  }
-                  // STRONG BET
-                  if (t.includes('STRONG BET')) {
-                    return <p key={i} style={{ color: C.green, fontWeight: 700, marginBottom: 2 }}>{rendered}</p>
-                  }
-                  // PASS
-                  if (t.includes('PASS')) {
-                    return <p key={i} style={{ color: C.textSecondary, marginBottom: 2 }}>{rendered}</p>
-                  }
-                  // LEAN
-                  if (t.includes('LEAN')) {
-                    return <p key={i} style={{ color: C.gold, fontWeight: 600, marginBottom: 2 }}>{rendered}</p>
-                  }
-                  // Game header (===)
-                  if (t.startsWith('###') || t.startsWith('**') && t.endsWith('**')) {
-                    return <p key={i} style={{ color: '#c4b5fd', fontWeight: 800, marginTop: 14, marginBottom: 4 }}>{rendered}</p>
-                  }
-                  return <p key={i} style={{ color: 'rgba(180,210,255,0.75)', marginBottom: 2 }}>{rendered}</p>
-                })}
-              </div>
+              <ScanReport scan={fullScan} />
             </div>
           )}
         </div>
@@ -433,6 +439,101 @@ export default function BotPage() {
           })}
         </div>
       </div>
+
+      {/* ── History Drawer ── */}
+      {showHistory && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex' }}>
+          {/* Backdrop */}
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(2,2,15,0.85)', backdropFilter: 'blur(12px)' }} onClick={() => { setShowHistory(false); setActiveHistoryScan(null) }} />
+          {/* Panel */}
+          <div style={{
+            position: 'relative', zIndex: 1, marginLeft: 'auto',
+            width: '100%', maxWidth: 560, height: '100%',
+            background: 'rgba(6,6,22,0.99)', borderLeft: `1px solid ${C.border}`,
+            display: 'flex', flexDirection: 'column', overflowY: 'auto',
+          }}>
+            <div style={{ padding: '24px 20px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <h2 style={{ color: C.cyan, fontWeight: 900, fontSize: 18, margin: 0 }}>◷ Scan History</h2>
+                <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 2 }}>{savedScans.length} saved scan{savedScans.length !== 1 ? 's' : ''}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {savedScans.length > 0 && !activeHistoryScan && (
+                  <button onClick={deleteScans} style={{ fontSize: 10, padding: '6px 12px', borderRadius: 10, background: 'rgba(255,68,102,0.08)', border: '1px solid rgba(255,68,102,0.2)', color: C.red, cursor: 'pointer', fontWeight: 700 }}>Clear All</button>
+                )}
+                {activeHistoryScan && (
+                  <button onClick={() => setActiveHistoryScan(null)} style={{ fontSize: 10, padding: '6px 12px', borderRadius: 10, background: 'rgba(0,240,255,0.06)', border: `1px solid ${C.border}`, color: C.textSecondary, cursor: 'pointer', fontWeight: 700 }}>← Back</button>
+                )}
+                <button onClick={() => { setShowHistory(false); setActiveHistoryScan(null) }} style={{ fontSize: 16, width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, color: C.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+              {savedScans.length === 0 ? (
+                <p style={{ color: C.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 40 }}>No scans saved yet.</p>
+              ) : activeHistoryScan ? (
+                /* Full scan report */
+                <ScanReport scan={activeHistoryScan} />
+              ) : (
+                /* Scan list */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {savedScans.map(s => {
+                    const d = new Date(s.scannedAt)
+                    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                    return (
+                      <button key={s.id} onClick={() => setActiveHistoryScan(s)} style={{
+                        width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: 16, cursor: 'pointer',
+                        background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`,
+                        transition: 'all 0.15s',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <p style={{ color: C.textPrimary, fontWeight: 700, fontSize: 13 }}>{dateStr} · {timeStr}</p>
+                            <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 2 }}>{s.gamesAnalyzed} games · ${s.bankroll} bankroll</p>
+                          </div>
+                          <span style={{ color: C.purple, fontSize: 18 }}>›</span>
+                        </div>
+                        {/* Preview first line of report */}
+                        <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 8, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
+                          {s.report.replace(/\*\*/g, '').split('\n').find(l => l.trim().length > 20) || ''}
+                        </p>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Scan Report Renderer ──────────────────────────────────────────────────────
+function ScanReport({ scan }: { scan: SavedScan }) {
+  const d = new Date(scan.scannedAt)
+  return (
+    <div>
+      <p style={{ color: C.textSecondary, fontSize: 11, marginBottom: 16 }}>
+        {d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · ${scan.bankroll} bankroll · {scan.gamesAnalyzed} games
+      </p>
+      {scan.report.split('\n').map((line, i) => {
+        const t = line.trim()
+        if (!t) return <div key={i} style={{ height: 8 }} />
+        const parts = t.split(/\*\*(.*?)\*\*/g)
+        const rendered = parts.map((p, j) =>
+          j % 2 === 1 ? <span key={j} style={{ color: '#e0d0ff', fontWeight: 800 }}>{p}</span> : <span key={j}>{p}</span>
+        )
+        if (t.toLowerCase().includes('top pick') || t.includes('⚡')) {
+          return <div key={i} style={{ margin: '12px 0 6px', padding: '12px 14px', borderRadius: 12, background: 'rgba(0,240,255,0.07)', border: '1px solid rgba(0,240,255,0.2)', color: C.cyan, fontWeight: 800, fontSize: 13 }}>{rendered}</div>
+        }
+        if (t.includes('STRONG BET')) return <p key={i} style={{ color: C.green, fontWeight: 700, marginBottom: 2, fontSize: 13 }}>{rendered}</p>
+        if (t.includes('PASS')) return <p key={i} style={{ color: C.textSecondary, marginBottom: 2, fontSize: 13 }}>{rendered}</p>
+        if (t.includes('LEAN')) return <p key={i} style={{ color: C.gold, fontWeight: 600, marginBottom: 2, fontSize: 13 }}>{rendered}</p>
+        return <p key={i} style={{ color: 'rgba(180,210,255,0.75)', marginBottom: 2, fontSize: 13, lineHeight: 1.7 }}>{rendered}</p>
+      })}
     </div>
   )
 }
