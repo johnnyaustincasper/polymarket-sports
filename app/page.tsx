@@ -338,17 +338,9 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
 
   return (
     <>
-      {/* ── Hologram projector wrapper ── */}
-      <div className="mb-10" style={{ position: 'relative' }}>
+      <div className="mb-4" style={{ position: 'relative' }}>
 
-        {/* Subtle projection beam — single soft cone, barely there */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: '25%', right: '25%', height: '80%',
-          background: `linear-gradient(0deg, rgba(0,220,255,0.06) 0%, rgba(0,220,255,0.02) 60%, transparent 100%)`,
-          clipPath: 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)',
-          pointerEvents: 'none', zIndex: 0,
-          filter: 'blur(12px)',
-        }} />
+
 
         {/* The hologram content — no background, pure projection */}
         <div className="holo-projection holo-scanlines rounded-3xl" style={{
@@ -551,37 +543,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
         </div>{/* end card content */}
         </div>{/* end holo-card */}
 
-        {/* ── Projector base — subtle ── */}
-        <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'center', height: 40 }}>
-          {/* Outer ring — slow CW, very faint */}
-          <div style={{
-            position: 'absolute', bottom: 6,
-            width: 80, height: 80, borderRadius: '50%',
-            border: '1px solid rgba(0,240,255,0.1)',
-            animation: 'ring-cw 20s linear infinite',
-          }} />
-          {/* Inner ring — CCW, slightly more visible */}
-          <div style={{
-            position: 'absolute', bottom: 6,
-            width: 48, height: 48, borderRadius: '50%',
-            border: '1px solid rgba(0,240,255,0.18)',
-            animation: 'ring-ccw 12s linear infinite',
-          }} />
-          {/* Base disc */}
-          <div style={{
-            position: 'absolute', bottom: 6,
-            width: 90, height: 8, borderRadius: '50%',
-            background: 'radial-gradient(ellipse at center, rgba(0,240,255,0.1) 0%, transparent 70%)',
-          }} />
-          {/* Core dot */}
-          <div style={{
-            position: 'absolute', bottom: 9,
-            width: 6, height: 6, borderRadius: '50%',
-            background: 'rgba(0,240,255,0.9)',
-            boxShadow: '0 0 8px rgba(0,240,255,0.6), 0 0 16px rgba(0,240,255,0.2)',
-            animation: 'core-pulse 3s ease-in-out infinite',
-          }} />
-        </div>
+
 
       </div>{/* end projector wrapper */}
 
