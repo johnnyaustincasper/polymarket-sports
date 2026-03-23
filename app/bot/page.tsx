@@ -2,6 +2,19 @@
 
 import { useEffect, useState } from 'react'
 
+interface NarrativeSignal {
+  signals: {
+    type: string
+    severity: 'high' | 'medium' | 'low'
+    team: string
+    direction: 'favors_away' | 'favors_home' | 'neutral'
+    summary: string
+  }[]
+  overallEdge: 'away' | 'home' | 'none'
+  edgeConfidence: number
+  aiSummary: string
+}
+
 interface Signal {
   gameId: string
   gameName: string
@@ -54,7 +67,29 @@ export default function BotPage() {
   const [data, setData] = useState<ScanResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'edge'>('edge')
+  const [filter, setFilter] = useState<'all' | 'edge'>('all')
+  const [narratives, setNarratives] = useState<Record<string, NarrativeSignal | 'loading' | 'error'>>({})
+
+  async function analyzeGame(s: Signal) {
+    setNarratives(prev => ({ ...prev, [s.gameId]: 'loading' }))
+    try {
+      const res = await fetch('/api/bot/signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          game: s.gameName,
+          awayTeam: s.gameName.split(' @ ')[0],
+          homeTeam: s.gameName.split(' @ ')[1],
+          gameTime: new Date(s.gameTime).toLocaleString(),
+        }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      const json = await res.json()
+      setNarratives(prev => ({ ...prev, [s.gameId]: json }))
+    } catch {
+      setNarratives(prev => ({ ...prev, [s.gameId]: 'error' }))
+    }
+  }
 
   async function scan() {
     setLoading(true)
@@ -215,6 +250,54 @@ export default function BotPage() {
                     {s.recommendation}
                   </div>
                 )}
+
+                {/* Narrative signals */}
+                {(() => {
+                  const n = narratives[s.gameId]
+                  if (!n) return (
+                    <button onClick={() => analyzeGame(s)}
+                      className="w-full mt-2 py-2 rounded-xl text-xs font-semibold transition-all"
+                      style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: '#c4b5fd' }}>
+                      🧠 Scan for narrative edges (injuries, motivation, revenge games…)
+                    </button>
+                  )
+                  if (n === 'loading') return (
+                    <div className="mt-2 py-3 text-center text-xs text-white/40">🧠 Analyzing news &amp; signals…</div>
+                  )
+                  if (n === 'error') return (
+                    <div className="mt-2 py-2 text-center text-xs text-red-400/60">Analysis failed. Try again.</div>
+                  )
+                  const sev = { high: '#ef4444', medium: '#eab308', low: '#6b7280' }
+                  const dirLabel = { favors_away: `▲ ${s.gameName.split(' @ ')[0]}`, favors_home: `▲ ${s.gameName.split(' @ ')[1]}`, neutral: '— Neutral' }
+                  return (
+                    <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
+                      {n.signals.length === 0 ? (
+                        <p className="text-[11px] text-white/30 italic">No significant signals found.</p>
+                      ) : n.signals.map((sig, i) => (
+                        <div key={i} className="flex gap-2 items-start">
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 mt-0.5"
+                            style={{ background: `${sev[sig.severity]}22`, color: sev[sig.severity] }}>
+                            {sig.severity}
+                          </span>
+                          <div>
+                            <p className="text-[11px] font-semibold" style={{ color: sig.direction === 'neutral' ? 'rgba(255,255,255,0.5)' : '#c4b5fd' }}>
+                              {sig.type.toUpperCase()} · {dirLabel[sig.direction]}
+                            </p>
+                            <p className="text-[11px] text-white/60 leading-snug">{sig.summary}</p>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="mt-2 rounded-xl px-3 py-2" style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)' }}>
+                        <p className="text-[11px] text-purple-300 leading-snug">{n.aiSummary}</p>
+                        {n.overallEdge !== 'none' && (
+                          <p className="text-[10px] font-bold mt-1" style={{ color: '#a78bfa' }}>
+                            Narrative edge: {n.overallEdge === 'away' ? s.gameName.split(' @ ')[0] : s.gameName.split(' @ ')[1]} ({n.edgeConfidence}% confidence)
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 <div className="mt-2 flex gap-2">
                   <a href={s.polyEventUrl} target="_blank" rel="noopener noreferrer"
