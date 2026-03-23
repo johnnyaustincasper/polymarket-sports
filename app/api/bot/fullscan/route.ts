@@ -308,6 +308,9 @@ export async function GET(req: Request) {
             polyAwayPrice = parseFloat(prices[awayIdx]) || 0
             awayEdge = dkAwayImplied - polyAwayPrice
             homeEdge = dkHomeImplied - polyHomePrice
+            // EV and Kelly pre-calculated so Claude doesn't have to
+            // EV per $1 risked = (trueProb * (1/polyPrice - 1)) - (1 - trueProb)
+            // Kelly fraction = (trueProb - polyPrice) / (1 - polyPrice)
             polyLine = `${awayName}: ${(polyAwayPrice*100).toFixed(1)}¢ | ${homeName}: ${(polyHomePrice*100).toFixed(1)}¢ | Volume: $${((winnerMarket.volumeNum||0)/1000).toFixed(0)}k`
           }
         }
@@ -348,35 +351,69 @@ export async function GET(req: Request) {
         ].join('\n')
       }
 
+      // Pre-calculate EV and Kelly for each side
+      const calcEdgeStats = (trueProb: number, polyPrice: number, bankrollAmt: number) => {
+        if (polyPrice <= 0 || polyPrice >= 1) return null
+        const edge = trueProb - polyPrice                          // cents of edge
+        const evPer1 = trueProb * (1 / polyPrice - 1) - (1 - trueProb)  // EV per $1 risked
+        const kelly = Math.max(0, edge / (1 - polyPrice))         // Kelly fraction
+        const halfKelly = kelly / 2                                // Half-Kelly (safer)
+        const betSize = Math.round(halfKelly * bankrollAmt * 100) / 100
+        const shares = betSize > 0 ? Math.round(betSize / polyPrice) : 0
+        const profit = shares > 0 ? Math.round((shares * (1 - polyPrice)) * 100) / 100 : 0
+        return { edge, evPer1, kelly, halfKelly, betSize, shares, profit }
+      }
+
+      const awayEV = polyAwayPrice > 0 ? calcEdgeStats(dkAwayImplied, polyAwayPrice, bankroll) : null
+      const homeEV = polyHomePrice > 0 ? calcEdgeStats(dkHomeImplied, polyHomePrice, bankroll) : null
+
+      const fmtEV = (ev: ReturnType<typeof calcEdgeStats>, teamName: string, polyPrice: number) => {
+        if (!ev || ev.edge <= 0) return `${teamName}: NO EDGE (Poly price ≥ DK implied — market already pricing them correctly or overpricing)`
+        return [
+          `${teamName}: EDGE +${(ev.edge*100).toFixed(1)}¢`,
+          `  DK sharp implied: ${(dkAwayImplied === (polyPrice === polyAwayPrice ? dkAwayImplied : dkHomeImplied) ? (dkAwayImplied*100).toFixed(1) : (dkHomeImplied*100).toFixed(1))}% | Poly price: ${(polyPrice*100).toFixed(1)}¢ | Poly underpricing by ${(ev.edge*100).toFixed(1)}%`,
+          `  EV per $1 risked: ${ev.evPer1 >= 0 ? '+' : ''}${(ev.evPer1*100).toFixed(1)}¢ (${ev.evPer1 > 0 ? 'POSITIVE EV ✓' : 'NEGATIVE EV ✗'})`,
+          `  Half-Kelly bet: $${ev.betSize.toFixed(0)} → ${ev.shares} shares → profit $${ev.profit} if win, lose $${ev.betSize.toFixed(0)} if loss`,
+          `  Break-even: ${(polyPrice*100).toFixed(1)}% — you believe true prob is ${(dkAwayImplied === (polyPrice === polyAwayPrice ? dkAwayImplied : dkHomeImplied) ? (dkAwayImplied*100).toFixed(1) : (dkHomeImplied*100).toFixed(1))}%`,
+        ].join('\n')
+      }
+
+      const awayEVStr = awayEV ? fmtEV(awayEV, awayName, polyAwayPrice) : `${awayName}: No Polymarket price`
+      const homeEVStr = homeEV ? fmtEV(homeEV, homeName, polyHomePrice) : `${homeName}: No Polymarket price`
+
       gameContexts.push(`
 ════════════════════════════════════════
-${awayName.toUpperCase()} (${away.team.abbreviation}) @ ${homeName.toUpperCase()} (${home.team.abbreviation})
-Tip-off: ${gameTime} CT
+${awayName.toUpperCase()} @ ${homeName.toUpperCase()} — ${gameTime} CT
 ════════════════════════════════════════
+
+💰 MARKET ANALYSIS (is Polymarket wrong, and by how much?):
+DK Moneyline: ${awayName} ${dkAwayML} | ${homeName} ${dkHomeML}
+DK Spread: ${dkSpread !== null ? `${awayAbbr} ${dkSpread > 0 ? '+' : ''}${-dkSpread}` : 'N/A'} | Total O/U: ${dkTotal ?? 'N/A'}
+Polymarket: ${polyLine}
+
+AWAY — ${awayEVStr}
+
+HOME — ${homeEVStr}
+
+RULE: Only bet when EV is positive AND edge ≥ 5¢. Otherwise it's just agreeing with the market.
 
 📊 TEAM STATS & FORM:
 ${fmtStats(awayStats, awayName, false)}
 
 ${fmtStats(homeStats, homeName, true)}
 
-💰 BETTING LINES:
-DK Moneyline: ${awayName} ${dkAwayML} (${(dkAwayImplied*100).toFixed(1)}% sharp implied) | ${homeName} ${dkHomeML} (${(dkHomeImplied*100).toFixed(1)}% sharp implied)
-DK Spread: ${dkSpread !== null ? `${awayAbbr} ${dkSpread > 0 ? '+' : ''}${-dkSpread} / ${homeAbbr} ${dkSpread > 0 ? '-' : '+'}${Math.abs(dkSpread)}` : 'N/A'} | Total: ${dkTotal ?? 'N/A'}
-Polymarket: ${polyLine}
-Price Edge: ${awayName} ${awayEdge >= 0 ? '+' : ''}${(awayEdge*100).toFixed(1)}¢ | ${homeName} ${homeEdge >= 0 ? '+' : ''}${(homeEdge*100).toFixed(1)}¢
+📰 OFFICIAL ESPN STATUS (AUTHORITATIVE):
+${awayName}: ${awayTeamNews || 'No news'}
+${homeName}: ${homeTeamNews || 'No news'}
 
-📰 OFFICIAL ESPN TEAM NEWS (authoritative — injuries/suspensions are FACTS):
-${awayName}: ${awayTeamNews || 'No recent news'}
-${homeName}: ${homeTeamNews || 'No recent news'}
+📋 PREVIEW / CONTEXT:
+${previewFullText ? previewFullText.slice(0, 1200) : previewResults.map(r => r.title + ': ' + r.snippet).join('\n') || 'None found'}
 
-📋 GAME PREVIEW (full article):
-${previewFullText ? previewFullText.slice(0, 1500) : previewResults.map(r => r.title + ': ' + r.snippet).join('\n') || 'None found'}
+🔄 HEAD-TO-HEAD:
+${h2h || 'No H2H data found'}
 
-🔄 HEAD-TO-HEAD HISTORY:
-${h2h || 'No recent H2H data found'}
-
-🕵️ PLAYER INTEL — personal life, off-court signals:
-${playerIntel || 'No significant off-court signals found'}
+🕵️ OFF-COURT / PERSONAL SIGNALS:
+${playerIntel || 'None found'}
 `)
     }
 
@@ -389,44 +426,70 @@ ${playerIntel || 'No significant off-court signals found'}
       max_tokens: 3000,
       messages: [{
         role: 'user',
-        content: `You are an elite sharp sports bettor with deep NBA knowledge. Your job is to give the most accurate, well-reasoned betting analysis possible on today's NBA slate for Polymarket. Bankroll: $${bankroll} USDC.
+        content: `You are a professional sports bettor who thinks exclusively in terms of EDGE and EXPECTED VALUE. You do not care who is likely to win — you only care where the market is WRONG and by how much. Bankroll: $${bankroll} USDC.
 
-${leagueStatus ? `⚠️ LEAGUE-WIDE OFFICIAL STATUS — FROM ESPN (HARD FACTS — do not contradict these):
-${leagueStatus}
+${leagueStatus ? `⚠️ PLAYER STATUS (ESPN — HARD FACTS, do not contradict):
+${leagueStatus}\n` : ''}
+═══════════════════════════════════════
+THE ONLY QUESTION THAT MATTERS:
+"Where is Polymarket mispricing the true probability, and why?"
+═══════════════════════════════════════
 
-` : ''}HOW POLYMARKET BETTING WORKS:
-- Buy YES shares for a team at their price (e.g. 45¢/share)
-- Each share pays $1.00 if that team wins
-- Shares = dollars ÷ price. Profit = shares × $1.00 − dollars spent
-- Edge = DK sharp implied % minus Poly price. Positive = Poly is cheap = value bet.
+SHARP BETTING PHILOSOPHY:
+- Betting a 90% favorite at 88¢ is TERRIBLE. You risk $88 to win $12. The 2¢ edge barely covers noise.
+- Betting a 40% underdog at 30¢ is GREAT if you believe true prob is 42%+. Risk $30 to win $70, with edge.
+- The market is ALWAYS approximately right. You're looking for the rare cases where it's meaningfully wrong.
+- Positive EV = (your estimated true prob) > (Poly price). That's the only filter that matters.
+- Half-Kelly sizing is already pre-calculated for you. Use it. Do not recommend betting more.
+- If edge < 5¢ and EV is near zero: PASS. Risking $90 to make $11 is a bad bet even if the team wins 85% of the time.
 
-CRITICAL RULES:
-- ESPN official status overrides everything. Suspended = out. Rescinded = playing.
-- Consider ALL factors: price edge + team form + rest + injuries + personal signals
-- Be specific — name the players, cite the stats, explain the reasoning
-- Size bets by conviction: Strong (15-25% of bankroll), Lean (5-10%), Pass (0%)
-- Total bets must not exceed bankroll
+HOW TO FIND REAL EDGE:
+1. Key player OUT that the market hasn't fully priced (a star missing = 5-10% swing in true prob)
+2. Personal/life situation dragging down a player (divorce, death, legal — books miss this)
+3. Revenge game, contract year, extreme motivation — underdog punching above their weight
+4. Back-to-back fatigue on the favorite (rest edge on the underdog)
+5. Stylistic mismatch that creates an upset opportunity (pace, defense, three-point variance)
+6. Public money hammering a team, creating false line movement away from true value
 
-TODAY'S GAMES — FULL ANALYSIS DATA:
+HOW POLYMARKET WORKS:
+- Each share = $1.00 if that team wins. You buy at the current price.
+- Profit per share = $1.00 − price paid. Risk = price paid × shares.
+- Shares = bet / price. Net profit if win = shares × (1 − price). Net loss = bet size.
+
+CRITICAL: ESPN status is law. If ESPN says suspended = suspended. Do not say "might play."
+
+TODAY'S GAMES:
 ${gameContexts.join('\n')}
 
-════════════════════════════════════════
-For EACH game provide:
+═══════════════════════════════════════
+OUTPUT FORMAT — FOR EACH GAME:
 
 **[AWAY] @ [HOME]**
+📍 Market says: [away]% / [home]% (Poly prices)
+🧠 We say: [your estimated true prob for each team, based on ALL factors]
+📊 Edge: +X¢ on [team] — Poly is underpricing them by X% because [specific reason]
+
 Verdict: STRONG BET / LEAN / PASS
-Side: Which team and why
-The Trade: "Put $X on [Team] YES at [price]¢. You get [shares] shares. Win: $[return] (+$[profit]). Loss: -$[cost]."
-Key Factors: 3-5 bullet points covering the most important stats, rest, injuries, narrative
-Confidence: X/10
-════════════════════════════════════════
+[If PASS: explain why the edge isn't there even if a team is likely to win]
+
+The Trade (only if bet):
+"[Team] YES at [price]¢ — $[halfKellyAmount] buys [shares] shares. Win: +$[profit]. Lose: -$[bet]."
+
+Why the market is wrong here:
+• [Factor 1 — be specific, cite stats or news]
+• [Factor 2]
+• [Factor 3 — the thing the public/market is missing]
+
+Risk flags:
+• [What could make you wrong — be honest about downside]
+═══════════════════════════════════════
 
 End with:
 
 ⚡ TOP PICK OF THE DAY
-Your single best bet with full reasoning. Be specific about exactly what to buy and why.
+The single game where the market mispricing is largest and most justified. State exactly what edge you're exploiting and why it's not already priced in. Include the full trade.
 
-Be sharp. Be direct. Think like someone putting real money on this.`
+Be a sharp. Most games should be PASS. Only bet where the edge is real and explainable.`
       }]
     })
 
