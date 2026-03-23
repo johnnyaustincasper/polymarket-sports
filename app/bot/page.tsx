@@ -65,6 +65,19 @@ export default function BotPage() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'edge'>('all')
   const [narratives, setNarratives] = useState<Record<string, NarrativeSignal | 'loading' | 'error'>>({})
+  const [fullScan, setFullScan] = useState<{ report: string; gamesAnalyzed: number; scannedAt: string } | null>(null)
+  const [fullScanLoading, setFullScanLoading] = useState(false)
+
+  async function runFullScan() {
+    setFullScanLoading(true)
+    setFullScan(null)
+    try {
+      const res = await fetch('/api/bot/fullscan')
+      const json = await res.json()
+      setFullScan(json)
+    } catch { setFullScan({ report: 'Scan failed.', gamesAnalyzed: 0, scannedAt: new Date().toISOString() }) }
+    finally { setFullScanLoading(false) }
+  }
 
   async function scan() {
     setLoading(true); setError(null)
@@ -158,7 +171,82 @@ export default function BotPage() {
           </div>
         )}
 
-        {data && <p style={{ color: C.textSecondary, fontSize: 10, letterSpacing: '0.08em', marginBottom: 16 }}>Last scan: {new Date(data.scannedAt).toLocaleTimeString()}</p>}
+        {data && <p style={{ color: C.textSecondary, fontSize: 10, letterSpacing: '0.08em', marginBottom: 20 }}>Last scan: {new Date(data.scannedAt).toLocaleTimeString()}</p>}
+
+        {/* ── Full AI Scan ── */}
+        <div style={{ marginBottom: 28 }}>
+          <button onClick={runFullScan} disabled={fullScanLoading} style={{
+            width: '100%', padding: '14px', borderRadius: 16,
+            fontSize: 13, fontWeight: 800, letterSpacing: '0.06em',
+            cursor: fullScanLoading ? 'not-allowed' : 'pointer',
+            background: fullScanLoading
+              ? 'rgba(168,85,247,0.06)'
+              : 'linear-gradient(135deg, rgba(168,85,247,0.15), rgba(0,240,255,0.1))',
+            border: `1px solid ${fullScanLoading ? 'rgba(168,85,247,0.15)' : 'rgba(168,85,247,0.4)'}`,
+            color: fullScanLoading ? C.textSecondary : '#c4b5fd',
+            boxShadow: fullScanLoading ? 'none' : '0 0 30px rgba(168,85,247,0.15)',
+            transition: 'all 0.2s',
+          }}>
+            {fullScanLoading
+              ? '◈ Scanning all games with Sonnet — this takes ~30 seconds…'
+              : '◈ AI Full Scan — Tell me what to bet today'}
+          </button>
+
+          {fullScan && !fullScanLoading && (
+            <div style={{
+              marginTop: 12, borderRadius: 20, padding: '20px 20px',
+              background: 'rgba(168,85,247,0.06)',
+              border: '1px solid rgba(168,85,247,0.2)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <p style={{ color: '#c4b5fd', fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  ◈ Sonnet Analysis · {fullScan.gamesAnalyzed} games
+                </p>
+                <p style={{ color: C.textSecondary, fontSize: 10 }}>{new Date(fullScan.scannedAt).toLocaleTimeString()}</p>
+              </div>
+              <div style={{ color: C.textPrimary, fontSize: 13, lineHeight: 1.75 }}>
+                {fullScan.report.split('\n').map((line, i) => {
+                  const t = line.trim()
+                  if (!t) return <div key={i} style={{ height: 8 }} />
+                  // Bold **text**
+                  const parts = t.split(/\*\*(.*?)\*\*/g)
+                  const rendered = parts.map((p, j) =>
+                    j % 2 === 1
+                      ? <span key={j} style={{ color: '#e0d0ff', fontWeight: 800 }}>{p}</span>
+                      : <span key={j}>{p}</span>
+                  )
+                  // TOP PICK line
+                  if (t.toLowerCase().includes('top pick')) {
+                    return (
+                      <div key={i} style={{
+                        margin: '12px 0 6px', padding: '10px 14px', borderRadius: 12,
+                        background: 'rgba(0,240,255,0.07)', border: '1px solid rgba(0,240,255,0.2)',
+                        color: C.cyan, fontWeight: 800, fontSize: 13,
+                      }}>{rendered}</div>
+                    )
+                  }
+                  // STRONG BET
+                  if (t.includes('STRONG BET')) {
+                    return <p key={i} style={{ color: C.green, fontWeight: 700, marginBottom: 2 }}>{rendered}</p>
+                  }
+                  // PASS
+                  if (t.includes('PASS')) {
+                    return <p key={i} style={{ color: C.textSecondary, marginBottom: 2 }}>{rendered}</p>
+                  }
+                  // LEAN
+                  if (t.includes('LEAN')) {
+                    return <p key={i} style={{ color: C.gold, fontWeight: 600, marginBottom: 2 }}>{rendered}</p>
+                  }
+                  // Game header (===)
+                  if (t.startsWith('###') || t.startsWith('**') && t.endsWith('**')) {
+                    return <p key={i} style={{ color: '#c4b5fd', fontWeight: 800, marginTop: 14, marginBottom: 4 }}>{rendered}</p>
+                  }
+                  return <p key={i} style={{ color: 'rgba(180,210,255,0.75)', marginBottom: 2 }}>{rendered}</p>
+                })}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Filter tabs */}
         <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}`, marginBottom: 20 }}>
