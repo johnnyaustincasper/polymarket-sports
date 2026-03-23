@@ -355,6 +355,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
           position: 'relative', zIndex: 1,
           background: 'transparent',
           border: 'none',
+          outline: 'none',
           boxShadow: 'none',
           backdropFilter: 'none',
           WebkitBackdropFilter: 'none',
@@ -366,26 +367,7 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             borderRadius: 'inherit',
           }} />
 
-          {/* Top glow edge */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-            background: isLive
-              ? `linear-gradient(90deg, transparent, ${C.red} 30%, ${C.red} 70%, transparent)`
-              : `linear-gradient(90deg, transparent, ${C.cyan} 20%, rgba(0,240,255,0.9) 50%, ${C.cyan} 80%, transparent)`,
-            boxShadow: `0 0 12px ${isLive ? C.red : C.cyan}`,
-            animation: 'holo-glow-pulse 3s ease-in-out infinite',
-          }} />
-
-          {/* Bottom glow edge */}
-          <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
-            background: `linear-gradient(90deg, transparent, rgba(0,240,255,0.4) 30%, rgba(0,240,255,0.4) 70%, transparent)`,
-          }} />
-
-          {/* Left edge glow */}
-          <div style={{ position: 'absolute', top: '10%', bottom: '10%', left: 0, width: 1, background: `linear-gradient(180deg, transparent, rgba(0,240,255,0.25) 40%, rgba(0,240,255,0.25) 60%, transparent)` }} />
-          {/* Right edge glow */}
-          <div style={{ position: 'absolute', top: '10%', bottom: '10%', right: 0, width: 1, background: `linear-gradient(180deg, transparent, rgba(0,240,255,0.25) 40%, rgba(0,240,255,0.25) 60%, transparent)` }} />
+          {/* All edges fully dissolved into background */}
 
         <div className="p-5">
           {/* Header row */}
