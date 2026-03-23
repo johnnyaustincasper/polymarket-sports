@@ -5,13 +5,61 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-html {
-  min-height: 100%;
-  background: #bfdbfe fixed;
-}
-body {
-  background: transparent !important;
-  min-height: 100dvh;
+html { min-height: 100%; background: #02020f fixed; }
+body { background: transparent !important; min-height: 100dvh; }
+
+/* Hologram flicker animation */
+@keyframes holo-flicker {
+  0%   { opacity: 1; }
+  92%  { opacity: 1; }
+  93%  { opacity: 0.85; }
+  94%  { opacity: 1; }
+  96%  { opacity: 0.9; }
+  97%  { opacity: 1; }
+  100% { opacity: 1; }
 }
 
+@keyframes holo-scanline {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
 
+@keyframes holo-glow-pulse {
+  0%, 100% { opacity: 0.6; transform: scaleX(1); }
+  50%       { opacity: 1;   transform: scaleX(1.08); }
+}
+
+@keyframes holo-beam-pulse {
+  0%, 100% { opacity: 0.25; }
+  50%       { opacity: 0.45; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px currentColor; }
+  50%       { opacity: 0.4; box-shadow: 0 0 2px currentColor; }
+}
+
+.holo-card {
+  animation: holo-flicker 8s infinite;
+}
+
+.holo-card:hover {
+  animation: none;
+}
+
+/* Scan line sweep */
+.holo-sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(0, 240, 255, 0.04) 50%,
+    transparent 100%
+  );
+  height: 40%;
+  animation: holo-scanline 4s linear infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}

@@ -340,24 +340,57 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
 
   return (
     <>
-      <div className="rounded-3xl overflow-visible mb-3 transition-all" style={{
-        background: 'rgba(8,8,28,0.9)',
-        border: `1px solid ${hasEdge ? 'rgba(0,240,255,0.3)' : C.border}`,
-        boxShadow: hasEdge
-          ? `0 0 40px rgba(0,240,255,0.08), 0 8px 40px rgba(0,0,0,0.6)`
-          : `0 4px 40px rgba(0,0,0,0.5)`,
-        backdropFilter: 'blur(24px)',
-        position: 'relative',
-      }}>
-        {/* Top accent line */}
+      {/* Hologram projector wrapper */}
+      <div className="mb-6" style={{ position: 'relative' }}>
+
+        {/* Projection beam — cone of light rising from base */}
         <div style={{
-          position: 'absolute', top: 0, left: 24, right: 24, height: 1,
-          background: isLive
-            ? `linear-gradient(90deg, transparent, ${C.red}, transparent)`
-            : hasEdge
-              ? `linear-gradient(90deg, transparent, ${C.cyan}, transparent)`
-              : `linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)`,
+          position: 'absolute', bottom: -2, left: '10%', right: '10%', height: '100%',
+          background: `linear-gradient(180deg, transparent 0%, rgba(0,240,255,0.04) 60%, rgba(0,240,255,0.12) 100%)`,
+          clipPath: 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)',
+          pointerEvents: 'none', zIndex: 0,
+          animation: 'holo-beam-pulse 3s ease-in-out infinite',
         }} />
+
+        {/* The holographic card */}
+        <div className="holo-card holo-sweep rounded-3xl overflow-hidden transition-all" style={{
+          position: 'relative', zIndex: 1,
+          background: isLive
+            ? 'rgba(255,20,20,0.04)'
+            : hasEdge
+              ? 'rgba(0,240,255,0.04)'
+              : 'rgba(0,220,255,0.03)',
+          border: `1px solid ${isLive ? 'rgba(255,68,102,0.35)' : hasEdge ? 'rgba(0,240,255,0.45)' : 'rgba(0,240,255,0.18)'}`,
+          boxShadow: isLive
+            ? `0 0 30px rgba(255,68,102,0.1), inset 0 0 60px rgba(255,68,102,0.03)`
+            : hasEdge
+              ? `0 0 40px rgba(0,240,255,0.12), inset 0 0 80px rgba(0,240,255,0.04)`
+              : `0 0 20px rgba(0,240,255,0.06), inset 0 0 60px rgba(0,240,255,0.02)`,
+          backdropFilter: 'blur(2px)',
+          WebkitBackdropFilter: 'blur(2px)',
+        }}>
+          {/* Horizontal scanlines overlay */}
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
+            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,240,255,0.025) 3px, rgba(0,240,255,0.025) 4px)',
+            borderRadius: 'inherit',
+          }} />
+
+          {/* Top glow edge */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+            background: isLive
+              ? `linear-gradient(90deg, transparent, ${C.red} 30%, ${C.red} 70%, transparent)`
+              : `linear-gradient(90deg, transparent, ${C.cyan} 20%, rgba(0,240,255,0.9) 50%, ${C.cyan} 80%, transparent)`,
+            boxShadow: `0 0 12px ${isLive ? C.red : C.cyan}`,
+            animation: 'holo-glow-pulse 3s ease-in-out infinite',
+          }} />
+
+          {/* Bottom glow edge */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
+            background: `linear-gradient(90deg, transparent, rgba(0,240,255,0.4) 30%, rgba(0,240,255,0.4) 70%, transparent)`,
+          }} />
 
         <div className="p-5">
           {/* Header row */}
@@ -548,8 +581,34 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
           {!game.hasWinnerOdds && !game.hasSpreadOdds && !game.hasTotalOdds && (
             <p style={{ textAlign: 'center', color: C.textSecondary, fontSize: 10, marginTop: 8, letterSpacing: '0.08em' }}>Lines open closer to tip-off</p>
           )}
+        </div>{/* end card content */}
+        </div>{/* end holo-card */}
+
+        {/* Projector base */}
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: -1 }}>
+          {/* Base plate */}
+          <div style={{
+            width: '70%', height: 6, borderRadius: '0 0 40px 40px',
+            background: `linear-gradient(180deg, rgba(0,240,255,0.3), rgba(0,240,255,0.08))`,
+            boxShadow: `0 4px 20px rgba(0,240,255,0.25), 0 0 40px rgba(0,240,255,0.1)`,
+          }} />
+          {/* Emitter ring */}
+          <div style={{
+            marginTop: 2, width: '40%', height: 4, borderRadius: 4,
+            background: `linear-gradient(180deg, rgba(0,240,255,0.5), rgba(0,240,255,0.1))`,
+            boxShadow: `0 0 16px ${C.cyan}, 0 0 30px rgba(0,240,255,0.3)`,
+            animation: 'holo-glow-pulse 3s ease-in-out infinite',
+          }} />
+          {/* Core dot */}
+          <div style={{
+            marginTop: 3, width: 8, height: 8, borderRadius: '50%',
+            background: C.cyan,
+            boxShadow: `0 0 10px ${C.cyan}, 0 0 20px ${C.cyan}, 0 0 40px rgba(0,240,255,0.5)`,
+            animation: 'holo-glow-pulse 2s ease-in-out infinite',
+          }} />
         </div>
-      </div>
+
+      </div>{/* end projector wrapper */}
 
       {showAnalysis && <AnalysisModal game={game} onClose={() => setShowAnalysis(false)} />}
       {betDraft && (
