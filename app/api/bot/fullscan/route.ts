@@ -57,7 +57,9 @@ async function braveSearch(query: string): Promise<string> {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const bankroll = parseFloat(searchParams.get('bankroll') || '200')
   try {
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
 
@@ -176,28 +178,39 @@ PREVIEW: ${gameNews || 'None found'}`)
       max_tokens: 2048,
       messages: [{
         role: 'user',
-        content: `You are an elite sharp sports bettor analyzing today's NBA slate on Polymarket. Your job is to give clear, actionable betting recommendations based on two signals:
+        content: `You are an elite sharp sports bettor advising a friend on how to trade NBA games on Polymarket today. Your bankroll to work with is $${bankroll} USDC.
 
-1. **PRICE EDGE**: If Polymarket has a team priced cheaper than DraftKings implied probability, that's a buy signal. Edge = DK implied % minus Poly price. Positive = Poly is cheap = opportunity.
+**How Polymarket works (use this for your math):**
+- You buy YES shares for a team at their current price (e.g. 45¢ per share)
+- Each share pays out $1.00 if that team wins, $0 if they lose
+- So if you buy $45 worth of shares at 45¢, you get 100 shares
+- If they win: 100 shares × $1.00 = $100 back → $55 profit
+- If they lose: $0 back → $45 loss
+- Formula: shares = dollars_spent / price_per_share. Payout if win = shares × $1.00. Profit = payout - cost.
 
-2. **NARRATIVE EDGE**: Injuries to key players, revenge games, motivation factors, back-to-backs, personal situations — anything that moves the needle that the market may not have priced in.
+**Two signals to analyze:**
+1. **PRICE EDGE**: Polymarket price vs DraftKings implied probability. If DK implies 60% but Poly has them at 52¢, that's an 8¢ edge — Poly is underpricing them. Buy cheap, profit when market corrects OR hold to resolution.
+2. **NARRATIVE EDGE**: Injuries, revenge games, back-to-backs, motivation — anything the market may not have priced in yet.
 
-Today's games:
+Today's games (total bankroll: $${bankroll}):
 ${gameContexts.join('\n')}
 
 ---
 
-Analyze each game. Then output your recommendations clearly:
+For each game give:
+**[TEAM A] @ [TEAM B]**
+- Verdict: STRONG BET / LEAN / PASS
+- The trade: "Buy [Team X] YES at [price]¢ — put $[amount] on it. You'd get [shares] shares. If they win: $[return] back, $[profit] profit. If they lose: -$[amount]."
+- Why: 1-2 sentences combining price edge + any narrative signals
+- Confidence: X/10
 
-For each game, say:
-- **STRONG BET / LEAN / PASS**
-- Which side and why (price edge + narrative combined)
-- Confidence 1-10
-- One sentence on the key reason
+Size bets based on edge strength and confidence. Strong edges get 15-25% of bankroll. Leans get 5-10%. Passes get $0. Total allocation should not exceed the bankroll.
 
-End with a **TOP PICK** — your single best bet of the day with full reasoning.
+End with:
+**⚡ TOP PICK OF THE DAY**
+Full breakdown of your single best bet — the trade, the edge, the reasoning, and exactly what to do on Polymarket.
 
-Be direct. No hedging. Think like a sharp who is putting real money on this.`
+Be conversational and direct, like you're texting a friend real money advice.`
       }]
     })
 

@@ -67,12 +67,13 @@ export default function BotPage() {
   const [narratives, setNarratives] = useState<Record<string, NarrativeSignal | 'loading' | 'error'>>({})
   const [fullScan, setFullScan] = useState<{ report: string; gamesAnalyzed: number; scannedAt: string } | null>(null)
   const [fullScanLoading, setFullScanLoading] = useState(false)
+  const [bankroll, setBankroll] = useState(200)
 
   async function runFullScan() {
     setFullScanLoading(true)
     setFullScan(null)
     try {
-      const res = await fetch('/api/bot/fullscan')
+      const res = await fetch(`/api/bot/fullscan?bankroll=${bankroll}`)
       const json = await res.json()
       setFullScan(json)
     } catch { setFullScan({ report: 'Scan failed.', gamesAnalyzed: 0, scannedAt: new Date().toISOString() }) }
@@ -175,6 +176,20 @@ export default function BotPage() {
 
         {/* ── Full AI Scan ── */}
         <div style={{ marginBottom: 28 }}>
+          {/* Bankroll input */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <span style={{ color: C.textSecondary, fontSize: 11, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>BANKROLL</span>
+            <div style={{ display: 'flex', alignItems: 'center', flex: 1, background: 'rgba(0,240,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 12, padding: '6px 12px' }}>
+              <span style={{ color: C.textSecondary, fontSize: 13, marginRight: 4 }}>$</span>
+              <input
+                type="number"
+                value={bankroll}
+                onChange={e => setBankroll(Number(e.target.value))}
+                style={{ background: 'transparent', border: 'none', outline: 'none', color: C.cyan, fontSize: 15, fontWeight: 800, width: '100%' }}
+              />
+            </div>
+            <span style={{ color: C.textSecondary, fontSize: 10, letterSpacing: '0.06em' }}>USDC</span>
+          </div>
           <button onClick={runFullScan} disabled={fullScanLoading} style={{
             width: '100%', padding: '14px', borderRadius: 16,
             fontSize: 13, fontWeight: 800, letterSpacing: '0.06em',
