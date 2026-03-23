@@ -18,10 +18,10 @@ body { background: transparent !important; min-height: 100dvh; }
   100%             { opacity: 1; filter: none; }
 }
 
-/* ── Scanline sweep ─────────────────────────────────────────── */
+/* ── Scanline sweep — disabled ──────────────────────────────── */
 @keyframes holo-scan {
   0%   { top: -30%; }
-  100% { top: 110%; }
+  100% { top: -30%; }
 }
 
 /* ── Chromatic aberration drift ─────────────────────────────── */
@@ -57,22 +57,9 @@ body { background: transparent !important; min-height: 100dvh; }
   animation: chroma-drift 6s ease-in-out infinite;
 }
 
-/* ── Scanline overlay ───────────────────────────────────────── */
+/* ── Scanline sweep removed ─────────────────────────────────── */
 .holo-scanlines::before {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; height: 35%;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(0, 220, 255, 0.06) 40%,
-    rgba(0, 220, 255, 0.10) 50%,
-    rgba(0, 220, 255, 0.06) 60%,
-    transparent 100%
-  );
-  animation: holo-scan 4s linear infinite;
-  pointer-events: none;
-  z-index: 10;
+  content: none;
 }
 
 /* ── Static noise lines (always present, subtle) ────────────── */
