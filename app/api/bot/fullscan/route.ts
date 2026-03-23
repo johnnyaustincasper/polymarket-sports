@@ -42,17 +42,53 @@ function matchTitle(abbr: string, name: string, title: string) {
   return getKw(abbr, name).some(k => title.toLowerCase().includes(k))
 }
 
-async function braveSearch(query: string): Promise<string> {
+async function braveSearch(query: string, freshness = 'pw'): Promise<string> {
   if (!BRAVE_KEY) return ''
   try {
     const res = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5&freshness=pd`,
+      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5&freshness=${freshness}`,
       { headers: { Accept: 'application/json', 'X-Subscription-Token': BRAVE_KEY }, signal: AbortSignal.timeout(7000) }
     )
     if (!res.ok) return ''
     const data = await res.json()
     return (data.web?.results || []).slice(0, 4).map((r: any) => `${r.title}: ${r.description}`).join('\n')
   } catch { return '' }
+}
+
+// ── Get star players from ESPN roster ────────────────────────────────────────
+async function getStarPlayers(teamId: string): Promise<string[]> {
+  try {
+    const res = await fetch(
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/roster`,
+      { next: { revalidate: 3600 } }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    const athletes: any[] = data.athletes?.flatMap((g: any) => g.items || []) || []
+    // Sort by jersey number as a rough proxy, but prefer known stars
+    // Take first 5 (usually sorted by importance in ESPN)
+    return athletes.slice(0, 5).map((a: any) => a.displayName || a.fullName || '').filter(Boolean)
+  } catch { return [] }
+}
+
+// ── Deep player intel search ──────────────────────────────────────────────────
+async function getPlayerIntel(playerName: string): Promise<string> {
+  // Search for personal life news — the stuff that moves markets but books miss
+  const queries = [
+    `"${playerName}" 2026 personal life news`,
+    `"${playerName}" divorce OR arrest OR suspended OR family OR death OR drama OR beef OR controversy`,
+  ]
+  const results = await Promise.all(queries.map(q => braveSearch(q, 'pm')))
+  const combined = results.filter(Boolean).join('\n')
+  return combined ? `${playerName}:\n${combined}` : ''
+}
+
+// ── Team culture / locker room search ────────────────────────────────────────
+async function getTeamIntel(teamName: string): Promise<string> {
+  const result = await braveSearch(
+    `${teamName} NBA locker room drama trade rumors controversy 2026`, 'pm'
+  )
+  return result ? `${teamName} team intel:\n${result}` : ''
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -153,19 +189,40 @@ Edge vs Poly: ${awayName} ${awayEdge >= 0 ? '+' : ''}${(awayEdge*100).toFixed(1)
 ${dkSpread != null ? `DK Spread: ${dkSpread > 0 ? '+' : ''}${dkSpread} | DK Total: ${dkTotal}` : ''}`
         : 'No DK odds available.'
 
-      // News/narrative search
+      // Star players + news/narrative — all in parallel
       const today2 = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      const [injuryNews, gameNews] = await Promise.all([
-        braveSearch(`${awayName} ${homeName} injury report ${today2}`),
-        braveSearch(`${awayName} ${homeName} NBA preview ${today2}`),
+      const homeId = home.team.id
+      const awayId = away.team.id
+
+      const [injuryNews, gameNews, homeStars, awayStars, homeTeamIntel, awayTeamIntel] = await Promise.all([
+        braveSearch(`${awayName} ${homeName} injury report ${today2}`, 'pd'),
+        braveSearch(`${awayName} ${homeName} NBA preview ${today2}`, 'pd'),
+        getStarPlayers(homeId),
+        getStarPlayers(awayId),
+        getTeamIntel(homeName),
+        getTeamIntel(awayName),
       ])
+
+      // Per-player intel for top 3 stars each team
+      const allStars = Array.from(new Set([...awayStars.slice(0,3), ...homeStars.slice(0,3)]))
+      const playerIntelResults = await Promise.all(allStars.map(p => getPlayerIntel(p)))
+      const playerIntel = playerIntelResults.filter(Boolean).join('\n\n')
 
       gameContexts.push(`
 === ${awayName.toUpperCase()} @ ${homeName.toUpperCase()} · ${gameTime} CT ===
 ${edgeSection}
 ${polySection}
-INJURY/NEWS: ${injuryNews || 'None found'}
-PREVIEW: ${gameNews || 'None found'}`)
+
+INJURY REPORT: ${injuryNews || 'None found'}
+GAME PREVIEW: ${gameNews || 'None found'}
+
+KEY PLAYERS — ${awayName}: ${awayStars.join(', ') || 'Unknown'} | ${homeName}: ${homeStars.join(', ') || 'Unknown'}
+
+PLAYER INTEL (personal life, off-court, social):
+${playerIntel || 'Nothing significant found'}
+
+TEAM/LOCKER ROOM INTEL:
+${[homeTeamIntel, awayTeamIntel].filter(Boolean).join('\n') || 'Nothing significant found'}`)
     }
 
     if (gameContexts.length === 0) {
@@ -188,9 +245,20 @@ PREVIEW: ${gameNews || 'None found'}`)
 - If they lose: $0 back → $45 loss
 - Formula: shares = dollars_spent / price_per_share. Payout if win = shares × $1.00. Profit = payout - cost.
 
-**Two signals to analyze:**
+**Three signals to analyze:**
 1. **PRICE EDGE**: Polymarket price vs DraftKings implied probability. If DK implies 60% but Poly has them at 52¢, that's an 8¢ edge — Poly is underpricing them. Buy cheap, profit when market corrects OR hold to resolution.
-2. **NARRATIVE EDGE**: Injuries, revenge games, back-to-backs, motivation — anything the market may not have priced in yet.
+
+2. **INJURY/FATIGUE EDGE**: Key player out or questionable, back-to-back games, travel fatigue, load management. A star sitting out can flip a line by 10+ points.
+
+3. **LIFE/NARRATIVE EDGE — this is the most important and most overlooked signal:**
+   - Star player going through a divorce or breakup → distraction, emotional drain, affects focus
+   - Death in family → could make them play harder (tribute game) OR devastate them
+   - Arrest, legal trouble, public scandal → distraction and possible suspension
+   - Locker room beef, trade demands, unhappy player → affects team chemistry
+   - Revenge game (traded away, released, booed by fans) → massive motivation
+   - Contract year → extra motivation
+   - A player just won a personal award or got engaged → elevated mood/confidence
+   Books price injuries fast. They NEVER price personal life situations — that's where the edge lives.
 
 Today's games (total bankroll: $${bankroll}):
 ${gameContexts.join('\n')}
