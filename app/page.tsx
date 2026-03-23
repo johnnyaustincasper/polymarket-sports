@@ -36,8 +36,8 @@ const C = {
   card:    'rgba(8,8,28,0.85)',
   border:  'rgba(0,240,255,0.12)',
   borderHot: 'rgba(0,240,255,0.45)',
-  textPrimary: '#dde8ff',
-  textSecondary: 'rgba(180,200,255,0.45)',
+  textPrimary: '#a8f0ff',
+  textSecondary: 'rgba(0,240,255,0.45)',
 }
 
 // ─── Glow Card ────────────────────────────────────────────────────────────────
@@ -65,12 +65,10 @@ function GlowCard({ children, className = '', hot = false, color = C.cyan }: {
 function OddsChip({ top, bottom, hot, href, onClick }: {
   top: string; bottom: string; hot: boolean; href?: string | null; onClick?: () => void
 }) {
-  const bg = hot
-    ? `linear-gradient(135deg, rgba(0,240,255,0.2) 0%, rgba(168,85,247,0.2) 100%)`
-    : `rgba(255,255,255,0.04)`
-  const border = hot ? C.borderHot : C.border
-  const textColor = hot ? C.cyan : C.textPrimary
-  const glow = hot ? `0 0 16px ${C.cyan}44` : 'none'
+  const bg = 'transparent'
+  const border = hot ? C.borderHot : 'rgba(0,240,255,0.15)'
+  const textColor = hot ? C.cyan : 'rgba(0,240,255,0.7)'
+  const glow = hot ? `0 0 20px ${C.cyan}66, inset 0 0 20px rgba(0,240,255,0.05)` : 'none'
 
   const cls = `flex flex-col items-center justify-center rounded-2xl px-2 py-2.5 min-w-[72px] transition-all cursor-pointer active:scale-95`
   const content = (
@@ -352,22 +350,14 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
           animation: 'holo-beam-pulse 3s ease-in-out infinite',
         }} />
 
-        {/* The holographic card */}
+        {/* The holographic card — no background, pure projection */}
         <div className="holo-card holo-sweep rounded-3xl overflow-hidden transition-all" style={{
           position: 'relative', zIndex: 1,
-          background: isLive
-            ? 'rgba(255,20,20,0.04)'
-            : hasEdge
-              ? 'rgba(0,240,255,0.04)'
-              : 'rgba(0,220,255,0.03)',
-          border: `1px solid ${isLive ? 'rgba(255,68,102,0.35)' : hasEdge ? 'rgba(0,240,255,0.45)' : 'rgba(0,240,255,0.18)'}`,
-          boxShadow: isLive
-            ? `0 0 30px rgba(255,68,102,0.1), inset 0 0 60px rgba(255,68,102,0.03)`
-            : hasEdge
-              ? `0 0 40px rgba(0,240,255,0.12), inset 0 0 80px rgba(0,240,255,0.04)`
-              : `0 0 20px rgba(0,240,255,0.06), inset 0 0 60px rgba(0,240,255,0.02)`,
-          backdropFilter: 'blur(2px)',
-          WebkitBackdropFilter: 'blur(2px)',
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
+          backdropFilter: 'none',
+          WebkitBackdropFilter: 'none',
         }}>
           {/* Horizontal scanlines overlay */}
           <div style={{
@@ -391,6 +381,11 @@ function GameCard({ game, onLogBet }: { game: Game; onLogBet: (bet: Omit<BetLog,
             position: 'absolute', bottom: 0, left: 0, right: 0, height: 1,
             background: `linear-gradient(90deg, transparent, rgba(0,240,255,0.4) 30%, rgba(0,240,255,0.4) 70%, transparent)`,
           }} />
+
+          {/* Left edge glow */}
+          <div style={{ position: 'absolute', top: '10%', bottom: '10%', left: 0, width: 1, background: `linear-gradient(180deg, transparent, rgba(0,240,255,0.25) 40%, rgba(0,240,255,0.25) 60%, transparent)` }} />
+          {/* Right edge glow */}
+          <div style={{ position: 'absolute', top: '10%', bottom: '10%', right: 0, width: 1, background: `linear-gradient(180deg, transparent, rgba(0,240,255,0.25) 40%, rgba(0,240,255,0.25) 60%, transparent)` }} />
 
         <div className="p-5">
           {/* Header row */}
