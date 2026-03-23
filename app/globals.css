@@ -8,58 +8,85 @@
 html { min-height: 100%; background: #02020f fixed; }
 body { background: transparent !important; min-height: 100dvh; }
 
-/* Hologram flicker animation */
+/* ── Hologram flicker — rare, subtle ───────────────────────── */
 @keyframes holo-flicker {
-  0%   { opacity: 1; }
-  92%  { opacity: 1; }
-  93%  { opacity: 0.85; }
-  94%  { opacity: 1; }
-  96%  { opacity: 0.9; }
-  97%  { opacity: 1; }
-  100% { opacity: 1; }
+  0%, 89%          { opacity: 1; filter: none; }
+  90%              { opacity: 0.92; filter: brightness(1.1) hue-rotate(4deg); }
+  91%              { opacity: 1; filter: none; }
+  94%              { opacity: 0.88; filter: brightness(0.95) hue-rotate(-3deg); }
+  95%              { opacity: 1; filter: none; }
+  100%             { opacity: 1; filter: none; }
 }
 
-@keyframes holo-scanline {
-  0%   { transform: translateY(-100%); }
-  100% { transform: translateY(100%); }
+/* ── Scanline sweep ─────────────────────────────────────────── */
+@keyframes holo-scan {
+  0%   { top: -30%; }
+  100% { top: 110%; }
 }
 
-@keyframes holo-glow-pulse {
-  0%, 100% { opacity: 0.6; transform: scaleX(1); }
-  50%       { opacity: 1;   transform: scaleX(1.08); }
+/* ── Chromatic aberration drift ─────────────────────────────── */
+@keyframes chroma-drift {
+  0%, 100% { text-shadow: -1px 0 rgba(255,0,80,0.25), 1px 0 rgba(0,240,255,0.25); }
+  50%       { text-shadow: -2px 0 rgba(255,0,80,0.15), 2px 0 rgba(0,240,255,0.15); }
 }
 
-@keyframes holo-beam-pulse {
-  0%, 100% { opacity: 0.25; }
-  50%       { opacity: 0.45; }
+/* ── Projector ring rotations ───────────────────────────────── */
+@keyframes ring-cw  { from { transform: rotate(0deg);   } to { transform: rotate(360deg);  } }
+@keyframes ring-ccw { from { transform: rotate(0deg);   } to { transform: rotate(-360deg); } }
+@keyframes ring-pulse {
+  0%, 100% { opacity: 0.5; box-shadow: 0 0 8px rgba(0,240,255,0.3), inset 0 0 8px rgba(0,240,255,0.1); }
+  50%       { opacity: 1;   box-shadow: 0 0 20px rgba(0,240,255,0.7), inset 0 0 12px rgba(0,240,255,0.2); }
+}
+@keyframes core-pulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 10px #00f0ff, 0 0 30px rgba(0,240,255,0.6), 0 0 60px rgba(0,240,255,0.2); }
+  50%       { transform: scale(1.2); box-shadow: 0 0 20px #00f0ff, 0 0 50px rgba(0,240,255,0.8), 0 0 90px rgba(0,240,255,0.3); }
+}
+@keyframes beam-breathe {
+  0%, 100% { opacity: 0.18; }
+  50%       { opacity: 0.32; }
 }
 
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; box-shadow: 0 0 6px currentColor; }
-  50%       { opacity: 0.4; box-shadow: 0 0 2px currentColor; }
+/* ── Applied to holo projection wrapper ─────────────────────── */
+.holo-projection {
+  animation: holo-flicker 12s ease-in-out infinite;
+  position: relative;
 }
 
-.holo-card {
-  animation: holo-flicker 8s infinite;
+/* ── Chroma aberration on holo text ─────────────────────────── */
+.holo-text {
+  animation: chroma-drift 6s ease-in-out infinite;
 }
 
-.holo-card:hover {
-  animation: none;
-}
-
-/* Scan line sweep */
-.holo-sweep::after {
+/* ── Scanline overlay ───────────────────────────────────────── */
+.holo-scanlines::before {
   content: '';
   position: absolute;
-  left: 0; right: 0;
-  height: 30%;
+  left: 0; right: 0; height: 35%;
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(0, 240, 255, 0.07) 50%,
+    rgba(0, 220, 255, 0.06) 40%,
+    rgba(0, 220, 255, 0.10) 50%,
+    rgba(0, 220, 255, 0.06) 60%,
     transparent 100%
   );
-  animation: holo-scanline 3.5s linear infinite;
+  animation: holo-scan 4s linear infinite;
   pointer-events: none;
-  z-index: 3;
+  z-index: 10;
+}
+
+/* ── Static noise lines (always present, subtle) ────────────── */
+.holo-scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 200, 255, 0.018) 2px,
+    rgba(0, 200, 255, 0.018) 3px
+  );
+  pointer-events: none;
+  z-index: 9;
 }
