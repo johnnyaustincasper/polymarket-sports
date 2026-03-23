@@ -55,6 +55,39 @@ async function braveSearch(query: string, freshness = 'pw'): Promise<string> {
   } catch { return '' }
 }
 
+// ── ESPN authoritative status layer ──────────────────────────────────────────
+// Fetches ESPN NBA news + team-specific news to get hard facts on suspensions/injuries
+async function getEspnTeamStatus(teamId: string, teamName: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/news?limit=15`,
+      { next: { revalidate: 300 } }
+    )
+    if (!res.ok) return ''
+    const data = await res.json()
+    const headlines: string[] = (data.articles || [])
+      .map((a: any) => a.headline || '')
+      .filter((h: string) => h.length > 0)
+    return headlines.length ? `${teamName} ESPN news:\n${headlines.join('\n')}` : ''
+  } catch { return '' }
+}
+
+async function getEspnLeagueStatus(): Promise<string> {
+  try {
+    const res = await fetch(
+      'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/news?limit=50',
+      { next: { revalidate: 300 } }
+    )
+    if (!res.ok) return ''
+    const data = await res.json()
+    const statusKeywords = ['suspend','out for','ruled out','injur','questionable','doubtful','gtd','will not play','scratched','inactive','banned','fined','technic','altercation','arrested','traded']
+    const relevant = (data.articles || [])
+      .map((a: any) => a.headline || '')
+      .filter((h: string) => statusKeywords.some(k => h.toLowerCase().includes(k)))
+    return relevant.length ? `LEAGUE-WIDE OFFICIAL STATUS (ESPN — treat as fact):\n${relevant.join('\n')}` : ''
+  } catch { return '' }
+}
+
 // ── Get star players from ESPN roster ────────────────────────────────────────
 async function getStarPlayers(teamId: string): Promise<string[]> {
   try {
@@ -116,7 +149,10 @@ export async function GET(req: Request) {
     )
     const polyEvents: any[] = await polyRes.json()
 
-    // 3. Build game context for each matchup
+    // 3. Fetch authoritative league-wide status once
+    const leagueStatus = await getEspnLeagueStatus()
+
+    // 4. Build game context for each matchup
     const gameContexts: string[] = []
 
     for (const event of events) {
@@ -194,8 +230,9 @@ ${dkSpread != null ? `DK Spread: ${dkSpread > 0 ? '+' : ''}${dkSpread} | DK Tota
       const homeId = home.team.id
       const awayId = away.team.id
 
-      const [injuryNews, gameNews, homeStars, awayStars, homeTeamIntel, awayTeamIntel] = await Promise.all([
-        braveSearch(`${awayName} ${homeName} injury report ${today2}`, 'pd'),
+      const [homeTeamNews, awayTeamNews, gameNews, homeStars, awayStars, homeTeamIntel, awayTeamIntel] = await Promise.all([
+        getEspnTeamStatus(homeId, homeName),
+        getEspnTeamStatus(awayId, awayName),
         braveSearch(`${awayName} ${homeName} NBA preview ${today2}`, 'pd'),
         getStarPlayers(homeId),
         getStarPlayers(awayId),
@@ -213,15 +250,18 @@ ${dkSpread != null ? `DK Spread: ${dkSpread > 0 ? '+' : ''}${dkSpread} | DK Tota
 ${edgeSection}
 ${polySection}
 
-INJURY REPORT: ${injuryNews || 'None found'}
-GAME PREVIEW: ${gameNews || 'None found'}
-
 KEY PLAYERS — ${awayName}: ${awayStars.join(', ') || 'Unknown'} | ${homeName}: ${homeStars.join(', ') || 'Unknown'}
 
-PLAYER INTEL (personal life, off-court, social):
+OFFICIAL ESPN TEAM NEWS (authoritative — injuries/suspensions are FACTS):
+${[homeTeamNews, awayTeamNews].filter(Boolean).join('\n') || 'No official news'}
+
+GAME PREVIEW (context):
+${gameNews || 'None found'}
+
+PLAYER INTEL — personal life, off-court signals (Brave search):
 ${playerIntel || 'Nothing significant found'}
 
-TEAM/LOCKER ROOM INTEL:
+LOCKER ROOM / TEAM INTEL:
 ${[homeTeamIntel, awayTeamIntel].filter(Boolean).join('\n') || 'Nothing significant found'}`)
     }
 
@@ -236,6 +276,14 @@ ${[homeTeamIntel, awayTeamIntel].filter(Boolean).join('\n') || 'Nothing signific
       messages: [{
         role: 'user',
         content: `You are an elite sharp sports bettor advising a friend on how to trade NBA games on Polymarket today. Your bankroll to work with is $${bankroll} USDC.
+
+${leagueStatus ? `⚠️ AUTHORITATIVE PLAYER STATUS — FROM ESPN (treat these as hard facts, not rumors):\n${leagueStatus}\n` : ''}
+CRITICAL RULES:
+- If ESPN says a player is suspended → they ARE suspended. Do not say they might play.
+- If ESPN news says suspension was rescinded/overturned → they ARE playing. Update accordingly.
+- Never contradict official ESPN status with search snippets or previews.
+- Be consistent — if a player is out, factor it into the line and confidence level.
+
 
 **How Polymarket works (use this for your math):**
 - You buy YES shares for a team at their current price (e.g. 45¢ per share)
