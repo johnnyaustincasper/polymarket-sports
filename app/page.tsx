@@ -620,6 +620,7 @@ export default function Home() {
                 <button onClick={() => { setSport('nba'); setLoading(true) }} className={`px-3 py-1.5 transition-all ${sport === 'nba' ? 'bg-indigo-600 text-white' : 'bg-black/5 text-zinc-600 hover:bg-black/10'}`}>NBA</button>
                 <button onClick={() => { setSport('ncaab'); setLoading(true) }} className={`px-3 py-1.5 transition-all ${sport === 'ncaab' ? 'bg-indigo-600 text-white' : 'bg-black/5 text-zinc-600 hover:bg-black/10'}`}>NCAAB</button>
               </div>
+              <a href="/bot" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-green-500/10 border border-green-500/30 text-green-700 hover:bg-green-500/20 transition-all">🤖 Edge Bot</a>
             </div>
             <p className="text-zinc-700 text-sm mt-0.5">Polymarket · DraftKings · AI Analysis</p>
           </div>
