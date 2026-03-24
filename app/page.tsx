@@ -600,7 +600,7 @@ export default function Home() {
   })
 
   const live = games.filter(g => g.status === 'in')
-  const upcoming = games.filter(g => g.status === 'pre')
+  const upcoming = games.filter(g => g.status === 'pre' || g.status === 'in')
   const final = games.filter(g => g.status === 'post')
   const pendingBets = bets.filter(b => b.result === 'pending').length
   const logBet = (b: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) =>

@@ -272,7 +272,10 @@ export async function GET(req: Request) {
     const espnData = await espnRes.json()
     const polyEvents: any[] = await polyRes.json()
     const events: any[] = (espnData.events || []).filter(
-      (e: any) => e.competitions?.[0]?.status?.type?.state === 'pre'
+      (e: any) => {
+        const state = e.competitions?.[0]?.status?.type?.state
+        return state === 'pre' || state === 'in'
+      }
     )
 
     const gameContexts: string[] = []
@@ -291,7 +294,13 @@ export async function GET(req: Request) {
       const awayName = away.team.displayName
       const homeId = home.team.id
       const awayId = away.team.id
-      const gameTime = new Date(comp.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })
+      const gameState = comp.status?.type?.state || 'pre'
+      const gameClock = comp.status?.displayClock || ''
+      const gamePeriod = comp.status?.period || 0
+      const isLive = gameState === 'in'
+      const gameTime = isLive
+        ? `🔴 LIVE — ${gamePeriod > 0 ? `Q${gamePeriod}` : ''} ${gameClock}`.trim()
+        : new Date(comp.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })
       const today2 = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
       // DK moneyline + spread
@@ -448,9 +457,13 @@ export async function GET(req: Request) {
       const awayEVStr = polyAwayPrice > 0 ? fmtEV(awayEV, awayName, polyAwayPrice, true) : `${awayName}: No Polymarket price`
       const homeEVStr = polyHomePrice > 0 ? fmtEV(homeEV, homeName, polyHomePrice, false) : `${homeName}: No Polymarket price`
 
+      const awayScore = isLive ? (away.score || '') : ''
+      const homeScore = isLive ? (home.score || '') : ''
+      const scoreStr = isLive && awayScore && homeScore ? ` | Score: ${awayName} ${awayScore} — ${homeName} ${homeScore}` : ''
+
       gameContexts.push(`
 ════════════════════════════════════════
-${awayName.toUpperCase()} @ ${homeName.toUpperCase()} — ${gameTime} CT
+${awayName.toUpperCase()} @ ${homeName.toUpperCase()} — ${gameTime}${scoreStr}
 ════════════════════════════════════════
 
 💰 MARKET ANALYSIS (is Polymarket wrong, and by how much?):
