@@ -15,6 +15,35 @@ function removeVig(p1: number, p2: number): [number, number] {
   const t = p1 + p2; return [p1 / t, p2 / t]
 }
 
+// Normal CDF approximation (Abramowitz & Stegun)
+function normCdf(x: number): number {
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911
+  const sign = x < 0 ? -1 : 1
+  x = Math.abs(x) / Math.sqrt(2)
+  const t = 1 / (1 + p * x)
+  const y = 1 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x)
+  return 0.5 * (1 + sign * y)
+}
+
+// Convert DK spread to win probability using NBA std dev (~11 pts/game)
+// Positive spread = underdog (getting points), negative = favorite (giving points)
+function spreadToWinProb(spread: number): number {
+  // DK spread is from the home team's perspective: negative means home is favored
+  // spreadToWinProb returns the HOME team win probability
+  const NBA_STD = 11
+  return normCdf(spread / (NBA_STD * Math.sqrt(2)))
+}
+
+// Detect "live trade candidate" — cheap underdog in a competitive game
+function liveTradeCandidateScore(polyPrice: number, spreadAbs: number): number {
+  // High score = strong live trade candidate
+  // Factors: price under 35¢ (cheap enough to 2-3x), spread under 8 (competitive game)
+  if (polyPrice > 0.38 || spreadAbs > 9) return 0
+  const priceScore = Math.max(0, (0.38 - polyPrice) / 0.38)  // cheaper = higher score
+  const spreadScore = Math.max(0, (9 - spreadAbs) / 9)       // tighter spread = higher score
+  return Math.round((priceScore * spreadScore) * 100)
+}
+
 // ── Polymarket team matching ──────────────────────────────────────────────────
 const ESPN_TO_POLY: Record<string, string[]> = {
   ATL:['hawks','atlanta'],BOS:['celtics','boston'],BKN:['nets','brooklyn'],
@@ -279,6 +308,19 @@ export async function GET(req: Request) {
         dkHomeImplied = h; dkAwayImplied = a
       }
 
+      // Spread-implied probability — second independent probability estimate
+      // DK spread is stored as a negative number for the home team favorite
+      // e.g. spread = -4.5 means home is favored by 4.5
+      let spreadHomeImplied = 0.5, spreadAwayImplied = 0.5
+      let spreadAbs = 0
+      if (dkSpread !== null) {
+        spreadAbs = Math.abs(dkSpread)
+        // dkSpread from ESPN is typically the away team spread (positive = away dog, negative = away fave)
+        // We'll treat it as: positive dkSpread = home is favored
+        spreadHomeImplied = spreadToWinProb(dkSpread)
+        spreadAwayImplied = 1 - spreadHomeImplied
+      }
+
       // Polymarket
       const polyEvent = polyEvents.find(e => {
         const t = (e.title || '').toLowerCase()
@@ -364,22 +406,47 @@ export async function GET(req: Request) {
         return { edge, evPer1, kelly, halfKelly, betSize, shares, profit }
       }
 
-      const awayEV = polyAwayPrice > 0 ? calcEdgeStats(dkAwayImplied, polyAwayPrice, bankroll) : null
-      const homeEV = polyHomePrice > 0 ? calcEdgeStats(dkHomeImplied, polyHomePrice, bankroll) : null
+      // Use the MORE favorable probability for each team — spread often more accurate for underdogs
+      const awayTrueProb = Math.max(dkAwayImplied, spreadAwayImplied)
+      const homeTrueProb = Math.max(dkHomeImplied, spreadHomeImplied)
 
-      const fmtEV = (ev: ReturnType<typeof calcEdgeStats>, teamName: string, polyPrice: number) => {
-        if (!ev || ev.edge <= 0) return `${teamName}: NO EDGE (Poly price ≥ DK implied — market already pricing them correctly or overpricing)`
+      const awayEV = polyAwayPrice > 0 ? calcEdgeStats(awayTrueProb, polyAwayPrice, bankroll) : null
+      const homeEV = polyHomePrice > 0 ? calcEdgeStats(homeTrueProb, polyHomePrice, bankroll) : null
+
+      // Live trade score: cheap price + tight spread = strong cashout candidate
+      const awayLiveScore = polyAwayPrice > 0 ? liveTradeCandidateScore(polyAwayPrice, spreadAbs) : 0
+      const homeLiveScore = polyHomePrice > 0 ? liveTradeCandidateScore(polyHomePrice, spreadAbs) : 0
+
+      const fmtEV = (ev: ReturnType<typeof calcEdgeStats>, teamName: string, polyPrice: number, isAway: boolean) => {
+        const dkImplied = isAway ? dkAwayImplied : dkHomeImplied
+        const spreadImplied = isAway ? spreadAwayImplied : spreadHomeImplied
+        const trueProb = isAway ? awayTrueProb : homeTrueProb
+        const liveScore = isAway ? awayLiveScore : homeLiveScore
+
+        const spreadDiscrepancy = Math.abs(spreadImplied - dkImplied)
+        const spreadNote = spreadDiscrepancy > 0.04
+          ? `  ⚠️ SPREAD/ML DISCREPANCY: ML implies ${(dkImplied*100).toFixed(1)}% but spread implies ${(spreadImplied*100).toFixed(1)}% — ${spreadDiscrepancy > 0.08 ? 'LARGE gap, strong public money bias signal' : 'possible public bias'}`
+          : `  ML: ${(dkImplied*100).toFixed(1)}% | Spread: ${(spreadImplied*100).toFixed(1)}% — consistent`
+
+        const liveNote = liveScore >= 40
+          ? `  🎯 LIVE TRADE CANDIDATE (${liveScore}/100): Price is cheap enough for a 2-4x cashout if they jump out to an early lead. Consider buying and watching the first half — don't just think hold-to-resolution.`
+          : liveScore >= 20
+          ? `  📊 Live trade potential (${liveScore}/100): modest cashout upside if they lead at half`
+          : ''
+
+        if (!ev || ev.edge <= 0) {
+          return [`${teamName}: no hold-to-resolution edge vs Poly price`, spreadNote, liveNote].filter(Boolean).join('\n')
+        }
         return [
-          `${teamName}: EDGE +${(ev.edge*100).toFixed(1)}¢`,
-          `  DK sharp implied: ${(dkAwayImplied === (polyPrice === polyAwayPrice ? dkAwayImplied : dkHomeImplied) ? (dkAwayImplied*100).toFixed(1) : (dkHomeImplied*100).toFixed(1))}% | Poly price: ${(polyPrice*100).toFixed(1)}¢ | Poly underpricing by ${(ev.edge*100).toFixed(1)}%`,
-          `  EV per $1 risked: ${ev.evPer1 >= 0 ? '+' : ''}${(ev.evPer1*100).toFixed(1)}¢ (${ev.evPer1 > 0 ? 'POSITIVE EV ✓' : 'NEGATIVE EV ✗'})`,
-          `  Half-Kelly bet: $${ev.betSize.toFixed(0)} → ${ev.shares} shares → profit $${ev.profit} if win, lose $${ev.betSize.toFixed(0)} if loss`,
-          `  Break-even: ${(polyPrice*100).toFixed(1)}% — you believe true prob is ${(dkAwayImplied === (polyPrice === polyAwayPrice ? dkAwayImplied : dkHomeImplied) ? (dkAwayImplied*100).toFixed(1) : (dkHomeImplied*100).toFixed(1))}%`,
-        ].join('\n')
+          `${teamName}: +${(ev.edge*100).toFixed(1)}¢ EDGE (true prob est. ${(trueProb*100).toFixed(1)}% vs Poly ${(polyPrice*100).toFixed(1)}¢)`,
+          spreadNote,
+          `  EV per $1: ${ev.evPer1 >= 0 ? '+' : ''}${(ev.evPer1*100).toFixed(1)}¢ ${ev.evPer1 > 0 ? '✓ POSITIVE EV' : '✗ NEGATIVE EV'} | Half-Kelly: $${ev.betSize.toFixed(0)} → ${ev.shares} shares → +$${ev.profit} / -$${ev.betSize.toFixed(0)}`,
+          liveNote,
+        ].filter(Boolean).join('\n')
       }
 
-      const awayEVStr = awayEV ? fmtEV(awayEV, awayName, polyAwayPrice) : `${awayName}: No Polymarket price`
-      const homeEVStr = homeEV ? fmtEV(homeEV, homeName, polyHomePrice) : `${homeName}: No Polymarket price`
+      const awayEVStr = polyAwayPrice > 0 ? fmtEV(awayEV, awayName, polyAwayPrice, true) : `${awayName}: No Polymarket price`
+      const homeEVStr = polyHomePrice > 0 ? fmtEV(homeEV, homeName, polyHomePrice, false) : `${homeName}: No Polymarket price`
 
       gameContexts.push(`
 ════════════════════════════════════════
@@ -436,20 +503,28 @@ THE ONLY QUESTION THAT MATTERS:
 ═══════════════════════════════════════
 
 SHARP BETTING PHILOSOPHY:
-- Betting a 90% favorite at 88¢ is TERRIBLE. You risk $88 to win $12. The 2¢ edge barely covers noise.
-- Betting a 40% underdog at 30¢ is GREAT if you believe true prob is 42%+. Risk $30 to win $70, with edge.
-- The market is ALWAYS approximately right. You're looking for the rare cases where it's meaningfully wrong.
-- Positive EV = (your estimated true prob) > (Poly price). That's the only filter that matters.
-- Half-Kelly sizing is already pre-calculated for you. Use it. Do not recommend betting more.
-- If edge < 5¢ and EV is near zero: PASS. Risking $90 to make $11 is a bad bet even if the team wins 85% of the time.
+- Betting a 90% favorite at 88¢ is TERRIBLE. You risk $88 to win $12. Even if they win, you barely profit.
+- Betting a 25% underdog at 23¢ in a COMPETITIVE game is GREAT. Risk $23 to win $77. If you're right on 27% true prob, that's massive EV.
+- The market is approximately right on who wins. It's frequently WRONG on the underdog's upset probability in close games.
+- Polymarket and the public both systematically overprice favorites in competitive games. That's your edge.
+- **BAD RECORD ≠ BAD BET.** A 20-win team's losing record is already in the 25¢ price. Don't double-count it.
+- Half-Kelly sizing is pre-calculated. Use it. Never recommend more.
+- PASS on anything with < 5¢ edge AND no live trade angle.
+
+TWO WAYS TO MAKE MONEY — EVALUATE BOTH:
+
+1. HOLD-TO-RESOLUTION: Buy and hold until game ends. Need clear positive EV (+5¢+ edge). Works for underdogs where market is genuinely mispriced.
+
+2. LIVE TRADE (often better for underdogs): Buy cheap underdog shares pre-game. If they take an early lead, their Poly price jumps from 25¢ to 60-70¢. Sell and take the 2-3x. You don't need them to WIN — you just need them to be competitive in the first half. A team priced at 23.5¢ will be LEADING at halftime in ~35-40% of games. That's your cashout window.
+   - Live trades work best: spread ≤ 7 pts + Poly price ≤ 32¢ = 🎯 flag it
+   - The data already flags these as "LIVE TRADE CANDIDATE" — take that seriously
 
 HOW TO FIND REAL EDGE:
-1. Key player OUT that the market hasn't fully priced (a star missing = 5-10% swing in true prob)
-2. Personal/life situation dragging down a player (divorce, death, legal — books miss this)
-3. Revenge game, contract year, extreme motivation — underdog punching above their weight
-4. Back-to-back fatigue on the favorite (rest edge on the underdog)
-5. Stylistic mismatch that creates an upset opportunity (pace, defense, three-point variance)
-6. Public money hammering a team, creating false line movement away from true value
+1. Spread/ML discrepancy — if ML implies 75% but spread only implies 62%, public money inflated the favorite. Real edge is on the dog.
+2. Rest advantage on the underdog — back-to-back favorite vs rested underdog = massive variance
+3. Key player out for the FAVORITE — even a role player missing can shift 3-5% true probability
+4. Personal/life distractions on star players — books miss this entirely
+5. Tight spread + cheap Poly price = live trade setup regardless of hold-to-resolution EV
 
 HOW POLYMARKET WORKS:
 - Each share = $1.00 if that team wins. You buy at the current price.
@@ -465,31 +540,34 @@ ${gameContexts.join('\n')}
 OUTPUT FORMAT — FOR EACH GAME:
 
 **[AWAY] @ [HOME]**
-📍 Market says: [away]% / [home]% (Poly prices)
-🧠 We say: [your estimated true prob for each team, based on ALL factors]
-📊 Edge: +X¢ on [team] — Poly is underpricing them by X% because [specific reason]
+📍 Poly: [away]¢ / [home]¢ | Spread: [X] | Spread-implied: [away]% / [home]%
+🧠 True prob: [away]% / [home]% (explain any gap vs market)
 
-Verdict: STRONG BET / LEAN / PASS
-[If PASS: explain why the edge isn't there even if a team is likely to win]
+Verdict: STRONG BET / LIVE TRADE / LEAN / PASS
+— STRONG BET: 5¢+ positive EV edge, hold to resolution
+— LIVE TRADE: buy the underdog cheap, target a 2-3x cashout if they lead at end of Q1 or halftime. You do NOT need them to win.
+— LEAN: real but thin edge, small position
+— PASS: insufficient edge in either direction (explain why even if the favorite looks dominant)
 
-The Trade (only if bet):
-"[Team] YES at [price]¢ — $[halfKellyAmount] buys [shares] shares. Win: +$[profit]. Lose: -$[bet]."
+The Play (skip if PASS):
+Hold: "[Team] YES at X¢ — $[amount] → [shares] shares. Win: +$[profit]. Lose: -$[bet]."
+Live trade: "Buy [Team] YES at X¢. If they're up or within [Y] at end of Q1, Poly price will be ~[Z]¢. Sell [half/all] for ~[X]x. Let rest ride free."
 
-Why the market is wrong here:
-• [Factor 1 — be specific, cite stats or news]
-• [Factor 2]
-• [Factor 3 — the thing the public/market is missing]
+Why the market is wrong:
+• [Specific mispricing — spread vs ML gap, rest edge, injury, discrepancy]
+• [Stats from the data — cite actual numbers]
+• [What public/Poly got wrong]
 
-Risk flags:
-• [What could make you wrong — be honest about downside]
+Risk:
+• [Main thing that makes this bet fail]
 ═══════════════════════════════════════
 
 End with:
 
 ⚡ TOP PICK OF THE DAY
-The single game where the market mispricing is largest and most justified. State exactly what edge you're exploiting and why it's not already priced in. Include the full trade.
+Best edge on the slate — hold-to-resolution OR live trade. State the exact mispricing, the play, and what you're exploiting.
 
-Be a sharp. Most games should be PASS. Only bet where the edge is real and explainable.`
+Be sharp. Underdogs in competitive games are systematically underpriced. A bad record is already in the price.`
       }]
     })
 
