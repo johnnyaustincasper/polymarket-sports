@@ -260,7 +260,9 @@ export async function GET(req: Request) {
   const bankroll = parseFloat(searchParams.get('bankroll') || '200')
 
   try {
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    // Use CST date to avoid UTC rollover (e.g. 9pm CDT = next day UTC)
+    const cst = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }))
+    const today = `${cst.getFullYear()}${String(cst.getMonth()+1).padStart(2,'0')}${String(cst.getDate()).padStart(2,'0')}`
 
     // ESPN games + Polymarket + league status — all in parallel
     const [espnRes, polyRes, leagueStatus] = await Promise.all([
