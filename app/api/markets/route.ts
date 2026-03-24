@@ -207,7 +207,7 @@ export async function GET(req: Request) {
 
     const espnSport = sport === 'ncaab' ? 'mens-college-basketball' : 'nba'
     const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/basketball/${espnSport}/scoreboard?dates=${dateParam}`
-    const espnRes = await fetch(espnUrl, { next: { revalidate: 30 } })
+    const espnRes = await fetch(espnUrl, { cache: 'no-store' })
     const espnData = await espnRes.json()
     const events = espnData?.events || []
     if (!events.length) return NextResponse.json([])

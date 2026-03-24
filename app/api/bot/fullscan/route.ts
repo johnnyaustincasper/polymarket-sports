@@ -266,7 +266,7 @@ export async function GET(req: Request) {
 
     // ESPN games + Polymarket + league status — all in parallel
     const [espnRes, polyRes, leagueStatus] = await Promise.all([
-      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today}`, { next: { revalidate: 120 } }),
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today}`, { cache: 'no-store' }),
       fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=nba&limit=200`, { next: { revalidate: 60 } }),
       getLeagueStatus(),
     ])
