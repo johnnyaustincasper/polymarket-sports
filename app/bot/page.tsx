@@ -1,10 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import {
+  TrackedCall, CallStatus, CallStats,
+  loadCalls, saveCalls, addCall, updateCallStatus, deleteCalls,
+  calcKelly, calcPnL, calcStats, exportCSV,
+} from './callTracker'
 
 const C = {
   cyan:    '#00f0ff',
-  purple:  '#a855f7',
+  purple:  '#bf8fff',
   green:   '#00ff88',
   red:     '#ff4466',
   gold:    '#ffd700',
@@ -56,6 +61,8 @@ function fmtEdge(n: number) { return (n >= 0 ? '+' : '') + (n * 100).toFixed(1) 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
 }
+function fmtPct(n: number) { return (n * 100).toFixed(1) + '%' }
+function fmtUnits(n: number) { return (n >= 0 ? '+' : '') + n.toFixed(3) + 'u' }
 
 function EdgeBar({ edge }: { edge: number }) {
   const pct = Math.min(Math.abs(edge) * 500, 100)
@@ -67,6 +74,305 @@ function EdgeBar({ edge }: { edge: number }) {
   )
 }
 
+// ── Sparkline ROI Chart ───────────────────────────────────────────────────────
+function RoiSparkline({ calls }: { calls: TrackedCall[] }) {
+  const settled = [...calls]
+    .filter(c => c.status !== 'pending' && c.status !== 'void' && c.profitLoss !== null)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    .slice(-30)
+
+  if (settled.length < 2) {
+    return (
+      <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textSecondary, fontSize: 11 }}>
+        Need 2+ settled calls for chart
+      </div>
+    )
+  }
+
+  const cumulative: number[] = []
+  let running = 0
+  for (const c of settled) {
+    running += c.profitLoss ?? 0
+    cumulative.push(running)
+  }
+
+  const min = Math.min(0, ...cumulative)
+  const max = Math.max(0, ...cumulative)
+  const range = max - min || 1
+
+  const W = 280, H = 60, PAD = 4
+  const xs = cumulative.map((_, i) => PAD + (i / (cumulative.length - 1)) * (W - PAD * 2))
+  const ys = cumulative.map(v => H - PAD - ((v - min) / range) * (H - PAD * 2))
+
+  const zeroY = H - PAD - ((0 - min) / range) * (H - PAD * 2)
+  const lastVal = cumulative[cumulative.length - 1]
+  const lineColor = lastVal >= 0 ? C.green : C.red
+  const d = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ')
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+      {/* Zero line */}
+      <line x1={PAD} y1={zeroY} x2={W - PAD} y2={zeroY} stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="4 4" />
+      {/* Fill */}
+      <path
+        d={`${d} L${xs[xs.length - 1].toFixed(1)},${zeroY} L${xs[0].toFixed(1)},${zeroY} Z`}
+        fill={lineColor + '18'}
+      />
+      {/* Line */}
+      <path d={d} fill="none" stroke={lineColor} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      {/* Dots for last point */}
+      <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r="3" fill={lineColor} />
+    </svg>
+  )
+}
+
+// ── Signal Quality Dashboard ──────────────────────────────────────────────────
+function StatsDashboard({ stats, calls }: { stats: CallStats; calls: TrackedCall[] }) {
+  const [expanded, setExpanded] = useState(false)
+  if (stats.total === 0) return null
+
+  return (
+    <div style={{
+      borderRadius: 20, padding: '16px 20px',
+      background: 'rgba(0,255,136,0.04)',
+      border: '1px solid rgba(0,255,136,0.15)',
+      marginBottom: 28,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <p style={{ color: C.green, fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          ◈ Signal Quality Dashboard
+        </p>
+        <button onClick={() => setExpanded(!expanded)} style={{
+          fontSize: 10, padding: '4px 10px', borderRadius: 8,
+          background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)',
+          color: C.green, cursor: 'pointer', fontWeight: 700,
+        }}>{expanded ? 'LESS' : 'MORE'}</button>
+      </div>
+
+      {/* Top stats bar */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: expanded ? 16 : 0 }}>
+        {[
+          { label: 'CALLS', val: stats.total.toString(), color: C.textPrimary },
+          { label: 'WIN RATE', val: stats.settled > 0 ? fmtPct(stats.wins / (stats.wins + stats.losses || 1)) : '—', color: stats.winRate >= 0.55 ? C.green : stats.winRate >= 0.45 ? C.gold : C.red },
+          { label: 'P&L', val: stats.settled > 0 ? fmtUnits(stats.totalPnL) : '—', color: stats.totalPnL >= 0 ? C.green : C.red },
+          { label: 'ROI', val: stats.settled > 0 ? fmtPct(stats.roi) : '—', color: stats.roi >= 0 ? C.green : C.red },
+        ].map(s => (
+          <div key={s.label} style={{ textAlign: 'center' }}>
+            <p style={{ color: s.color, fontWeight: 900, fontSize: 18 }}>{s.val}</p>
+            <p style={{ color: C.textSecondary, fontSize: 8, letterSpacing: '0.15em', marginTop: 2 }}>{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {expanded && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+            <div style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(0,255,136,0.05)', border: '1px solid rgba(0,255,136,0.15)' }}>
+              <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.12em', marginBottom: 4 }}>RECORD</p>
+              <p style={{ color: C.textPrimary, fontWeight: 800, fontSize: 15 }}>
+                <span style={{ color: C.green }}>{stats.wins}W</span>
+                {' — '}
+                <span style={{ color: C.red }}>{stats.losses}L</span>
+                {stats.pushes > 0 ? <span style={{ color: C.gold }}> — {stats.pushes}P</span> : ''}
+              </p>
+            </div>
+            <div style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(0,240,255,0.05)', border: `1px solid ${C.border}` }}>
+              <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.12em', marginBottom: 4 }}>AVG EDGE WIN / LOSS</p>
+              <p style={{ color: C.textPrimary, fontWeight: 800, fontSize: 13 }}>
+                <span style={{ color: C.green }}>{stats.avgEdgeWin > 0 ? fmtEdge(stats.avgEdgeWin) : '—'}</span>
+                {' / '}
+                <span style={{ color: C.red }}>{stats.avgEdgeLoss > 0 ? fmtEdge(stats.avgEdgeLoss) : '—'}</span>
+              </p>
+            </div>
+            <div style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(0,240,255,0.05)', border: `1px solid ${C.border}` }}>
+              <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.12em', marginBottom: 4 }}>STREAKS</p>
+              <p style={{ color: C.textPrimary, fontWeight: 800, fontSize: 13 }}>
+                <span style={{ color: C.green }}>W{stats.longestWinStreak}</span>
+                {' / '}
+                <span style={{ color: C.red }}>L{stats.longestLossStreak}</span>
+              </p>
+            </div>
+            <div style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(0,240,255,0.05)', border: `1px solid ${C.border}` }}>
+              <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.12em', marginBottom: 4 }}>PENDING</p>
+              <p style={{ color: C.gold, fontWeight: 800, fontSize: 15 }}>{stats.total - stats.settled - stats.voids}</p>
+            </div>
+          </div>
+
+          {stats.bestCall && (
+            <div style={{ marginBottom: 8, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.15)' }}>
+              <span style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.1em' }}>BEST CALL </span>
+              <span style={{ color: C.green, fontSize: 11, fontWeight: 700 }}>
+                {stats.bestCall.game} · {fmtEdge(stats.bestCall.edge)} edge
+              </span>
+            </div>
+          )}
+          {stats.worstCall && (
+            <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(255,68,102,0.06)', border: '1px solid rgba(255,68,102,0.15)' }}>
+              <span style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.1em' }}>WORST CALL </span>
+              <span style={{ color: C.red, fontSize: 11, fontWeight: 700 }}>
+                {stats.worstCall.game} · {fmtEdge(stats.worstCall.edge)} edge
+              </span>
+            </div>
+          )}
+
+          {/* ROI Chart */}
+          <div style={{ marginTop: 14, padding: '12px', borderRadius: 12, background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}` }}>
+            <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.12em', marginBottom: 8 }}>ROI CURVE (LAST 30)</p>
+            <RoiSparkline calls={calls} />
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Calls Tracker ─────────────────────────────────────────────────────────────
+function CallsTracker({ calls, onUpdate }: { calls: TrackedCall[]; onUpdate: (calls: TrackedCall[]) => void }) {
+  const [filterSport, setFilterSport] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<CallStatus | 'all'>('all')
+  const [showSettled, setShowSettled] = useState(false)
+
+  const sports = useMemo(() => {
+    const set = new Set(calls.map(c => c.sport))
+    return ['all', ...Array.from(set)]
+  }, [calls])
+
+  const filtered = useMemo(() => {
+    return calls.filter(c => {
+      if (filterSport !== 'all' && c.sport !== filterSport) return false
+      if (filterStatus !== 'all' && c.status !== filterStatus) return false
+      if (!showSettled && (c.status === 'won' || c.status === 'lost' || c.status === 'void')) return false
+      return true
+    })
+  }, [calls, filterSport, filterStatus, showSettled])
+
+  function markResult(id: string, status: CallStatus) {
+    const call = calls.find(c => c.id === id)
+    if (!call) return
+    const pnl = calcPnL(status, call.kellySize, call.polymarketPrice)
+    const updated = updateCallStatus(id, status, status === 'void' ? null : pnl)
+    onUpdate(updated)
+  }
+
+  const statusColor: Record<CallStatus, string> = {
+    pending: C.gold,
+    won: C.green,
+    lost: C.red,
+    push: C.cyan,
+    void: C.textSecondary,
+  }
+
+  if (calls.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '32px 0', color: C.textSecondary, fontSize: 13 }}>
+        No calls tracked yet. Run a scan to auto-log edge signals.
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        {sports.map(s => (
+          <button key={s} onClick={() => setFilterSport(s)} style={{
+            padding: '5px 12px', borderRadius: 20, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer',
+            background: filterSport === s ? 'rgba(0,240,255,0.12)' : 'transparent',
+            border: `1px solid ${filterSport === s ? C.borderHot : C.border}`,
+            color: filterSport === s ? C.cyan : C.textSecondary,
+          }}>{s}</button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setShowSettled(!showSettled)} style={{
+          padding: '5px 12px', borderRadius: 20, fontSize: 10, fontWeight: 700,
+          letterSpacing: '0.08em', cursor: 'pointer',
+          background: showSettled ? 'rgba(191,143,255,0.12)' : 'transparent',
+          border: `1px solid ${showSettled ? C.purple : C.border}`,
+          color: showSettled ? C.purple : C.textSecondary,
+        }}>
+          {showSettled ? '◈ ALL' : '⏳ PENDING ONLY'}
+        </button>
+        <button onClick={() => exportCSV(calls)} style={{
+          padding: '5px 12px', borderRadius: 20, fontSize: 10, fontWeight: 700,
+          letterSpacing: '0.08em', cursor: 'pointer',
+          background: 'rgba(0,240,255,0.05)', border: `1px solid ${C.border}`,
+          color: C.textSecondary,
+        }}>↓ CSV</button>
+      </div>
+
+      {/* Calls list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {filtered.length === 0 && (
+          <p style={{ color: C.textSecondary, fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No calls match the current filter.</p>
+        )}
+        {filtered.map(c => {
+          const color = statusColor[c.status]
+          return (
+            <div key={c.id} style={{
+              borderRadius: 16, padding: '14px 16px',
+              background: c.status === 'won' ? 'rgba(0,255,136,0.04)'
+                : c.status === 'lost' ? 'rgba(255,68,102,0.04)'
+                : c.status === 'void' ? 'rgba(255,255,255,0.01)'
+                : 'rgba(255,215,0,0.03)',
+              border: `1px solid ${color}30`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                    <span style={{
+                      fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 6,
+                      background: color + '20', border: `1px solid ${color}50`,
+                      color, letterSpacing: '0.1em', textTransform: 'uppercase',
+                    }}>{c.status}</span>
+                    <span style={{ color: C.textSecondary, fontSize: 9 }}>{c.sport.toUpperCase()}</span>
+                    {c.profitLoss !== null && c.status !== 'void' && (
+                      <span style={{ color: c.profitLoss >= 0 ? C.green : C.red, fontSize: 10, fontWeight: 700, marginLeft: 4 }}>
+                        {fmtUnits(c.profitLoss)}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ color: C.textPrimary, fontWeight: 700, fontSize: 13 }}>{c.game}</p>
+                  <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 2 }}>
+                    {new Date(c.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    {' · '}Edge: <span style={{ color: C.cyan }}>{fmtEdge(c.edge)}</span>
+                    {' · '}Kelly: <span style={{ color: C.purple }}>{fmtPct(c.kellySize)}</span>
+                  </p>
+                  <p style={{ color: 'rgba(180,210,255,0.5)', fontSize: 10, marginTop: 3, lineHeight: 1.4 }}>{c.recommendation}</p>
+                </div>
+              </div>
+
+              {c.status === 'pending' && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                  <span style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.1em', alignSelf: 'center' }}>MARK:</span>
+                  {(['won', 'lost', 'push', 'void'] as CallStatus[]).map(s => (
+                    <button key={s} onClick={() => markResult(c.id, s)} style={{
+                      padding: '4px 10px', borderRadius: 8, fontSize: 10, fontWeight: 800,
+                      cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase',
+                      background: s === 'won' ? 'rgba(0,255,136,0.12)'
+                        : s === 'lost' ? 'rgba(255,68,102,0.12)'
+                        : s === 'push' ? 'rgba(0,240,255,0.08)'
+                        : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${statusColor[s]}40`,
+                      color: statusColor[s],
+                    }}>{s}</button>
+                  ))}
+                </div>
+              )}
+              {c.settledAt && (
+                <p style={{ color: C.textSecondary, fontSize: 9, marginTop: 4 }}>
+                  Settled: {new Date(c.settledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BotPage() {
   const [data, setData] = useState<ScanResult | null>(null)
   const [loading, setLoading] = useState(true)
@@ -80,17 +386,53 @@ export default function BotPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [activeHistoryScan, setActiveHistoryScan] = useState<SavedScan | null>(null)
 
+  // W/L tracker state
+  const [trackedCalls, setTrackedCalls] = useState<TrackedCall[]>([])
+  const [showTracker, setShowTracker] = useState(false)
+
   useEffect(() => {
     const stored = localStorage.getItem('poly-scans')
     if (stored) setSavedScans(JSON.parse(stored))
+    setTrackedCalls(loadCalls())
   }, [])
+
+  const stats = useMemo(() => calcStats(trackedCalls), [trackedCalls])
 
   function persistScan(scan: SavedScan) {
     const stored = localStorage.getItem('poly-scans')
     const existing: SavedScan[] = stored ? JSON.parse(stored) : []
-    const updated = [scan, ...existing].slice(0, 50) // keep last 50
+    const updated = [scan, ...existing].slice(0, 50)
     localStorage.setItem('poly-scans', JSON.stringify(updated))
     setSavedScans(updated)
+  }
+
+  // Auto-log edge signals from a scan result
+  function autoLogSignals(scanData: ScanResult) {
+    const edgeSignals = scanData.signals.filter(s => s.bestSide !== 'none')
+    for (const s of edgeSignals) {
+      const price = s.bestSide === 'away' ? s.polyAwayPrice : s.polyHomePrice
+      const dkImplied = s.bestSide === 'away' ? s.dkAwayImplied : s.dkHomeImplied
+      const kelly = calcKelly(s.bestEdge, price)
+      const call: TrackedCall = {
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        gameId: s.gameId,
+        game: s.gameName,
+        sport: 'NBA',
+        recommendation: s.recommendation,
+        bettingSide: s.bestSide as 'away' | 'home',
+        polymarketPrice: price,
+        dkImplied,
+        edge: s.bestEdge,
+        kellySize: kelly,
+        status: 'pending',
+        settledAt: null,
+        profitLoss: null,
+        notes: '',
+      }
+      addCall(call)
+    }
+    setTrackedCalls(loadCalls())
   }
 
   async function runFullScan() {
@@ -105,8 +447,7 @@ export default function BotPage() {
     } catch {
       const scan: SavedScan = { report: 'Scan failed.', gamesAnalyzed: 0, scannedAt: new Date().toISOString(), bankroll, id: crypto.randomUUID() }
       setFullScan(scan)
-    }
-    finally { setFullScanLoading(false) }
+    } finally { setFullScanLoading(false) }
   }
 
   function deleteScans() {
@@ -122,6 +463,7 @@ export default function BotPage() {
       const json = await res.json()
       if (json.error) throw new Error(json.error)
       setData(json)
+      autoLogSignals(json)
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
   }
@@ -157,6 +499,8 @@ export default function BotPage() {
     neutral: '— Neutral'
   }[dir] || '—')
 
+  const pendingCount = trackedCalls.filter(c => c.status === 'pending').length
+
   return (
     <div style={{ minHeight: '100vh', background: C.bg, color: C.textPrimary, fontFamily: 'system-ui, -apple-system, sans-serif', position: 'relative' }}>
       {/* Grid */}
@@ -165,7 +509,7 @@ export default function BotPage() {
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 720, margin: '0 auto', padding: '40px 16px 80px' }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 8, flexWrap: 'wrap' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
               <a href="/" style={{ color: C.textSecondary, fontSize: 10, letterSpacing: '0.15em', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>← BACK</a>
@@ -175,26 +519,43 @@ export default function BotPage() {
             </h1>
             <p style={{ color: C.textSecondary, fontSize: 11, letterSpacing: '0.06em', marginTop: 4 }}>Polymarket vs DraftKings · Paper Trading</p>
           </div>
-          <button onClick={() => setShowHistory(true)} style={{
-            padding: '8px 14px', borderRadius: 12, fontSize: 11, fontWeight: 800,
-            letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
-            background: 'rgba(0,240,255,0.05)', border: `1px solid ${C.border}`,
-            color: C.textSecondary, marginRight: 8, position: 'relative',
-          }}>
-            ◷ History
-            {savedScans.length > 0 && (
-              <span style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: C.purple, color: '#fff', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{savedScans.length}</span>
-            )}
-          </button>
-          <button onClick={scan} disabled={loading} style={{
-            padding: '8px 16px', borderRadius: 12, fontSize: 11, fontWeight: 800,
-            letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
-            background: 'rgba(0,255,136,0.08)', border: `1px solid rgba(0,255,136,0.25)`,
-            color: loading ? C.textSecondary : C.green, transition: 'all 0.2s',
-          }}>
-            {loading ? '⟳ SCANNING…' : '⟳ REFRESH'}
-          </button>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button onClick={() => setShowTracker(true)} style={{
+              padding: '8px 14px', borderRadius: 12, fontSize: 11, fontWeight: 800,
+              letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+              background: pendingCount > 0 ? 'rgba(255,215,0,0.08)' : 'rgba(0,255,136,0.05)',
+              border: `1px solid ${pendingCount > 0 ? 'rgba(255,215,0,0.3)' : 'rgba(0,255,136,0.2)'}`,
+              color: pendingCount > 0 ? C.gold : C.green, position: 'relative',
+            }}>
+              📊 Calls
+              {pendingCount > 0 && (
+                <span style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: C.gold, color: C.bg, fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pendingCount}</span>
+              )}
+            </button>
+            <button onClick={() => setShowHistory(true)} style={{
+              padding: '8px 14px', borderRadius: 12, fontSize: 11, fontWeight: 800,
+              letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+              background: 'rgba(0,240,255,0.05)', border: `1px solid ${C.border}`,
+              color: C.textSecondary, position: 'relative',
+            }}>
+              ◷ History
+              {savedScans.length > 0 && (
+                <span style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: C.purple, color: '#fff', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{savedScans.length}</span>
+              )}
+            </button>
+            <button onClick={scan} disabled={loading} style={{
+              padding: '8px 16px', borderRadius: 12, fontSize: 11, fontWeight: 800,
+              letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+              background: 'rgba(0,255,136,0.08)', border: `1px solid rgba(0,255,136,0.25)`,
+              color: loading ? C.textSecondary : C.green, transition: 'all 0.2s',
+            }}>
+              {loading ? '⟳ SCANNING…' : '⟳ REFRESH'}
+            </button>
+          </div>
         </div>
+
+        {/* Signal Quality Dashboard */}
+        <StatsDashboard stats={stats} calls={trackedCalls} />
 
         {/* Stats */}
         {data && (
@@ -221,7 +582,6 @@ export default function BotPage() {
 
         {/* ── Full AI Scan ── */}
         <div style={{ marginBottom: 28 }}>
-          {/* Bankroll input */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
             <span style={{ color: C.textSecondary, fontSize: 11, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>BANKROLL</span>
             <div style={{ display: 'flex', alignItems: 'center', flex: 1, background: 'rgba(0,240,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 12, padding: '6px 12px' }}>
@@ -303,6 +663,13 @@ export default function BotPage() {
           {displayed.map(s => {
             const hasEdge = s.bestSide !== 'none'
             const n = narratives[s.gameId]
+            // Check if already tracked
+            const today = new Date().toISOString().slice(0, 10)
+            const isTracked = trackedCalls.some(c =>
+              c.gameId === s.gameId &&
+              c.bettingSide === s.bestSide &&
+              c.timestamp.slice(0, 10) === today
+            )
             return (
               <div key={s.gameId} style={{
                 borderRadius: 24, overflow: 'visible', position: 'relative',
@@ -310,7 +677,6 @@ export default function BotPage() {
                 border: `1px solid ${hasEdge ? 'rgba(0,240,255,0.3)' : C.border}`,
                 boxShadow: hasEdge ? `0 0 40px rgba(0,240,255,0.07), 0 8px 40px rgba(0,0,0,0.6)` : `0 4px 40px rgba(0,0,0,0.5)`,
               }}>
-                {/* Top accent */}
                 <div style={{
                   position: 'absolute', top: 0, left: 24, right: 24, height: 1,
                   background: hasEdge
@@ -319,23 +685,26 @@ export default function BotPage() {
                 }} />
 
                 <div style={{ padding: 20 }}>
-                  {/* Game header */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
                     <div>
                       <p style={{ color: C.textPrimary, fontWeight: 800, fontSize: 15, letterSpacing: '-0.01em' }}>{s.gameName}</p>
                       <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 2, letterSpacing: '0.06em' }}>{fmtTime(s.gameTime)}</p>
                     </div>
-                    {hasEdge && (
-                      <div style={{
-                        padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800,
-                        background: 'rgba(0,240,255,0.1)', border: `1px solid ${C.borderHot}`,
-                        color: C.cyan, whiteSpace: 'nowrap', boxShadow: `0 0 12px ${C.cyan}22`,
-                        letterSpacing: '0.05em',
-                      }}>{fmtEdge(s.bestEdge)} edge</div>
-                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                      {hasEdge && (
+                        <div style={{
+                          padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800,
+                          background: 'rgba(0,240,255,0.1)', border: `1px solid ${C.borderHot}`,
+                          color: C.cyan, whiteSpace: 'nowrap', boxShadow: `0 0 12px ${C.cyan}22`,
+                          letterSpacing: '0.05em',
+                        }}>{fmtEdge(s.bestEdge)} edge</div>
+                      )}
+                      {isTracked && (
+                        <span style={{ fontSize: 9, color: C.green, letterSpacing: '0.1em' }}>✓ TRACKED</span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Odds grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
                     {[
                       { team: s.polyAwayTeam, ml: s.dkAwayML, implied: s.dkAwayImplied, price: s.polyAwayPrice, edge: s.awayEdge, isBest: s.bestSide === 'away' },
@@ -365,14 +734,12 @@ export default function BotPage() {
                     ))}
                   </div>
 
-                  {/* Recommendation */}
                   {hasEdge && (
                     <div style={{ borderRadius: 12, padding: '10px 14px', background: 'rgba(0,255,136,0.07)', border: '1px solid rgba(0,255,136,0.2)', marginBottom: 14 }}>
                       <p style={{ color: '#86efac', fontSize: 12, fontWeight: 600 }}>{s.recommendation}</p>
                     </div>
                   )}
 
-                  {/* Narrative scanner */}
                   {!n && (
                     <button onClick={() => analyzeGame(s)} style={{
                       width: '100%', padding: '10px', borderRadius: 14, fontSize: 11, fontWeight: 800,
@@ -443,9 +810,7 @@ export default function BotPage() {
       {/* ── History Drawer ── */}
       {showHistory && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex' }}>
-          {/* Backdrop */}
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(2,2,15,0.85)', backdropFilter: 'blur(12px)' }} onClick={() => { setShowHistory(false); setActiveHistoryScan(null) }} />
-          {/* Panel */}
           <div style={{
             position: 'relative', zIndex: 1, marginLeft: 'auto',
             width: '100%', maxWidth: 560, height: '100%',
@@ -472,10 +837,8 @@ export default function BotPage() {
               {savedScans.length === 0 ? (
                 <p style={{ color: C.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 40 }}>No scans saved yet.</p>
               ) : activeHistoryScan ? (
-                /* Full scan report */
                 <ScanReport scan={activeHistoryScan} />
               ) : (
-                /* Scan list */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {savedScans.map(s => {
                     const d = new Date(s.scannedAt)
@@ -494,7 +857,6 @@ export default function BotPage() {
                           </div>
                           <span style={{ color: C.purple, fontSize: 18 }}>›</span>
                         </div>
-                        {/* Preview first line of report */}
                         <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 8, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
                           {s.report.replace(/\*\*/g, '').split('\n').find(l => l.trim().length > 20) || ''}
                         </p>
@@ -503,6 +865,66 @@ export default function BotPage() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Calls Tracker Drawer ── */}
+      {showTracker && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(2,2,15,0.85)', backdropFilter: 'blur(12px)' }} onClick={() => setShowTracker(false)} />
+          <div style={{
+            position: 'relative', zIndex: 1, marginLeft: 'auto',
+            width: '100%', maxWidth: 600, height: '100%',
+            background: 'rgba(6,6,22,0.99)', borderLeft: `1px solid ${C.border}`,
+            display: 'flex', flexDirection: 'column',
+          }}>
+            {/* Drawer header */}
+            <div style={{ padding: '24px 20px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <h2 style={{ color: C.green, fontWeight: 900, fontSize: 18, margin: 0 }}>📊 Calls Tracker</h2>
+                <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 2 }}>
+                  {trackedCalls.length} total · {pendingCount} pending
+                  {stats.settled > 0 ? ` · ${fmtPct(stats.wins / (stats.wins + stats.losses || 1))} win rate` : ''}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {trackedCalls.length > 0 && (
+                  <button onClick={() => {
+                    deleteCalls()
+                    setTrackedCalls([])
+                  }} style={{ fontSize: 10, padding: '6px 12px', borderRadius: 10, background: 'rgba(255,68,102,0.08)', border: '1px solid rgba(255,68,102,0.2)', color: C.red, cursor: 'pointer', fontWeight: 700 }}>Clear All</button>
+                )}
+                <button onClick={() => setShowTracker(false)} style={{ fontSize: 16, width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, color: C.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              </div>
+            </div>
+
+            {/* Stats summary inside drawer */}
+            {stats.settled > 0 && (
+              <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {[
+                    { label: 'RECORD', val: `${stats.wins}W-${stats.losses}L${stats.pushes > 0 ? `-${stats.pushes}P` : ''}`, color: C.textPrimary },
+                    { label: 'WIN%', val: fmtPct(stats.wins / (stats.wins + stats.losses || 1)), color: stats.winRate >= 0.55 ? C.green : stats.winRate >= 0.45 ? C.gold : C.red },
+                    { label: 'P&L', val: fmtUnits(stats.totalPnL), color: stats.totalPnL >= 0 ? C.green : C.red },
+                    { label: 'ROI', val: fmtPct(stats.roi), color: stats.roi >= 0 ? C.green : C.red },
+                  ].map(s => (
+                    <div key={s.label} style={{ textAlign: 'center' }}>
+                      <p style={{ color: s.color, fontWeight: 900, fontSize: 14 }}>{s.val}</p>
+                      <p style={{ color: C.textSecondary, fontSize: 8, letterSpacing: '0.12em', marginTop: 1 }}>{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+                {/* Mini ROI chart in drawer */}
+                <div style={{ marginTop: 10, padding: '8px', borderRadius: 10, background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}` }}>
+                  <RoiSparkline calls={trackedCalls} />
+                </div>
+              </div>
+            )}
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+              <CallsTracker calls={trackedCalls} onUpdate={setTrackedCalls} />
             </div>
           </div>
         </div>
