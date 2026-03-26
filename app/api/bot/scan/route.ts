@@ -61,11 +61,17 @@ interface Signal {
   gameName: string
   gameTime: string
   status: string
+  isLive: boolean
+  awayScore: string
+  homeScore: string
   // DK moneyline
   dkAwayML: string
   dkHomeML: string
   dkAwayImplied: number  // vig-removed
   dkHomeImplied: number  // vig-removed
+  // DK spread / total
+  dkSpread: number | null
+  dkTotal: number | null
   // Polymarket
   polyEventTitle: string
   polyEventUrl: string
@@ -82,6 +88,7 @@ interface Signal {
   bestSide: 'away' | 'home' | 'none'
   bestEdge: number
   recommendation: string
+  sport: string
 }
 
 async function getClobPrice(conditionId: string): Promise<{ yes: number; no: number } | null> {
@@ -132,8 +139,9 @@ export async function GET() {
       if (!comp) continue
 
       const status = comp.status?.type?.state || 'pre'
-      // Only scan pre-game markets
-      if (status !== 'pre') continue
+      const isLive = status === 'in'
+      // Only scan pre-game and live markets
+      if (status !== 'pre' && status !== 'in') continue
 
       const competitors: any[] = comp.competitors || []
       const home = competitors.find((c: any) => c.homeAway === 'home')
@@ -150,6 +158,10 @@ export async function GET() {
       const dk = oddsArr.find((o: any) => o.provider?.name?.toLowerCase().includes('draft')) || oddsArr[0]
       const dkHomeML: string = dk?.moneyline?.home?.close?.odds || ''
       const dkAwayML: string = dk?.moneyline?.away?.close?.odds || ''
+      const dkSpread: number | null = dk?.spread ?? null
+      const dkTotal: number | null = dk?.overUnder ?? null
+      const awayScore: string = away?.score?.toString() || ''
+      const homeScore: string = home?.score?.toString() || ''
 
       if (!dkHomeML || !dkAwayML) continue  // skip if no moneyline
 
@@ -236,10 +248,15 @@ export async function GET() {
         gameName: `${awayName} @ ${homeName}`,
         gameTime: comp.date,
         status,
+        isLive,
+        awayScore,
+        homeScore,
         dkAwayML,
         dkHomeML,
         dkAwayImplied: Math.round(dkAwayImplied * 1000) / 1000,
         dkHomeImplied: Math.round(dkHomeImplied * 1000) / 1000,
+        dkSpread,
+        dkTotal,
         polyEventTitle: polyEvent.title,
         polyEventUrl: `https://polymarket.com/event/${polyEvent.slug || ''}`,
         polyConditionId: conditionId,
@@ -254,6 +271,7 @@ export async function GET() {
         bestSide,
         bestEdge: Math.round(bestEdge * 1000) / 1000,
         recommendation,
+        sport: 'NBA',
       })
     }
 
