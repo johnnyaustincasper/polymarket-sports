@@ -2308,6 +2308,7 @@ export default function Home() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<'nba' | 'ncaab' | 'ufc'>('nba')
+  const [mainTab, setMainTab] = useState<'games' | 'edge'>('games')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -2534,16 +2535,37 @@ export default function Home() {
           </div>
         </div>
 
-        {sport === 'nba' && <PolymarketEdgeSection />}
-        {sport === 'nba' && <StreakPanel />}
+        {/* ── Main tab bar (NBA only) ── */}
+        {sport === 'nba' && (
+          <div style={{ display: 'flex', gap: 0, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, alignSelf: 'flex-start', marginBottom: 4 }}>
+            {([['games', '🏀 Games'], ['edge', '📊 Polymarket Edge']] as const).map(([id, label], idx) => (
+              <button key={id} onClick={() => setMainTab(id)} style={{
+                padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                background: mainTab === id ? `linear-gradient(135deg, rgba(0,240,255,0.15), rgba(168,85,247,0.1))` : 'rgba(255,255,255,0.03)',
+                color: mainTab === id ? C.cyan : C.textSecondary,
+                borderRight: idx === 0 ? `1px solid ${C.border}` : 'none',
+                letterSpacing: '0.04em', transition: 'all 0.15s',
+              }}>{label}</button>
+            ))}
+          </div>
+        )}
 
-        {!loading && games.length > 0 && sport === 'nba' && (
+        {/* ── Polymarket Edge tab ── */}
+        {sport === 'nba' && mainTab === 'edge' && (
+          <div style={{ minHeight: '70vh' }}>
+            <PolymarketEdgeSection />
+          </div>
+        )}
+
+        {sport === 'nba' && mainTab === 'games' && <StreakPanel />}
+
+        {!loading && games.length > 0 && sport === 'nba' && mainTab === 'games' && (
           <DailyParlayCard games={games} bankroll={bankroll} />
         )}
 
         {sport === 'ufc' && <UFCSection />}
 
-        {sport !== 'ufc' && (loading ? (
+        {sport !== 'ufc' && mainTab === 'games' && (loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
               <div key={i} style={{ borderRadius: 24, height: 220, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />
