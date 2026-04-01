@@ -276,6 +276,9 @@ function BankrollInput({ bankroll, onChange }: { bankroll: number; onChange: (v:
   )
 }
 
+// ─── UFC accent ───────────────────────────────────────────────────────────────
+const UFC_RED = '#e8002d'
+
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
   cyan:    '#00f0ff',
@@ -670,6 +673,223 @@ function BetTracker({ bets, onUpdate, onClose }: {
         )}
       </div>
     </div>
+  )
+}
+
+// ─── Polymarket Edge Section ──────────────────────────────────────────────────
+interface EdgeMarket {
+  matchup: string
+  marketTitle: string
+  marketType: 'winner' | 'spread' | 'total'
+  side: string
+  tokenId: string
+  currentPrice: number
+  impliedProbability: number
+  modelEdge: number
+  divergence: number
+  suggestedAction: 'buy' | 'sell'
+  polyUrl: string | null
+  eventSlug: string | null
+}
+
+function PolymarketEdgeSection() {
+  const [markets, setMarkets] = useState<EdgeMarket[]>([])
+  const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState<string | null>(null)
+  const [amount, setAmount] = useState('50')
+  const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/polymarket-edge')
+      .then(r => r.json())
+      .then(d => { setMarkets(Array.isArray(d) ? d : []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const buildCmd = (m: EdgeMarket) =>
+    `polymarket clob market-order --side ${m.suggestedAction} --amount ${amount} --token-id ${m.tokenId}`
+
+  const copyCmd = (m: EdgeMarket) => {
+    const cmd = buildCmd(m)
+    navigator.clipboard.writeText(cmd).then(() => {
+      setCopied(m.tokenId)
+      setTimeout(() => setCopied(null), 2000)
+    })
+  }
+
+  const divPct = (v: number) => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`
+  const probPct = (v: number) => `${Math.round(v * 100)}%`
+
+  const hasMispriced = markets.length > 0
+
+  return (
+    <section className="mb-8">
+      {/* Section header */}
+      <button
+        onClick={() => setCollapsed(v => !v)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, marginBottom: collapsed ? 0 : 16, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+      >
+        <span style={{ fontSize: 14 }}>⚡</span>
+        <span style={{ color: C.gold, fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase' as const }}>Polymarket Edge</span>
+        {hasMispriced && (
+          <span style={{ background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.4)', borderRadius: 8, padding: '1px 7px', color: C.gold, fontSize: 9, fontWeight: 900 }}>
+            {markets.length} mispriced
+          </span>
+        )}
+        <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, rgba(255,215,0,0.3), transparent)` }} />
+        <span style={{ color: C.textSecondary, fontSize: 10, transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>▾</span>
+      </button>
+
+      {!collapsed && (
+        <>
+          {/* Amount input */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <span style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Order size (USDC)</span>
+            <input
+              type="number"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              style={{
+                width: 80, padding: '4px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800,
+                background: 'rgba(0,240,255,0.06)', border: `1px solid ${C.border}`,
+                color: C.cyan, outline: 'none', caretColor: C.cyan,
+              }}
+            />
+          </div>
+
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[...Array(3)].map((_, i) => (
+                <div key={i} style={{ height: 88, borderRadius: 16, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />
+              ))}
+            </div>
+          ) : markets.length === 0 ? (
+            <div style={{
+              borderRadius: 16, padding: '20px 24px', textAlign: 'center',
+              background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`,
+            }}>
+              <p style={{ color: C.textSecondary, fontSize: 12 }}>No mispriced NBA markets detected right now</p>
+              <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4, opacity: 0.6 }}>Markets refresh when Polymarket has active NBA events</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {markets.map((m, i) => {
+                const isBuy = m.suggestedAction === 'buy'
+                const actionColor = isBuy ? C.green : C.red
+                const divColor = m.divergence > 0 ? C.green : C.red
+                const absDivPct = Math.abs(Math.round(m.divergence * 100))
+                return (
+                  <div
+                    key={`${m.tokenId}-${i}`}
+                    style={{
+                      borderRadius: 16,
+                      padding: '16px 18px',
+                      background: isBuy
+                        ? 'linear-gradient(135deg, rgba(0,255,136,0.06), rgba(0,240,255,0.03))'
+                        : 'linear-gradient(135deg, rgba(255,68,102,0.06), rgba(168,85,247,0.03))',
+                      border: `1px solid ${isBuy ? 'rgba(0,255,136,0.25)' : 'rgba(255,68,102,0.25)'}`,
+                      boxShadow: isBuy
+                        ? '0 0 20px rgba(0,255,136,0.06)'
+                        : '0 0 20px rgba(255,68,102,0.06)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                      {/* Left: matchup + description */}
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <span style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>{m.matchup}</span>
+                          <span style={{
+                            background: 'rgba(255,255,255,0.06)', border: `1px solid ${C.border}`,
+                            borderRadius: 6, padding: '1px 6px', color: C.textSecondary, fontSize: 9, fontWeight: 700,
+                          }}>{m.marketType.toUpperCase()}</span>
+                        </div>
+                        <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 700, lineHeight: 1.3, marginBottom: 6 }}>
+                          {m.marketTitle}
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ color: C.textSecondary, fontSize: 10 }}>Side: <span style={{ color: C.textPrimary, fontWeight: 700 }}>{m.side}</span></span>
+                          <span style={{ color: C.textSecondary, fontSize: 10 }}>·</span>
+                          <span style={{ color: C.textSecondary, fontSize: 10 }}>Market: <span style={{ color: C.textPrimary, fontWeight: 700 }}>{probPct(m.impliedProbability)}</span></span>
+                          <span style={{ color: C.textSecondary, fontSize: 10 }}>·</span>
+                          <span style={{ color: C.textSecondary, fontSize: 10 }}>Model: <span style={{ color: C.cyan, fontWeight: 700 }}>{probPct(m.modelEdge)}</span></span>
+                        </div>
+                      </div>
+
+                      {/* Right: divergence badge + action */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                        <div style={{
+                          background: isBuy ? 'rgba(0,255,136,0.12)' : 'rgba(255,68,102,0.12)',
+                          border: `1px solid ${isBuy ? 'rgba(0,255,136,0.4)' : 'rgba(255,68,102,0.4)'}`,
+                          borderRadius: 10, padding: '4px 10px', textAlign: 'center',
+                        }}>
+                          <p style={{ color: divColor, fontSize: 16, fontWeight: 900, lineHeight: 1 }}>{divPct(m.divergence)}</p>
+                          <p style={{ color: divColor, fontSize: 8, fontWeight: 700, opacity: 0.7, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Edge</p>
+                        </div>
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          background: isBuy ? 'rgba(0,255,136,0.15)' : 'rgba(255,68,102,0.15)',
+                          border: `1px solid ${actionColor}`,
+                          borderRadius: 8, padding: '3px 10px',
+                        }}>
+                          <span style={{ fontSize: 10 }}>{isBuy ? '▲' : '▼'}</span>
+                          <span style={{ color: actionColor, fontSize: 10, fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>
+                            {m.suggestedAction}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Command row */}
+                    <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <code style={{
+                        flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 10,
+                        background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}`,
+                        color: C.textSecondary, fontFamily: 'monospace',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        display: 'block', minWidth: 0,
+                      }}>
+                        {buildCmd(m)}
+                      </code>
+                      <button
+                        onClick={() => copyCmd(m)}
+                        style={{
+                          flexShrink: 0,
+                          padding: '6px 14px', borderRadius: 8, fontSize: 10, fontWeight: 800,
+                          letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.15s',
+                          background: copied === m.tokenId
+                            ? 'rgba(0,255,136,0.2)'
+                            : 'rgba(0,240,255,0.08)',
+                          border: `1px solid ${copied === m.tokenId ? 'rgba(0,255,136,0.5)' : C.borderHot}`,
+                          color: copied === m.tokenId ? C.green : C.cyan,
+                          boxShadow: `0 0 10px ${C.cyan}15`,
+                        }}
+                      >
+                        {copied === m.tokenId ? '✓ Copied' : '⎘ Copy Trade Command'}
+                      </button>
+                      {m.polyUrl && (
+                        <a
+                          href={m.polyUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            flexShrink: 0,
+                            padding: '6px 12px', borderRadius: 8, fontSize: 10, fontWeight: 700,
+                            background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)',
+                            color: C.purple, textDecoration: 'none',
+                          }}
+                        >
+                          View ↗
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </section>
   )
 }
 
@@ -1762,11 +1982,332 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
   )
 }
 
+// ─── UFC Types ────────────────────────────────────────────────────────────────
+interface UFCFighter {
+  id: string; name: string; record: string; ranking: number | null
+  country: string; age: number | null; height: string; reach: string
+  strikingAccuracy: number | null; takedownAccuracy: number | null
+  recentForm: string[]
+}
+interface UFCFight {
+  id: string; boutOrder: number; isMainEvent: boolean; weightClass: string
+  isTitleFight: boolean; fighterA: UFCFighter; fighterB: UFCFighter
+  result?: { winner: string; method: string; round: number; time: string }
+}
+interface UFCEvent {
+  id: string; name: string; date: string; venue: string; location: string
+  status: 'pre' | 'in' | 'post'; fights: UFCFight[]
+}
+
+// ─── UFC Intel Panel ──────────────────────────────────────────────────────────
+function UFCIntelPanel({ fight, onClose }: { fight: UFCFight; onClose: () => void }) {
+  const [analysis, setAnalysis] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const { fighterA: a, fighterB: b, weightClass, isTitleFight } = fight
+    fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        teamA: a.name, teamB: b.name,
+        polyOddsA: 50, polyOddsB: 50,
+        recordA: a.record, recordB: b.record,
+        context: `UFC ${isTitleFight ? 'TITLE FIGHT' : 'bout'} — ${weightClass}. ${a.name} (${a.record}, rank: ${a.ranking ?? 'NR'}, ${a.strikingAccuracy ?? '?'}% striking, ${a.takedownAccuracy ?? '?'}% TD) vs ${b.name} (${b.record}, rank: ${b.ranking ?? 'NR'}, ${b.strikingAccuracy ?? '?'}% striking, ${b.takedownAccuracy ?? '?'}% TD).`,
+      }),
+    })
+      .then(r => r.json())
+      .then(d => { setAnalysis(d.analysis || d.error || 'No analysis available'); setLoading(false) })
+      .catch(() => { setAnalysis('Analysis failed.'); setLoading(false) })
+  }, [fight])
+
+  const renderStatBar = (label: string, valA: number | null, valB: number | null, suffix = '%') => {
+    if (valA === null && valB === null) return null
+    const a = valA ?? 0; const b = valB ?? 0; const total = a + b || 1
+    const pctA = Math.round((a / total) * 100)
+    return (
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ color: C.textPrimary, fontSize: 11, fontWeight: 700 }}>{valA !== null ? `${valA}${suffix}` : '?'}</span>
+          <span style={{ color: C.textSecondary, fontSize: 10 }}>{label}</span>
+          <span style={{ color: C.textPrimary, fontSize: 11, fontWeight: 700 }}>{valB !== null ? `${valB}${suffix}` : '?'}</span>
+        </div>
+        <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', display: 'flex' }}>
+          <div style={{ width: `${pctA}%`, background: UFC_RED, transition: 'width 0.5s' }} />
+          <div style={{ flex: 1, background: C.cyan }} />
+        </div>
+      </div>
+    )
+  }
+
+  const { fighterA: a, fighterB: b } = fight
+
+  return (
+    <div style={{ width: '100%', background: 'rgba(2,2,15,0.97)', borderTop: `1px solid rgba(232,0,45,0.3)`, padding: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, maxWidth: 900, margin: '0 auto 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ color: UFC_RED, fontSize: 11, fontWeight: 900, letterSpacing: '0.12em' }}>◈ FIGHT INTEL</span>
+          <span style={{ color: C.textSecondary, fontSize: 10 }}>— {a.name} vs {b.name}</span>
+        </div>
+        <button onClick={onClose} style={{ color: C.textSecondary, fontSize: 16, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, cursor: 'pointer' }}>×</button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, maxWidth: 1200, margin: '0 auto' }}>
+
+        {/* Fighter comparison */}
+        <div style={{ background: 'rgba(8,8,28,0.9)', border: `1px solid rgba(232,0,45,0.2)`, borderRadius: 16, padding: 20, gridColumn: '1 / -1' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+            <span style={{ fontSize: 12 }}>⚔️</span>
+            <span style={{ color: 'rgba(0,240,255,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>Fighter Stats Comparison</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ color: UFC_RED, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Fighter A</p>
+              <p style={{ color: C.textPrimary, fontSize: 16, fontWeight: 900 }}>{a.name}</p>
+              <p style={{ color: C.textSecondary, fontSize: 11 }}>{a.record}</p>
+              <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>{a.country} · {a.age ? `${a.age}y` : ''} · {a.height}</p>
+              {a.reach && <p style={{ color: C.textSecondary, fontSize: 10 }}>Reach: {a.reach}</p>}
+            </div>
+            <span style={{ color: C.textSecondary, fontSize: 16, fontWeight: 900 }}>VS</span>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ color: C.cyan, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Fighter B</p>
+              <p style={{ color: C.textPrimary, fontSize: 16, fontWeight: 900 }}>{b.name}</p>
+              <p style={{ color: C.textSecondary, fontSize: 11 }}>{b.record}</p>
+              <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>{b.country} · {b.age ? `${b.age}y` : ''} · {b.height}</p>
+              {b.reach && <p style={{ color: C.textSecondary, fontSize: 10 }}>Reach: {b.reach}</p>}
+            </div>
+          </div>
+          {renderStatBar('Striking Acc', a.strikingAccuracy, b.strikingAccuracy)}
+          {renderStatBar('Takedown Acc', a.takedownAccuracy, b.takedownAccuracy)}
+        </div>
+
+        {/* AI Edge Read */}
+        <div style={{ background: 'linear-gradient(135deg, rgba(232,0,45,0.08), rgba(168,85,247,0.05))', border: '1px solid rgba(232,0,45,0.25)', borderRadius: 16, padding: 20, gridColumn: '1 / -1' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <span style={{ fontSize: 12 }}>🎯</span>
+            <span style={{ color: 'rgba(0,240,255,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>AI Edge Read</span>
+          </div>
+          {loading ? (
+            <div>
+              {[...Array(3)].map((_, i) => <div key={i} style={{ height: 16, borderRadius: 4, background: 'rgba(255,255,255,0.04)', marginBottom: 8 }} />)}
+              <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', letterSpacing: '0.1em' }}>ANALYZING…</p>
+            </div>
+          ) : (
+            <p style={{ color: C.textPrimary, fontSize: 13, lineHeight: 1.7, fontStyle: 'italic' }}>{analysis}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── UFC Fight Card ───────────────────────────────────────────────────────────
+function getBoutLabel(fight: UFCFight, totalFights: number): string {
+  if (fight.isMainEvent) return 'MAIN EVENT'
+  if (fight.boutOrder === 2) return 'CO-MAIN'
+  if (fight.boutOrder <= Math.ceil(totalFights / 2)) return 'MAIN CARD'
+  return 'PRELIM'
+}
+
+function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
+  fight: UFCFight; totalFights: number; onOpenIntel: () => void; isActive: boolean
+}) {
+  const boutLabel = getBoutLabel(fight, totalFights)
+  const boutColor = fight.isMainEvent ? UFC_RED : fight.boutOrder === 2 ? C.gold : fight.boutOrder <= Math.ceil(totalFights / 2) ? C.purple : C.textSecondary
+  const { fighterA: a, fighterB: b, result } = fight
+
+  const RankBadge = ({ r }: { r: number | null }) => r !== null ? (
+    <span style={{ background: 'rgba(232,0,45,0.15)', border: `1px solid rgba(232,0,45,0.4)`, borderRadius: 6, padding: '1px 6px', color: UFC_RED, fontSize: 9, fontWeight: 900 }}>
+      {r === 0 ? 'C' : `#${r}`}
+    </span>
+  ) : null
+
+  const Fighter = ({ f, side }: { f: UFCFighter; side: 'left' | 'right' }) => {
+    const isWinner = result?.winner === f.name
+    const isLoser = result && result.winner !== f.name
+    return (
+      <div style={{ flex: 1, textAlign: side === 'left' ? 'left' : 'right', opacity: isLoser ? 0.55 : 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: side === 'right' ? 'flex-end' : 'flex-start', flexWrap: 'wrap' }}>
+          {side === 'right' && <RankBadge r={f.ranking} />}
+          <span style={{ color: isWinner ? '#fff' : C.textPrimary, fontSize: 14, fontWeight: 900, textShadow: isWinner ? `0 0 16px ${UFC_RED}88` : 'none' }}>{f.name}</span>
+          <span style={{ fontSize: 14 }}>{f.country}</span>
+          {side === 'left' && <RankBadge r={f.ranking} />}
+        </div>
+        <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 2 }}>{f.record}</p>
+        {f.recentForm.length > 0 && (
+          <div style={{ display: 'flex', gap: 3, marginTop: 4, justifyContent: side === 'right' ? 'flex-end' : 'flex-start' }}>
+            {f.recentForm.slice(0, 5).map((r, i) => (
+              <div key={i} style={{ width: 12, height: 12, borderRadius: 3, background: r === 'W' ? C.green : r === 'L' ? C.red : C.gold, opacity: 0.8, fontSize: 7, color: '#000', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r}</div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      borderRadius: 20, padding: '16px 20px',
+      background: isActive ? 'rgba(232,0,45,0.06)' : 'rgba(8,8,28,0.85)',
+      border: `1px solid ${isActive ? 'rgba(232,0,45,0.5)' : fight.isMainEvent ? 'rgba(232,0,45,0.3)' : C.border}`,
+      boxShadow: fight.isMainEvent ? `0 0 30px rgba(232,0,45,0.1)` : 'none',
+      backdropFilter: 'blur(24px)',
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+    }} onClick={onOpenIntel}>
+      {/* Bout header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{
+          background: fight.isMainEvent ? `rgba(232,0,45,0.15)` : 'rgba(255,255,255,0.06)',
+          border: `1px solid ${boutColor}`,
+          borderRadius: 8, padding: '2px 10px',
+          color: boutColor, fontSize: 9, fontWeight: 900, letterSpacing: '0.12em',
+        }}>{boutLabel}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {fight.isTitleFight && <span style={{ background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.4)', borderRadius: 6, padding: '1px 7px', color: C.gold, fontSize: 8, fontWeight: 900 }}>🏆 TITLE</span>}
+          <span style={{ color: C.textSecondary, fontSize: 10 }}>{fight.weightClass}</span>
+        </div>
+        <button style={{ fontSize: 9, padding: '3px 8px', borderRadius: 8, background: 'rgba(232,0,45,0.1)', border: `1px solid rgba(232,0,45,0.3)`, color: UFC_RED, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.08em' }}>📊 INTEL</button>
+      </div>
+
+      {/* Fighters */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Fighter f={a} side="left" />
+        <div style={{ textAlign: 'center', flexShrink: 0 }}>
+          <span style={{ color: C.textSecondary, fontSize: 13, fontWeight: 900 }}>VS</span>
+          {result && (
+            <div style={{ marginTop: 6 }}>
+              <p style={{ color: UFC_RED, fontSize: 9, fontWeight: 900 }}>{result.method}</p>
+              <p style={{ color: C.textSecondary, fontSize: 8 }}>R{result.round} · {result.time}</p>
+            </div>
+          )}
+        </div>
+        <Fighter f={b} side="right" />
+      </div>
+    </div>
+  )
+}
+
+// ─── UFC Section ──────────────────────────────────────────────────────────────
+function UFCSection() {
+  const [events, setEvents] = useState<UFCEvent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedEventId, setSelectedEventId] = useState<string>('')
+  const [activeFight, setActiveFight] = useState<UFCFight | null>(null)
+
+  useEffect(() => {
+    fetch('/api/ufc')
+      .then(r => r.json())
+      .then((data: UFCEvent[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setEvents(data)
+          // Select the next upcoming event, or the first one
+          const upcoming = data.find(e => e.status === 'pre') || data.find(e => e.status === 'in') || data[0]
+          setSelectedEventId(upcoming.id)
+        }
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const selectedEvent = events.find(e => e.id === selectedEventId) || events[0]
+
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {[...Array(5)].map((_, i) => <div key={i} style={{ height: 90, borderRadius: 20, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />)}
+    </div>
+  )
+
+  if (!selectedEvent) return (
+    <div style={{ textAlign: 'center', padding: '80px 0' }}>
+      <p style={{ color: C.textSecondary, fontSize: 16 }}>No UFC events found</p>
+      <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 8, opacity: 0.6 }}>ESPN data may be unavailable</p>
+    </div>
+  )
+
+  const sortedFights = [...(selectedEvent.fights || [])].sort((a, b) => a.boutOrder - b.boutOrder)
+
+  const formatEventDate = (iso: string) => {
+    if (!iso) return ''
+    try { return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Chicago' }) }
+    catch { return iso }
+  }
+
+  return (
+    <div>
+      {/* Event selector */}
+      <div style={{ marginBottom: 24, borderRadius: 20, padding: '20px 24px', background: 'rgba(8,8,28,0.85)', border: `1px solid rgba(232,0,45,0.3)`, boxShadow: `0 0 40px rgba(232,0,45,0.08)` }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ background: `rgba(232,0,45,0.15)`, border: `1px solid rgba(232,0,45,0.5)`, borderRadius: 8, padding: '2px 10px', color: UFC_RED, fontSize: 9, fontWeight: 900, letterSpacing: '0.12em' }}>
+                {selectedEvent.status === 'in' ? '🔴 LIVE' : selectedEvent.status === 'post' ? 'FINAL' : 'UPCOMING'}
+              </span>
+              {selectedEvent.fights.some(f => f.isTitleFight) && (
+                <span style={{ background: 'rgba(255,215,0,0.12)', border: '1px solid rgba(255,215,0,0.35)', borderRadius: 6, padding: '2px 8px', color: C.gold, fontSize: 9, fontWeight: 900 }}>🏆 TITLE CARD</span>
+              )}
+            </div>
+            <h2 style={{ color: C.textPrimary, fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em', marginBottom: 6 }}>{selectedEvent.name}</h2>
+            <p style={{ color: C.textSecondary, fontSize: 12 }}>{formatEventDate(selectedEvent.date)}</p>
+            {(selectedEvent.venue || selectedEvent.location) && (
+              <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 2 }}>
+                📍 {[selectedEvent.venue, selectedEvent.location].filter(Boolean).join(' · ')}
+              </p>
+            )}
+          </div>
+          {events.length > 1 && (
+            <select
+              value={selectedEventId}
+              onChange={e => { setSelectedEventId(e.target.value); setActiveFight(null) }}
+              style={{
+                padding: '8px 14px', borderRadius: 12, fontSize: 12, fontWeight: 700,
+                background: 'rgba(0,0,0,0.4)', border: `1px solid ${C.border}`,
+                color: C.textPrimary, cursor: 'pointer', outline: 'none',
+              }}
+            >
+              {events.map(ev => (
+                <option key={ev.id} value={ev.id} style={{ background: '#02020f' }}>
+                  {ev.name} ({ev.status === 'post' ? 'Final' : ev.status === 'in' ? 'Live' : 'Upcoming'})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* Fight card */}
+      {sortedFights.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <p style={{ color: C.textSecondary, fontSize: 13 }}>Fight card details not yet available</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {sortedFights.map(fight => (
+            <div key={fight.id}>
+              <FightCard
+                fight={fight}
+                totalFights={sortedFights.length}
+                isActive={activeFight?.id === fight.id}
+                onOpenIntel={() => setActiveFight(prev => prev?.id === fight.id ? null : fight)}
+              />
+              {activeFight?.id === fight.id && (
+                <div style={{ marginTop: 4 }}>
+                  <UFCIntelPanel fight={fight} onClose={() => setActiveFight(null)} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
   const [date, setDate] = useState(today)
-  const [sport, setSport] = useState<'nba' | 'ncaab'>('nba')
+  const [sport, setSport] = useState<'nba' | 'ncaab' | 'ufc'>('nba')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -1918,17 +2459,21 @@ export default function Home() {
                 fontSize: 18
               }}>◈</div>
               <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: C.textPrimary }}>
-                {sport === 'nba' ? 'NBA' : 'NCAAB'}
-                <span style={{ color: C.cyan, textShadow: `0 0 20px ${C.cyan}55` }}> LINES</span>
+                {sport === 'nba' ? 'NBA' : sport === 'ufc' ? 'UFC' : 'NCAAB'}
+                <span style={{ color: sport === 'ufc' ? UFC_RED : C.cyan, textShadow: `0 0 20px ${sport === 'ufc' ? UFC_RED : C.cyan}55` }}>{sport === 'ufc' ? ' FIGHTS' : ' LINES'}</span>
               </h1>
               <div style={{ display: 'flex', borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-                {(['nba', 'ncaab'] as const).map(s => (
+                {(['nba', 'ufc', 'ncaab'] as const).map((s, idx) => (
                   <button key={s} onClick={() => { setSport(s); setLoading(true) }} style={{
                     padding: '5px 12px', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em',
                     textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s',
-                    background: sport === s ? `linear-gradient(135deg, rgba(0,240,255,0.2), rgba(168,85,247,0.15))` : 'rgba(255,255,255,0.03)',
-                    color: sport === s ? C.cyan : C.textSecondary,
-                    borderRight: s === 'nba' ? `1px solid ${C.border}` : 'none',
+                    background: sport === s
+                      ? s === 'ufc'
+                        ? 'linear-gradient(135deg, rgba(232,0,45,0.25), rgba(168,0,20,0.15))'
+                        : `linear-gradient(135deg, rgba(0,240,255,0.2), rgba(168,85,247,0.15))`
+                      : 'rgba(255,255,255,0.03)',
+                    color: sport === s ? (s === 'ufc' ? UFC_RED : C.cyan) : C.textSecondary,
+                    borderRight: idx < 2 ? `1px solid ${C.border}` : 'none',
                   }}>{s.toUpperCase()}</button>
                 ))}
               </div>
@@ -1989,13 +2534,16 @@ export default function Home() {
           </div>
         </div>
 
+        {sport === 'nba' && <PolymarketEdgeSection />}
         {sport === 'nba' && <StreakPanel />}
 
         {!loading && games.length > 0 && sport === 'nba' && (
           <DailyParlayCard games={games} bankroll={bankroll} />
         )}
 
-        {loading ? (
+        {sport === 'ufc' && <UFCSection />}
+
+        {sport !== 'ufc' && (loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
               <div key={i} style={{ borderRadius: 24, height: 220, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />
@@ -2056,7 +2604,7 @@ export default function Home() {
               </section>
             )}
           </div>
-        )}
+        ))}
       </div>
 
       {showTracker && <BetTracker bets={bets} onUpdate={saveBets} onClose={() => setShowTracker(false)} />}
