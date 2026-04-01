@@ -1992,6 +1992,7 @@ interface UFCFighter {
 interface UFCFight {
   id: string; boutOrder: number; isMainEvent: boolean; weightClass: string
   isTitleFight: boolean; fighterA: UFCFighter; fighterB: UFCFighter
+  moneyLineA: number | null; moneyLineB: number | null
   result?: { winner: string; method: string; round: number; time: string }
 }
 interface UFCEvent {
@@ -2006,6 +2007,9 @@ function UFCIntelPanel({ fight, onClose }: { fight: UFCFight; onClose: () => voi
 
   useEffect(() => {
     const { fighterA: a, fighterB: b, weightClass, isTitleFight } = fight
+    const fmtForm = (f: UFCFighter) => f.recentForm.length > 0 ? f.recentForm.slice(0, 5).join('') : 'N/A'
+    const fmtRank = (f: UFCFighter) => f.ranking !== null ? (f.ranking === 0 ? 'Champion' : `#${f.ranking}`) : 'NR'
+    const prompt = `UFC fight analysis: ${a.name} (${a.record}, ranked ${fmtRank(a)}, recent form: ${fmtForm(a)}) vs ${b.name} (${b.record}, ranked ${fmtRank(b)}, recent form: ${fmtForm(b)}). Weight class: ${weightClass}${isTitleFight ? ' (TITLE FIGHT)' : ''}. Analyze this matchup — who has the edge and why? Be concise.`
     fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2013,7 +2017,7 @@ function UFCIntelPanel({ fight, onClose }: { fight: UFCFight; onClose: () => voi
         teamA: a.name, teamB: b.name,
         polyOddsA: 50, polyOddsB: 50,
         recordA: a.record, recordB: b.record,
-        context: `UFC ${isTitleFight ? 'TITLE FIGHT' : 'bout'} — ${weightClass}. ${a.name} (${a.record}, rank: ${a.ranking ?? 'NR'}, ${a.strikingAccuracy ?? '?'}% striking, ${a.takedownAccuracy ?? '?'}% TD) vs ${b.name} (${b.record}, rank: ${b.ranking ?? 'NR'}, ${b.strikingAccuracy ?? '?'}% striking, ${b.takedownAccuracy ?? '?'}% TD).`,
+        context: prompt,
       }),
     })
       .then(r => r.json())
@@ -2065,7 +2069,15 @@ function UFCIntelPanel({ fight, onClose }: { fight: UFCFight; onClose: () => voi
               <p style={{ color: UFC_RED, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Fighter A</p>
               <p style={{ color: C.textPrimary, fontSize: 16, fontWeight: 900 }}>{a.name}</p>
               <p style={{ color: C.textSecondary, fontSize: 11 }}>{a.record}</p>
-              <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>{a.country} · {a.age ? `${a.age}y` : ''} · {a.height}</p>
+              {a.ranking !== null && <p style={{ color: UFC_RED, fontSize: 10, fontWeight: 700, marginTop: 2 }}>{a.ranking === 0 ? '🏆 Champion' : `Rank #${a.ranking}`}</p>}
+              {a.recentForm.length > 0 && (
+                <div style={{ display: 'flex', gap: 3, marginTop: 6, justifyContent: 'center' }}>
+                  {a.recentForm.slice(0, 5).map((r, i) => (
+                    <div key={i} style={{ width: 14, height: 14, borderRadius: 3, background: r === 'W' ? C.green : r === 'L' ? C.red : C.gold, fontSize: 8, color: '#000', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r}</div>
+                  ))}
+                </div>
+              )}
+              <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 6 }}>{a.country} · {a.age ? `${a.age}y` : ''} · {a.height}</p>
               {a.reach && <p style={{ color: C.textSecondary, fontSize: 10 }}>Reach: {a.reach}</p>}
             </div>
             <span style={{ color: C.textSecondary, fontSize: 16, fontWeight: 900 }}>VS</span>
@@ -2073,7 +2085,15 @@ function UFCIntelPanel({ fight, onClose }: { fight: UFCFight; onClose: () => voi
               <p style={{ color: C.cyan, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Fighter B</p>
               <p style={{ color: C.textPrimary, fontSize: 16, fontWeight: 900 }}>{b.name}</p>
               <p style={{ color: C.textSecondary, fontSize: 11 }}>{b.record}</p>
-              <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>{b.country} · {b.age ? `${b.age}y` : ''} · {b.height}</p>
+              {b.ranking !== null && <p style={{ color: C.cyan, fontSize: 10, fontWeight: 700, marginTop: 2 }}>{b.ranking === 0 ? '🏆 Champion' : `Rank #${b.ranking}`}</p>}
+              {b.recentForm.length > 0 && (
+                <div style={{ display: 'flex', gap: 3, marginTop: 6, justifyContent: 'center' }}>
+                  {b.recentForm.slice(0, 5).map((r, i) => (
+                    <div key={i} style={{ width: 14, height: 14, borderRadius: 3, background: r === 'W' ? C.green : r === 'L' ? C.red : C.gold, fontSize: 8, color: '#000', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r}</div>
+                  ))}
+                </div>
+              )}
+              <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 6 }}>{b.country} · {b.age ? `${b.age}y` : ''} · {b.height}</p>
               {b.reach && <p style={{ color: C.textSecondary, fontSize: 10 }}>Reach: {b.reach}</p>}
             </div>
           </div>
@@ -2184,6 +2204,24 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
         </div>
         <Fighter f={b} side="right" />
       </div>
+
+      {/* Odds row */}
+      {!result && (() => {
+        const { moneyLineA: mlA, moneyLineB: mlB } = fight
+        if (mlA === null && mlB === null) {
+          return <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', marginTop: 10, opacity: 0.45 }}>No odds available</p>
+        }
+        const favA = mlA !== null && mlB !== null ? mlA < mlB : mlA !== null && mlA < 0
+        const favB = mlA !== null && mlB !== null ? mlB < mlA : mlB !== null && mlB < 0
+        const fmtML = (v: number | null) => v === null ? '–' : v > 0 ? `+${v}` : String(v)
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid rgba(255,255,255,0.06)` }}>
+            <span style={{ color: favA ? UFC_RED : C.green, fontSize: 13, fontWeight: 900 }}>{fmtML(mlA)}</span>
+            <span style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.1em' }}>MONEYLINE</span>
+            <span style={{ color: favB ? UFC_RED : C.green, fontSize: 13, fontWeight: 900 }}>{fmtML(mlB)}</span>
+          </div>
+        )
+      })()}
     </div>
   )
 }

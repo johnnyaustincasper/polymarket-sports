@@ -23,6 +23,8 @@ export interface UFCFight {
   isTitleFight: boolean
   fighterA: UFCFighter
   fighterB: UFCFighter
+  moneyLineA: number | null
+  moneyLineB: number | null
   result?: { winner: string; method: string; round: number; time: string }
 }
 
@@ -169,6 +171,18 @@ function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>):
     const fighterA = parseFighter(competitors[0], rankingsMap)
     const fighterB = parseFighter(competitors[1], rankingsMap)
 
+    // Parse moneyline odds from ESPN's odds array
+    let moneyLineA: number | null = null
+    let moneyLineB: number | null = null
+    const oddsArr: any[] = comp?.odds || []
+    if (oddsArr.length > 0) {
+      const oddsEntry = oddsArr[0]
+      const rawHome = oddsEntry?.homeMoneyLine ?? oddsEntry?.homeTeamOdds?.moneyLine ?? null
+      const rawAway = oddsEntry?.awayMoneyLine ?? oddsEntry?.awayTeamOdds?.moneyLine ?? null
+      if (rawHome !== null && rawHome !== undefined) moneyLineA = Number(rawHome)
+      if (rawAway !== null && rawAway !== undefined) moneyLineB = Number(rawAway)
+    }
+
     let result: UFCFight['result'] | undefined
     if (isCompleted) {
       const winner = competitors.find((c: any) => c.winner)
@@ -193,6 +207,8 @@ function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>):
       isTitleFight: Boolean(isTitleFight),
       fighterA,
       fighterB,
+      moneyLineA,
+      moneyLineB,
       result,
     })
   }
