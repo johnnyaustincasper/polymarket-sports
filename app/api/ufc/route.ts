@@ -59,7 +59,8 @@ async function safeFetch(url: string): Promise<any> {
 function flagEmoji(country: string): string {
   if (!country) return '🌐'
   const map: Record<string, string> = {
-    'United States': '🇺🇸', 'USA': '🇺🇸', 'Brazil': '🇧🇷', 'Russia': '🇷🇺',
+    'United States': '🇺🇸', 'USA': '🇺🇸', 'US': '🇺🇸',
+    'Brazil': '🇧🇷', 'Russia': '🇷🇺',
     'Mexico': '🇲🇽', 'Ireland': '🇮🇪', 'United Kingdom': '🇬🇧', 'UK': '🇬🇧',
     'Nigeria': '🇳🇬', 'Cameroon': '🇨🇲', 'China': '🇨🇳', 'Australia': '🇦🇺',
     'Canada': '🇨🇦', 'New Zealand': '🇳🇿', 'France': '🇫🇷', 'Georgia': '🇬🇪',
@@ -74,47 +75,43 @@ function flagEmoji(country: string): string {
 }
 
 function parseFighter(competitor: any, rankingsMap: Record<string, number>): UFCFighter {
-  const athlete = competitor?.athlete || competitor || {}
-  const stats = athlete?.statistics || athlete?.stats || []
+  const athlete = competitor?.athlete || {}
 
-  const getStat = (name: string): number | null => {
-    const s = stats.find((x: any) =>
-      x.name?.toLowerCase().includes(name.toLowerCase()) ||
-      x.displayName?.toLowerCase().includes(name.toLowerCase())
-    )
-    return s ? parseFloat(s.displayValue || s.value) || null : null
-  }
+  // Record: ESPN puts it in competitor.records[0].summary e.g. "17-7-1"
+  const recordSummary =
+    competitor?.records?.find((r: any) => r.type === 'total' || r.name === 'overall')?.summary ||
+    competitor?.records?.[0]?.summary ||
+    athlete?.record ||
+    ''
 
-  const record = athlete?.record || ''
-  const country = athlete?.citizenship || athlete?.birthPlace?.country || ''
+  // Country: ESPN puts it in competitor.athlete.flag.alt
+  const country =
+    athlete?.flag?.alt ||
+    athlete?.citizenship ||
+    athlete?.birthPlace?.country ||
+    ''
+
   const height = athlete?.displayHeight || athlete?.height || ''
   const reach = athlete?.reach ? `${athlete.reach}"` : ''
   const age = athlete?.age || (athlete?.dateOfBirth
     ? Math.floor((Date.now() - new Date(athlete.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null)
 
-  // striking/takedown accuracy from stats
-  let strikingAccuracy: number | null = getStat('striking accuracy') || getStat('Striking Accuracy') || getStat('sig. str. acc') || null
-  let takedownAccuracy: number | null = getStat('takedown accuracy') || getStat('Takedown Accuracy') || null
-
-  // Convert to percentage if decimal
-  if (strikingAccuracy !== null && strikingAccuracy <= 1) strikingAccuracy = Math.round(strikingAccuracy * 100)
-  if (takedownAccuracy !== null && takedownAccuracy <= 1) takedownAccuracy = Math.round(takedownAccuracy * 100)
-
   const name = athlete?.displayName || athlete?.fullName || 'TBA'
-  const id = String(athlete?.id || athlete?.uid || Math.random())
+  // ESPN puts athlete ID directly on competitor.id
+  const id = String(competitor?.id || athlete?.id || athlete?.uid || Math.random())
 
   return {
     id,
     name,
-    record: typeof record === 'string' ? record : `${record?.wins || 0}-${record?.losses || 0}-${record?.draws || 0}`,
+    record: typeof recordSummary === 'string' ? recordSummary : '',
     ranking: rankingsMap[id] ?? null,
     country: flagEmoji(country),
     age: typeof age === 'number' ? age : null,
     height: String(height),
     reach: String(reach),
-    strikingAccuracy,
-    takedownAccuracy,
+    strikingAccuracy: null,
+    takedownAccuracy: null,
     recentForm: [],
   }
 }
@@ -134,31 +131,40 @@ async function fetchRankingsMap(): Promise<Record<string, number>> {
   return map
 }
 
-async function fetchEventDetail(eventId: string, rankingsMap: Record<string, number>): Promise<UFCFight[]> {
-  const data = await safeFetch(`https://site.api.espn.com/apis/site/v2/sports/mma/ufc/summary?event=${eventId}`)
-  if (!data) return []
+function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>): UFCEvent {
+  const id = String(ev.id || ev.uid || '')
+  const name = ev.name || ev.shortName || 'UFC Event'
+  const dateRaw = ev.date || ev.competitions?.[0]?.date || ''
+  const date = dateRaw ? new Date(dateRaw).toISOString() : ''
 
+  const venue = ev.competitions?.[0]?.venue?.fullName || ev.venue?.fullName || ev.venue?.name || ''
+  const city = ev.competitions?.[0]?.venue?.address?.city || ev.venue?.address?.city || ''
+  const state = ev.competitions?.[0]?.venue?.address?.state || ev.venue?.address?.state || ''
+  const location = [city, state].filter(Boolean).join(', ')
+
+  const stateStr = ev.competitions?.[0]?.status?.type?.state || ev.status?.type?.state || 'pre'
+  const status: UFCEvent['status'] =
+    stateStr === 'in' ? 'in' : stateStr === 'post' ? 'post' : 'pre'
+
+  // Fights come directly from event.competitions — no separate summary fetch needed
+  const competitions: any[] = ev.competitions || []
+  const totalBouts = competitions.length
   const fights: UFCFight[] = []
-  const bouts: any[] = data.fightCard || data.fights || data.competitions || []
-  const totalBouts = bouts.length
 
-  for (let i = 0; i < bouts.length; i++) {
-    const bout = bouts[i]
-    const comp = bout.competition || bout
-    const competitors: any[] = comp?.competitors || bout?.competitors || []
-
+  for (let i = 0; i < competitions.length; i++) {
+    const comp = competitions[i]
+    const competitors: any[] = comp?.competitors || []
     if (competitors.length < 2) continue
 
-    const boutOrder = totalBouts - i // main event = 1, prelims = higher
+    // ESPN orders competitions main-event-first (index 0 = main event)
+    const boutOrder = i + 1
     const isMainEvent = boutOrder === 1
 
-    const status = comp?.status?.type?.state || bout?.status?.type?.state || 'pre'
-    const isCompleted = comp?.status?.type?.completed || bout?.status?.type?.completed || false
+    const isCompleted = comp?.status?.type?.completed || false
 
-    // Weight class
-    const weightClass = bout?.weightClass || comp?.type?.text || bout?.name || 'Unknown'
-    const isTitleFight = (weightClass?.toLowerCase().includes('title') ||
-      bout?.titleFight || comp?.titleFight || false)
+    // Weight class from competition type
+    const weightClass = comp?.type?.text || comp?.type?.abbreviation || comp?.name || 'Unknown'
+    const isTitleFight = weightClass?.toLowerCase().includes('title') || false
 
     const fighterA = parseFighter(competitors[0], rankingsMap)
     const fighterB = parseFighter(competitors[1], rankingsMap)
@@ -166,11 +172,10 @@ async function fetchEventDetail(eventId: string, rankingsMap: Record<string, num
     let result: UFCFight['result'] | undefined
     if (isCompleted) {
       const winner = competitors.find((c: any) => c.winner)
-      const loser = competitors.find((c: any) => !c.winner)
-      if (winner && loser) {
-        const method = bout?.winningMethod || comp?.notes?.[0]?.text || 'Decision'
-        const round = bout?.completedRound || comp?.completedRound || 0
-        const time = bout?.completedTime || comp?.completedTime || ''
+      if (winner) {
+        const method = comp?.notes?.[0]?.text || 'Decision'
+        const round = comp?.completedRound || 0
+        const time = comp?.completedTime || ''
         result = {
           winner: winner.athlete?.displayName || winner.athlete?.fullName || 'Unknown',
           method,
@@ -181,7 +186,7 @@ async function fetchEventDetail(eventId: string, rankingsMap: Record<string, num
     }
 
     fights.push({
-      id: String(comp?.id || bout?.id || i),
+      id: String(comp?.id || i),
       boutOrder,
       isMainEvent,
       weightClass: String(weightClass),
@@ -192,7 +197,16 @@ async function fetchEventDetail(eventId: string, rankingsMap: Record<string, num
     })
   }
 
-  return fights
+  // Sort: main event first (boutOrder 1), then co-main, etc.
+  fights.sort((a, b) => a.boutOrder - b.boutOrder)
+
+  // Fix isMainEvent — first fight in sorted order is main event
+  if (fights.length > 0) {
+    fights[0].isMainEvent = true
+    for (let i = 1; i < fights.length; i++) fights[i].isMainEvent = false
+  }
+
+  return { id, name, date, venue, location, status, fights }
 }
 
 async function fetchUFCEvents(): Promise<UFCEvent[]> {
@@ -200,41 +214,67 @@ async function fetchUFCEvents(): Promise<UFCEvent[]> {
     return _cache.events
   }
 
-  const [scoreboard, rankingsMap] = await Promise.all([
-    safeFetch('https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard'),
-    fetchRankingsMap(),
-  ])
+  const rankingsMap = await fetchRankingsMap()
 
-  if (!scoreboard) return []
+  // Get the calendar from scoreboard to find upcoming event dates
+  const baseScoreboard = await safeFetch('https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard')
+  if (!baseScoreboard) return []
 
-  const rawEvents: any[] = scoreboard.events || scoreboard.leagues?.[0]?.events || []
+  // Extract upcoming event dates from calendar
+  const calendar: any[] = baseScoreboard.leagues?.[0]?.calendar || []
+  const now = Date.now()
 
-  const events: UFCEvent[] = []
-
-  for (const ev of rawEvents.slice(0, 6)) {
-    const id = String(ev.id || ev.uid || '')
-    if (!id) continue
-
-    const name = ev.name || ev.shortName || 'UFC Event'
-    const dateRaw = ev.date || ev.competitions?.[0]?.date || ''
-    const date = dateRaw ? new Date(dateRaw).toISOString() : ''
-
-    const venue = ev.competitions?.[0]?.venue?.fullName || ev.venue?.fullName || ev.venue?.name || ''
-    const city = ev.competitions?.[0]?.venue?.address?.city || ev.venue?.address?.city || ''
-    const state = ev.competitions?.[0]?.venue?.address?.state || ev.venue?.address?.state || ''
-    const location = [city, state].filter(Boolean).join(', ')
-
-    const stateStr = ev.competitions?.[0]?.status?.type?.state || ev.status?.type?.state || 'pre'
-    const status: UFCEvent['status'] =
-      stateStr === 'in' ? 'in' : stateStr === 'post' ? 'post' : 'pre'
-
-    const fights = await fetchEventDetail(id, rankingsMap)
-
-    events.push({ id, name, date, venue, location, status, fights })
+  // Get dates for upcoming events (next 6)
+  const upcomingDates: string[] = []
+  for (const cal of calendar) {
+    const dt = new Date(cal.startDate).getTime()
+    if (dt >= now - 24 * 60 * 60 * 1000) { // include today
+      const d = new Date(cal.startDate)
+      const dateStr = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`
+      upcomingDates.push(dateStr)
+      if (upcomingDates.length >= 6) break
+    }
   }
 
-  _cache = { events, ts: Date.now() }
-  return events
+  // Fetch scoreboard for each date (deduplicated by event ID)
+  const seenIds = new Set<string>()
+  const events: UFCEvent[] = []
+
+  // Always include current scoreboard events first
+  const currentEvents: any[] = baseScoreboard.events || []
+  for (const ev of currentEvents) {
+    const eid = String(ev.id || '')
+    if (eid && !seenIds.has(eid)) {
+      seenIds.add(eid)
+      events.push(parseEventFromScoreboard(ev, rankingsMap))
+    }
+  }
+
+  // Fetch each upcoming date
+  const dateBoards = await Promise.all(
+    upcomingDates.map(dateStr =>
+      safeFetch(`https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=${dateStr}`)
+    )
+  )
+
+  for (const board of dateBoards) {
+    if (!board) continue
+    const evts: any[] = board.events || []
+    for (const ev of evts) {
+      const eid = String(ev.id || '')
+      if (eid && !seenIds.has(eid)) {
+        seenIds.add(eid)
+        events.push(parseEventFromScoreboard(ev, rankingsMap))
+      }
+    }
+  }
+
+  // Sort by date
+  events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  const result = events.slice(0, 6)
+  _cache = { events: result, ts: Date.now() }
+  return result
 }
 
 export async function GET() {
