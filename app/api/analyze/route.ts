@@ -1,8 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const XAI_MODEL = process.env.XAI_MODEL || 'grok-3-mini'
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
+
+function getXaiClient(): OpenAI {
+  return new OpenAI({
+    apiKey: process.env.XAI_API_KEY,
+    baseURL: process.env.XAI_BASE_URL || 'https://api.x.ai/v1',
+  })
+}
+
+async function generateAnalysis(prompt: string): Promise<string> {
+  const response = await getXaiClient().chat.completions.create({
+    model: XAI_MODEL,
+    temperature: 0.4,
+    max_tokens: 2000,
+    messages: [{ role: 'user', content: prompt }],
+  })
+
+  return response.choices?.[0]?.message?.content?.trim() || 'No analysis available'
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -168,7 +186,18 @@ async function getGameContext(teamA: string, teamB: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { teamA, teamB, polyOddsA, polyOddsB, recordA, recordB } = await req.json()
+    if (!process.env.XAI_API_KEY) {
+      return NextResponse.json({ error: 'Missing XAI_API_KEY' }, { status: 500 })
+    }
+
+    const { teamA, teamB, polyOddsA, polyOddsB, recordA, recordB, context: customContext } = await req.json()
+
+    // If a custom context/prompt is passed (e.g. UFC), use it directly
+    if (customContext) {
+      const analysis = await generateAnalysis(customContext)
+      return NextResponse.json({ analysis })
+    }
+
     const today = getTodayString()
 
     const [injuries, standings, gameContext] = await Promise.all([
@@ -232,13 +261,9 @@ ${teamA}: ${polyOddsA}% | ${teamB}: ${polyOddsB}%
 ###⚡ The Pick
 [Team name. One sentence. Be direct and confident.]`
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }],
-    })
+    const analysis = await generateAnalysis(prompt)
 
-    return NextResponse.json({ analysis: (message.content[0] as any).text })
+    return NextResponse.json({ analysis })
   } catch (err) {
     console.error('Analysis error:', err)
     return NextResponse.json({ error: 'Analysis failed' }, { status: 500 })
