@@ -318,150 +318,6 @@ function LastSixtyBoard({ games }: { games: Game[] }) {
   )
 }
 
-// ─── Daily Parlay Builder ─────────────────────────────────────────────────────
-function DailyParlayCard({ games, bankroll }: { games: Game[]; bankroll: number }) {
-  const edges = games
-    .filter(g => g.status === 'pre' && g.hasWinnerOdds)
-    .map(g => deriveGameEdge(g))
-    .filter((e): e is GameEdge<Game> => e !== null)
-    .sort((a, b) => b.edgeScore - a.edgeScore)
-    .slice(0, 3)
-
-  if (edges.length < 2) return null
-
-  const legs = edges.slice(0, Math.min(3, edges.length))
-  const combinedMarketProb = legs.reduce((p, e) => p * e.marketProb, 1)
-  const combinedOurProb = legs.reduce((p, e) => p * e.ourProb, 1)
-  const payoutMultiplier = combinedMarketProb > 0 ? 1 / combinedMarketProb : 0
-  const kellyFrac = computeKelly(combinedOurProb, combinedMarketProb)
-  const suggestedBet = Math.min(bankroll * kellyFrac * 0.5, bankroll * 0.1)
-  const estimatedPayout = suggestedBet * payoutMultiplier
-
-  return (
-    <div style={{
-      marginBottom: 24,
-      borderRadius: 20,
-      padding: '20px 24px',
-      background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(0,240,255,0.06), rgba(255,215,0,0.05))',
-      border: '1px solid rgba(168,85,247,0.35)',
-      boxShadow: '0 0 40px rgba(168,85,247,0.12), 0 4px 40px rgba(0,0,0,0.5)',
-      position: 'relative' as const,
-      overflow: 'hidden',
-    }}>
-      {/* glow blob */}
-      <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(168,85,247,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <span style={{ fontSize: 16 }}>🎯</span>
-        <span style={{ color: C.gold, fontSize: 11, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Today's Best Plays</span>
-        <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(255,215,0,0.3), transparent)' }} />
-        <span style={{ background: 'rgba(168,85,247,0.2)', border: '1px solid rgba(168,85,247,0.4)', borderRadius: 8, padding: '2px 8px', color: C.purple, fontSize: 9, fontWeight: 900 }}>{legs.length}-LEG PARLAY</span>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-        {legs.map((edge, i) => (
-          <div key={edge.game.id} style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '10px 14px', borderRadius: 12,
-            background: 'rgba(255,255,255,0.04)',
-            border: `1px solid ${C.border}`,
-          }}>
-            <span style={{ color: C.textSecondary, fontSize: 10, fontWeight: 800, width: 14 }}>{i + 1}</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: C.textPrimary, fontSize: 13, fontWeight: 800 }}>{edge.team}</span>
-                <span style={{ color: C.textSecondary, fontSize: 10 }}>ML</span>
-                <span style={{ color: C.textSecondary, fontSize: 10 }}>·</span>
-                <span style={{ color: C.textSecondary, fontSize: 10 }}>{edge.game.awayTeam.abbr} @ {edge.game.homeTeam.abbr}</span>
-                <span style={{ background: edge.confidence >= 68 ? 'rgba(0,255,136,0.10)' : 'rgba(255,215,0,0.10)', border: `1px solid ${edge.confidence >= 68 ? 'rgba(0,255,136,0.28)' : 'rgba(255,215,0,0.28)'}`, borderRadius: 6, padding: '1px 6px', color: edge.confidence >= 68 ? C.green : C.gold, fontSize: 8, fontWeight: 900 }}>{edge.quality.toUpperCase()} {edge.confidence}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                <span style={{ color: C.cyan, fontSize: 9 }}>Model {Math.round(edge.ourProb * 100)}%</span>
-                <span style={{ color: C.textSecondary, fontSize: 9 }}>vs</span>
-                <span style={{ color: C.textSecondary, fontSize: 9 }}>Market {Math.round(edge.marketProb * 100)}%</span>
-              </div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{
-                background: edge.edgeScore >= 0.08 ? 'rgba(0,255,136,0.15)' : 'rgba(0,240,255,0.1)',
-                border: `1px solid ${edge.edgeScore >= 0.08 ? 'rgba(0,255,136,0.4)' : 'rgba(0,240,255,0.3)'}`,
-                borderRadius: 8, padding: '3px 8px',
-              }}>
-                <span style={{ color: edge.edgeScore >= 0.08 ? C.green : C.cyan, fontSize: 10, fontWeight: 900 }}>
-                  +{Math.round(edge.edgeScore * 100)}% edge
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
-        {[
-          ['Combined Prob', `${Math.round(combinedMarketProb * 100)}%`, C.textPrimary],
-          ['Payout', `${payoutMultiplier.toFixed(1)}x`, C.gold],
-          ['Suggested Bet', bankroll > 0 ? `$${suggestedBet.toFixed(2)}` : '—', C.cyan],
-        ].map(([label, val, color]) => (
-          <div key={String(label)} style={{ textAlign: 'center' }}>
-            <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>{label}</p>
-            <p style={{ color: String(color), fontSize: 16, fontWeight: 900 }}>{val}</p>
-          </div>
-        ))}
-      </div>
-      {bankroll > 0 && estimatedPayout > 0 && (
-        <p style={{ color: C.purple, fontSize: 10, textAlign: 'center', marginTop: 10 }}>
-          Est. return: <span style={{ fontWeight: 800 }}>${estimatedPayout.toFixed(2)}</span> on ${suggestedBet.toFixed(2)} stake (½ Kelly)
-        </p>
-      )}
-    </div>
-  )
-}
-
-// ─── Bankroll Input ───────────────────────────────────────────────────────────
-function BankrollInput({ bankroll, onChange }: { bankroll: number; onChange: (v: number) => void }) {
-  const [editing, setEditing] = useState(false)
-  const [raw, setRaw] = useState(String(bankroll))
-
-  const commit = () => {
-    const v = parseFloat(raw)
-    if (!isNaN(v) && v >= 0) onChange(v)
-    setEditing(false)
-  }
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Bankroll</span>
-      {editing ? (
-        <input
-          autoFocus
-          type="number"
-          value={raw}
-          onChange={e => setRaw(e.target.value)}
-          onBlur={commit}
-          onKeyDown={e => { if (e.key === 'Enter') commit() }}
-          style={{
-            width: 100, padding: '4px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800,
-            background: 'rgba(0,240,255,0.08)', border: `1px solid ${C.borderHot}`,
-            color: C.cyan, outline: 'none', caretColor: C.cyan,
-          }}
-        />
-      ) : (
-        <button
-          onClick={() => { setRaw(String(bankroll)); setEditing(true) }}
-          style={{
-            padding: '4px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800,
-            background: 'rgba(0,240,255,0.06)', border: `1px solid ${C.border}`,
-            color: bankroll > 0 ? C.cyan : C.textSecondary, cursor: 'pointer',
-            letterSpacing: '0.02em',
-          }}
-        >
-          {bankroll > 0 ? `$${bankroll.toLocaleString()}` : 'Set bankroll'}
-        </button>
-      )}
-    </div>
-  )
-}
-
 // ─── UFC accent ───────────────────────────────────────────────────────────────
 const UFC_RED = '#e8002d'
 const MLB_ORANGE = '#ff8a00'
@@ -863,224 +719,6 @@ function BetTracker({ bets, onUpdate, onClose }: {
   )
 }
 
-// ─── Polymarket Edge Section ──────────────────────────────────────────────────
-interface EdgeMarket {
-  matchup: string
-  marketTitle: string
-  marketType: 'winner' | 'spread' | 'total'
-  side: string
-  tokenId: string
-  currentPrice: number
-  impliedProbability: number
-  modelEdge: number
-  divergence: number
-  suggestedAction: 'buy' | 'sell'
-  polyUrl: string | null
-  eventSlug: string | null
-}
-
-function PolymarketEdgeSection() {
-  const [markets, setMarkets] = useState<EdgeMarket[]>([])
-  const [loading, setLoading] = useState(true)
-  const [copied, setCopied] = useState<string | null>(null)
-  const [amount, setAmount] = useState('50')
-  const [collapsed, setCollapsed] = useState(false)
-
-  useEffect(() => {
-    fetch('/api/polymarket-edge')
-      .then(r => r.json())
-      .then(d => { setMarkets(Array.isArray(d) ? d : []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [])
-
-  const buildCmd = (m: EdgeMarket) =>
-    `polymarket clob market-order --side ${m.suggestedAction} --amount ${amount} --token-id ${m.tokenId}`
-
-  const copyCmd = (m: EdgeMarket) => {
-    const cmd = buildCmd(m)
-    navigator.clipboard.writeText(cmd).then(() => {
-      setCopied(m.tokenId)
-      setTimeout(() => setCopied(null), 2000)
-    })
-  }
-
-  const divPct = (v: number) => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`
-  const probPct = (v: number) => `${Math.round(v * 100)}%`
-
-  const hasMispriced = markets.length > 0
-
-  return (
-    <section className="mb-8">
-      {/* Section header */}
-      <button
-        onClick={() => setCollapsed(v => !v)}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, marginBottom: collapsed ? 0 : 16, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-      >
-        <span style={{ fontSize: 14 }}>⚡</span>
-        <span style={{ color: C.gold, fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase' as const }}>Polymarket Edge</span>
-        {hasMispriced && (
-          <span style={{ background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.4)', borderRadius: 8, padding: '1px 7px', color: C.gold, fontSize: 9, fontWeight: 900 }}>
-            {markets.length} mispriced
-          </span>
-        )}
-        <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, rgba(255,215,0,0.3), transparent)` }} />
-        <span style={{ color: C.textSecondary, fontSize: 10, transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>▾</span>
-      </button>
-
-      {!collapsed && (
-        <>
-          {/* Amount input */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <span style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Order size (USDC)</span>
-            <input
-              type="number"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              style={{
-                width: 80, padding: '4px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800,
-                background: 'rgba(0,240,255,0.06)', border: `1px solid ${C.border}`,
-                color: C.cyan, outline: 'none', caretColor: C.cyan,
-              }}
-            />
-          </div>
-
-          {loading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[...Array(3)].map((_, i) => (
-                <div key={i} style={{ height: 88, borderRadius: 16, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />
-              ))}
-            </div>
-          ) : markets.length === 0 ? (
-            <div style={{
-              borderRadius: 16, padding: '20px 24px', textAlign: 'center',
-              background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`,
-            }}>
-              <p style={{ color: C.textSecondary, fontSize: 12 }}>No mispriced NBA markets detected right now</p>
-              <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4, opacity: 0.6 }}>Markets refresh when Polymarket has active NBA events</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {markets.map((m, i) => {
-                const isBuy = m.suggestedAction === 'buy'
-                const actionColor = isBuy ? C.green : C.red
-                const divColor = m.divergence > 0 ? C.green : C.red
-                const absDivPct = Math.abs(Math.round(m.divergence * 100))
-                return (
-                  <div
-                    key={`${m.tokenId}-${i}`}
-                    style={{
-                      borderRadius: 16,
-                      padding: '16px 18px',
-                      background: isBuy
-                        ? 'linear-gradient(135deg, rgba(0,255,136,0.06), rgba(0,240,255,0.03))'
-                        : 'linear-gradient(135deg, rgba(255,68,102,0.06), rgba(168,85,247,0.03))',
-                      border: `1px solid ${isBuy ? 'rgba(0,255,136,0.25)' : 'rgba(255,68,102,0.25)'}`,
-                      boxShadow: isBuy
-                        ? '0 0 20px rgba(0,255,136,0.06)'
-                        : '0 0 20px rgba(255,68,102,0.06)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                      {/* Left: matchup + description */}
-                      <div style={{ flex: 1, minWidth: 200 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                          <span style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>{m.matchup}</span>
-                          <span style={{
-                            background: 'rgba(255,255,255,0.06)', border: `1px solid ${C.border}`,
-                            borderRadius: 6, padding: '1px 6px', color: C.textSecondary, fontSize: 9, fontWeight: 700,
-                          }}>{m.marketType.toUpperCase()}</span>
-                        </div>
-                        <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 700, lineHeight: 1.3, marginBottom: 6 }}>
-                          {m.marketTitle}
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <span style={{ color: C.textSecondary, fontSize: 10 }}>Side: <span style={{ color: C.textPrimary, fontWeight: 700 }}>{m.side}</span></span>
-                          <span style={{ color: C.textSecondary, fontSize: 10 }}>·</span>
-                          <span style={{ color: C.textSecondary, fontSize: 10 }}>Market: <span style={{ color: C.textPrimary, fontWeight: 700 }}>{probPct(m.impliedProbability)}</span></span>
-                          <span style={{ color: C.textSecondary, fontSize: 10 }}>·</span>
-                          <span style={{ color: C.textSecondary, fontSize: 10 }}>Model: <span style={{ color: C.cyan, fontWeight: 700 }}>{probPct(m.modelEdge)}</span></span>
-                        </div>
-                      </div>
-
-                      {/* Right: divergence badge + action */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                        <div style={{
-                          background: isBuy ? 'rgba(0,255,136,0.12)' : 'rgba(255,68,102,0.12)',
-                          border: `1px solid ${isBuy ? 'rgba(0,255,136,0.4)' : 'rgba(255,68,102,0.4)'}`,
-                          borderRadius: 10, padding: '4px 10px', textAlign: 'center',
-                        }}>
-                          <p style={{ color: divColor, fontSize: 16, fontWeight: 900, lineHeight: 1 }}>{divPct(m.divergence)}</p>
-                          <p style={{ color: divColor, fontSize: 8, fontWeight: 700, opacity: 0.7, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Edge</p>
-                        </div>
-                        <div style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          background: isBuy ? 'rgba(0,255,136,0.15)' : 'rgba(255,68,102,0.15)',
-                          border: `1px solid ${actionColor}`,
-                          borderRadius: 8, padding: '3px 10px',
-                        }}>
-                          <span style={{ fontSize: 10 }}>{isBuy ? '▲' : '▼'}</span>
-                          <span style={{ color: actionColor, fontSize: 10, fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>
-                            {m.suggestedAction}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Command row */}
-                    <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <code style={{
-                        flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 10,
-                        background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}`,
-                        color: C.textSecondary, fontFamily: 'monospace',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        display: 'block', minWidth: 0,
-                      }}>
-                        {buildCmd(m)}
-                      </code>
-                      <button
-                        onClick={() => copyCmd(m)}
-                        style={{
-                          flexShrink: 0,
-                          padding: '6px 14px', borderRadius: 8, fontSize: 10, fontWeight: 800,
-                          letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.15s',
-                          background: copied === m.tokenId
-                            ? 'rgba(0,255,136,0.2)'
-                            : 'rgba(0,240,255,0.08)',
-                          border: `1px solid ${copied === m.tokenId ? 'rgba(0,255,136,0.5)' : C.borderHot}`,
-                          color: copied === m.tokenId ? C.green : C.cyan,
-                          boxShadow: `0 0 10px ${C.cyan}15`,
-                        }}
-                      >
-                        {copied === m.tokenId ? '✓ Copied' : '⎘ Copy Trade Command'}
-                      </button>
-                      {m.polyUrl && (
-                        <a
-                          href={m.polyUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            flexShrink: 0,
-                            padding: '6px 12px', borderRadius: 8, fontSize: 10, fontWeight: 700,
-                            background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)',
-                            color: C.purple, textDecoration: 'none',
-                          }}
-                        >
-                          View ↗
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </>
-      )}
-    </section>
-  )
-}
-
-// ─── Streak Panel ─────────────────────────────────────────────────────────────
 function StreakPanel() {
   const [data, setData] = useState<{ teams: StreakTeam[] } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -3064,13 +2702,13 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
   const thinMatches = games.filter(g => (g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds) && getMarketReadiness(g).matchQuality < 55).length
   const isFootball = sport === 'nfl' || sport === 'ncaaf'
   const isBaseball = sport === 'mlb'
-  const phase = isFootball && games.length === 0 ? 'OFFSEASON BUILD MODE' : live ? 'LIVE TRADING WINDOW' : pre ? 'PRE-GAME SCAN' : 'MARKET WATCH'
+  const phase = isFootball && games.length === 0 ? 'OFFSEASON BUILD MODE' : live ? 'LIVE PLAYER SCAN' : pre ? 'PLAYER STAT SCAN' : 'STAT MARKET WATCH'
   const accent = isFootball ? C.green : isBaseball ? MLB_ORANGE : C.cyan
   const prepItems = isFootball
-    ? ['QB status + injury delta', 'Weather / wind / dome flag', 'Short-week + travel spot', 'Spread-implied win prob', 'CLOB price freshness']
+    ? ['Player usage baseline', 'Injury / snap-count delta', 'Weather / wind / dome flag', 'Opponent matchup', 'Executable stat market']
     : isBaseball
-      ? ['Moneyline mismatch', 'Run line gap', 'Total gap', 'Starting pitcher check', 'Bullpen / weather context']
-      : ['Moneyline mismatch', 'Spread gap', 'Total gap', 'Last-60 window', 'Fatigue / lineup context']
+      ? ['Batter/pitcher split', 'Last-12 form', 'Lineup confirmation', 'Weather / park context', 'Executable stat market']
+      : ['Player usage baseline', 'Last-12 hit rate', 'Minutes / fatigue context', 'Injury / lineup confirmation', 'Executable stat market']
 
   return (
     <section style={{
@@ -3094,18 +2732,18 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
               <span style={{ color: C.textSecondary, fontSize: 10 }}>Feed {loading ? 'syncing…' : lastUpdatedLabel ? `updated ${lastUpdatedLabel}` : 'standing by'}</span>
             </div>
             <h2 style={{ margin: 0, color: C.textPrimary, fontSize: isMobile ? 22 : 30, lineHeight: 1, letterSpacing: '-0.045em', fontWeight: 950 }}>
-              {isFootball ? 'Gridiron Market Command' : isBaseball ? 'Diamond Market Command' : 'Market Command Center'}
+              {isFootball ? 'Football Player Stat Scanner' : isBaseball ? 'MLB Player Stat Scanner' : 'Player Stat Intelligence'}
             </h2>
             <p style={{ margin: '8px 0 0', color: 'rgba(168,240,255,0.58)', fontSize: isMobile ? 12 : 13, lineHeight: 1.5, maxWidth: 620 }}>
               {isFootball
-                ? 'NFL prep layer is active: schedules, Polymarket matching, and the UI are ready for football slates. Next layer is QB/weather/injury intelligence.'
+                ? 'Scan every player in upcoming games for usage, matchup, availability, and executable stat-bet markets.'
                 : isBaseball
-                  ? 'MLB slate view with ESPN games, Polymarket moneylines, run lines where confidently matched, and totals in one command strip.'
-                  : 'Live slate view with market coverage, edge readiness, and execution timing in one command strip.'}
+                  ? 'MLB slate view built around player props: hits, total bases, home runs, pitcher strikeouts, lineup context, and executable markets.'
+                  : 'Upcoming-game player scanner: hit rates, minutes, injury context, and real executable stat bets in one command strip.'}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: isMobile ? 8 : 10, marginTop: isMobile ? 12 : 18 }}>
               {[
-                ['Games', games.length], ['Live', live], ['Matched', `${matchRate}%`], ['Quality', `${avgMatchQuality}%`],
+                ['Games', games.length], ['Live', live], ['Market Match', `${matchRate}%`], ['Readiness', `${avgMatchQuality}%`],
               ].map(([label, value]) => (
                 <div key={label} style={{
                   borderRadius: isMobile ? 12 : 16, padding: isMobile ? '9px 10px' : '12px 10px',
@@ -3128,7 +2766,7 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
             border: `1px solid ${isFootball ? 'rgba(0,255,136,0.22)' : isBaseball ? 'rgba(255,138,0,0.24)' : C.border}`,
           }}>
             <div style={{ color: accent, fontSize: 11, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>
-              {isFootball ? 'NFL utility checklist' : isBaseball ? 'MLB utility checklist' : 'Scanner utility'}
+              {isFootball ? 'Football stat-bet checklist' : isBaseball ? 'MLB stat-bet checklist' : 'Player stat-bet checklist'}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {prepItems.map(item => (
@@ -3150,13 +2788,11 @@ export default function Home() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
-  const [mainTab, setMainTab] = useState<'games' | 'edge'>('games')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showTracker, setShowTracker] = useState(false)
   const [bets, setBets] = useState<BetLog[]>([])
-  const [bankroll, setBankroll] = useState(0)
   const [oddsDrift, setOddsDrift] = useState<Record<string, OddsDrift>>({})
   const [secsSinceUpdate, setSecsSinceUpdate] = useState(0)
   const prevGamesRef = useRef<Map<string, Game>>(new Map())
@@ -3168,14 +2804,7 @@ export default function Home() {
   useEffect(() => {
     const stored = localStorage.getItem('poly-bets')
     if (stored) setBets(JSON.parse(stored))
-    const storedBankroll = localStorage.getItem('poly-bankroll')
-    if (storedBankroll) setBankroll(parseFloat(storedBankroll) || 0)
   }, [])
-
-  const saveBankroll = (v: number) => {
-    setBankroll(v)
-    localStorage.setItem('poly-bankroll', String(v))
-  }
 
   const saveBets = (updated: BetLog[]) => {
     setBets(updated)
@@ -3332,10 +2961,10 @@ export default function Home() {
                 background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.25)',
                 color: C.green, boxShadow: '0 0 12px rgba(0,255,136,0.1)',
                 transition: 'all 0.2s',
-              }}>⬡ Edge Bot</a>
+              }}>⬡ Stat Scanner</a>
             </div>
             <p style={{ color: C.textSecondary, fontSize: isMobile ? 11 : 12, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Athlete signal engine · NBA/NFL/MLB/UFC · Polymarket · Kalshi · DraftKings</span>
+              <span>Player stat-bet engine · NBA/NFL/MLB/UFC · Kalshi · DraftKings · Polymarket</span>
               {lastUpdatedLabel && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -3351,7 +2980,6 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <BankrollInput bankroll={bankroll} onChange={saveBankroll} />
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
               {days.map(day => (
                 <button key={day.value} onClick={() => setDate(day.value)} style={{
@@ -3384,41 +3012,17 @@ export default function Home() {
 
         <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedLabel={lastUpdatedLabel} feedAgeSec={lastUpdated ? secsSinceUpdate : 0} isMobile={isMobile} />
 
-        {/* ── Main tab bar (NBA only) ── */}
-        {sport === 'nba' && (
-          <div style={{ display: 'flex', gap: 0, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`, alignSelf: 'flex-start', marginBottom: 4 }}>
-            {([['games', '🏀 Games'], ['edge', '📊 Polymarket Edge']] as const).map(([id, label], idx) => (
-              <button key={id} onClick={() => setMainTab(id)} style={{
-                padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                background: mainTab === id ? `linear-gradient(135deg, rgba(0,240,255,0.15), rgba(168,85,247,0.1))` : 'rgba(255,255,255,0.03)',
-                color: mainTab === id ? C.cyan : C.textSecondary,
-                borderRight: idx === 0 ? `1px solid ${C.border}` : 'none',
-                letterSpacing: '0.04em', transition: 'all 0.15s',
-              }}>{label}</button>
-            ))}
-          </div>
-        )}
 
-        {/* ── Polymarket Edge tab ── */}
-        {sport === 'nba' && mainTab === 'edge' && (
-          <div style={{ minHeight: '70vh' }}>
-            <PolymarketEdgeSection />
-          </div>
-        )}
 
-        {sport === 'nba' && mainTab === 'games' && <LastSixtyBoard games={upcoming} />}
+        {sport === 'nba' && <LastSixtyBoard games={upcoming} />}
 
-        {sport === 'nba' && mainTab === 'games' && <StreakPanel />}
+        {sport === 'nba' && <StreakPanel />}
 
-        {sport === 'nba' && mainTab === 'games' && <BettingTrendsPanel />}
-
-        {!loading && games.length > 0 && sport === 'nba' && mainTab === 'games' && (
-          <DailyParlayCard games={games} bankroll={bankroll} />
-        )}
+        {sport === 'nba' && <BettingTrendsPanel />}
 
         {sport === 'ufc' && <UFCSection />}
 
-        {sport !== 'ufc' && mainTab === 'games' && (loading ? (
+        {sport !== 'ufc' && (loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
               <div key={i} style={{ borderRadius: 24, height: 220, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />
@@ -3441,7 +3045,7 @@ export default function Home() {
                     <RowGroup key={i} games={row} cols={cols}
                       activeGame={activeIntelGame || activeAnalysisGame}
                       panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
-                      onLogBet={logBet} drift={oddsDrift} bankroll={bankroll}
+                      onLogBet={logBet} drift={oddsDrift}
                       onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
                       onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => prev?.id === g.id ? null : g); setActiveIntelGame(null) }} />
                   ))}
@@ -3456,7 +3060,7 @@ export default function Home() {
                     <RowGroup key={i} games={row} cols={cols}
                       activeGame={activeIntelGame || activeAnalysisGame}
                       panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
-                      onLogBet={logBet} drift={oddsDrift} bankroll={bankroll}
+                      onLogBet={logBet} drift={oddsDrift}
                       onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
                       onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => prev?.id === g.id ? null : g); setActiveIntelGame(null) }} />
                   ))}
@@ -3471,7 +3075,7 @@ export default function Home() {
                     <RowGroup key={i} games={row} cols={cols}
                       activeGame={activeIntelGame || activeAnalysisGame}
                       panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
-                      onLogBet={logBet} drift={oddsDrift} bankroll={bankroll}
+                      onLogBet={logBet} drift={oddsDrift}
                       onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
                       onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => prev?.id === g.id ? null : g); setActiveIntelGame(null) }} />
                   ))}

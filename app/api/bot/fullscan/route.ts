@@ -542,7 +542,7 @@ ${playerIntel || 'None found'}
     }
 
     if (gameContexts.length === 0) {
-      return NextResponse.json({ report: 'No pre-game NBA games found today.' })
+      return NextResponse.json({ report: 'No upcoming-game NBA games found today.' })
     }
 
     if (!ANTHROPIC_KEY) {
@@ -584,7 +584,7 @@ TWO WAYS TO MAKE MONEY — EVALUATE BOTH:
 
 1. HOLD-TO-RESOLUTION: Buy and hold until game ends. Need clear positive EV (+5¢+ edge). Works for underdogs where market is genuinely mispriced.
 
-2. LIVE TRADE (often better for underdogs): Buy cheap underdog shares pre-game. If they take an early lead, their Poly price jumps from 25¢ to 60-70¢. Sell and take the 2-3x. You don't need them to WIN — you just need them to be competitive in the first half. A team priced at 23.5¢ will be LEADING at halftime in ~35-40% of games. That's your cashout window.
+2. LIVE TRADE (often better for underdogs): Buy cheap underdog shares upcoming-game. If they take an early lead, their Poly price jumps from 25¢ to 60-70¢. Sell and take the 2-3x. You don't need them to WIN — you just need them to be competitive in the first half. A team priced at 23.5¢ will be LEADING at halftime in ~35-40% of games. That's your cashout window.
    - Live trades work best: spread ≤ 7 pts + Poly price ≤ 32¢ = 🎯 flag it
    - The data already flags these as "LIVE TRADE CANDIDATE" — take that seriously
 

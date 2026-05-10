@@ -58,7 +58,7 @@ interface ScanResult {
   signals: Signal[]
 }
 interface SavedScan {
-  id: string; report: string; gamesAnalyzed: number; scannedAt: string; bankroll: number
+  id: string; report: string; gamesAnalyzed: number; scannedAt: string
   requires?: string
   contexts?: string[]
 }
@@ -945,7 +945,7 @@ function HistoryDrawer({
                         <div style={{ color: C.text, fontWeight: 700, fontSize: 13 }}>
                           {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                         </div>
-                        <div style={{ color: C.textFaint, fontSize: 11, marginTop: 2 }}>{s.gamesAnalyzed} games · ${s.bankroll} bankroll</div>
+                        <div style={{ color: C.textFaint, fontSize: 11, marginTop: 2 }}>{s.gamesAnalyzed} games</div>
                       </div>
                       <span style={{ color: C.purple, fontSize: 20 }}>›</span>
                     </div>
@@ -1009,7 +1009,7 @@ function ScanReport({ scan }: { scan: SavedScan }) {
         <span style={{ color: C.textFaint, fontSize: 11 }}>
           {d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           {' at '}{d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-          {' · '}{scan.gamesAnalyzed} games · ${scan.bankroll} bankroll
+          {' · '}{scan.gamesAnalyzed} games
         </span>
       </div>
 
@@ -1063,7 +1063,6 @@ export default function BotPage() {
   const [narratives,      setNarratives]      = useState<Record<string, NarrativeResult | 'loading' | 'error'>>({})
   const [fullScan,        setFullScan]        = useState<SavedScan | null>(null)
   const [fullScanLoading, setFullScanLoading] = useState(false)
-  const [bankroll,        setBankroll]        = useState(200)
   const [savedScans,      setSavedScans]      = useState<SavedScan[]>([])
   const [showHistory,     setShowHistory]     = useState(false)
   const [showTracker,     setShowTracker]     = useState(false)
@@ -1115,12 +1114,12 @@ export default function BotPage() {
   async function runFullScan() {
     setFullScanLoading(true); setFullScan(null)
     try {
-      const res  = await fetch(`/api/bot/fullscan?bankroll=${bankroll}`)
+      const res  = await fetch('/api/bot/fullscan')
       const json = await res.json()
-      const scan: SavedScan = { ...json, bankroll, id: crypto.randomUUID() }
+      const scan: SavedScan = { ...json, id: crypto.randomUUID() }
       setFullScan(scan); persistScan(scan)
     } catch {
-      setFullScan({ report: 'Scan failed.', gamesAnalyzed: 0, scannedAt: new Date().toISOString(), bankroll, id: crypto.randomUUID() })
+      setFullScan({ report: 'Scan failed.', gamesAnalyzed: 0, scannedAt: new Date().toISOString(), id: crypto.randomUUID() })
     } finally { setFullScanLoading(false) }
   }
 
@@ -1218,7 +1217,7 @@ export default function BotPage() {
                 <span style={{ color: C.text }}> SCANNER</span>
               </h1>
               <p style={{ color: C.textFaint, fontSize: 11, letterSpacing: '0.06em', marginTop: 4 }}>
-                AI Athlete Intelligence · Polymarket vs DraftKings · {scanSport.toUpperCase()} · Paper Trading
+                AI Athlete Intelligence · player stat-bet scanner · {scanSport.toUpperCase()}
               </p>
             </div>
 
@@ -1282,8 +1281,8 @@ export default function BotPage() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
             {[
               { label: 'Games', val: data.gamesScanned },
-              { label: 'Poly Matched', val: data.polyMarketsFound },
-              { label: 'Edges Found', val: data.edgeSignals, glow: data.edgeSignals > 0 },
+              { label: 'Markets Matched', val: data.polyMarketsFound },
+              { label: 'Stat Signals', val: data.edgeSignals, glow: data.edgeSignals > 0 },
             ].map(s => (
               <div key={s.label} style={{
                 flex: '1 1 80px', borderRadius: 14, padding: '10px 12px', textAlign: 'center',
@@ -1302,22 +1301,6 @@ export default function BotPage() {
 
         {/* ── AI FULL SCAN ── */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-            <div style={{
-              flex: 1, display: 'flex', alignItems: 'center', gap: 8,
-              background: C.surface, border: `1px solid ${C.border}`,
-              borderRadius: 12, padding: '8px 14px',
-            }}>
-              <span style={{ color: C.textFaint, fontSize: 12 }}>$</span>
-              <input
-                type="number" value={bankroll}
-                onChange={e => setBankroll(Number(e.target.value))}
-                style={{ background: 'transparent', border: 'none', outline: 'none', color: C.cyan, fontSize: 15, fontWeight: 800, width: '100%' }}
-              />
-              <span style={{ color: C.textFaint, fontSize: 10, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>USDC bankroll</span>
-            </div>
-          </div>
-
           <button onClick={runFullScan} disabled={fullScanLoading} style={{
             width: '100%', padding: '15px', borderRadius: 16,
             fontSize: 13, fontWeight: 800, letterSpacing: '0.04em',
@@ -1332,7 +1315,7 @@ export default function BotPage() {
           }}>
             {fullScanLoading
               ? '◈  Analyzing all games with AI — ~30s…'
-              : '◈  AI Full Scan  —  What should I bet today?'}
+              : '◈  Player Stat Full Scan  —  What should I bet today?'}
           </button>
 
           {fullScan && !fullScanLoading && (

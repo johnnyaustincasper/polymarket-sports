@@ -196,7 +196,7 @@ export async function GET(req: Request) {
 
       const status = comp.status?.type?.state || 'pre'
       const isLive = status === 'in'
-      // Only scan pre-game and live markets
+      // Only scan upcoming-game and live markets
       if (status !== 'pre' && status !== 'in') continue
 
       const competitors: any[] = comp.competitors || []
