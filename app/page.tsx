@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { computeKelly, deriveGameEdge, getMarketReadiness, getMinutesToStart, lineGap as getLineGap, pct, totalGap as getTotalGap, type GameEdge } from './lib/sports-utils'
 
 interface Team {
   name: string; abbr: string; record: string; score: string; logo: string; color: string
@@ -86,56 +87,12 @@ interface StreakTeam {
   lastGames: ('W' | 'L')[]; analysis: string; keyFactors: string[]
 }
 
-const pct = (v: number) => Math.round(v * 100)
-
-// ─── Kelly Criterion helpers ──────────────────────────────────────────────────
-function computeKelly(ourProb: number, marketProb: number): number {
-  if (marketProb <= 0 || marketProb >= 1) return 0
-  const b = (1 - marketProb) / marketProb   // net decimal odds
-  const q = 1 - ourProb
-  const f = (b * ourProb - q) / b           // full Kelly fraction
-  return Math.max(0, f)                     // never negative
-}
-
-// Derive edge for a game at the page level (mirrors GameCard's prediction logic)
-interface GameEdge {
-  game: Game
-  team: string                // recommended team abbr
-  ourProb: number             // 0–1
-  marketProb: number          // 0–1
-  kelly: number               // fraction of bankroll (full Kelly)
-  edgeScore: number           // ourProb - marketProb
-}
-
-function deriveGameEdge(game: Game): GameEdge | null {
-  if (!game.hasWinnerOdds) return null
-  const parseRec = (rec: string) => {
-    const parts = rec.split('-').map(Number)
-    if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return 0.5
-    const tot = parts[0] + parts[1]
-    return tot === 0 ? 0.5 : parts[0] / tot
-  }
-  const homeRecPct = parseRec(game.homeTeam.record)
-  const awayRecPct = parseRec(game.awayTeam.record)
-  let homeEdge = (homeRecPct + (1 - awayRecPct)) / 2
-  homeEdge = homeEdge * 0.4 + game.homeWinOdds * 0.6
-  homeEdge += 0.03
-  homeEdge = Math.min(0.88, Math.max(0.12, homeEdge))
-  const awayEdge = 1 - homeEdge
-
-  const isHome = homeEdge >= awayEdge
-  const ourProb = isHome ? homeEdge : awayEdge
-  const marketProb = isHome ? game.homeWinOdds : game.awayWinOdds
-  const edgeScore = ourProb - marketProb
-  if (edgeScore <= 0.02) return null   // no meaningful edge
-  return {
-    game,
-    team: isHome ? game.homeTeam.abbr : game.awayTeam.abbr,
-    ourProb,
-    marketProb,
-    kelly: computeKelly(ourProb, marketProb),
-  edgeScore,
-  }
+interface FootballIntelData {
+  prepScore: number
+  readiness: { matchLabel: string; matchQuality: number; staleLabel: string; warnings: string[] }
+  flags: { dome: boolean; divisional: boolean; daysOut: number; spreadGap: number; totalGap: number }
+  checklist: { label: string; value: string; status: 'ready' | 'watch' | 'edge' }[]
+  warnings: string[]
 }
 
 interface LastMinuteBoardEntry {
@@ -148,34 +105,33 @@ interface LastMinuteBoardEntry {
   lineGap: number
   totalGap: number
   score: number
+  confidence: number
+  quality: GameEdge<Game>['quality'] | 'signal'
+  matchQuality: number
+  warnings: string[]
   reasons: string[]
-}
-
-function getMinutesToTip(gameDate: string): number {
-  return Math.round((new Date(gameDate).getTime() - Date.now()) / 60000)
 }
 
 function buildLastMinuteBoard(games: Game[]): LastMinuteBoardEntry[] {
   return games
     .filter(game => game.status === 'pre')
     .map((game) => {
-      const minutesToTip = getMinutesToTip(game.gameDate)
+      const minutesToTip = getMinutesToStart(game.gameDate)
       if (minutesToTip < 0 || minutesToTip > 60) return null
 
       const winEdge = deriveGameEdge(game)
-      const lineGap = game.hasDkOdds && game.hasSpreadOdds && game.dkSpread != null
-        ? Math.abs(game.spreadLine - game.dkSpread)
-        : 0
-      const totalGap = game.hasDkOdds && game.hasTotalOdds && game.dkTotal != null
-        ? Math.abs(game.totalLine - game.dkTotal)
-        : 0
+      const lineGap = getLineGap(game)
+      const totalGap = getTotalGap(game)
+      const readiness = getMarketReadiness(game)
 
       const reasons: string[] = []
       if (winEdge) reasons.push(`${winEdge.team} ML +${Math.round(winEdge.edgeScore * 100)}% edge`)
       if (lineGap >= 1.5) reasons.push(`Spread ${lineGap.toFixed(1)} pts off DK`)
       if (totalGap >= 2) reasons.push(`Total ${totalGap.toFixed(1)} pts off DK`)
       if (minutesToTip <= 20) reasons.push('Execution window open now')
+      if (readiness.warnings.length) reasons.push(readiness.warnings[0])
 
+      const confidence = winEdge?.confidence || Math.min(72, 52 + lineGap * 5 + totalGap * 2 + (readiness.matchQuality >= 55 ? 6 : 0))
       const score =
         (winEdge?.edgeScore || 0) * 100 +
         lineGap * 4 +
@@ -194,6 +150,10 @@ function buildLastMinuteBoard(games: Game[]): LastMinuteBoardEntry[] {
         lineGap,
         totalGap,
         score,
+        confidence,
+        quality: winEdge?.quality || 'signal',
+        matchQuality: readiness.matchQuality,
+        warnings: readiness.warnings,
         reasons,
       }
     })
@@ -253,10 +213,17 @@ function LastSixtyBoard({ games }: { games: Game[] }) {
                   <span style={{ color: entry.minutesToTip <= 20 ? C.red : C.gold, fontSize: 10, fontWeight: 900 }}>
                     {entry.recommendedSide}
                   </span>
+                  <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, marginLeft: 6 }}>C{entry.confidence}</span>
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                <span style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 8, padding: '3px 8px', color: entry.confidence >= 68 ? C.green : C.gold, fontSize: 10, fontWeight: 900 }}>
+                  {entry.quality.toUpperCase()} · {entry.confidence}%
+                </span>
+                <span style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${entry.matchQuality >= 55 ? C.border : 'rgba(255,215,0,0.35)'}`, borderRadius: 8, padding: '3px 8px', color: entry.matchQuality >= 55 ? C.textSecondary : C.gold, fontSize: 10, fontWeight: 800 }}>
+                  Match {entry.matchQuality}%
+                </span>
                 {entry.winEdge > 0.02 && (
                   <span style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.25)', borderRadius: 8, padding: '3px 8px', color: C.green, fontSize: 10, fontWeight: 800 }}>
                     ML +{Math.round(entry.winEdge * 100)}%
@@ -287,6 +254,9 @@ function LastSixtyBoard({ games }: { games: Game[] }) {
                   Model {Math.round(entry.ourProb * 100)}% vs market {Math.round(entry.marketProb * 100)}%
                 </p>
               )}
+              {entry.warnings.length > 0 && (
+                <p style={{ color: C.gold, fontSize: 10, marginTop: 8 }}>⚠ {entry.warnings.join(' · ')}</p>
+              )}
             </div>
           ))}
         </div>
@@ -299,8 +269,8 @@ function LastSixtyBoard({ games }: { games: Game[] }) {
 function DailyParlayCard({ games, bankroll }: { games: Game[]; bankroll: number }) {
   const edges = games
     .filter(g => g.status === 'pre' && g.hasWinnerOdds)
-    .map(deriveGameEdge)
-    .filter((e): e is GameEdge => e !== null)
+    .map(g => deriveGameEdge(g))
+    .filter((e): e is GameEdge<Game> => e !== null)
     .sort((a, b) => b.edgeScore - a.edgeScore)
     .slice(0, 3)
 
@@ -350,6 +320,7 @@ function DailyParlayCard({ games, bankroll }: { games: Game[]; bankroll: number 
                 <span style={{ color: C.textSecondary, fontSize: 10 }}>ML</span>
                 <span style={{ color: C.textSecondary, fontSize: 10 }}>·</span>
                 <span style={{ color: C.textSecondary, fontSize: 10 }}>{edge.game.awayTeam.abbr} @ {edge.game.homeTeam.abbr}</span>
+                <span style={{ background: edge.confidence >= 68 ? 'rgba(0,255,136,0.10)' : 'rgba(255,215,0,0.10)', border: `1px solid ${edge.confidence >= 68 ? 'rgba(0,255,136,0.28)' : 'rgba(255,215,0,0.28)'}`, borderRadius: 6, padding: '1px 6px', color: edge.confidence >= 68 ? C.green : C.gold, fontSize: 8, fontWeight: 900 }}>{edge.quality.toUpperCase()} {edge.confidence}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
                 <span style={{ color: C.cyan, fontSize: 9 }}>Model {Math.round(edge.ourProb * 100)}%</span>
@@ -1732,15 +1703,44 @@ function RowGroup({ games, cols, activeGame, panel, onLogBet, drift, onOpenIntel
 
 
 function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void }) {
+  const [intel, setIntel] = useState<FootballIntelData | null>(null)
   const matched = game.hasWinnerOdds || game.hasSpreadOdds || game.hasTotalOdds
+  const readiness = getMarketReadiness(game)
   const spreadGap = game.hasDkOdds && game.hasSpreadOdds && game.dkSpread != null
     ? Math.abs(game.spreadLine - game.dkSpread)
     : null
   const totalGap = game.hasDkOdds && game.hasTotalOdds && game.dkTotal != null
     ? Math.abs(game.totalLine - game.dkTotal)
     : null
+
+  useEffect(() => {
+    const params = new URLSearchParams({
+      away: game.awayTeam.abbr,
+      home: game.homeTeam.abbr,
+      date: game.gameDate,
+      sport: game.sport === 'ncaaf' ? 'ncaaf' : 'nfl',
+      venue: game.venue?.name || '',
+      location: game.venue?.location || '',
+      hasWinnerOdds: String(game.hasWinnerOdds),
+      homeWinOdds: String(game.homeWinOdds),
+      awayWinOdds: String(game.awayWinOdds),
+      hasSpreadOdds: String(game.hasSpreadOdds),
+      spreadLine: String(game.spreadLine),
+      hasTotalOdds: String(game.hasTotalOdds),
+      totalLine: String(game.totalLine),
+      hasDkOdds: String(game.hasDkOdds),
+      dkSpread: game.dkSpread == null ? '' : String(game.dkSpread),
+      dkTotal: game.dkTotal == null ? '' : String(game.dkTotal),
+      polyMatchScore: game.polyMatchScore == null ? '' : String(game.polyMatchScore),
+    })
+    fetch(`/api/nfl-intel?${params.toString()}`)
+      .then(r => r.json())
+      .then(d => setIntel(d))
+      .catch(() => setIntel(null))
+  }, [game])
+
   const items = [
-    { label: 'Market match', value: matched ? 'Matched' : 'No Polymarket match yet', color: matched ? C.green : C.gold },
+    { label: 'Market match', value: matched ? `${readiness.matchLabel} · ${readiness.matchQuality}%` : 'No Polymarket match yet', color: matched && readiness.matchQuality >= 55 ? C.green : C.gold },
     { label: 'Winner market', value: game.hasWinnerOdds ? `${game.awayTeam.abbr} ${(game.awayWinOdds * 100).toFixed(1)}¢ / ${game.homeTeam.abbr} ${(game.homeWinOdds * 100).toFixed(1)}¢` : 'Waiting', color: game.hasWinnerOdds ? C.cyan : C.textSecondary },
     { label: 'Spread gap', value: spreadGap != null ? `${spreadGap.toFixed(1)} pts` : 'Need DK + Poly spread', color: spreadGap != null && spreadGap >= 1 ? C.green : C.textSecondary },
     { label: 'Total gap', value: totalGap != null ? `${totalGap.toFixed(1)} pts` : 'Need DK + Poly total', color: totalGap != null && totalGap >= 1.5 ? C.green : C.textSecondary },
@@ -1770,6 +1770,26 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
             </div>
           ))}
         </div>
+
+        {intel && (
+          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(0,255,136,0.035)', border: '1px solid rgba(0,255,136,0.16)', marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>NFL Prep Score</div>
+              <div style={{ color: intel.prepScore >= 70 ? C.green : C.gold, fontSize: 20, fontWeight: 950 }}>{intel.prepScore}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 8 }}>
+              {intel.checklist.map(item => (
+                <div key={item.label} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${item.status === 'edge' ? 'rgba(0,255,136,0.35)' : C.border}` }}>
+                  <div style={{ color: item.status === 'edge' ? C.green : item.status === 'ready' ? C.cyan : C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{item.label}</div>
+                  <div style={{ color: 'rgba(230,245,255,0.84)', fontSize: 11, marginTop: 4, lineHeight: 1.35 }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+            {intel.warnings.length > 0 && (
+              <div style={{ color: C.gold, fontSize: 11, marginTop: 10 }}>⚠ {intel.warnings.slice(0, 3).join(' · ')}</div>
+            )}
+          </div>
+        )}
 
         <div style={{ borderRadius: 16, padding: 14, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
           <div style={{ color: C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>Next NFL utility layer</div>
@@ -2714,17 +2734,21 @@ function UFCSection() {
 }
 
 
-function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel }: {
+function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec }: {
   sport: 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'ufc'
   games: Game[]
   loading: boolean
   lastUpdatedLabel: string | null
+  feedAgeSec: number
 }) {
   if (sport === 'ufc') return null
   const matched = games.filter(g => g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds).length
   const live = games.filter(g => g.status === 'in').length
   const pre = games.filter(g => g.status === 'pre').length
   const matchRate = games.length ? Math.round((matched / games.length) * 100) : 0
+  const avgMatchQuality = matched ? Math.round(games.reduce((sum, g) => sum + getMarketReadiness(g).matchQuality, 0) / games.length) : 0
+  const staleFeed = feedAgeSec >= 180
+  const thinMatches = games.filter(g => (g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds) && getMarketReadiness(g).matchQuality < 55).length
   const isFootball = sport === 'nfl' || sport === 'ncaaf'
   const phase = isFootball && games.length === 0 ? 'OFFSEASON BUILD MODE' : live ? 'LIVE TRADING WINDOW' : pre ? 'PRE-GAME SCAN' : 'MARKET WATCH'
   const accent = isFootball ? C.green : C.cyan
@@ -2763,7 +2787,7 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel }: {
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginTop: 18 }}>
               {[
-                ['Games', games.length], ['Live', live], ['Pre', pre], ['Matched', `${matchRate}%`],
+                ['Games', games.length], ['Live', live], ['Matched', `${matchRate}%`], ['Quality', `${avgMatchQuality}%`],
               ].map(([label, value]) => (
                 <div key={label} style={{
                   borderRadius: 16, padding: '12px 10px',
@@ -2774,6 +2798,11 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel }: {
                 </div>
               ))}
             </div>
+            {(staleFeed || thinMatches > 0) && (
+              <div style={{ marginTop: 14, borderRadius: 14, padding: '10px 12px', background: 'rgba(255,215,0,0.07)', border: '1px solid rgba(255,215,0,0.25)', color: C.gold, fontSize: 11, fontWeight: 800 }}>
+                ⚠ {staleFeed ? `Feed stale (${lastUpdatedLabel})` : `${thinMatches} thin market match${thinMatches === 1 ? '' : 'es'}`} — confirm prices before firing commands.
+              </div>
+            )}
           </div>
           <div style={{
             borderRadius: 20, padding: 16,
@@ -3032,7 +3061,7 @@ export default function Home() {
           </div>
         </div>
 
-        <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedLabel={lastUpdatedLabel} />
+        <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedLabel={lastUpdatedLabel} feedAgeSec={lastUpdated ? secsSinceUpdate : 0} />
 
         {/* ── Main tab bar (NBA only) ── */}
         {sport === 'nba' && (
