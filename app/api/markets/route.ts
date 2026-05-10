@@ -5,7 +5,7 @@ export const revalidate = 0
 
 const GAMMA_API = 'https://gamma-api.polymarket.com'
 
-type SportKey = 'nba' | 'ncaab' | 'nfl' | 'ncaaf'
+type SportKey = 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'mlb'
 
 const SPORTS: Record<SportKey, {
   leaguePath: string
@@ -17,25 +17,36 @@ const SPORTS: Record<SportKey, {
   ncaab: { leaguePath: 'basketball/mens-college-basketball', label: 'NCAAB', eventWords: ['college basketball', 'march madness', 'ncaab'], polyTags: ['march-madness', 'ncaa-basketball', 'ncaab'] },
   nfl:   { leaguePath: 'football/nfl', label: 'NFL', eventWords: ['nfl', 'football'], polyTags: ['nfl', 'football'] },
   ncaaf: { leaguePath: 'football/college-football', label: 'NCAAF', eventWords: ['college football', 'ncaaf'], polyTags: ['college-football', 'ncaaf'] },
+  mlb:   { leaguePath: 'baseball/mlb', label: 'MLB', eventWords: ['mlb', 'baseball', 'major league baseball'], polyTags: ['mlb', 'baseball'] },
 }
 
 // ESPN abbreviation/name → Polymarket-friendly terms. Keep team nicknames first.
 const PRO_TEAM_KEYWORDS: Record<string, string[]> = {
-  ATL: ['hawks', 'atlanta', 'falcons'], BOS: ['celtics', 'boston'], BKN: ['nets', 'brooklyn'],
-  CHA: ['hornets', 'charlotte', 'panthers'], CHI: ['bulls', 'chicago', 'bears'], CLE: ['cavaliers', 'cleveland', 'browns'],
-  DAL: ['mavericks', 'dallas', 'cowboys'], DEN: ['nuggets', 'denver', 'broncos'], DET: ['pistons', 'detroit', 'lions'],
-  GSW: ['warriors', 'golden state'], GS: ['warriors', 'golden state'], HOU: ['rockets', 'houston', 'texans'], IND: ['pacers', 'indiana', 'colts'],
+  // MLB: include ESPN abbreviations plus common aliases so baseball does not collide with NBA/NFL city-only matches.
+  ARI: ['diamondbacks', 'd backs', 'dbacks', 'arizona'], AZ: ['diamondbacks', 'd backs', 'dbacks', 'arizona'],
+  ATH: ['athletics', 'a s', 'athletics baseball'], OAK: ['athletics', 'oakland athletics', 'a s'],
+  CHC: ['cubs', 'chicago cubs'], CWS: ['white sox', 'chicago white sox'], CHW: ['white sox', 'chicago white sox'],
+  COL: ['rockies', 'colorado rockies'], KCR: ['royals', 'kansas city royals'], KCMLB: ['royals', 'kansas city royals'],
+  LAA: ['angels', 'los angeles angels'], LAD: ['dodgers', 'los angeles dodgers'],
+  NYM: ['mets', 'new york mets'], NYY: ['yankees', 'new york yankees'],
+  SDP: ['padres', 'san diego padres'], SD: ['padres', 'san diego padres'], SFG: ['giants', 'san francisco giants'],
+  STL: ['cardinals', 'st louis cardinals'], TBR: ['rays', 'tampa bay rays'], WSN: ['nationals', 'washington nationals'],
+  ATL: ['braves', 'atlanta braves', 'hawks', 'falcons'], BOS: ['red sox', 'boston red sox', 'celtics'], BKN: ['nets', 'brooklyn'],
+  CHA: ['hornets', 'charlotte', 'panthers'], CHI: ['bulls', 'chicago', 'bears'], CLE: ['guardians', 'cleveland guardians', 'cavaliers', 'browns', 'cleveland'],
+  DAL: ['mavericks', 'dallas', 'cowboys'], DEN: ['nuggets', 'denver', 'broncos'], DET: ['tigers', 'detroit tigers', 'pistons', 'lions', 'detroit'],
+  GSW: ['warriors', 'golden state'], GS: ['warriors', 'golden state'], HOU: ['astros', 'houston astros', 'rockets', 'texans', 'houston'], IND: ['pacers', 'indiana', 'colts'],
   LAC: ['clippers', 'chargers', 'los angeles chargers'], LAL: ['lakers', 'los angeles lakers'], LAR: ['rams', 'los angeles rams'],
   LV: ['raiders', 'las vegas'], LA: ['rams', 'chargers', 'los angeles'],
-  MEM: ['grizzlies', 'memphis'], MIA: ['heat', 'miami', 'dolphins'], MIL: ['bucks', 'milwaukee'], MIN: ['timberwolves', 'minnesota', 'vikings'],
+  MEM: ['grizzlies', 'memphis'], MIA: ['marlins', 'miami marlins', 'heat', 'dolphins', 'miami'], MIL: ['brewers', 'milwaukee brewers', 'bucks', 'milwaukee'], MIN: ['twins', 'minnesota twins', 'timberwolves', 'vikings', 'minnesota'],
   NOP: ['pelicans', 'new orleans'], NO: ['pelicans', 'saints', 'new orleans'], NYK: ['knicks', 'new york'], NY: ['knicks', 'giants', 'jets', 'new york'],
   NYG: ['giants', 'new york giants'], NYJ: ['jets', 'new york jets'], OKC: ['thunder', 'oklahoma city'], ORL: ['magic', 'orlando'],
-  PHI: ['76ers', 'sixers', 'philadelphia', 'eagles'], PHX: ['suns', 'phoenix'], ARI: ['cardinals', 'arizona'], POR: ['trail blazers', 'portland'],
-  SAC: ['kings', 'sacramento'], SAS: ['spurs', 'san antonio'], SA: ['spurs', 'san antonio'], TOR: ['raptors', 'toronto'],
-  UTA: ['jazz', 'utah'], UTAH: ['jazz', 'utah'], WAS: ['wizards', 'washington', 'commanders'], WSH: ['wizards', 'washington', 'commanders'],
-  BAL: ['ravens', 'baltimore'], BUF: ['bills', 'buffalo'], CAR: ['panthers', 'carolina'], CIN: ['bengals', 'cincinnati'],
-  GB: ['packers', 'green bay'], JAX: ['jaguars', 'jacksonville'], KC: ['chiefs', 'kansas city'], NE: ['patriots', 'new england'],
-  PIT: ['steelers', 'pittsburgh'], SEA: ['seahawks', 'seattle'], SF: ['49ers', 'niners', 'san francisco'], TB: ['buccaneers', 'bucs', 'tampa bay'],
+  PHI: ['phillies', 'philadelphia phillies', '76ers', 'sixers', 'eagles', 'philadelphia'], PHX: ['suns', 'phoenix'], POR: ['trail blazers', 'portland'],
+  SAC: ['kings', 'sacramento'], SAS: ['spurs', 'san antonio'], SA: ['spurs', 'san antonio'],
+  UTA: ['jazz', 'utah'], UTAH: ['jazz', 'utah'], WAS: ['nationals', 'washington nationals', 'wizards', 'commanders', 'washington'], WSH: ['nationals', 'washington nationals', 'wizards', 'commanders', 'washington'],
+  BAL: ['orioles', 'baltimore orioles', 'ravens', 'baltimore'], BUF: ['bills', 'buffalo'], CAR: ['panthers', 'carolina'], CIN: ['reds', 'cincinnati reds', 'bengals', 'cincinnati'],
+  GB: ['packers', 'green bay'], JAX: ['jaguars', 'jacksonville'], KC: ['royals', 'kansas city royals', 'chiefs', 'kansas city'], NE: ['patriots', 'new england'],
+  PIT: ['pirates', 'pittsburgh pirates', 'steelers', 'pittsburgh'], SEA: ['mariners', 'seattle mariners', 'seahawks', 'seattle'], SF: ['giants', 'san francisco giants', '49ers', 'niners', 'san francisco'], TB: ['rays', 'tampa bay rays', 'buccaneers', 'bucs', 'tampa bay'],
+  TEX: ['rangers', 'texas rangers'], TOR: ['blue jays', 'toronto blue jays', 'raptors', 'toronto'],
   TEN: ['titans', 'tennessee'],
 }
 
@@ -177,7 +188,7 @@ function latestPolyUpdatedAt(event: any, markets: any[], fetchedAt: string): str
 }
 
 function hasSpreadLanguage(question: string): boolean {
-  return /\b(spread|handicap|point\s+spread|against\s+the\s+spread|ats)\b/i.test(question)
+  return /\b(spread|handicap|point\s+spread|against\s+the\s+spread|ats|run\s+line)\b/i.test(question)
 }
 
 function findBestPolyEvent(events: any[], awayAbbr: string, homeAbbr: string, awayName: string, homeName: string, sport: SportKey) {

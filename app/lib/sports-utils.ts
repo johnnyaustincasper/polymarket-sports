@@ -1,4 +1,4 @@
-export type SupportedSport = 'nba' | 'ncaab' | 'nfl' | 'ncaaf'
+export type SupportedSport = 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'mlb'
 
 export interface SportsTeamLike {
   name?: string

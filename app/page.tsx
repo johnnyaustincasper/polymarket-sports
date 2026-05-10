@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { computeKelly, deriveGameEdge, getMarketReadiness, getMinutesToStart, lineGap as getLineGap, pct, totalGap as getTotalGap, type GameEdge } from './lib/sports-utils'
+import { computeKelly, deriveGameEdge, getMarketReadiness, getMinutesToStart, lineGap as getLineGap, pct, totalGap as getTotalGap, type GameEdge, type SupportedSport } from './lib/sports-utils'
 
 interface Team {
   name: string; abbr: string; record: string; score: string; logo: string; color: string
@@ -18,7 +18,7 @@ interface Game {
   dkSpread: number | null; dkTotal: number | null; dkDetails: string; hasDkOdds: boolean
   polyWinnerUrl: string | null; polySpreadUrl: string | null; polyTotalUrl: string | null
   venue: { name: string; location: string } | null
-  sport?: 'nba' | 'ncaab' | 'nfl' | 'ncaaf'
+  sport?: SupportedSport
   leagueLabel?: string
   polyEventTitle?: string | null
   polyMatchScore?: number
@@ -464,6 +464,7 @@ function BankrollInput({ bankroll, onChange }: { bankroll: number; onChange: (v:
 
 // ─── UFC accent ───────────────────────────────────────────────────────────────
 const UFC_RED = '#e8002d'
+const MLB_ORANGE = '#ff8a00'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -3046,7 +3047,7 @@ function UFCSection() {
 
 
 function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec, isMobile }: {
-  sport: 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'ufc'
+  sport: SupportedSport | 'ufc'
   games: Game[]
   loading: boolean
   lastUpdatedLabel: string | null
@@ -3062,11 +3063,14 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
   const staleFeed = feedAgeSec >= 180
   const thinMatches = games.filter(g => (g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds) && getMarketReadiness(g).matchQuality < 55).length
   const isFootball = sport === 'nfl' || sport === 'ncaaf'
+  const isBaseball = sport === 'mlb'
   const phase = isFootball && games.length === 0 ? 'OFFSEASON BUILD MODE' : live ? 'LIVE TRADING WINDOW' : pre ? 'PRE-GAME SCAN' : 'MARKET WATCH'
-  const accent = isFootball ? C.green : C.cyan
+  const accent = isFootball ? C.green : isBaseball ? MLB_ORANGE : C.cyan
   const prepItems = isFootball
     ? ['QB status + injury delta', 'Weather / wind / dome flag', 'Short-week + travel spot', 'Spread-implied win prob', 'CLOB price freshness']
-    : ['Moneyline mismatch', 'Spread gap', 'Total gap', 'Last-60 window', 'Fatigue / lineup context']
+    : isBaseball
+      ? ['Moneyline mismatch', 'Run line gap', 'Total gap', 'Starting pitcher check', 'Bullpen / weather context']
+      : ['Moneyline mismatch', 'Spread gap', 'Total gap', 'Last-60 window', 'Fatigue / lineup context']
 
   return (
     <section style={{
@@ -3090,12 +3094,14 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
               <span style={{ color: C.textSecondary, fontSize: 10 }}>Feed {loading ? 'syncing…' : lastUpdatedLabel ? `updated ${lastUpdatedLabel}` : 'standing by'}</span>
             </div>
             <h2 style={{ margin: 0, color: C.textPrimary, fontSize: isMobile ? 22 : 30, lineHeight: 1, letterSpacing: '-0.045em', fontWeight: 950 }}>
-              {isFootball ? 'Gridiron Market Command' : 'Market Command Center'}
+              {isFootball ? 'Gridiron Market Command' : isBaseball ? 'Diamond Market Command' : 'Market Command Center'}
             </h2>
             <p style={{ margin: '8px 0 0', color: 'rgba(168,240,255,0.58)', fontSize: isMobile ? 12 : 13, lineHeight: 1.5, maxWidth: 620 }}>
               {isFootball
                 ? 'NFL prep layer is active: schedules, Polymarket matching, and the UI are ready for football slates. Next layer is QB/weather/injury intelligence.'
-                : 'Live slate view with market coverage, edge readiness, and execution timing in one command strip.'}
+                : isBaseball
+                  ? 'MLB slate view with ESPN games, Polymarket moneylines, run lines where confidently matched, and totals in one command strip.'
+                  : 'Live slate view with market coverage, edge readiness, and execution timing in one command strip.'}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: isMobile ? 8 : 10, marginTop: isMobile ? 12 : 18 }}>
               {[
@@ -3118,11 +3124,11 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
           </div>
           <div style={{
             borderRadius: isMobile ? 14 : 20, padding: isMobile ? 12 : 16,
-            background: isFootball ? 'rgba(0,255,136,0.055)' : 'rgba(0,240,255,0.045)',
-            border: `1px solid ${isFootball ? 'rgba(0,255,136,0.22)' : C.border}`,
+            background: isFootball ? 'rgba(0,255,136,0.055)' : isBaseball ? 'rgba(255,138,0,0.055)' : 'rgba(0,240,255,0.045)',
+            border: `1px solid ${isFootball ? 'rgba(0,255,136,0.22)' : isBaseball ? 'rgba(255,138,0,0.24)' : C.border}`,
           }}>
             <div style={{ color: accent, fontSize: 11, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>
-              {isFootball ? 'NFL utility checklist' : 'Scanner utility'}
+              {isFootball ? 'NFL utility checklist' : isBaseball ? 'MLB utility checklist' : 'Scanner utility'}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {prepItems.map(item => (
@@ -3143,7 +3149,7 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
 export default function Home() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
   const [date, setDate] = useState(today)
-  const [sport, setSport] = useState<'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'ufc'>('nba')
+  const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
   const [mainTab, setMainTab] = useState<'games' | 'edge'>('games')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
@@ -3298,10 +3304,10 @@ export default function Home() {
               }}>◈</div>
               <h1 style={{ fontSize: isMobile ? 21 : 26, fontWeight: 900, letterSpacing: '-0.03em', color: C.textPrimary }}>
                 AI ATHLETE
-                <span style={{ color: sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : C.cyan, textShadow: `0 0 20px ${sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : C.cyan}55` }}> INTELLIGENCE</span>
+                <span style={{ color: sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : sport === 'mlb' ? MLB_ORANGE : C.cyan, textShadow: `0 0 20px ${sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : sport === 'mlb' ? MLB_ORANGE : C.cyan}55` }}> INTELLIGENCE</span>
               </h1>
               <div style={{ display: 'flex', borderRadius: 10, overflowX: 'auto', maxWidth: '100%', border: `1px solid ${C.border}` }}>
-                {(['nba', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map((s, idx) => (
+                {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map((s, idx) => (
                   <button key={s} onClick={() => { setSport(s); setLoading(true) }} style={{
                     padding: isMobile ? '7px 9px' : '5px 12px', fontSize: isMobile ? 10 : 11, fontWeight: 800, letterSpacing: '0.08em',
                     textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s',
@@ -3310,10 +3316,12 @@ export default function Home() {
                         ? 'linear-gradient(135deg, rgba(232,0,45,0.25), rgba(168,0,20,0.15))'
                         : s === 'nfl' || s === 'ncaaf'
                           ? 'linear-gradient(135deg, rgba(0,255,136,0.18), rgba(255,215,0,0.10))'
-                          : `linear-gradient(135deg, rgba(0,240,255,0.2), rgba(168,85,247,0.15))`
+                          : s === 'mlb'
+                            ? 'linear-gradient(135deg, rgba(255,138,0,0.22), rgba(255,215,0,0.10))'
+                            : `linear-gradient(135deg, rgba(0,240,255,0.2), rgba(168,85,247,0.15))`
                       : 'rgba(255,255,255,0.03)',
-                    color: sport === s ? (s === 'ufc' ? UFC_RED : s === 'nfl' || s === 'ncaaf' ? C.green : C.cyan) : C.textSecondary,
-                    borderRight: idx < 4 ? `1px solid ${C.border}` : 'none',
+                    color: sport === s ? (s === 'ufc' ? UFC_RED : s === 'nfl' || s === 'ncaaf' ? C.green : s === 'mlb' ? MLB_ORANGE : C.cyan) : C.textSecondary,
+                    borderRight: idx < 5 ? `1px solid ${C.border}` : 'none',
                   }}>{s.toUpperCase()}</button>
                 ))}
               </div>
@@ -3327,7 +3335,7 @@ export default function Home() {
               }}>⬡ Edge Bot</a>
             </div>
             <p style={{ color: C.textSecondary, fontSize: isMobile ? 11 : 12, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Athlete signal engine · Polymarket · DraftKings · source-aware edge board</span>
+              <span>Athlete signal engine · NBA/NFL/MLB/UFC · Polymarket · Kalshi · DraftKings</span>
               {lastUpdatedLabel && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
