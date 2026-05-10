@@ -63,6 +63,15 @@ interface PolyOdds {
   totalLine: number; overOdds: number; underOdds: number; hasTotalOdds: boolean
   polyWinnerUrl: string | null; polySpreadUrl: string | null; polyTotalUrl: string | null
   polyEventTitle: string | null; polyMatchScore: number
+  oddsUpdatedAt: string | null; polyFetchOk: boolean; usedGammaFallback: boolean
+  polyError: string | null; sourceStatus: 'matched' | 'unmatched' | 'no_events' | 'poly_error'
+}
+
+interface PolyEventsFetch {
+  events: any[]
+  fetchedAt: string
+  fetchOk: boolean
+  error: string | null
 }
 
 function normalize(s: string) {
@@ -108,21 +117,47 @@ function parseTotalLine(question: string): number {
   return m ? parseFloat(m[1]) : 0
 }
 
-async function fetchPolyEvents(sport: SportKey): Promise<any[]> {
+async function fetchPolyEvents(sport: SportKey): Promise<PolyEventsFetch> {
   const seen = new Set<string>()
   const events: any[] = []
+  const errors: string[] = []
   for (const slug of SPORTS[sport].polyTags) {
-    const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=${slug}&limit=200`, { next: { revalidate: 60 } })
-    if (!res.ok) continue
-    const data: any[] = await res.json()
-    for (const event of data) {
-      const id = String(event.id || event.slug || event.title || '')
-      if (!id || seen.has(id)) continue
-      seen.add(id)
-      events.push(event)
+    try {
+      const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=${slug}&limit=200`, { next: { revalidate: 60 } })
+      if (!res.ok) {
+        errors.push(`${slug}: ${res.status}`)
+        continue
+      }
+      const data: any[] = await res.json()
+      for (const event of data) {
+        const id = String(event.id || event.slug || event.title || '')
+        if (!id || seen.has(id)) continue
+        seen.add(id)
+        events.push(event)
+      }
+    } catch (err) {
+      errors.push(`${slug}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
-  return events
+  return {
+    events,
+    fetchedAt: new Date().toISOString(),
+    fetchOk: errors.length === 0,
+    error: errors.length ? errors.slice(0, 3).join('; ') : null,
+  }
+}
+
+function latestPolyUpdatedAt(event: any, markets: any[], fetchedAt: string): string {
+  const candidates = [event?.updatedAt, event?.updated_at, event?.createdAt, ...markets.flatMap(m => [m?.updatedAt, m?.updated_at, m?.createdAt])]
+  const timestamps = candidates
+    .map(v => (v ? new Date(v).getTime() : NaN))
+    .filter(v => Number.isFinite(v))
+  if (!timestamps.length) return fetchedAt
+  return new Date(Math.max(...timestamps)).toISOString()
+}
+
+function hasSpreadLanguage(question: string): boolean {
+  return /\b(spread|handicap|point\s+spread|against\s+the\s+spread|ats)\b/i.test(question)
 }
 
 function findBestPolyEvent(events: any[], awayAbbr: string, homeAbbr: string, awayName: string, homeName: string, sport: SportKey) {
@@ -152,14 +187,23 @@ async function getPolyOdds(
     totalLine: 0, overOdds: 0.5, underOdds: 0.5, hasTotalOdds: false,
     polyWinnerUrl: null, polySpreadUrl: null, polyTotalUrl: null,
     polyEventTitle: null, polyMatchScore: 0,
+    oddsUpdatedAt: null, polyFetchOk: false, usedGammaFallback: true,
+    polyError: null, sourceStatus: 'poly_error',
   }
 
   try {
-    const events = await fetchPolyEvents(sport)
-    if (!events.length) return defaultOdds
+    const poly = await fetchPolyEvents(sport)
+    const baseOdds: PolyOdds = {
+      ...defaultOdds,
+      oddsUpdatedAt: poly.fetchedAt,
+      polyFetchOk: poly.fetchOk,
+      polyError: poly.error,
+      sourceStatus: poly.fetchOk ? 'no_events' : 'poly_error',
+    }
+    if (!poly.events.length) return baseOdds
 
-    const { event, score } = findBestPolyEvent(events, awayAbbr, homeAbbr, awayName, homeName, sport)
-    if (!event) return defaultOdds
+    const { event, score } = findBestPolyEvent(poly.events, awayAbbr, homeAbbr, awayName, homeName, sport)
+    if (!event) return { ...baseOdds, sourceStatus: 'unmatched' }
 
     const markets: any[] = event.markets || []
     const notDerivative = (q: string) => !q.includes(':') && !q.includes('o/u') && !q.includes('over/under') && !q.includes('spread') && !q.includes('total')
@@ -174,7 +218,13 @@ async function getPolyOdds(
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     const spreadMarket = markets
-      .filter(m => /spread:/i.test(m.question || '') || /\([+-]?\d+\.?\d*\)/.test(m.question || ''))
+      .filter(m => {
+        const q = `${m.question || ''} ${m.title || ''}`
+        return hasSpreadLanguage(q) &&
+               teamMatchesKeywords(awayName, awayAbbr, q, sport) &&
+               teamMatchesKeywords(homeName, homeAbbr, q, sport) &&
+               /\([+-]?\d+\.?\d*\)/.test(q)
+      })
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     const totalMarket = markets
@@ -182,7 +232,13 @@ async function getPolyOdds(
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     const polySlug = (m: any) => m?.slug ? `https://polymarket.com/event/${m.slug}` : event?.slug ? `https://polymarket.com/event/${event.slug}` : null
-    const result = { ...defaultOdds, polyEventTitle: event.title || null, polyMatchScore: score }
+    const result: PolyOdds = {
+      ...baseOdds,
+      polyEventTitle: event.title || null,
+      polyMatchScore: score,
+      oddsUpdatedAt: latestPolyUpdatedAt(event, markets, poly.fetchedAt),
+      sourceStatus: 'matched',
+    }
 
     if (winnerMarket) {
       const outcomes = safeJson<string[]>(winnerMarket.outcomes, [])
@@ -235,10 +291,12 @@ async function getPolyOdds(
     result.polyWinnerUrl = polySlug(winnerMarket)
     result.polySpreadUrl = polySlug(spreadMarket)
     result.polyTotalUrl  = polySlug(totalMarket)
+    result.usedGammaFallback = !(result.hasWinnerOdds || result.hasSpreadOdds || result.hasTotalOdds)
+    if (result.usedGammaFallback) result.sourceStatus = 'unmatched'
 
     return result
-  } catch {
-    return defaultOdds
+  } catch (err) {
+    return { ...defaultOdds, polyError: err instanceof Error ? err.message : String(err) }
   }
 }
 

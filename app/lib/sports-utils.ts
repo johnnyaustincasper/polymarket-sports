@@ -24,6 +24,11 @@ export interface SportsGameLike {
   dkSpread?: number | null
   dkTotal?: number | null
   polyMatchScore?: number
+  oddsUpdatedAt?: string | null
+  polyFetchOk?: boolean
+  usedGammaFallback?: boolean
+  polyError?: string | null
+  sourceStatus?: 'matched' | 'unmatched' | 'no_events' | 'poly_error'
   sport?: SupportedSport
 }
 

@@ -22,6 +22,11 @@ interface Game {
   leagueLabel?: string
   polyEventTitle?: string | null
   polyMatchScore?: number
+  oddsUpdatedAt?: string | null
+  polyFetchOk?: boolean
+  usedGammaFallback?: boolean
+  polyError?: string | null
+  sourceStatus?: 'matched' | 'unmatched' | 'no_events' | 'poly_error'
 }
 interface OddsDrift {
   spreadDelta: number | null
