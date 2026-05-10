@@ -33,6 +33,8 @@ interface OddsDrift {
   totalDelta: number | null
   winnerHomeDelta: number | null
 }
+type MarketProvider = 'kalshi' | 'polymarket'
+
 interface BetLog {
   id: string; gameId: string; matchup: string; betType: string
   betLabel: string; odds: number; stake: number; result: 'pending' | 'win' | 'loss'
@@ -1259,6 +1261,114 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   const result: T[][] = []
   for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size))
   return result
+}
+
+
+function getPropStatValue(player: any, game: any, metric: string): number | null {
+  const stats = game?.stats || game || {}
+  const key = String(metric || '').toLowerCase()
+  if (key.includes('point')) return stats.points ?? stats.pts ?? null
+  if (key.includes('rebound')) return stats.rebounds ?? stats.totalRebounds ?? stats.reb ?? null
+  if (key.includes('assist')) return stats.assists ?? stats.ast ?? null
+  if (key.includes('hit') && !key.includes('rate')) return stats.hits ?? stats.hit ?? null
+  if (key.includes('home run') || key === 'hr' || key.includes('homer')) return stats.homeRuns ?? stats.hr ?? null
+  if (key.includes('total base')) return stats.totalBases ?? stats.tb ?? null
+  if (key.includes('strikeout') || key.includes('ks')) return stats.strikeouts ?? stats.pitcherStrikeouts ?? stats.so ?? null
+  if (key.includes('passing yards')) return stats.passingYards ?? null
+  if (key.includes('passing td')) return stats.passingTouchdowns ?? null
+  if (key.includes('rushing yards')) return stats.rushingYards ?? null
+  if (key.includes('receiving yards')) return stats.receivingYards ?? null
+  if (key.includes('reception')) return stats.receptions ?? null
+  return null
+}
+
+function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) {
+  const [props, setProps] = useState<PropsPanelData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    fetch(`/api/props?home=${game.homeTeam.abbr}&away=${game.awayTeam.abbr}&sport=${sport}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setProps(d) })
+      .catch(e => { if (!cancelled) setError(e?.message || 'props unavailable') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [game.homeTeam.abbr, game.awayTeam.abbr, game.id, sport])
+
+  const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => p.bestBet) : []
+  const best = players.slice().sort((a: any, b: any) => (b.bestBet?.valueScore || b.bestBet?.confidence || 0) - (a.bestBet?.valueScore || a.bestBet?.confidence || 0)).slice(0, 4)
+  const summary = props?.marketSummary
+  const playable = summary?.playableMatched ?? best.length
+
+  return (
+    <div style={{ borderRadius: 22, padding: 1, background: playable > 0 ? 'linear-gradient(135deg, rgba(0,255,136,0.42), rgba(0,240,255,0.16), rgba(255,255,255,0.06))' : 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))', boxShadow: playable > 0 ? '0 0 26px rgba(0,255,136,0.10)' : 'none' }}>
+      <div style={{ borderRadius: 21, padding: 16, background: 'rgba(3,7,18,0.96)', minHeight: 220 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
+          <div>
+            <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi Player Props</div>
+            <div style={{ color: C.textPrimary, fontSize: 15, fontWeight: 950, marginTop: 4 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
+            <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 2 }}>{game.status} · {sport.toUpperCase()}</div>
+          </div>
+          <span style={{ borderRadius: 999, padding: '4px 8px', background: playable > 0 ? 'rgba(0,255,136,0.11)' : 'rgba(255,255,255,0.05)', border: `1px solid ${playable > 0 ? 'rgba(0,255,136,0.32)' : C.border}`, color: playable > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            {loading ? 'Scanning' : playable > 0 ? `${playable} playable` : 'No play'}
+          </span>
+        </div>
+
+        {summary && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            {([['Scanned', summary.scanned], ['Game', summary.gameMatched], ['Executable', summary.executableMatched ?? summary.gameMatched], ['Playable', summary.playableMatched]] as const).map(([label, value]) => (
+              <span key={label} style={{ borderRadius: 999, padding: '3px 7px', background: 'rgba(255,255,255,0.035)', border: `1px solid ${C.border}`, color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900 }}>{label}: {value ?? 0}</span>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {[0, 1, 2].map(i => <div key={i} style={{ height: 54, borderRadius: 12, background: 'rgba(255,255,255,0.035)', animation: 'pulse 2s infinite' }} />)}
+          </div>
+        ) : error ? (
+          <p style={{ color: C.gold, fontSize: 11 }}>Kalshi scan unavailable: {error}</p>
+        ) : best.length > 0 ? (
+          <div style={{ display: 'grid', gap: 9 }}>
+            {best.map((p: any) => {
+              const bet = p.bestBet
+              return (
+                <div key={`${game.id}-${p.team}-${p.player}-${bet.metric}`} style={{ borderRadius: 14, padding: 11, background: 'rgba(0,255,136,0.045)', border: `1px solid ${bet.quality === 'bet' ? 'rgba(0,255,136,0.34)' : 'rgba(255,215,0,0.22)'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <div>
+                      <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{p.player}</div>
+                      <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.team} · {p.position || bet.metric}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ color: bet.quality === 'bet' ? C.green : C.gold, fontSize: 11, fontWeight: 950 }}>{bet.label}</div>
+                      <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>{bet.kalshi?.yesAsk ?? '—'}¢ ask · max {bet.maxYesPrice ?? '—'}¢</div>
+                    </div>
+                  </div>
+                  <div style={{ color: 'rgba(230,245,255,0.76)', fontSize: 10, lineHeight: 1.35, marginTop: 7 }}>
+                    {bet.hits}/{bet.games} hit · avg {Number(bet.avg ?? bet.last12Avg ?? 0).toFixed(1)} · {bet.risk || 'risk n/a'}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: 3, marginTop: 8 }}>
+                    {(p.last12 || []).slice(0, 12).map((g: any, idx: number) => {
+                      const val = getPropStatValue(p, g, bet.metric)
+                      const hit = val != null && val >= bet.line
+                      return <div key={`${g.eventId || idx}-${idx}`} style={{ borderRadius: 5, padding: '3px 1px', textAlign: 'center', background: hit ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.05)', color: hit ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900 }}>{val ?? '—'}</div>
+                    })}
+                  </div>
+                  {bet.kalshi?.url && <a href={bet.kalshi.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', marginTop: 8, color: C.cyan, fontSize: 9, fontWeight: 950, textDecoration: 'none' }}>Open Kalshi market ↗</a>}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>No playable executable Kalshi player props passed the gate for this game yet.</p>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function RowGroup({ games, cols, activeGame, panel, onLogBet, drift, onOpenIntel, onOpenAnalysis, bankroll }: {
@@ -2597,6 +2707,7 @@ export default function Home() {
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
   const [subtab, setSubtab] = useState<'slate' | 'trends'>('slate')
+  const [provider, setProvider] = useState<MarketProvider>('kalshi')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -2746,7 +2857,7 @@ export default function Home() {
               </h1>
               <div style={{ display: 'flex', borderRadius: 10, overflowX: 'auto', maxWidth: '100%', border: `1px solid ${C.border}` }}>
                 {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map((s, idx) => (
-                  <button key={s} onClick={() => { setSport(s); setSubtab('slate'); setLoading(true) }} style={{
+                  <button key={s} onClick={() => { setSport(s); setSubtab('slate'); setProvider('kalshi'); setLoading(true) }} style={{
                     padding: isMobile ? '7px 9px' : '5px 12px', fontSize: isMobile ? 10 : 11, fontWeight: 800, letterSpacing: '0.08em',
                     textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s',
                     background: sport === s
@@ -2821,7 +2932,29 @@ export default function Home() {
 
         <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedLabel={lastUpdatedLabel} feedAgeSec={lastUpdated ? secsSinceUpdate : 0} isMobile={isMobile} />
 
-        {sport === 'nba' && (
+        {sport !== 'ufc' && (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '0 0 12px', paddingBottom: 2 }}>
+            {([
+              ['kalshi', 'Kalshi'],
+              ['polymarket', 'Polymarket'],
+            ] as const).map(([id, label]) => {
+              const active = provider === id
+              const accent = id === 'kalshi' ? C.green : C.purple
+              return (
+                <button key={id} onClick={() => { setProvider(id); setSubtab('slate') }} style={{
+                  flexShrink: 0, minHeight: 40, minWidth: 122, borderRadius: 12, padding: '9px 16px',
+                  background: active ? `${accent}22` : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${active ? accent : C.border}`,
+                  color: active ? accent : C.textSecondary,
+                  fontSize: 12, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
+                  boxShadow: active ? `0 0 20px ${accent}1f` : 'none',
+                }}>{label}</button>
+              )
+            })}
+          </div>
+        )}
+
+        {sport === 'nba' && provider === 'polymarket' && (
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 0 16px', paddingBottom: 2 }}>
             {[
               ['slate', 'Slate'],
@@ -2842,7 +2975,7 @@ export default function Home() {
           </div>
         )}
 
-        {sport === 'nba' && subtab === 'trends' && (
+        {sport === 'nba' && provider === 'polymarket' && subtab === 'trends' && (
           <>
             <StreakPanel />
             <BettingTrendsPanel />
@@ -2851,7 +2984,7 @@ export default function Home() {
 
         {sport === 'ufc' && <UFCSection />}
 
-        {sport !== 'ufc' && (sport !== 'nba' || subtab === 'slate') && (loading ? (
+        {sport !== 'ufc' && (provider === 'kalshi' || sport !== 'nba' || subtab === 'slate') && (loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
               <div key={i} style={{ borderRadius: 24, height: 220, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />
@@ -2869,34 +3002,46 @@ export default function Home() {
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan, boxShadow: `0 0 8px ${C.cyan}`, display: 'inline-block', animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />
                   <span style={{ color: C.cyan, fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase' }}>Live Now</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {chunkArray(live, cols).map((row, i) => (
-                    <RowGroup key={i} games={row} cols={cols}
-                      activeGame={activeIntelGame || activeAnalysisGame}
-                      panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
-                      onLogBet={logBet} drift={oddsDrift}
-                      onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
-                      onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => prev?.id === g.id ? null : g); setActiveIntelGame(null) }} />
-                  ))}
-                </div>
+                {provider === 'kalshi' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
+                    {live.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {chunkArray(live, cols).map((row, i) => (
+                      <RowGroup key={i} games={row} cols={cols}
+                        activeGame={activeIntelGame || activeAnalysisGame}
+                        panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
+                        onLogBet={logBet} drift={oddsDrift}
+                        onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
+                        onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => prev?.id === g.id ? null : g); setActiveIntelGame(null) }} />
+                    ))}
+                  </div>
+                )}
               </section>
             )}
             {upcoming.length > 0 && (
               <section>
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Upcoming</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {chunkArray(upcoming, cols).map((row, i) => (
-                    <RowGroup key={i} games={row} cols={cols}
-                      activeGame={activeIntelGame || activeAnalysisGame}
-                      panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
-                      onLogBet={logBet} drift={oddsDrift}
-                      onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
-                      onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => prev?.id === g.id ? null : g); setActiveIntelGame(null) }} />
-                  ))}
-                </div>
+                {provider === 'kalshi' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
+                    {upcoming.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {chunkArray(upcoming, cols).map((row, i) => (
+                      <RowGroup key={i} games={row} cols={cols}
+                        activeGame={activeIntelGame || activeAnalysisGame}
+                        panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
+                        onLogBet={logBet} drift={oddsDrift}
+                        onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
+                        onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => prev?.id === g.id ? null : g); setActiveIntelGame(null) }} />
+                    ))}
+                  </div>
+                )}
               </section>
             )}
-            {final.length > 0 && (
+            {provider === 'polymarket' && final.length > 0 && (
               <section>
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Final</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
