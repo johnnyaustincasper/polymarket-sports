@@ -9,7 +9,7 @@ const KALSHI_API = 'https://external-api.kalshi.com/trade-api/v2'
 const XAI_MODEL = process.env.XAI_MODEL || 'grok-3-mini'
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 
-type Sport = 'nba' | 'nfl'
+type Sport = 'nba' | 'nfl' | 'mlb'
 type Trend = 'over' | 'under' | 'push'
 type PropQuality = 'bet' | 'lean' | 'watch' | 'skip'
 
@@ -106,6 +106,10 @@ const NFL_ABBR: Record<string, string> = {
   PHI: 'phi', PIT: 'pit', SEA: 'sea', SF: 'sf', TB: 'tb', TEN: 'ten', WAS: 'wsh', WSH: 'wsh',
 }
 
+const MLB_ABBR: Record<string, string> = {
+  ARI: 'ari', AZ: 'ari', ATL: 'atl', BAL: 'bal', BOS: 'bos', CHC: 'chc', CHW: 'chw', CWS: 'chw', CIN: 'cin', CLE: 'cle', COL: 'col', DET: 'det', HOU: 'hou', KC: 'kc', KCR: 'kc', LAA: 'laa', LAD: 'lad', MIA: 'mia', MIL: 'mil', MIN: 'min', NYM: 'nym', NYY: 'nyy', ATH: 'ath', OAK: 'ath', PHI: 'phi', PIT: 'pit', SD: 'sd', SDP: 'sd', SEA: 'sea', SF: 'sf', SFG: 'sf', STL: 'stl', TB: 'tb', TBR: 'tb', TEX: 'tex', TOR: 'tor', WSH: 'wsh', WAS: 'wsh',
+}
+
 function toNum(v: unknown): number {
   if (v === '-' || v == null) return 0
   const n = Number(String(v).replace(/,/g, ''))
@@ -141,7 +145,45 @@ function minimumPlayableLine(avgValue: number, metricLabel: string): number {
   if (metricLabel === 'rushing yards') return avgValue >= 80 ? 60 : avgValue >= 55 ? 40 : avgValue >= 35 ? 30 : 0
   if (metricLabel === 'receiving yards') return avgValue >= 80 ? 60 : avgValue >= 55 ? 40 : avgValue >= 35 ? 30 : 0
   if (metricLabel === 'receptions') return avgValue >= 7 ? 6 : avgValue >= 5 ? 4 : avgValue >= 3 ? 3 : 0
+  if (metricLabel === 'hits') return avgValue >= 1.7 ? 2 : 1
+  if (metricLabel === 'total bases') return avgValue >= 3.2 ? 3 : avgValue >= 2.2 ? 2 : 0
+  if (metricLabel === 'strikeouts') return avgValue >= 8 ? 7 : avgValue >= 6 ? 5 : avgValue >= 4 ? 3 : 0
   return 0
+}
+
+function findBinaryThreshold(values: number[], metricLabel: string): PropRecommendation | null {
+  if (values.length < 4) return null
+  const last12Avg = avg(values)
+  const hits = values.filter(v => v >= 1).length
+  const hitRate = hits / values.length
+  if (hitRate < 0.18) return null
+  const fairProbability = Math.max(0.05, Math.min(0.82, hitRate * 0.82 + (last12Avg >= 0.35 ? 0.04 : -0.03)))
+  const maxYesPrice = Math.max(5, Math.min(76, Math.round(fairProbability * 100 - 7)))
+  const confidence = Math.max(0, Math.min(88, Math.round(hitRate * 70 + Math.min(values.length, 12))))
+  const quality: PropQuality = hitRate >= 0.42 ? 'lean' : hitRate >= 0.25 ? 'watch' : 'skip'
+  if (quality === 'skip') return null
+  const risk: PropRecommendation['risk'] = hitRate >= 0.4 ? 'medium' : 'high'
+  const label = `1+ ${metricLabel}`
+  return {
+    metric: metricLabel,
+    label,
+    line: 1,
+    avg: Number(last12Avg.toFixed(1)),
+    last12Avg: Number(last12Avg.toFixed(1)),
+    hitRate: pct(hitRate),
+    hits,
+    games: values.length,
+    quality,
+    confidence,
+    valueScore: Math.round(hitRate * 70 + last12Avg * 8 - (risk === 'high' ? 8 : 0)),
+    maxYesPrice,
+    fairProbability: pct(fairProbability),
+    risk,
+    kalshi: null,
+    xaiBacked: false,
+    socialContext: [],
+    explanation: `${label} hit ${hits}/${values.length} with a ${last12Avg.toFixed(1)} last-12 avg. I would only bet YES at ${maxYesPrice}¢ or better. Risk: ${risk}.`,
+  }
 }
 
 function findBestThreshold(values: number[], thresholds: number[], metricLabel: string): PropRecommendation | null {
@@ -220,6 +262,15 @@ function metricPrefixes(metric: string, sport: Sport): string[] {
     if (metric === 'assists') return ['KXNBAAST']
     return []
   }
+  if (sport === 'mlb') {
+    if (metric === 'hits') return ['KXMLBHIT']
+    if (metric === 'home runs') return ['KXMLBHR']
+    if (metric === 'total bases') return ['KXMLBTB']
+    if (metric === 'strikeouts') return ['KXMLBKS']
+    // No live RBI-only Kalshi player-prop prefix was observed during implementation;
+    // do not guess one and accidentally match the wrong market family.
+    return []
+  }
   if (metric === 'passing yards') return ['KXNFLPASSYDS', 'KXNFLPASSYD', 'KXNFLPYDS']
   if (metric === 'passing TDs') return ['KXNFLPASSTD', 'KXNFLPTD']
   if (metric === 'rushing yards') return ['KXNFLRUSHYDS', 'KXNFLRUSHYD', 'KXNFLRYDS']
@@ -246,7 +297,7 @@ function marketContainsGame(market: any, home: string, away: string): boolean {
 async function fetchKalshiPropMarkets(sport: Sport, home: string, away: string): Promise<KalshiMarketScan> {
   const homeCode = kalshiTeamCode(home, sport)
   const awayCode = kalshiTeamCode(away, sport)
-  const prefix = sport === 'nba' ? 'KXNBA' : 'KXNFL'
+  const prefix = sport === 'nba' ? 'KXNBA' : sport === 'nfl' ? 'KXNFL' : 'KXMLB'
   try {
     const markets: any[] = []
     let cursor = ''
@@ -301,10 +352,14 @@ function metricAliases(metric: string): string[] {
   if (metric === 'rushing yards') return ['rushing yards', 'rush yards']
   if (metric === 'receiving yards') return ['receiving yards', 'rec yards']
   if (metric === 'receptions') return ['receptions', 'catches']
+  if (metric === 'hits') return ['hits']
+  if (metric === 'home runs') return ['home runs', 'homeruns', 'homers', 'hr']
+  if (metric === 'total bases') return ['total bases', 'bases']
+  if (metric === 'strikeouts') return ['strikeouts', 'ks', 'k s']
   return [metric]
 }
 
-function marketTextMatches(player: string, rec: PropRecommendation, m: any): boolean {
+function marketTextMatches(player: string, rec: PropRecommendation, m: any, sport: Sport): boolean {
   const raw = textHaystack(m)
   const hay = normalizeName(raw)
   const name = normalizeName(player)
@@ -320,6 +375,10 @@ function marketTextMatches(player: string, rec: PropRecommendation, m: any): boo
   ]
   if (!linePatterns.some(re => re.test(raw.toLowerCase()))) return false
 
+  // MLB Kalshi MVE titles commonly render as only "Player: N+" while the
+  // selected leg ticker carries the stat family (KXMLBHIT/KXMLBHR/KXMLBTB/KXMLBKS).
+  if (sport === 'mlb') return true
+
   const aliases = metricAliases(rec.metric).map(normalizeName)
   return aliases.some(alias => hay.includes(alias))
 }
@@ -331,7 +390,7 @@ function findKalshiMatch(player: string, rec: PropRecommendation, sport: Sport, 
     .map((m: any) => {
       const legs = m.mve_selected_legs || []
       const leg = legs.find((l: any) => prefixes.some(p => String(l.market_ticker || '').startsWith(p)))
-      if (!leg || !marketTextMatches(player, rec, m)) return null
+      if (!leg || !marketTextMatches(player, rec, m, sport)) return null
       return {
         ticker: String(m.ticker),
         title: String(m.title || m.yes_sub_title || ''),
@@ -469,6 +528,20 @@ function recommendNFL(logs: GameLogEntry[]): PropRecommendation[] {
   ].filter(Boolean) as PropRecommendation[]
 }
 
+function recommendMLB(logs: GameLogEntry[], position = ''): PropRecommendation[] {
+  const hits = logs.map(g => g.stats.hits)
+  const homeRuns = logs.map(g => g.stats.homeRuns)
+  const totalBases = logs.map(g => g.stats.totalBases)
+  const strikeouts = logs.map(g => g.stats.strikeouts)
+  const isPitcher = ['P', 'SP', 'RP'].includes(position.toUpperCase()) || logs.some(g => g.stats.innings > 0)
+  if (isPitcher) return [findBestThreshold(strikeouts, [3, 4, 5, 6, 7, 8, 9], 'strikeouts')].filter(Boolean) as PropRecommendation[]
+  return [
+    findBestThreshold(hits, [1, 2, 3], 'hits'),
+    findBinaryThreshold(homeRuns, 'home runs'),
+    findBestThreshold(totalBases, [2, 3, 4], 'total bases'),
+  ].filter(Boolean) as PropRecommendation[]
+}
+
 async function safeJson(url: string): Promise<any | null> {
   try {
     const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(9000), next: { revalidate: 900 } })
@@ -503,12 +576,16 @@ function parseGameLogs(data: any, sport: Sport): GameLogEntry[] {
       ? {
           minutes: stat('minutes'), points: stat('points'), rebounds: stat('totalRebounds'), assists: stat('assists'), blocks: stat('blocks'), steals: stat('steals'), turnovers: stat('turnovers'),
         }
-      : {
-          passingYards: stat('passingYards'), passingTouchdowns: stat('passingTouchdowns'), interceptions: stat('interceptions'), rushingYards: stat('rushingYards'), rushingTouchdowns: stat('rushingTouchdowns'), receptions: stat('receptions'), receivingTargets: stat('receivingTargets'), receivingYards: stat('receivingYards'), receivingTouchdowns: stat('receivingTouchdowns'),
-        }
+      : sport === 'nfl'
+        ? {
+            passingYards: stat('passingYards'), passingTouchdowns: stat('passingTouchdowns'), interceptions: stat('interceptions'), rushingYards: stat('rushingYards'), rushingTouchdowns: stat('rushingTouchdowns'), receptions: stat('receptions'), receivingTargets: stat('receivingTargets'), receivingYards: stat('receivingYards'), receivingTouchdowns: stat('receivingTouchdowns'),
+          }
+        : {
+            atBats: stat('atBats'), hits: stat('hits'), doubles: stat('doubles'), triples: stat('triples'), homeRuns: stat('homeRuns'), RBIs: stat('RBIs'), totalBases: stat('hits') + stat('doubles') + stat('triples') * 2 + stat('homeRuns') * 3, innings: stat('innings'), strikeouts: stat('strikeouts'),
+          }
     logs.push({
       eventId,
-      date: meta.date || '',
+      date: meta.date || meta.gameDate || '',
       opponent: meta.opponent?.abbreviation || meta.opponent?.displayName || '',
       isHome: Boolean(meta.atVs === 'vs' || meta.homeAway === 'home'),
       result: meta.gameResult || meta.score || '',
@@ -520,32 +597,34 @@ function parseGameLogs(data: any, sport: Sport): GameLogEntry[] {
 }
 
 async function fetchPlayerGameLogs(athleteId: string, sport: Sport): Promise<GameLogEntry[]> {
-  const leaguePath = sport === 'nba' ? 'basketball/nba' : 'football/nfl'
-  const season = sport === 'nba' ? '2026' : '2025'
+  const leaguePath = sport === 'nba' ? 'basketball/nba' : sport === 'nfl' ? 'football/nfl' : 'baseball/mlb'
+  const season = sport === 'nfl' ? '2025' : '2026'
   const data = await safeJson(`https://site.web.api.espn.com/apis/common/v3/sports/${leaguePath}/athletes/${athleteId}/gamelog?season=${season}`)
   return parseGameLogs(data, sport)
 }
 
 function flattenRoster(rawAthletes: any[], sport: Sport): any[] {
   if (sport === 'nba') return rawAthletes
+  if (sport === 'mlb') return rawAthletes.flatMap(g => g.items || [g]).filter((p: any) => p.id)
   const offense = rawAthletes.find(g => String(g.position).toLowerCase() === 'offense')
   return (offense?.items || rawAthletes.flatMap(g => g.items || [])).filter((p: any) => ['QB', 'RB', 'WR', 'TE'].includes(p.position?.abbreviation || ''))
 }
 
 function teamSlug(abbr: string, sport: Sport): string {
   const upper = abbr.toUpperCase()
-  return sport === 'nba' ? (ESPN_ABBR[upper] || upper.toLowerCase()) : (NFL_ABBR[upper] || upper.toLowerCase())
+  return sport === 'nba' ? (ESPN_ABBR[upper] || upper.toLowerCase()) : sport === 'nfl' ? (NFL_ABBR[upper] || upper.toLowerCase()) : (MLB_ABBR[upper] || upper.toLowerCase())
 }
 
 async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLine[]> {
-  const leaguePath = sport === 'nba' ? 'basketball/nba' : 'football/nfl'
+  const leaguePath = sport === 'nba' ? 'basketball/nba' : sport === 'nfl' ? 'football/nfl' : 'baseball/mlb'
   const rosterData = await safeJson(`https://site.api.espn.com/apis/site/v2/sports/${leaguePath}/teams/${teamSlug(abbr, sport)}/roster`)
-  const roster = flattenRoster(rosterData?.athletes || [], sport).slice(0, sport === 'nba' ? 14 : 22)
+  const roster = flattenRoster(rosterData?.athletes || [], sport).slice(0, sport === 'nba' ? 14 : sport === 'nfl' ? 22 : 34)
 
   const results = await Promise.all(roster.map(async (player: any) => {
     const logs = await fetchPlayerGameLogs(String(player.id), sport)
     if (logs.length < 4) return null
-    const recommendations = sport === 'nba' ? recommendNBA(logs) : recommendNFL(logs)
+    const position = player.position?.abbreviation || '?'
+    const recommendations = sport === 'nba' ? recommendNBA(logs) : sport === 'nfl' ? recommendNFL(logs) : recommendMLB(logs, position)
     const bestBet = [...recommendations].sort((a, b) => {
       const rank = (q: PropQuality) => q === 'bet' ? 3 : q === 'lean' ? 2 : q === 'watch' ? 1 : 0
       return rank(b.quality) - rank(a.quality) || b.valueScore - a.valueScore || b.confidence - a.confidence
@@ -559,7 +638,7 @@ async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLin
       return {
         player: player.displayName || player.fullName || 'Unknown',
         team: abbr.toUpperCase(),
-        position: player.position?.abbreviation || '?',
+        position,
         headshot: player.headshot?.href || undefined,
         sport,
         gamesPlayed: logs.length,
@@ -573,12 +652,29 @@ async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLin
       } as PlayerPropLine
     }
 
+    if (sport === 'mlb') {
+      const offensiveUsage = avg(logs.map(g => g.stats.atBats + g.stats.hits + g.stats.totalBases))
+      const pitcherUsage = avg(logs.map(g => g.stats.innings + g.stats.strikeouts))
+      if (Math.max(offensiveUsage, pitcherUsage) < 1 && !bestBet) return null
+      return {
+        player: player.displayName || player.fullName || 'Unknown',
+        team: abbr.toUpperCase(),
+        position,
+        headshot: player.headshot?.href || undefined,
+        sport,
+        gamesPlayed: logs.length,
+        last12: logs,
+        recommendations,
+        bestBet,
+      } as PlayerPropLine
+    }
+
     const usage = avg(logs.map(g => g.stats.passingYards + g.stats.rushingYards + g.stats.receivingYards + g.stats.receptions * 8))
     if (usage < 12 && !bestBet) return null
     return {
       player: player.displayName || player.fullName || 'Unknown',
       team: abbr.toUpperCase(),
-      position: player.position?.abbreviation || '?',
+      position,
       headshot: player.headshot?.href || undefined,
       sport,
       gamesPlayed: logs.length,
@@ -593,11 +689,16 @@ async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLin
     .slice(0, sport === 'nba' ? 8 : 10)
 }
 
+function parseSportParam(value: string | null): Sport {
+  const sport = (value || 'nba').toLowerCase()
+  return sport === 'nfl' || sport === 'mlb' ? sport : 'nba'
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const home = searchParams.get('home')?.toUpperCase()
   const away = searchParams.get('away')?.toUpperCase()
-  const sport = ((searchParams.get('sport') || 'nba').toLowerCase() === 'nfl' ? 'nfl' : 'nba') as Sport
+  const sport = parseSportParam(searchParams.get('sport'))
 
   if (!home || !away) return NextResponse.json({ error: 'Missing home or away param' }, { status: 400 })
 
