@@ -1507,18 +1507,20 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                                   <div style={{ borderRadius: 10, padding: '5px 8px', background: best.quality === 'bet' ? 'rgba(0,255,136,0.12)' : 'rgba(255,215,0,0.10)', border: `1px solid ${best.quality === 'bet' ? 'rgba(0,255,136,0.38)' : 'rgba(255,215,0,0.28)'}`, textAlign: 'right' }}>
                                     <div style={{ color: best.quality === 'bet' ? C.green : C.gold, fontSize: 11, fontWeight: 950 }}>{best.label}</div>
                                     <div style={{ color: C.textSecondary, fontSize: 8 }}>{best.hits}/{best.games} hit · C{best.confidence}</div>
-                                    <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900 }}>Max YES {best.maxYesPrice}¢ · {best.risk}</div>
+                                    <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900 }}>Kalshi ask {best.kalshi?.yesAsk ?? '—'}¢ · max {best.maxYesPrice}¢</div>
+                                    {best.xaiBacked && <div style={{ color: C.purple, fontSize: 8, fontWeight: 900 }}>XAI checked</div>}
                                   </div>
                                 )}
                               </div>
                               {best && <p style={{ color: 'rgba(230,245,255,0.78)', fontSize: 10, lineHeight: 1.45, marginBottom: 9 }}>{best.explanation}</p>}
+                              {best?.kalshi && <a href={best.kalshi.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', marginBottom: 9, color: C.cyan, fontSize: 9, fontWeight: 900, textDecoration: 'none' }}>Trade Kalshi market · {best.kalshi.isCombo ? 'combo' : 'single'} · {best.kalshi.yesAskSize} ask size ↗</a>}
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))', gap: 6, marginBottom: logs.length ? 9 : 0 }}>
                                 {(p.recommendations || []).slice(0, 4).map((r: any) => (
                                   <div key={`${p.player}-${r.label}`} style={{ background: 'rgba(0,0,0,0.22)', borderRadius: 8, padding: '6px 7px', textAlign: 'center', border: `1px solid ${r.quality === 'bet' ? 'rgba(0,255,136,0.22)' : 'rgba(255,255,255,0.06)'}` }}>
                                     <p style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>{r.metric}</p>
                                     <p style={{ color: r.quality === 'bet' ? C.green : C.textPrimary, fontWeight: 900, fontSize: 13, lineHeight: 1 }}>{r.line}+</p>
                                     <p style={{ color: C.textSecondary, fontSize: 8, marginTop: 3 }}>{r.hitRate}% · avg {r.avg}</p>
-                                    <p style={{ color: C.cyan, fontSize: 7, marginTop: 2, fontWeight: 900 }}>≤ {r.maxYesPrice}¢ YES</p>
+                                    <p style={{ color: C.cyan, fontSize: 7, marginTop: 2, fontWeight: 900 }}>Ask {r.kalshi?.yesAsk ?? '—'}¢ · ≤ {r.maxYesPrice}¢</p>
                                   </div>
                                 ))}
                               </div>
@@ -1835,10 +1837,11 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ color: p.bestBet?.quality === 'bet' ? C.green : C.gold, fontSize: 11, fontWeight: 950 }}>{p.bestBet?.label}</div>
-                      <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>Max YES {p.bestBet?.maxYesPrice}¢</div>
+                      <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>Kalshi ask {p.bestBet?.kalshi?.yesAsk ?? '—'}¢ · max {p.bestBet?.maxYesPrice}¢</div>
                     </div>
                   </div>
                   <div style={{ color: 'rgba(230,245,255,0.74)', fontSize: 10, lineHeight: 1.45, marginTop: 7 }}>{p.bestBet?.hits}/{p.bestBet?.games} hit · avg {p.bestBet?.avg}. {p.bestBet?.explanation}</div>
+                {p.bestBet?.kalshi && <a href={p.bestBet.kalshi.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', marginTop: 7, color: C.cyan, fontSize: 9, fontWeight: 900, textDecoration: 'none' }}>Trade Kalshi market · {p.bestBet.kalshi.isCombo ? 'combo' : 'single'} ↗</a>}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 4, marginTop: 8 }}>
                     {(p.last12 || []).slice(0, 12).map((g: any, idx: number) => {
                       const metric = p.bestBet?.metric

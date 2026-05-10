@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import OpenAI from 'openai'
 import { ESPN_ABBR } from '@/app/lib/nba-api'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const KALSHI_API = 'https://external-api.kalshi.com/trade-api/v2'
+const XAI_MODEL = process.env.XAI_MODEL || 'grok-3-mini'
+const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 
 type Sport = 'nba' | 'nfl'
 type Trend = 'over' | 'under' | 'push'
@@ -15,6 +20,18 @@ interface GameLogEntry {
   isHome: boolean
   result: string
   stats: Record<string, number>
+}
+
+interface KalshiMarketMatch {
+  ticker: string
+  title: string
+  url: string
+  legTicker: string
+  yesAsk: number
+  yesAskSize: number
+  yesBid: number
+  yesBidSize: number
+  isCombo: boolean
 }
 
 interface PropRecommendation {
@@ -32,6 +49,9 @@ interface PropRecommendation {
   maxYesPrice: number
   fairProbability: number
   risk: 'low' | 'medium' | 'high'
+  kalshi: KalshiMarketMatch | null
+  xaiBacked: boolean
+  socialContext: string[]
   explanation: string
 }
 
@@ -155,8 +175,152 @@ function findBestThreshold(values: number[], thresholds: number[], metricLabel: 
     maxYesPrice: best.maxYesPrice,
     fairProbability: pct(best.fairProbability),
     risk: best.risk,
+    kalshi: null,
+    xaiBacked: false,
+    socialContext: [],
     explanation: `${label} is the best value threshold: hit ${best.hits}/${values.length}, ${last12Avg.toFixed(1)} last-12 avg, ${best.margin >= 0 ? `${best.margin.toFixed(1)} cushion` : `${Math.abs(best.margin).toFixed(1)} below average`}. ${priceText}. Risk: ${best.risk}.`,
   }
+}
+
+
+function dollarsToCents(v: unknown): number {
+  const n = Number(v || 0)
+  return Number.isFinite(n) ? Math.round(n * 100) : 0
+}
+
+function sizeToNum(v: unknown): number {
+  const n = Number(v || 0)
+  return Number.isFinite(n) ? n : 0
+}
+
+function metricPrefixes(metric: string, sport: Sport): string[] {
+  if (sport === 'nba') {
+    if (metric === 'points') return ['KXNBAPTS']
+    if (metric === 'rebounds') return ['KXNBAREB']
+    if (metric === 'assists') return ['KXNBAAST']
+    return []
+  }
+  if (metric === 'passing yards') return ['KXNFLPASSYDS', 'KXNFLPASSYD', 'KXNFLPYDS']
+  if (metric === 'passing TDs') return ['KXNFLPASSTD', 'KXNFLPTD']
+  if (metric === 'rushing yards') return ['KXNFLRUSHYDS', 'KXNFLRUSHYD', 'KXNFLRYDS']
+  if (metric === 'receptions') return ['KXNFLREC']
+  if (metric === 'receiving yards') return ['KXNFLRECYDS', 'KXNFLRECYD']
+  return []
+}
+
+
+function kalshiTeamCode(abbr: string, sport: Sport): string {
+  const upper = abbr.toUpperCase()
+  if (sport === 'nba') {
+    const map: Record<string, string> = { NY: 'NYK', SA: 'SAS', GS: 'GSW', PHX: 'PHX', NO: 'NOP', BKN: 'BKN' }
+    return map[upper] || upper
+  }
+  return upper
+}
+
+function marketContainsGame(market: any, home: string, away: string): boolean {
+  const hay = `${market.title || ''} ${JSON.stringify(market.custom_strike || {})} ${JSON.stringify(market.mve_selected_legs || [])}`.toUpperCase()
+  return (hay.includes(`${away}${home}`) || hay.includes(`${home}${away}`) || (hay.includes(home) && hay.includes(away)))
+}
+
+async function fetchKalshiPropMarkets(sport: Sport, home: string, away: string): Promise<any[]> {
+  const homeCode = kalshiTeamCode(home, sport)
+  const awayCode = kalshiTeamCode(away, sport)
+  try {
+    const res = await fetch(`${KALSHI_API}/markets?status=open&limit=200`, { signal: AbortSignal.timeout(20000), next: { revalidate: 30 } })
+    if (!res.ok) return []
+    const data = await res.json()
+    const prefix = sport === 'nba' ? 'KXNBA' : 'KXNFL'
+    return (data.markets || []).filter((m: any) => {
+      const ask = dollarsToCents(m.yes_ask_dollars)
+      const askSize = sizeToNum(m.yes_ask_size_fp)
+      if (ask <= 0 || ask >= 100 || askSize <= 0 || !['open', 'active'].includes(String(m.status))) return false
+      const legs = m.mve_selected_legs || []
+      const hasSportLeg = legs.some((l: any) => String(l.market_ticker || l.event_ticker || '').startsWith(prefix))
+      return hasSportLeg && marketContainsGame(m, homeCode, awayCode)
+    })
+  } catch { return [] }
+}
+
+function findKalshiMatch(player: string, rec: PropRecommendation, sport: Sport, markets: any[]): KalshiMarketMatch | null {
+  const prefixes = metricPrefixes(rec.metric, sport)
+  if (!prefixes.length) return null
+  const playerPattern = new RegExp(`${player.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:\\s*${rec.line}\\+`, 'i')
+  const matches = markets
+    .map((m: any) => {
+      const legs = m.mve_selected_legs || []
+      const leg = legs.find((l: any) => prefixes.some(p => String(l.market_ticker || '').startsWith(p)) && playerPattern.test(m.title || m.yes_sub_title || ''))
+      if (!leg) return null
+      return {
+        ticker: String(m.ticker),
+        title: String(m.title || m.yes_sub_title || ''),
+        url: `https://kalshi.com/markets/${m.ticker}`,
+        legTicker: String(leg.market_ticker || ''),
+        yesAsk: dollarsToCents(m.yes_ask_dollars),
+        yesAskSize: sizeToNum(m.yes_ask_size_fp),
+        yesBid: dollarsToCents(m.yes_bid_dollars),
+        yesBidSize: sizeToNum(m.yes_bid_size_fp),
+        isCombo: (legs.length || 0) > 1,
+      } satisfies KalshiMarketMatch
+    })
+    .filter(Boolean) as KalshiMarketMatch[]
+  return matches.sort((a, b) => a.yesAsk - b.yesAsk || b.yesAskSize - a.yesAskSize)[0] || null
+}
+
+async function searchPlayerSocial(player: string, team: string): Promise<string[]> {
+  if (!BRAVE_KEY) return []
+  try {
+    const q = `site:x.com OR site:twitter.com ${player} ${team} injury minutes usage today`
+    const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=3&freshness=pd`, {
+      headers: { 'Accept': 'application/json', 'X-Subscription-Token': BRAVE_KEY },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.web?.results || []).slice(0, 3).map((r: any) => `${r.title || ''}: ${r.description || r.extra_snippets?.join(' ') || ''}`.slice(0, 240)).filter(Boolean)
+  } catch { return [] }
+}
+
+async function applyXaiPropIntel(players: PlayerPropLine[]): Promise<PlayerPropLine[]> {
+  if (!process.env.XAI_API_KEY) return players
+  const targets = players.filter(p => p.bestBet?.kalshi).slice(0, 6)
+  if (!targets.length) return players
+  const socialPairs = await Promise.all(targets.map(async p => ({ player: p.player, social: await searchPlayerSocial(p.player, p.team) })))
+  const socialByPlayer = new Map(socialPairs.map(s => [s.player, s.social]))
+  const compact = targets.map(p => ({
+    player: p.player, team: p.team, position: p.position, last12: p.last12.map(g => ({ date: g.date, opp: g.opponent, stats: g.stats })),
+    bet: p.bestBet, social: socialByPlayer.get(p.player) || [],
+  }))
+  try {
+    const client = new OpenAI({ apiKey: process.env.XAI_API_KEY, baseURL: process.env.XAI_BASE_URL || 'https://api.x.ai/v1' })
+    const response = await client.chat.completions.create({
+      model: XAI_MODEL,
+      temperature: 0.25,
+      max_tokens: 1400,
+      messages: [{ role: 'user', content: `You are a sharp Kalshi player-props analyst. Use the last-12 logs, Kalshi executable YES ask, and social/X snippets if relevant. Do not invent injuries or news. Return ONLY valid JSON array: [{"player":"","metric":"","line":0,"explanation":"one concise reason to bet or pass; include max YES price and current Kalshi ask","risk":"low|medium|high"}]. Data: ${JSON.stringify(compact)}` }],
+    })
+    const raw = response.choices?.[0]?.message?.content?.trim() || '[]'
+    const parsed = JSON.parse(raw.replace(/^```json\s*/i, '').replace(/```$/i, ''))
+    const byKey = new Map((Array.isArray(parsed) ? parsed : []).map((r: any) => [`${r.player}|${r.metric}|${r.line}`, r]))
+    return players.map(p => {
+      if (!p.bestBet) return p
+      const x = byKey.get(`${p.player}|${p.bestBet.metric}|${p.bestBet.line}`)
+      if (!x) return p
+      const bestBet = { ...p.bestBet, explanation: String(x.explanation || p.bestBet.explanation), risk: x.risk || p.bestBet.risk, xaiBacked: true, socialContext: socialByPlayer.get(p.player) || [] }
+      return { ...p, bestBet, recommendations: p.recommendations.map(r => r.metric === bestBet.metric && r.line === bestBet.line ? bestBet : r) }
+    })
+  } catch { return players }
+}
+
+function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: any[]): PlayerPropLine[] {
+  return players.map(p => {
+    const recommendations = p.recommendations
+      .map(r => ({ ...r, kalshi: findKalshiMatch(p.player, r, sport, markets) }))
+      .filter(r => r.kalshi && r.kalshi.yesAsk <= r.maxYesPrice)
+      .sort((a, b) => (b.valueScore - a.valueScore) || ((a.kalshi?.yesAsk || 99) - (b.kalshi?.yesAsk || 99)))
+    const bestBet = recommendations[0] || null
+    return { ...p, recommendations, bestBet }
+  }).filter(p => p.bestBet) as PlayerPropLine[]
 }
 
 function recommendNBA(logs: GameLogEntry[]): PropRecommendation[] {
@@ -320,7 +484,13 @@ export async function GET(req: NextRequest) {
   if (!home || !away) return NextResponse.json({ error: 'Missing home or away param' }, { status: 400 })
 
   try {
-    const [homeProps, awayProps] = await Promise.all([fetchTeamProps(home, sport), fetchTeamProps(away, sport)])
+    const [homeRaw, awayRaw, kalshiMarkets] = await Promise.all([fetchTeamProps(home, sport), fetchTeamProps(away, sport), fetchKalshiPropMarkets(sport, home, away)])
+    const gatedHome = gateToKalshi(homeRaw, sport, kalshiMarkets)
+    const gatedAway = gateToKalshi(awayRaw, sport, kalshiMarkets)
+    const withXai = await applyXaiPropIntel([...gatedAway, ...gatedHome])
+    const byPlayer = new Map(withXai.map(p => [`${p.team}|${p.player}`, p]))
+    const homeProps = gatedHome.map(p => byPlayer.get(`${p.team}|${p.player}`) || p).slice(0, sport === 'nba' ? 8 : 10)
+    const awayProps = gatedAway.map(p => byPlayer.get(`${p.team}|${p.player}`) || p).slice(0, sport === 'nba' ? 8 : 10)
     return NextResponse.json({ home: homeProps, away: awayProps, homeTeam: home, awayTeam: away, sport, available: homeProps.length > 0 || awayProps.length > 0 } satisfies PropsResponse)
   } catch (err) {
     console.error('Props error:', err)
