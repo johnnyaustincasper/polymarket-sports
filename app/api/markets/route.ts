@@ -108,6 +108,27 @@ function parseTotalLine(question: string): number {
   return m ? parseFloat(m[1]) : 0
 }
 
+function validProbability(v: unknown): number | null {
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 && n < 1 ? n : null
+}
+
+function isWinnerQuestion(q: string): boolean {
+  const n = normalize(q)
+  const derivativeWords = ['spread', 'total', 'over under', 'o u', '1h', 'first half', 'quarter', 'period', 'race to', 'score first', 'margin', 'player', 'points', 'rebounds', 'assists', 'combo']
+  return !q.includes(':') && !derivativeWords.some(w => n.includes(w))
+}
+
+function isSpreadQuestion(q: string): boolean {
+  const n = normalize(q)
+  return n.startsWith('spread') || /\([+-]?\d+\.?\d*\)/.test(q)
+}
+
+function isTotalQuestion(q: string): boolean {
+  const n = normalize(q)
+  return (n.includes('o u') || n.includes('over under') || n.includes('total')) && !n.includes('player')
+}
+
 async function fetchPolyEvents(sport: SportKey): Promise<any[]> {
   const seen = new Set<string>()
   const events: any[] = []
@@ -145,6 +166,7 @@ async function getPolyOdds(
   awayAbbr: string, homeAbbr: string,
   awayName: string, homeName: string,
   sport: SportKey,
+  polyEvents?: any[],
 ): Promise<PolyOdds> {
   const defaultOdds: PolyOdds = {
     homeWinOdds: 0.5, awayWinOdds: 0.5, hasWinnerOdds: false,
@@ -155,30 +177,38 @@ async function getPolyOdds(
   }
 
   try {
-    const events = await fetchPolyEvents(sport)
+    const events = polyEvents || await fetchPolyEvents(sport)
     if (!events.length) return defaultOdds
 
     const { event, score } = findBestPolyEvent(events, awayAbbr, homeAbbr, awayName, homeName, sport)
     if (!event) return defaultOdds
 
     const markets: any[] = event.markets || []
-    const notDerivative = (q: string) => !q.includes(':') && !q.includes('o/u') && !q.includes('over/under') && !q.includes('spread') && !q.includes('total')
 
     const winnerMarket = markets
       .filter(m => {
-        const q = (m.question || m.title || '').toLowerCase()
-        return notDerivative(q) &&
+        const q = String(m.question || m.title || '')
+        return isWinnerQuestion(q) &&
                teamMatchesKeywords(awayName, awayAbbr, q, sport) &&
                teamMatchesKeywords(homeName, homeAbbr, q, sport)
       })
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     const spreadMarket = markets
-      .filter(m => /spread:/i.test(m.question || '') || /\([+-]?\d+\.?\d*\)/.test(m.question || ''))
+      .filter(m => {
+        const q = String(m.question || '')
+        const outcomes = safeJson<string[]>(m.outcomes, [])
+        const hasTeamOutcome = outcomes.some(o => teamMatchesKeywords(awayName, awayAbbr, o, sport) || teamMatchesKeywords(homeName, homeAbbr, o, sport))
+        return isSpreadQuestion(q) && hasTeamOutcome
+      })
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     const totalMarket = markets
-      .filter(m => /o\/u|over\/under|total/i.test(m.question || ''))
+      .filter(m => {
+        const q = String(m.question || '')
+        const outcomes = safeJson<string[]>(m.outcomes, [])
+        return isTotalQuestion(q) && outcomes.some(o => /^over$/i.test(o)) && outcomes.some(o => /^under$/i.test(o))
+      })
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     const polySlug = (m: any) => m?.slug ? `https://polymarket.com/event/${m.slug}` : event?.slug ? `https://polymarket.com/event/${event.slug}` : null
@@ -195,9 +225,13 @@ async function getPolyOdds(
         if (homeIdx < 0 && awayIdx >= 0) homeIdx = awayIdx === 0 ? 1 : 0
         if (awayIdx < 0 && homeIdx >= 0) awayIdx = homeIdx === 0 ? 1 : 0
         if (homeIdx >= 0 && awayIdx >= 0) {
-          result.homeWinOdds = parseFloat(prices[homeIdx] || '0.5')
-          result.awayWinOdds = parseFloat(prices[awayIdx] || '0.5')
-          result.hasWinnerOdds = true
+          const homePrice = validProbability(prices[homeIdx])
+          const awayPrice = validProbability(prices[awayIdx])
+          if (homePrice !== null && awayPrice !== null) {
+            result.homeWinOdds = homePrice
+            result.awayWinOdds = awayPrice
+            result.hasWinnerOdds = true
+          }
         }
       }
     }
@@ -211,10 +245,14 @@ async function getPolyOdds(
         const homeKw = getKeywords(homeName, homeAbbr, sport)
         const favIsHome = homeKw.some(k => favTeamName.includes(k))
         result.spreadLine = favIsHome ? line : -line
-        result.spreadHomeOdds = parseFloat(prices[favIsHome ? 0 : 1] || '0.5')
-        result.spreadAwayOdds = parseFloat(prices[favIsHome ? 1 : 0] || '0.5')
-        result.spreadFavoriteTeam = favIsHome ? homeAbbr : awayAbbr
-        result.hasSpreadOdds = true
+        const homePrice = validProbability(prices[favIsHome ? 0 : 1])
+        const awayPrice = validProbability(prices[favIsHome ? 1 : 0])
+        if (homePrice !== null && awayPrice !== null) {
+          result.spreadHomeOdds = homePrice
+          result.spreadAwayOdds = awayPrice
+          result.spreadFavoriteTeam = favIsHome ? homeAbbr : awayAbbr
+          result.hasSpreadOdds = true
+        }
       }
     }
 
@@ -226,9 +264,13 @@ async function getPolyOdds(
         const overIdx = outcomes.findIndex(o => o.toLowerCase() === 'over')
         const underIdx = overIdx === 0 ? 1 : 0
         result.totalLine = line
-        result.overOdds = parseFloat(prices[overIdx >= 0 ? overIdx : 0] || '0.5')
-        result.underOdds = parseFloat(prices[underIdx] || '0.5')
-        result.hasTotalOdds = true
+        const overPrice = validProbability(prices[overIdx >= 0 ? overIdx : 0])
+        const underPrice = validProbability(prices[underIdx])
+        if (overPrice !== null && underPrice !== null) {
+          result.overOdds = overPrice
+          result.underOdds = underPrice
+          result.hasTotalOdds = true
+        }
       }
     }
 
@@ -254,11 +296,20 @@ export async function GET(req: Request) {
     const dateParam = searchParams.get('date') || toCST(new Date())
 
     const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/${SPORTS[sport].leaguePath}/scoreboard?dates=${dateParam}`
-    const espnRes = await fetch(espnUrl, { cache: 'no-store' })
+    const [espnRes, polyEvents] = await Promise.all([
+      fetch(espnUrl, { cache: 'no-store' }),
+      fetchPolyEvents(sport),
+    ])
     if (!espnRes.ok) return NextResponse.json([])
     const espnData = await espnRes.json()
     const events = espnData?.events || []
     if (!events.length) return NextResponse.json([])
+    const sourceHealth = {
+      espn: { ok: true, events: events.length, date: dateParam },
+      polymarket: { ok: polyEvents.length > 0, events: polyEvents.length, tags: SPORTS[sport].polyTags },
+      stale: polyEvents.length === 0,
+      checkedAt: new Date().toISOString(),
+    }
 
     const games = await Promise.all(events.map(async (event: any) => {
       const comp = event.competitions?.[0]
@@ -281,7 +332,7 @@ export async function GET(req: Request) {
       if (isLive) gameTime = statusDetail
       else if (isPost) gameTime = 'Final'
 
-      const odds = await getPolyOdds(awayAbbr, homeAbbr, awayName, homeName, sport)
+      const odds = await getPolyOdds(awayAbbr, homeAbbr, awayName, homeName, sport, polyEvents)
 
       const oddsArr: any[] = comp?.odds || []
       const dk = oddsArr.find((o: any) => o.provider?.name?.toLowerCase().includes('draft')) || oddsArr[0]
@@ -332,6 +383,11 @@ export async function GET(req: Request) {
         status: event.status?.type?.state || 'pre',
         dkSpread, dkTotal, dkDetails,
         hasDkOdds: dk != null,
+        sourceHealth: {
+          ...sourceHealth,
+          polymarket: { ...sourceHealth.polymarket, matched: odds.polyEventTitle != null, matchScore: odds.polyMatchScore },
+          stale: sourceHealth.stale || odds.polyEventTitle == null,
+        },
         ...odds,
       }
     }))
