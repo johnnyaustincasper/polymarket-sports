@@ -2273,6 +2273,51 @@ interface UFCIntel {
   watchFor: string         // key x-factor to watch
 }
 
+function buildFallbackUFCIntel(fight: UFCFight, reason = 'AI model unavailable'): UFCIntel {
+  const { fighterA: a, fighterB: b } = fight
+  const aWin = fight.polyOdds?.fighterAWin
+  const bWin = fight.polyOdds?.fighterBWin
+  const hasMarket = aWin != null && bWin != null
+  const leader = hasMarket ? (aWin! >= bWin! ? a : b) : a
+  const opponent = leader.id === a.id ? b : a
+  const marketGap = hasMarket ? Math.abs(aWin! - bWin!) : null
+  const marketText = hasMarket
+    ? `${leader.name} is the market lean at ${Math.round(Math.max(aWin!, bWin!) * 100)}% with a ${Math.round((marketGap || 0) * 100)} point gap.`
+    : 'No matched win market is available yet, so this is a conservative scouting shell.'
+  const finishLean = fight.polyOdds?.goDistanceOdds != null && fight.polyOdds.goDistanceOdds >= 0.55
+    ? 'Decision / goes distance'
+    : fight.polyOdds?.submissionOdds != null && fight.polyOdds.submissionOdds >= 0.45
+      ? 'Submission live, exact side unclear'
+      : fight.polyOdds?.koTkoOdds != null && fight.polyOdds.koTkoOdds >= 0.45
+        ? 'KO/TKO live, exact side unclear'
+        : 'Decision or late finish'
+
+  return {
+    verdict: `${marketText} ${reason}; showing market-and-card based intel instead of pretending to have a full stylistic model.`,
+    edge: leader.name,
+    striking: `${leader.name} gets the provisional edge only from available market/card context. Confirm tape notes for range, volume, durability, and defensive reactions before betting.`,
+    grappling: `Grappling edge is not safely inferable from the current feed. Check takedown offense/defense, get-up ability, submission threat, and cage control for ${leader.name} vs ${opponent.name}.`,
+    keyFactors: [
+      hasMarket ? `Market confidence: ${leader.name} over ${opponent.name}` : 'No reliable win-market match yet',
+      `${fight.weightClass}${fight.isTitleFight ? ' title fight' : ''} · ${fight.statusDetail || fight.status}`,
+      'Use this as a fallback read; verify style notes before sizing a position',
+    ],
+    prediction: finishLean,
+    watchFor: `If ${opponent.name} can flip the expected phase — pressure striker into grappling, deny takedowns, or force pace — the market lean can become fragile.`,
+  }
+}
+
+function parseUFCIntel(raw: string): UFCIntel | null {
+  if (!raw) return null
+  const cleaned = raw.replace(/```json|```/g, '').trim()
+  try { return JSON.parse(cleaned) } catch {}
+  const match = cleaned.match(/\{[\s\S]*\}/)
+  if (match) {
+    try { return JSON.parse(match[0]) } catch {}
+  }
+  return null
+}
+
 function UFCIntelPanel({ fight, onClose }: { fight: UFCFight; onClose: () => void }) {
   const [intel, setIntel] = useState<UFCIntel | null>(null)
   const [loading, setLoading] = useState(true)
@@ -2297,24 +2342,28 @@ IMPORTANT RULES:
 Return this exact JSON:
 {"verdict":"<1 sentence who wins and why — based on skills/style, not just record>","edge":"<${a.name} or ${b.name}>","striking":"<striking matchup: range, accuracy, volume, power, who controls distance and why>","grappling":"<grappling matchup: who shoots more, takedown defense, submission threat, cage control>","keyFactors":["<specific stylistic or physical factor>","<specific factor>","<specific factor>"],"prediction":"<method of victory e.g. Decision, KO R2, Sub R1>","watchFor":"<key x-factor, upset scenario, or stylistic wrinkle that could flip the fight>"}`
 
-    fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ context: prompt }),
-    })
-      .then(r => r.json())
-      .then(d => {
-        const raw = d.analysis || ''
-        try {
-          const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
-          setIntel(parsed)
-        } catch {
-          // fallback: put entire text in verdict
-          setIntel({ verdict: raw, edge: '', striking: '', grappling: '', keyFactors: [], prediction: '', watchFor: '' })
-        }
-        setLoading(false)
-      })
-      .catch(() => { setIntel(null); setLoading(false) })
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ context: prompt }),
+        })
+        const d = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(d?.error || `Analyze failed (${res.status})`)
+        const parsed = parseUFCIntel(d.analysis || '')
+        if (!parsed?.verdict) throw new Error('Analyze returned unusable UFC JSON')
+        if (!cancelled) setIntel(parsed)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'AI model unavailable'
+        const reason = msg.includes('XAI_API_KEY') ? 'AI key unavailable' : msg
+        if (!cancelled) setIntel(buildFallbackUFCIntel(fight, reason))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
   }, [fight])
 
   const renderStatBar = (label: string, valA: number | null, valB: number | null, suffix = '%') => {
