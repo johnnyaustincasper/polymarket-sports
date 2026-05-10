@@ -450,8 +450,10 @@ async function fetchUFCEvents(): Promise<UFCEvent[]> {
     }
   }
 
-  // Sort by date
-  events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  // Keep live/upcoming cards ahead of completed cards so the UFC panel opens
+  // on the next actionable event instead of yesterday's final card.
+  const statusRank: Record<UFCEvent['status'], number> = { in: 0, pre: 1, post: 2 }
+  events.sort((a, b) => (statusRank[a.status] - statusRank[b.status]) || (new Date(a.date).getTime() - new Date(b.date).getTime()))
 
   const result = events.slice(0, 6)
   _cache = { events: result, ts: Date.now() }
