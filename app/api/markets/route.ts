@@ -5,49 +5,55 @@ export const revalidate = 0
 
 const GAMMA_API = 'https://gamma-api.polymarket.com'
 
-// NBA team keyword map
-const ESPN_TO_POLY: Record<string, string[]> = {
-  ATL: ['hawks', 'atlanta'], BOS: ['celtics', 'boston'], BKN: ['nets', 'brooklyn'],
-  CHA: ['hornets', 'charlotte'], CHI: ['bulls', 'chicago'], CLE: ['cavaliers', 'cleveland'],
-  DAL: ['mavericks', 'dallas'], DEN: ['nuggets', 'denver'], DET: ['pistons', 'detroit'],
-  GSW: ['warriors', 'golden state'], GS: ['warriors', 'golden state'], HOU: ['rockets', 'houston'], IND: ['pacers', 'indiana'],
-  LAC: ['clippers', 'clippers'], LAL: ['lakers', 'los angeles lakers', 'lakers'],
-  MEM: ['grizzlies', 'memphis'], MIA: ['heat', 'miami'], MIL: ['bucks', 'milwaukee'],
-  MIN: ['timberwolves', 'minnesota'], NOP: ['pelicans', 'new orleans'], NO: ['pelicans', 'new orleans'],
-  NYK: ['knicks', 'new york'], NY: ['knicks', 'new york'], OKC: ['thunder', 'oklahoma city'],
-  ORL: ['magic', 'orlando'], PHI: ['76ers', 'philadelphia'],
-  PHX: ['suns', 'phoenix'], POR: ['trail blazers', 'portland'],
-  SAC: ['kings', 'sacramento'], SAS: ['spurs', 'san antonio'], SA: ['spurs', 'san antonio'],
-  TOR: ['raptors', 'toronto'], UTA: ['jazz', 'utah'], UTAH: ['jazz', 'utah'], WAS: ['wizards', 'washington'], WSH: ['wizards', 'washington'],
+type SportKey = 'nba' | 'ncaab' | 'nfl' | 'ncaaf'
+
+const SPORTS: Record<SportKey, {
+  leaguePath: string
+  polyTags: string[]
+  label: string
+  eventWords: string[]
+}> = {
+  nba:   { leaguePath: 'basketball/nba', label: 'NBA', eventWords: ['nba', 'basketball'] , polyTags: ['nba'] },
+  ncaab: { leaguePath: 'basketball/mens-college-basketball', label: 'NCAAB', eventWords: ['college basketball', 'march madness', 'ncaab'], polyTags: ['march-madness', 'ncaa-basketball', 'ncaab'] },
+  nfl:   { leaguePath: 'football/nfl', label: 'NFL', eventWords: ['nfl', 'football'], polyTags: ['nfl', 'football'] },
+  ncaaf: { leaguePath: 'football/college-football', label: 'NCAAF', eventWords: ['college football', 'ncaaf'], polyTags: ['college-football', 'ncaaf'] },
 }
 
-// NCAAB: ESPN abbr → Polymarket-friendly keywords (school name first)
-const NCAAB_TO_POLY: Record<string, string[]> = {
-  DUKE: ['duke'], UK: ['kentucky'], KU: ['kansas'], UNC: ['north carolina', 'unc'],
-  GONZ: ['gonzaga'], HOU: ['houston'], MARQ: ['marquette'], ARIZ: ['arizona'],
-  PURD: ['purdue'], CREI: ['creighton'], TENN: ['tennessee'], AUB: ['auburn'],
+// ESPN abbreviation/name → Polymarket-friendly terms. Keep team nicknames first.
+const PRO_TEAM_KEYWORDS: Record<string, string[]> = {
+  ATL: ['hawks', 'atlanta', 'falcons'], BOS: ['celtics', 'boston'], BKN: ['nets', 'brooklyn'],
+  CHA: ['hornets', 'charlotte', 'panthers'], CHI: ['bulls', 'chicago', 'bears'], CLE: ['cavaliers', 'cleveland', 'browns'],
+  DAL: ['mavericks', 'dallas', 'cowboys'], DEN: ['nuggets', 'denver', 'broncos'], DET: ['pistons', 'detroit', 'lions'],
+  GSW: ['warriors', 'golden state'], GS: ['warriors', 'golden state'], HOU: ['rockets', 'houston', 'texans'], IND: ['pacers', 'indiana', 'colts'],
+  LAC: ['clippers', 'chargers', 'los angeles chargers'], LAL: ['lakers', 'los angeles lakers'], LAR: ['rams', 'los angeles rams'],
+  LV: ['raiders', 'las vegas'], LA: ['rams', 'chargers', 'los angeles'],
+  MEM: ['grizzlies', 'memphis'], MIA: ['heat', 'miami', 'dolphins'], MIL: ['bucks', 'milwaukee'], MIN: ['timberwolves', 'minnesota', 'vikings'],
+  NOP: ['pelicans', 'new orleans'], NO: ['pelicans', 'saints', 'new orleans'], NYK: ['knicks', 'new york'], NY: ['knicks', 'giants', 'jets', 'new york'],
+  NYG: ['giants', 'new york giants'], NYJ: ['jets', 'new york jets'], OKC: ['thunder', 'oklahoma city'], ORL: ['magic', 'orlando'],
+  PHI: ['76ers', 'sixers', 'philadelphia', 'eagles'], PHX: ['suns', 'phoenix'], ARI: ['cardinals', 'arizona'], POR: ['trail blazers', 'portland'],
+  SAC: ['kings', 'sacramento'], SAS: ['spurs', 'san antonio'], SA: ['spurs', 'san antonio'], TOR: ['raptors', 'toronto'],
+  UTA: ['jazz', 'utah'], UTAH: ['jazz', 'utah'], WAS: ['wizards', 'washington', 'commanders'], WSH: ['wizards', 'washington', 'commanders'],
+  BAL: ['ravens', 'baltimore'], BUF: ['bills', 'buffalo'], CAR: ['panthers', 'carolina'], CIN: ['bengals', 'cincinnati'],
+  GB: ['packers', 'green bay'], JAX: ['jaguars', 'jacksonville'], KC: ['chiefs', 'kansas city'], NE: ['patriots', 'new england'],
+  PIT: ['steelers', 'pittsburgh'], SEA: ['seahawks', 'seattle'], SF: ['49ers', 'niners', 'san francisco'], TB: ['buccaneers', 'bucs', 'tampa bay'],
+  TEN: ['titans', 'tennessee'],
+}
+
+const COLLEGE_KEYWORDS: Record<string, string[]> = {
+  DUKE: ['duke'], UK: ['kentucky'], KU: ['kansas'], UNC: ['north carolina', 'unc'], GONZ: ['gonzaga'], HOU: ['houston'],
+  MARQ: ['marquette'], ARIZ: ['arizona'], PURD: ['purdue'], CREI: ['creighton'], TENN: ['tennessee'], AUB: ['auburn'],
   IOWA: ['iowa', 'iowa hawkeyes'], ISU: ['iowa state', 'iowa st'], MSST: ['michigan st', 'michigan state'],
-  BAMA: ['alabama'], UCLA: ['ucla'], MEM: ['memphis'], ARK: ['arkansas'],
-  KSU: ['kansas st', 'kansas state'], ILL: ['illinois'], TCU: ['tcu'],
-  MICH: ['michigan'], IND: ['indiana'], OSU: ['ohio st', 'ohio state'],
-  VCU: ['vcu'], SDST: ['san diego st', 'san diego state'], CONN: ['uconn', 'connecticut'],
-  FAU: ['fau', 'florida atlantic'], MIAMI: ['miami fl', 'miami (fl)'],
-  NW: ['northwestern'], USC: ['usc', 'southern california'],
-  PITT: ['pittsburgh', 'pitt'], LSU: ['lsu', 'louisiana state'],
-  MIZ: ['missouri'], WVU: ['west virginia'], VT: ['virginia tech'],
-  UVA: ['virginia'], ND: ['notre dame'], CLEM: ['clemson'],
-  GT: ['georgia tech'], SYR: ['syracuse'], LOU: ['louisville'],
-  WAKE: ['wake forest'], BC: ['boston college'], NCST: ['nc state'],
-  MD: ['maryland'], RUT: ['rutgers'], NEB: ['nebraska'], PSU: ['penn st', 'penn state'],
-  MINN: ['minnesota'], WIS: ['wisconsin'], NU: ['northwestern'],
-  BAYLOR: ['baylor'], TTU: ['texas tech'], WYO: ['wyoming'],
-  UTAH: ['utah'], COL: ['colorado'], ASU: ['arizona st', 'arizona state'],
-  ORE: ['oregon'], WASH: ['washington'], CAL: ['california'],
-  STAN: ['stanford'], UF: ['florida'], UGA: ['georgia'],
-  FSU: ['florida state'], OKST: ['oklahoma st', 'oklahoma state'],
-  OU: ['oklahoma'], TEX: ['texas'], TAMU: ['texas a&m'],
-  TCU2: ['tcu'], BRIG: ['byu', 'brigham young'], UNLV: ['unlv'],
-  SDSU: ['san diego st', 'san diego state'],
+  BAMA: ['alabama'], UCLA: ['ucla'], MEM: ['memphis'], ARK: ['arkansas'], KSU: ['kansas st', 'kansas state'],
+  ILL: ['illinois'], TCU: ['tcu'], MICH: ['michigan'], IND: ['indiana'], OSU: ['ohio st', 'ohio state'],
+  VCU: ['vcu'], SDST: ['san diego st', 'san diego state'], CONN: ['uconn', 'connecticut'], FAU: ['fau', 'florida atlantic'],
+  MIAMI: ['miami fl', 'miami (fl)', 'miami'], NW: ['northwestern'], USC: ['usc', 'southern california'], PITT: ['pittsburgh', 'pitt'],
+  LSU: ['lsu', 'louisiana state'], MIZ: ['missouri'], WVU: ['west virginia'], VT: ['virginia tech'], UVA: ['virginia'],
+  ND: ['notre dame'], CLEM: ['clemson'], GT: ['georgia tech'], SYR: ['syracuse'], LOU: ['louisville'], WAKE: ['wake forest'],
+  BC: ['boston college'], NCST: ['nc state'], MD: ['maryland'], RUT: ['rutgers'], NEB: ['nebraska'], PSU: ['penn st', 'penn state'],
+  MINN: ['minnesota'], WIS: ['wisconsin'], BAYLOR: ['baylor'], TTU: ['texas tech'], WYO: ['wyoming'], UTAH: ['utah'],
+  COL: ['colorado'], ASU: ['arizona st', 'arizona state'], ORE: ['oregon'], WASH: ['washington'], CAL: ['california'], STAN: ['stanford'],
+  UF: ['florida'], UGA: ['georgia'], FSU: ['florida state'], OKST: ['oklahoma st', 'oklahoma state'], OU: ['oklahoma'],
+  TEX: ['texas'], TAMU: ['texas a&m'], BYU: ['byu', 'brigham young'], UNLV: ['unlv'], SDSU: ['san diego st', 'san diego state'],
 }
 
 interface PolyOdds {
@@ -56,20 +62,40 @@ interface PolyOdds {
   spreadFavoriteTeam: string; hasSpreadOdds: boolean
   totalLine: number; overOdds: number; underOdds: number; hasTotalOdds: boolean
   polyWinnerUrl: string | null; polySpreadUrl: string | null; polyTotalUrl: string | null
+  polyEventTitle: string | null; polyMatchScore: number
 }
 
-function getKeywords(teamName: string, abbr: string, sport: string): string[] {
-  const map = sport === 'ncaab' ? NCAAB_TO_POLY : ESPN_TO_POLY
-  if (map[abbr]) return map[abbr]
-  // Fallback: use significant words from team name (skip common suffixes)
-  const skip = new Set(['state', 'university', 'college', 'the', 'of', 'at', 'a&m'])
-  const words = teamName.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !skip.has(w))
-  return words.length ? [words[0], teamName.toLowerCase()] : [teamName.toLowerCase()]
+function normalize(s: string) {
+  return s.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
-function teamMatchesKeywords(teamName: string, abbr: string, title: string, sport: string): boolean {
-  const t = title.toLowerCase()
-  return getKeywords(teamName, abbr, sport).some(k => t.includes(k))
+function getKeywords(teamName: string, abbr: string, sport: SportKey): string[] {
+  const map = sport === 'ncaab' || sport === 'ncaaf' ? COLLEGE_KEYWORDS : PRO_TEAM_KEYWORDS
+  const direct = map[abbr]
+  const name = normalize(teamName)
+  const skip = new Set(['state', 'university', 'college', 'the', 'of', 'at', 'and', 'fc'])
+  const words = name.split(/\s+/).filter(w => w.length > 2 && !skip.has(w))
+  const fallback = words.length ? [words[0], words.at(-1)!, name] : [name]
+  return Array.from(new Set([...(direct || []), ...fallback].map(normalize).filter(Boolean)))
+}
+
+function keywordScore(teamName: string, abbr: string, title: string, sport: SportKey): number {
+  const t = normalize(title)
+  let best = 0
+  for (const k of getKeywords(teamName, abbr, sport)) {
+    if (!k) continue
+    if (t === k) best = Math.max(best, 4)
+    else if (t.includes(k)) best = Math.max(best, k.length >= 6 ? 3 : 2)
+  }
+  return best
+}
+
+function teamMatchesKeywords(teamName: string, abbr: string, title: string, sport: SportKey): boolean {
+  return keywordScore(teamName, abbr, title, sport) >= 2
+}
+
+function safeJson<T>(raw: string | null | undefined, fallback: T): T {
+  try { return raw ? JSON.parse(raw) : fallback } catch { return fallback }
 }
 
 function parseSpreadLine(question: string): number {
@@ -78,92 +104,110 @@ function parseSpreadLine(question: string): number {
 }
 
 function parseTotalLine(question: string): number {
-  const m = question.match(/O\/U\s*(\d+\.?\d*)/)
+  const m = question.match(/(?:O\/U|over\/under|total)\s*(\d+\.?\d*)/i)
   return m ? parseFloat(m[1]) : 0
+}
+
+async function fetchPolyEvents(sport: SportKey): Promise<any[]> {
+  const seen = new Set<string>()
+  const events: any[] = []
+  for (const slug of SPORTS[sport].polyTags) {
+    const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=${slug}&limit=200`, { next: { revalidate: 60 } })
+    if (!res.ok) continue
+    const data: any[] = await res.json()
+    for (const event of data) {
+      const id = String(event.id || event.slug || event.title || '')
+      if (!id || seen.has(id)) continue
+      seen.add(id)
+      events.push(event)
+    }
+  }
+  return events
+}
+
+function findBestPolyEvent(events: any[], awayAbbr: string, homeAbbr: string, awayName: string, homeName: string, sport: SportKey) {
+  let best: any = null
+  let bestScore = 0
+  for (const event of events) {
+    const title = `${event.title || ''} ${event.slug || ''}`
+    const awayScore = keywordScore(awayName, awayAbbr, title, sport)
+    const homeScore = keywordScore(homeName, homeAbbr, title, sport)
+    const score = awayScore + homeScore + (SPORTS[sport].eventWords.some(w => normalize(title).includes(normalize(w))) ? 0.5 : 0)
+    if (awayScore >= 2 && homeScore >= 2 && score > bestScore) {
+      best = event
+      bestScore = score
+    }
+  }
+  return { event: best, score: bestScore }
 }
 
 async function getPolyOdds(
   awayAbbr: string, homeAbbr: string,
   awayName: string, homeName: string,
-  sport: string,
+  sport: SportKey,
 ): Promise<PolyOdds> {
   const defaultOdds: PolyOdds = {
     homeWinOdds: 0.5, awayWinOdds: 0.5, hasWinnerOdds: false,
     spreadLine: 0, spreadHomeOdds: 0.5, spreadAwayOdds: 0.5, spreadFavoriteTeam: '', hasSpreadOdds: false,
     totalLine: 0, overOdds: 0.5, underOdds: 0.5, hasTotalOdds: false,
     polyWinnerUrl: null, polySpreadUrl: null, polyTotalUrl: null,
+    polyEventTitle: null, polyMatchScore: 0,
   }
 
   try {
-    // For NCAAB try march-madness first, then ncaa-basketball fallback; NBA uses nba
-    let events: any[] = []
-    if (sport === 'ncaab') {
-      for (const slug of ['march-madness', 'ncaa-basketball', 'ncaab']) {
-        const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=${slug}&limit=200`, {
-          next: { revalidate: 60 }
-        })
-        if (res.ok) {
-          const data: any[] = await res.json()
-          if (data.length) { events = data; break }
-        }
-      }
-    } else {
-      const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=nba&limit=200`, {
-        next: { revalidate: 60 }
-      })
-      if (!res.ok) return defaultOdds
-      events = await res.json()
-    }
+    const events = await fetchPolyEvents(sport)
     if (!events.length) return defaultOdds
 
-    const event = events.find(e => {
-      const title = (e.title || '').toLowerCase()
-      return teamMatchesKeywords(awayName, awayAbbr, title, sport) &&
-             teamMatchesKeywords(homeName, homeAbbr, title, sport)
-    })
+    const { event, score } = findBestPolyEvent(events, awayAbbr, homeAbbr, awayName, homeName, sport)
     if (!event) return defaultOdds
 
     const markets: any[] = event.markets || []
+    const notDerivative = (q: string) => !q.includes(':') && !q.includes('o/u') && !q.includes('over/under') && !q.includes('spread') && !q.includes('total')
 
     const winnerMarket = markets
       .filter(m => {
-        const q = (m.question || '').toLowerCase()
-        return !q.includes(':') && !q.includes('o/u') &&
+        const q = (m.question || m.title || '').toLowerCase()
+        return notDerivative(q) &&
                teamMatchesKeywords(awayName, awayAbbr, q, sport) &&
                teamMatchesKeywords(homeName, homeAbbr, q, sport)
       })
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     const spreadMarket = markets
-      .filter(m => (m.question || '').toLowerCase().startsWith('spread:'))
+      .filter(m => /spread:/i.test(m.question || '') || /\([+-]?\d+\.?\d*\)/.test(m.question || ''))
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     const totalMarket = markets
-      .filter(m => (m.question || '').toLowerCase().includes('o/u'))
+      .filter(m => /o\/u|over\/under|total/i.test(m.question || ''))
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
-    const polySlug = (m: any) => m?.slug ? `https://polymarket.com/event/${m.slug}` : null
-    const result = { ...defaultOdds }
+    const polySlug = (m: any) => m?.slug ? `https://polymarket.com/event/${m.slug}` : event?.slug ? `https://polymarket.com/event/${event.slug}` : null
+    const result = { ...defaultOdds, polyEventTitle: event.title || null, polyMatchScore: score }
 
     if (winnerMarket) {
-      const outcomes: string[] = JSON.parse(winnerMarket.outcomes || '[]')
-      const prices: string[] = JSON.parse(winnerMarket.outcomePrices || '[]')
+      const outcomes = safeJson<string[]>(winnerMarket.outcomes, [])
+      const prices = safeJson<string[]>(winnerMarket.outcomePrices, [])
       if (outcomes.length === 2 && prices.length === 2) {
         const homeKw = getKeywords(homeName, homeAbbr, sport)
-        const homeIdx = outcomes.findIndex(o => homeKw.some(k => o.toLowerCase().includes(k)))
-        const awayIdx = homeIdx === 0 ? 1 : 0
-        result.homeWinOdds = parseFloat(prices[homeIdx >= 0 ? homeIdx : 1] || '0.5')
-        result.awayWinOdds = parseFloat(prices[awayIdx] || '0.5')
-        result.hasWinnerOdds = true
+        const awayKw = getKeywords(awayName, awayAbbr, sport)
+        let homeIdx = outcomes.findIndex(o => homeKw.some(k => normalize(o).includes(k)))
+        let awayIdx = outcomes.findIndex(o => awayKw.some(k => normalize(o).includes(k)))
+        if (homeIdx < 0 && awayIdx >= 0) homeIdx = awayIdx === 0 ? 1 : 0
+        if (awayIdx < 0 && homeIdx >= 0) awayIdx = homeIdx === 0 ? 1 : 0
+        if (homeIdx >= 0 && awayIdx >= 0) {
+          result.homeWinOdds = parseFloat(prices[homeIdx] || '0.5')
+          result.awayWinOdds = parseFloat(prices[awayIdx] || '0.5')
+          result.hasWinnerOdds = true
+        }
       }
     }
 
     if (spreadMarket) {
-      const outcomes: string[] = JSON.parse(spreadMarket.outcomes || '[]')
-      const prices: string[] = JSON.parse(spreadMarket.outcomePrices || '[]')
+      const outcomes = safeJson<string[]>(spreadMarket.outcomes, [])
+      const prices = safeJson<string[]>(spreadMarket.outcomePrices, [])
       const line = parseSpreadLine(spreadMarket.question || '')
       if (outcomes.length === 2 && prices.length === 2 && line !== 0) {
-        const favTeamName = (outcomes[0] || '').toLowerCase()
+        const favTeamName = normalize(outcomes[0] || '')
         const homeKw = getKeywords(homeName, homeAbbr, sport)
         const favIsHome = homeKw.some(k => favTeamName.includes(k))
         result.spreadLine = favIsHome ? line : -line
@@ -175,8 +219,8 @@ async function getPolyOdds(
     }
 
     if (totalMarket) {
-      const outcomes: string[] = JSON.parse(totalMarket.outcomes || '[]')
-      const prices: string[] = JSON.parse(totalMarket.outcomePrices || '[]')
+      const outcomes = safeJson<string[]>(totalMarket.outcomes, [])
+      const prices = safeJson<string[]>(totalMarket.outcomePrices, [])
       const line = parseTotalLine(totalMarket.question || '')
       if (outcomes.length === 2 && prices.length === 2 && line > 0) {
         const overIdx = outcomes.findIndex(o => o.toLowerCase() === 'over')
@@ -188,9 +232,9 @@ async function getPolyOdds(
       }
     }
 
-    result.polyWinnerUrl = polySlug(winnerMarket) || polySlug(event) || null
-    result.polySpreadUrl = polySlug(spreadMarket) || polySlug(event) || null
-    result.polyTotalUrl  = polySlug(totalMarket)  || polySlug(event) || null
+    result.polyWinnerUrl = polySlug(winnerMarket)
+    result.polySpreadUrl = polySlug(spreadMarket)
+    result.polyTotalUrl  = polySlug(totalMarket)
 
     return result
   } catch {
@@ -201,16 +245,17 @@ async function getPolyOdds(
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const sport = (searchParams.get('sport') || 'nba').toLowerCase()
+    const requestedSport = (searchParams.get('sport') || 'nba').toLowerCase() as SportKey
+    const sport: SportKey = requestedSport in SPORTS ? requestedSport : 'nba'
     const toCST = (d: Date) => {
       const cst = new Date(d.toLocaleString('en-US', { timeZone: 'America/Chicago' }))
       return cst.toISOString().slice(0, 10).replace(/-/g, '')
     }
     const dateParam = searchParams.get('date') || toCST(new Date())
 
-    const espnSport = sport === 'ncaab' ? 'mens-college-basketball' : 'nba'
-    const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/basketball/${espnSport}/scoreboard?dates=${dateParam}`
+    const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/${SPORTS[sport].leaguePath}/scoreboard?dates=${dateParam}`
     const espnRes = await fetch(espnUrl, { cache: 'no-store' })
+    if (!espnRes.ok) return NextResponse.json([])
     const espnData = await espnRes.json()
     const events = espnData?.events || []
     if (!events.length) return NextResponse.json([])
@@ -238,22 +283,23 @@ export async function GET(req: Request) {
 
       const odds = await getPolyOdds(awayAbbr, homeAbbr, awayName, homeName, sport)
 
-      const dk = comp?.odds?.[0]
+      const oddsArr: any[] = comp?.odds || []
+      const dk = oddsArr.find((o: any) => o.provider?.name?.toLowerCase().includes('draft')) || oddsArr[0]
       const dkSpread: number | null = dk?.spread ?? null
       const dkTotal: number | null = dk?.overUnder ?? null
       const dkDetails: string = dk?.details ?? ''
 
-      // For NCAAB use shortDisplayName (e.g. "Duke") as abbr display
-      const homeDisplayAbbr = sport === 'ncaab' ? (home?.team?.shortDisplayName || homeAbbr) : homeAbbr
-      const awayDisplayAbbr = sport === 'ncaab' ? (away?.team?.shortDisplayName || awayAbbr) : awayAbbr
+      const isCollege = sport === 'ncaab' || sport === 'ncaaf'
+      const homeDisplayAbbr = isCollege ? (home?.team?.shortDisplayName || homeAbbr) : homeAbbr
+      const awayDisplayAbbr = isCollege ? (away?.team?.shortDisplayName || awayAbbr) : awayAbbr
 
-      // NCAAB rank
       const homeRank = home?.curatedRank?.current || null
       const awayRank = away?.curatedRank?.current || null
 
       return {
         id: event.id,
         sport,
+        leagueLabel: SPORTS[sport].label,
         homeTeam: {
           name: homeName,
           abbr: homeDisplayAbbr,
@@ -277,7 +323,7 @@ export async function GET(req: Request) {
         gameTime,
         gameDate: event.date,
         venue: (() => {
-          const v = comp.venue
+          const v = comp?.venue
           if (!v) return null
           const city = v.address?.city || ''
           const state = v.address?.state || ''

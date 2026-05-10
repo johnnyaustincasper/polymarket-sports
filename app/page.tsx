@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface Team {
   name: string; abbr: string; record: string; score: string; logo: string; color: string
+  rank?: number | null; alternateColor?: string
 }
 interface Game {
   id: string
@@ -16,6 +17,10 @@ interface Game {
   dkSpread: number | null; dkTotal: number | null; dkDetails: string; hasDkOdds: boolean
   polyWinnerUrl: string | null; polySpreadUrl: string | null; polyTotalUrl: string | null
   venue: { name: string; location: string } | null
+  sport?: 'nba' | 'ncaab' | 'nfl' | 'ncaaf'
+  leagueLabel?: string
+  polyEventTitle?: string | null
+  polyMatchScore?: number
 }
 interface OddsDrift {
   spreadDelta: number | null
@@ -1709,7 +1714,11 @@ function RowGroup({ games, cols, activeGame, panel, onLogBet, drift, onOpenIntel
       </div>
       {hasActivePanel && panel === 'intel' && activeGame && (
         <div id="active-panel" style={{ width: '100%', marginTop: 8 }}>
-          <GameIntelPanel home={activeGame.homeTeam.abbr} away={activeGame.awayTeam.abbr} gameId={activeGame.id} venue={activeGame.venue} onClose={() => onOpenIntel(activeGame)} />
+          {activeGame.sport === 'nfl' || activeGame.sport === 'ncaaf' ? (
+            <FootballPrepPanel game={activeGame} onClose={() => onOpenIntel(activeGame)} />
+          ) : (
+            <GameIntelPanel home={activeGame.homeTeam.abbr} away={activeGame.awayTeam.abbr} gameId={activeGame.id} venue={activeGame.venue} onClose={() => onOpenIntel(activeGame)} />
+          )}
         </div>
       )}
       {hasActivePanel && panel === 'analysis' && activeGame && (
@@ -1718,6 +1727,62 @@ function RowGroup({ games, cols, activeGame, panel, onLogBet, drift, onOpenIntel
         </div>
       )}
     </div>
+  )
+}
+
+
+function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void }) {
+  const matched = game.hasWinnerOdds || game.hasSpreadOdds || game.hasTotalOdds
+  const spreadGap = game.hasDkOdds && game.hasSpreadOdds && game.dkSpread != null
+    ? Math.abs(game.spreadLine - game.dkSpread)
+    : null
+  const totalGap = game.hasDkOdds && game.hasTotalOdds && game.dkTotal != null
+    ? Math.abs(game.totalLine - game.dkTotal)
+    : null
+  const items = [
+    { label: 'Market match', value: matched ? 'Matched' : 'No Polymarket match yet', color: matched ? C.green : C.gold },
+    { label: 'Winner market', value: game.hasWinnerOdds ? `${game.awayTeam.abbr} ${(game.awayWinOdds * 100).toFixed(1)}¢ / ${game.homeTeam.abbr} ${(game.homeWinOdds * 100).toFixed(1)}¢` : 'Waiting', color: game.hasWinnerOdds ? C.cyan : C.textSecondary },
+    { label: 'Spread gap', value: spreadGap != null ? `${spreadGap.toFixed(1)} pts` : 'Need DK + Poly spread', color: spreadGap != null && spreadGap >= 1 ? C.green : C.textSecondary },
+    { label: 'Total gap', value: totalGap != null ? `${totalGap.toFixed(1)} pts` : 'Need DK + Poly total', color: totalGap != null && totalGap >= 1.5 ? C.green : C.textSecondary },
+  ]
+
+  return (
+    <GlowCard hot color={C.green}>
+      <div style={{ padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
+          <div>
+            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>NFL Prep Intel</div>
+            <h3 style={{ color: C.textPrimary, fontSize: 20, fontWeight: 950, margin: '4px 0 0', letterSpacing: '-0.03em' }}>
+              {game.awayTeam.abbr} @ {game.homeTeam.abbr}
+            </h3>
+            <p style={{ color: C.textSecondary, margin: '6px 0 0', fontSize: 12 }}>
+              {game.venue ? `${game.venue.name}${game.venue.location ? ` · ${game.venue.location}` : ''}` : 'Venue pending'}
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: C.card, border: `1px solid ${C.border}`, color: C.textSecondary, borderRadius: 10, width: 32, height: 32, cursor: 'pointer' }}>×</button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 16 }}>
+          {items.map(item => (
+            <div key={item.label} style={{ borderRadius: 14, padding: 12, background: 'rgba(0,255,136,0.045)', border: '1px solid rgba(0,255,136,0.14)' }}>
+              <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{item.label}</div>
+              <div style={{ color: item.color, fontSize: 14, fontWeight: 900, marginTop: 5 }}>{item.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ borderRadius: 16, padding: 14, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
+          <div style={{ color: C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>Next NFL utility layer</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+            {['QB status adjustment', 'Weather/wind scoring impact', 'Short-week travel penalty', 'Divisional rematch flag', 'CLOB freshness + liquidity'].map(x => (
+              <div key={x} style={{ color: 'rgba(230,245,255,0.78)', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 8px ${C.gold}` }} />{x}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </GlowCard>
   )
 }
 
@@ -2648,11 +2713,96 @@ function UFCSection() {
   )
 }
 
+
+function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel }: {
+  sport: 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'ufc'
+  games: Game[]
+  loading: boolean
+  lastUpdatedLabel: string | null
+}) {
+  if (sport === 'ufc') return null
+  const matched = games.filter(g => g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds).length
+  const live = games.filter(g => g.status === 'in').length
+  const pre = games.filter(g => g.status === 'pre').length
+  const matchRate = games.length ? Math.round((matched / games.length) * 100) : 0
+  const isFootball = sport === 'nfl' || sport === 'ncaaf'
+  const phase = isFootball && games.length === 0 ? 'OFFSEASON BUILD MODE' : live ? 'LIVE TRADING WINDOW' : pre ? 'PRE-GAME SCAN' : 'MARKET WATCH'
+  const accent = isFootball ? C.green : C.cyan
+  const prepItems = isFootball
+    ? ['QB status + injury delta', 'Weather / wind / dome flag', 'Short-week + travel spot', 'Spread-implied win prob', 'CLOB price freshness']
+    : ['Moneyline mismatch', 'Spread gap', 'Total gap', 'Last-60 window', 'Fatigue / lineup context']
+
+  return (
+    <section style={{
+      marginBottom: 22,
+      borderRadius: 28,
+      padding: 1,
+      background: `linear-gradient(135deg, ${accent}66, rgba(168,85,247,0.35), rgba(255,255,255,0.06))`,
+      boxShadow: `0 0 44px ${accent}18, 0 12px 70px rgba(0,0,0,0.55)`,
+    }}>
+      <div style={{
+        borderRadius: 27,
+        padding: '20px 22px',
+        background: 'linear-gradient(135deg, rgba(3,7,18,0.96), rgba(8,8,32,0.92) 48%, rgba(2,2,15,0.98))',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.35, background: `radial-gradient(circle at 15% 0%, ${accent}30, transparent 35%), radial-gradient(circle at 85% 20%, rgba(168,85,247,0.24), transparent 38%)` }} />
+        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)', gap: 18 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+              <span style={{ color: accent, fontSize: 10, fontWeight: 950, letterSpacing: '0.22em', textTransform: 'uppercase' }}>{phase}</span>
+              <span style={{ color: C.textSecondary, fontSize: 10 }}>Feed {loading ? 'syncing…' : lastUpdatedLabel ? `updated ${lastUpdatedLabel}` : 'standing by'}</span>
+            </div>
+            <h2 style={{ margin: 0, color: C.textPrimary, fontSize: 30, lineHeight: 1, letterSpacing: '-0.045em', fontWeight: 950 }}>
+              {isFootball ? 'Gridiron Market Command' : 'Market Command Center'}
+            </h2>
+            <p style={{ margin: '8px 0 0', color: 'rgba(168,240,255,0.58)', fontSize: 13, lineHeight: 1.55, maxWidth: 620 }}>
+              {isFootball
+                ? 'NFL prep layer is active: schedules, Polymarket matching, and the UI are ready for football slates. Next layer is QB/weather/injury intelligence.'
+                : 'Live slate view with market coverage, edge readiness, and execution timing in one command strip.'}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginTop: 18 }}>
+              {[
+                ['Games', games.length], ['Live', live], ['Pre', pre], ['Matched', `${matchRate}%`],
+              ].map(([label, value]) => (
+                <div key={label} style={{
+                  borderRadius: 16, padding: '12px 10px',
+                  background: 'rgba(255,255,255,0.035)', border: `1px solid ${C.border}`,
+                }}>
+                  <div style={{ color: accent, fontSize: 22, fontWeight: 950, letterSpacing: '-0.03em' }}>{value}</div>
+                  <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{
+            borderRadius: 20, padding: 16,
+            background: isFootball ? 'rgba(0,255,136,0.055)' : 'rgba(0,240,255,0.045)',
+            border: `1px solid ${isFootball ? 'rgba(0,255,136,0.22)' : C.border}`,
+          }}>
+            <div style={{ color: accent, fontSize: 11, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>
+              {isFootball ? 'NFL utility checklist' : 'Scanner utility'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {prepItems.map(item => (
+                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(230,245,255,0.82)', fontSize: 12 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: accent, boxShadow: `0 0 10px ${accent}` }} />
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
   const [date, setDate] = useState(today)
-  const [sport, setSport] = useState<'nba' | 'ncaab' | 'ufc'>('nba')
+  const [sport, setSport] = useState<'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'ufc'>('nba')
   const [mainTab, setMainTab] = useState<'games' | 'edge'>('games')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
@@ -2805,21 +2955,23 @@ export default function Home() {
                 fontSize: 18
               }}>◈</div>
               <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: C.textPrimary }}>
-                {sport === 'nba' ? 'NBA' : sport === 'ufc' ? 'UFC' : 'NCAAB'}
-                <span style={{ color: sport === 'ufc' ? UFC_RED : C.cyan, textShadow: `0 0 20px ${sport === 'ufc' ? UFC_RED : C.cyan}55` }}>{sport === 'ufc' ? ' FIGHTS' : ' LINES'}</span>
+                {sport === 'nba' ? 'NBA' : sport === 'ncaab' ? 'NCAAB' : sport === 'nfl' ? 'NFL' : sport === 'ncaaf' ? 'NCAAF' : 'UFC'}
+                <span style={{ color: sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : C.cyan, textShadow: `0 0 20px ${sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : C.cyan}55` }}>{sport === 'ufc' ? ' FIGHTS' : sport === 'nfl' || sport === 'ncaaf' ? ' GRIDIRON' : ' LINES'}</span>
               </h1>
               <div style={{ display: 'flex', borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-                {(['nba', 'ufc', 'ncaab'] as const).map((s, idx) => (
+                {(['nba', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map((s, idx) => (
                   <button key={s} onClick={() => { setSport(s); setLoading(true) }} style={{
                     padding: '5px 12px', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em',
                     textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s',
                     background: sport === s
                       ? s === 'ufc'
                         ? 'linear-gradient(135deg, rgba(232,0,45,0.25), rgba(168,0,20,0.15))'
-                        : `linear-gradient(135deg, rgba(0,240,255,0.2), rgba(168,85,247,0.15))`
+                        : s === 'nfl' || s === 'ncaaf'
+                          ? 'linear-gradient(135deg, rgba(0,255,136,0.18), rgba(255,215,0,0.10))'
+                          : `linear-gradient(135deg, rgba(0,240,255,0.2), rgba(168,85,247,0.15))`
                       : 'rgba(255,255,255,0.03)',
-                    color: sport === s ? (s === 'ufc' ? UFC_RED : C.cyan) : C.textSecondary,
-                    borderRight: idx < 2 ? `1px solid ${C.border}` : 'none',
+                    color: sport === s ? (s === 'ufc' ? UFC_RED : s === 'nfl' || s === 'ncaaf' ? C.green : C.cyan) : C.textSecondary,
+                    borderRight: idx < 4 ? `1px solid ${C.border}` : 'none',
                   }}>{s.toUpperCase()}</button>
                 ))}
               </div>
@@ -2833,7 +2985,7 @@ export default function Home() {
               }}>⬡ Edge Bot</a>
             </div>
             <p style={{ color: C.textSecondary, fontSize: 12, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Polymarket · DraftKings · Near-tip misprice board</span>
+              <span>Polymarket · DraftKings · NFL-ready misprice board</span>
               {lastUpdatedLabel && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -2879,6 +3031,8 @@ export default function Home() {
             }}>↻</button>
           </div>
         </div>
+
+        <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedLabel={lastUpdatedLabel} />
 
         {/* ── Main tab bar (NBA only) ── */}
         {sport === 'nba' && (
