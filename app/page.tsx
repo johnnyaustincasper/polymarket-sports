@@ -2606,6 +2606,7 @@ function UFCSection() {
   const [loading, setLoading] = useState(true)
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [activeFight, setActiveFight] = useState<UFCFight | null>(null)
+  const [fightFilter, setFightFilter] = useState<'all' | 'actionable' | 'markets'>('all')
   useEffect(() => {
     if (activeFight) {
       setTimeout(() => {
@@ -2651,6 +2652,11 @@ function UFCSection() {
   )
 
   const sortedFights = [...(selectedEvent.fights || [])].sort((a, b) => a.boutOrder - b.boutOrder)
+  const visibleFights = sortedFights.filter(f => {
+    if (fightFilter === 'actionable') return f.status !== 'post'
+    if (fightFilter === 'markets') return Boolean(f.polyOdds?.hasWinner || f.polyOdds?.hasTotal || f.polyOdds?.koTkoOdds !== null || f.polyOdds?.submissionOdds !== null || f.polyOdds?.goDistanceOdds !== null)
+    return true
+  })
 
   const formatEventDate = (iso: string) => {
     if (!iso) return ''
@@ -2683,7 +2689,7 @@ function UFCSection() {
           {events.length > 1 && (
             <select
               value={selectedEventId}
-              onChange={e => { setSelectedEventId(e.target.value); setActiveFight(null) }}
+              onChange={e => { setSelectedEventId(e.target.value); setActiveFight(null); setFightFilter('all') }}
               style={{
                 padding: '8px 14px', borderRadius: 12, fontSize: 12, fontWeight: 700,
                 background: 'rgba(0,0,0,0.4)', border: `1px solid ${C.border}`,
@@ -2724,14 +2730,30 @@ function UFCSection() {
         )
       })()}
 
+      {/* UFC fight filters */}
+      <div style={{ marginBottom: 14, display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+        {[
+          ['all', `Full card (${sortedFights.length})`],
+          ['actionable', `Actionable (${sortedFights.filter(f => f.status !== 'post').length})`],
+          ['markets', `Markets (${sortedFights.filter(f => f.polyOdds?.hasWinner || f.polyOdds?.hasTotal || f.polyOdds?.koTkoOdds !== null || f.polyOdds?.submissionOdds !== null || f.polyOdds?.goDistanceOdds !== null).length})`],
+        ].map(([key, label]) => {
+          const active = fightFilter === key
+          return (
+            <button key={key} onClick={() => { setFightFilter(key as 'all' | 'actionable' | 'markets'); setActiveFight(null) }} style={{ flexShrink: 0, minHeight: 38, borderRadius: 999, padding: '8px 13px', background: active ? 'rgba(232,0,45,0.16)' : 'rgba(255,255,255,0.04)', border: `1px solid ${active ? 'rgba(232,0,45,0.45)' : 'rgba(255,255,255,0.10)'}`, color: active ? UFC_RED : C.textSecondary, fontSize: 11, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+              {label}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Fight card */}
-      {sortedFights.length === 0 ? (
+      {visibleFights.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <p style={{ color: C.textSecondary, fontSize: 13 }}>Fight card details not yet available</p>
+          <p style={{ color: C.textSecondary, fontSize: 13 }}>No fights match this filter</p>
         </div>
       ) : (
         <div>
-          {chunkArray(sortedFights, cols).map((row, rowIdx) => {
+          {chunkArray(visibleFights, cols).map((row, rowIdx) => {
             const rowHasActive = activeFight != null && row.some(f => f.id === activeFight.id)
             return (
               <div key={rowIdx} style={{ marginBottom: 16 }}>
