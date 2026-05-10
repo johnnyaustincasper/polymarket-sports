@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { computeKelly, deriveGameEdge, getMarketReadiness, getMinutesToStart, lineGap as getLineGap, pct, totalGap as getTotalGap, type GameEdge, type SupportedSport } from './lib/sports-utils'
+import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
 
 interface Team {
   name: string; abbr: string; record: string; score: string; logo: string; color: string
@@ -124,198 +124,6 @@ interface FootballIntelData {
   flags: { dome: boolean; divisional: boolean; daysOut: number; spreadGap: number; totalGap: number }
   checklist: { label: string; value: string; status: 'ready' | 'watch' | 'edge' }[]
   warnings: string[]
-}
-
-interface LastMinuteBoardEntry {
-  game: Game
-  minutesToTip: number
-  recommendedSide: string
-  marketProb: number
-  ourProb: number
-  winEdge: number
-  lineGap: number
-  totalGap: number
-  score: number
-  confidence: number
-  quality: GameEdge<Game>['quality'] | 'signal'
-  matchQuality: number
-  warnings: string[]
-  reasons: string[]
-  actionLabel: string
-  actionTone: 'execute' | 'watch' | 'blocked'
-}
-
-function buildLastMinuteBoard(games: Game[]): LastMinuteBoardEntry[] {
-  return games
-    .filter(game => game.status === 'pre')
-    .map((game) => {
-      const minutesToTip = getMinutesToStart(game.gameDate)
-      if (minutesToTip < 0 || minutesToTip > 60) return null
-
-      const winEdge = deriveGameEdge(game)
-      const lineGap = getLineGap(game)
-      const totalGap = getTotalGap(game)
-      const readiness = getMarketReadiness(game)
-
-      const reasons: string[] = []
-      if (winEdge) reasons.push(`${winEdge.team} ML +${Math.round(winEdge.edgeScore * 100)}% edge`)
-      if (lineGap >= 1.5) reasons.push(`Spread ${lineGap.toFixed(1)} pts off DK`)
-      if (totalGap >= 2) reasons.push(`Total ${totalGap.toFixed(1)} pts off DK`)
-      if (minutesToTip <= 20) reasons.push('Execution window open now')
-      if (readiness.warnings.length) reasons.push(readiness.warnings[0])
-
-      const confidence = winEdge?.confidence || Math.min(72, 52 + lineGap * 5 + totalGap * 2 + (readiness.matchQuality >= 55 ? 6 : 0))
-      const hasTradeLink = Boolean(game.polyWinnerUrl || game.polySpreadUrl || game.polyTotalUrl)
-      const marketReady = readiness.matched && readiness.matchQuality >= 55 && !readiness.stale && hasTradeLink
-      const playableQuality = winEdge?.quality === 'play' || winEdge?.quality === 'premium' || lineGap >= 1.5 || totalGap >= 2
-      const actionTone: LastMinuteBoardEntry['actionTone'] = marketReady && playableQuality ? 'execute' : marketReady ? 'watch' : 'blocked'
-      const actionLabel = actionTone === 'execute'
-        ? 'Executable link live'
-        : actionTone === 'watch'
-          ? 'Watch — confirm price'
-          : 'Watch only — market not ready'
-      const score =
-        (winEdge?.edgeScore || 0) * 100 +
-        lineGap * 4 +
-        totalGap * 2 +
-        Math.max(0, (60 - minutesToTip) / 12)
-
-      if (!reasons.length) return null
-
-      return {
-        game,
-        minutesToTip,
-        recommendedSide: winEdge?.team || (game.spreadFavoriteTeam || game.homeTeam.abbr),
-        marketProb: winEdge?.marketProb || 0.5,
-        ourProb: winEdge?.ourProb || 0.5,
-        winEdge: winEdge?.edgeScore || 0,
-        lineGap,
-        totalGap,
-        score,
-        confidence,
-        quality: winEdge?.quality || 'signal',
-        matchQuality: readiness.matchQuality,
-        warnings: readiness.warnings,
-        reasons,
-        actionLabel,
-        actionTone,
-      }
-    })
-    .filter((entry): entry is LastMinuteBoardEntry => entry !== null)
-    .sort((a, b) => b.score - a.score)
-}
-
-function LastSixtyBoard({ games }: { games: Game[] }) {
-  const board = buildLastMinuteBoard(games)
-
-  if (!board.length) return null
-
-  return (
-    <section className="mb-8">
-      <div style={{
-        borderRadius: 20,
-        padding: '20px 24px',
-        background: 'linear-gradient(135deg, rgba(255,68,102,0.08), rgba(0,240,255,0.05), rgba(168,85,247,0.06))',
-        border: '1px solid rgba(255,68,102,0.22)',
-        boxShadow: '0 0 30px rgba(255,68,102,0.08), 0 4px 40px rgba(0,0,0,0.45)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 14 }}>⏳</span>
-          <span style={{ color: C.red, fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Last 60 Minutes Before Tip</span>
-          <span style={{ background: 'rgba(255,68,102,0.12)', border: '1px solid rgba(255,68,102,0.35)', borderRadius: 8, padding: '2px 8px', color: '#ff8aa0', fontSize: 9, fontWeight: 800 }}>
-            {board.length} live setups
-          </span>
-          <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(255,68,102,0.3), transparent)' }} />
-        </div>
-
-        <p style={{ color: C.textSecondary, fontSize: 11, marginBottom: 14 }}>
-          Small board, just the near-tip windows with real misprice signals. This is the playoff execution layer, not the whole slate.
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
-          {board.map((entry) => (
-            <div
-              key={entry.game.id}
-              style={{
-                borderRadius: 16,
-                padding: '14px 16px',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,68,102,0.16)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-                <div>
-                  <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 800 }}>{entry.game.awayTeam.abbr} @ {entry.game.homeTeam.abbr}</p>
-                  <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 2 }}>{entry.minutesToTip <= 0 ? 'Tipping now' : `${entry.minutesToTip}m to tip`}</p>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
-                  <div style={{
-                    background: entry.minutesToTip <= 20 ? 'rgba(255,68,102,0.16)' : 'rgba(255,215,0,0.12)',
-                    border: `1px solid ${entry.minutesToTip <= 20 ? 'rgba(255,68,102,0.45)' : 'rgba(255,215,0,0.35)'}`,
-                    borderRadius: 10,
-                    padding: '4px 8px',
-                  }}>
-                    <span style={{ color: entry.minutesToTip <= 20 ? C.red : C.gold, fontSize: 10, fontWeight: 900 }}>
-                      {entry.recommendedSide}
-                    </span>
-                    <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, marginLeft: 6 }}>C{entry.confidence}</span>
-                  </div>
-                  <span style={{
-                    background: entry.actionTone === 'execute' ? 'rgba(0,255,136,0.12)' : entry.actionTone === 'watch' ? 'rgba(255,215,0,0.10)' : 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${entry.actionTone === 'execute' ? 'rgba(0,255,136,0.35)' : entry.actionTone === 'watch' ? 'rgba(255,215,0,0.30)' : 'rgba(255,255,255,0.12)'}`,
-                    borderRadius: 999, padding: '3px 8px',
-                    color: entry.actionTone === 'execute' ? C.green : entry.actionTone === 'watch' ? C.gold : C.textSecondary,
-                    fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase'
-                  }}>{entry.actionLabel}</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                <span style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 8, padding: '3px 8px', color: entry.confidence >= 68 ? C.green : C.gold, fontSize: 10, fontWeight: 900 }}>
-                  {entry.quality.toUpperCase()} · {entry.confidence}%
-                </span>
-                <span style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${entry.matchQuality >= 55 ? C.border : 'rgba(255,215,0,0.35)'}`, borderRadius: 8, padding: '3px 8px', color: entry.matchQuality >= 55 ? C.textSecondary : C.gold, fontSize: 10, fontWeight: 800 }}>
-                  Match {entry.matchQuality}%
-                </span>
-                {entry.winEdge > 0.02 && (
-                  <span style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.25)', borderRadius: 8, padding: '3px 8px', color: C.green, fontSize: 10, fontWeight: 800 }}>
-                    ML +{Math.round(entry.winEdge * 100)}%
-                  </span>
-                )}
-                {entry.lineGap >= 1.5 && (
-                  <span style={{ background: 'rgba(0,240,255,0.08)', border: `1px solid ${C.border}`, borderRadius: 8, padding: '3px 8px', color: C.cyan, fontSize: 10, fontWeight: 800 }}>
-                    Spread {entry.lineGap.toFixed(1)}
-                  </span>
-                )}
-                {entry.totalGap >= 2 && (
-                  <span style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 8, padding: '3px 8px', color: C.purple, fontSize: 10, fontWeight: 800 }}>
-                    Total {entry.totalGap.toFixed(1)}
-                  </span>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                {entry.reasons.slice(0, 3).map((reason, idx) => (
-                  <p key={idx} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, opacity: 0.88 }}>
-                    ◆ {reason}
-                  </p>
-                ))}
-              </div>
-
-              {entry.winEdge > 0.02 && (
-                <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 10 }}>
-                  Model {Math.round(entry.ourProb * 100)}% vs market {Math.round(entry.marketProb * 100)}%
-                </p>
-              )}
-              {entry.warnings.length > 0 && (
-                <p style={{ color: C.gold, fontSize: 10, marginTop: 8 }}>⚠ {entry.warnings.join(' · ')}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
 }
 
 // ─── UFC accent ───────────────────────────────────────────────────────────────
@@ -2788,6 +2596,7 @@ export default function Home() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
+  const [subtab, setSubtab] = useState<'slate' | 'trends'>('slate')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -2937,7 +2746,7 @@ export default function Home() {
               </h1>
               <div style={{ display: 'flex', borderRadius: 10, overflowX: 'auto', maxWidth: '100%', border: `1px solid ${C.border}` }}>
                 {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map((s, idx) => (
-                  <button key={s} onClick={() => { setSport(s); setLoading(true) }} style={{
+                  <button key={s} onClick={() => { setSport(s); setSubtab('slate'); setLoading(true) }} style={{
                     padding: isMobile ? '7px 9px' : '5px 12px', fontSize: isMobile ? 10 : 11, fontWeight: 800, letterSpacing: '0.08em',
                     textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s',
                     background: sport === s
@@ -3012,17 +2821,37 @@ export default function Home() {
 
         <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedLabel={lastUpdatedLabel} feedAgeSec={lastUpdated ? secsSinceUpdate : 0} isMobile={isMobile} />
 
+        {sport === 'nba' && (
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 0 16px', paddingBottom: 2 }}>
+            {[
+              ['slate', 'Slate'],
+              ['trends', 'Trends + Context'],
+            ].map(([id, label]) => {
+              const active = subtab === id
+              return (
+                <button key={id} onClick={() => setSubtab(id as 'slate' | 'trends')} style={{
+                  flexShrink: 0, minHeight: 38, borderRadius: 999, padding: '8px 14px',
+                  background: active ? 'rgba(0,240,255,0.14)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${active ? C.borderHot : C.border}`,
+                  color: active ? C.cyan : C.textSecondary,
+                  fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer',
+                  boxShadow: active ? `0 0 18px ${C.cyan}18` : 'none',
+                }}>{label}</button>
+              )
+            })}
+          </div>
+        )}
 
-
-        {sport === 'nba' && <LastSixtyBoard games={upcoming} />}
-
-        {sport === 'nba' && <StreakPanel />}
-
-        {sport === 'nba' && <BettingTrendsPanel />}
+        {sport === 'nba' && subtab === 'trends' && (
+          <>
+            <StreakPanel />
+            <BettingTrendsPanel />
+          </>
+        )}
 
         {sport === 'ufc' && <UFCSection />}
 
-        {sport !== 'ufc' && (loading ? (
+        {sport !== 'ufc' && (sport !== 'nba' || subtab === 'slate') && (loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
               <div key={i} style={{ borderRadius: 24, height: 220, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />
