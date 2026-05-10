@@ -1492,7 +1492,7 @@ function GameIntelPanel({ home, away, gameId, venue, onClose }: { home: string; 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {players.map((p: any, i: number) => (
                           <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 {p.headshot && <img src={p.headshot} alt={p.player} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.border}` }} />}
                                 <div>
@@ -2466,9 +2466,23 @@ function getBoutLabel(fight: UFCFight, totalFights: number): string {
   return 'PRELIM'
 }
 
+function pctLabel(v: number | null | undefined) {
+  return v == null ? '—' : `${Math.round(v * 100)}%`
+}
+
+function marketLean(fight: UFCFight) {
+  const a = fight.polyOdds?.fighterAWin
+  const b = fight.polyOdds?.fighterBWin
+  if (a == null || b == null) return null
+  const leader = a >= b ? fight.fighterA.name : fight.fighterB.name
+  const edge = Math.abs(a - b)
+  return { leader, edge, label: edge >= 0.3 ? 'Strong market lean' : edge >= 0.14 ? 'Clear market lean' : 'Tight market' }
+}
+
 function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
   fight: UFCFight; totalFights: number; onOpenIntel: () => void; isActive: boolean
 }) {
+  const isMobile = useIsMobile()
   const boutLabel = getBoutLabel(fight, totalFights)
   const boutColor = fight.isMainEvent ? UFC_RED : fight.boutOrder === 2 ? C.gold : fight.boutOrder <= Math.ceil(totalFights / 2) ? C.purple : C.textSecondary
   const statusColor = fight.status === 'in' ? C.green : fight.status === 'post' ? C.textSecondary : C.gold
@@ -2490,7 +2504,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
       <div style={{ flex: 1, textAlign: side === 'left' ? 'left' : 'right', opacity: isLoser ? 0.55 : 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: side === 'right' ? 'flex-end' : 'flex-start' }}>
           {side === 'right' && <RankBadge r={f.ranking} />}
-          <span style={{ color: isWinner ? '#fff' : C.textPrimary, fontSize: 13, fontWeight: 900, textShadow: isWinner ? `0 0 16px ${UFC_RED}88` : 'none' }}>{f.name}</span>
+          <span style={{ color: isWinner ? '#fff' : C.textPrimary, fontSize: isMobile ? 12 : 13, fontWeight: 900, textShadow: isWinner ? `0 0 16px ${UFC_RED}88` : 'none' }}>{f.name}</span>
           <span style={{ fontSize: 12 }}>{f.country}</span>
           {side === 'left' && <RankBadge r={f.ranking} />}
         </div>
@@ -2501,7 +2515,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
 
   return (
     <div style={{
-      borderRadius: 20, padding: '20px',
+      borderRadius: isMobile ? 16 : 20, padding: isMobile ? '14px' : '20px',
       background: isActive ? 'rgba(232,0,45,0.06)' : 'rgba(8,8,28,0.85)',
       border: `1px solid ${isActive ? 'rgba(232,0,45,0.5)' : fight.isMainEvent ? 'rgba(232,0,45,0.3)' : C.border}`,
       boxShadow: fight.isMainEvent ? `0 0 30px rgba(232,0,45,0.1)` : 'none',
@@ -2510,7 +2524,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
       transition: 'all 0.2s',
     }} onClick={onOpenIntel}>
       {/* Bout header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
         <span style={{
           background: fight.isMainEvent ? `rgba(232,0,45,0.15)` : 'rgba(255,255,255,0.06)',
           border: `1px solid ${boutColor}`,
@@ -2526,7 +2540,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
       </div>
 
       {/* Fighters */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
         <Fighter f={a} side="left" />
         <div style={{ textAlign: 'center', flexShrink: 0 }}>
           <span style={{ color: C.textSecondary, fontSize: 13, fontWeight: 900 }}>VS</span>
@@ -2540,72 +2554,42 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
         <Fighter f={b} side="right" />
       </div>
 
-      {/* Polymarket Odds — same layout as NBA lines table */}
+      {/* Polymarket odds + market read */}
       {(() => {
         const p = fight.polyOdds
-        const hasAny = p?.hasWinner || p?.hasTotal || p?.koTkoOdds !== null
+        const hasAny = p?.hasWinner || p?.hasTotal || p?.koTkoOdds !== null || p?.submissionOdds !== null || p?.goDistanceOdds !== null
         if (!hasAny) return (
-          <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', marginTop: 10, opacity: 0.45 }}>No Polymarket odds yet</p>
+          <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', marginTop: 12, opacity: 0.5 }}>No Polymarket markets matched yet</p>
         )
-
-        const aWin  = p.fighterAWin  !== null ? Math.round(p.fighterAWin  * 100) : null
-        const bWin  = p.fighterBWin  !== null ? Math.round(p.fighterBWin  * 100) : null
-        const over  = p.overOdds     !== null ? Math.round(p.overOdds     * 100) : null
-        const under = p.underOdds    !== null ? Math.round(p.underOdds    * 100) : null
-        const koPct = p.koTkoOdds    !== null ? Math.round(p.koTkoOdds    * 100) : null
-        const subPct= p.submissionOdds !== null ? Math.round(p.submissionOdds * 100) : null
+        const lean = marketLean(fight)
+        const chips: Array<{ label: string; value: string; hot?: boolean; href?: string | null }> = []
+        if (p.hasWinner) {
+          chips.push({ label: `${fight.fighterA.name.split(' ').slice(-1)[0]} win`, value: pctLabel(p.fighterAWin), hot: (p.fighterAWin || 0) >= 0.55, href: p.polyWinnerUrl })
+          chips.push({ label: `${fight.fighterB.name.split(' ').slice(-1)[0]} win`, value: pctLabel(p.fighterBWin), hot: (p.fighterBWin || 0) >= 0.55, href: p.polyWinnerUrl })
+        }
+        if (p.hasTotal) {
+          chips.push({ label: `Over ${p.totalLine}`, value: pctLabel(p.overOdds), hot: (p.overOdds || 0) >= 0.55, href: p.polyTotalUrl })
+          chips.push({ label: `Under ${p.totalLine}`, value: pctLabel(p.underOdds), hot: (p.underOdds || 0) >= 0.55, href: p.polyTotalUrl })
+        }
+        if (p.koTkoOdds !== null) chips.push({ label: 'Fight ends KO/TKO', value: pctLabel(p.koTkoOdds), hot: p.koTkoOdds >= 0.55 })
+        if (p.submissionOdds !== null) chips.push({ label: 'Fight ends submission', value: pctLabel(p.submissionOdds), hot: p.submissionOdds >= 0.55 })
+        if (p.goDistanceOdds !== null) chips.push({ label: 'Goes distance', value: pctLabel(p.goDistanceOdds), hot: p.goDistanceOdds >= 0.55 })
 
         return (
-          <div style={{ marginTop: 8 }}>
-            {/* Column headers */}
-            <div className="flex items-center gap-1.5 mb-1">
-              <div style={{ width: 68, flexShrink: 0 }} />
-              {[
-                p.hasWinner ? 'WIN' : null,
-                p.hasTotal  ? `O/U ${p.totalLine}` : null,
-                koPct !== null ? 'KO/TKO' : null,
-                subPct !== null ? 'SUB' : null,
-              ].filter(Boolean).map(h => (
-                <div key={h!} style={{ minWidth: 64, textAlign: 'center', fontSize: 7, color: C.textSecondary, fontWeight: 800, letterSpacing: '0.1em' }}>{h}</div>
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            {lean && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8, padding: '8px 10px', borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{lean.label}</span>
+                <span style={{ color: lean.edge >= 0.14 ? UFC_RED : C.cyan, fontSize: 11, fontWeight: 900, textAlign: 'right' }}>{lean.leader} · {Math.round(lean.edge * 100)}pt gap</span>
+              </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 7 }}>
+              {chips.map(chip => (
+                <a key={`${chip.label}-${chip.value}`} href={chip.href || undefined} target={chip.href ? '_blank' : undefined} rel={chip.href ? 'noreferrer' : undefined} onClick={e => chip.href ? e.stopPropagation() : e.preventDefault()} style={{ textDecoration: 'none', borderRadius: 12, padding: '8px 9px', background: chip.hot ? 'rgba(232,0,45,0.10)' : 'rgba(255,255,255,0.035)', border: `1px solid ${chip.hot ? 'rgba(232,0,45,0.35)' : 'rgba(255,255,255,0.08)'}` }}>
+                  <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{chip.label}</div>
+                  <div style={{ color: chip.hot ? UFC_RED : C.textPrimary, fontSize: 15, fontWeight: 950, marginTop: 2 }}>{chip.value}</div>
+                </a>
               ))}
-            </div>
-
-            {/* Fighter A row */}
-            <div className="flex items-center gap-1.5 mb-1">
-              <div style={{ width: 68, flexShrink: 0 }}>
-                <p style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fight.fighterA.name.split(' ').slice(-1)[0]}</p>
-              </div>
-              {p.hasWinner && aWin !== null && (
-                <OddsChip top="WIN" bottom={String(aWin)} hot={aWin >= 55} href={p.polyWinnerUrl} />
-              )}
-              {p.hasTotal && over !== null && (
-                <OddsChip top={`O ${p.totalLine}`} bottom={String(over)} hot={over >= 55} href={p.polyTotalUrl} />
-              )}
-              {koPct !== null && (
-                <OddsChip top="KO/TKO" bottom={String(koPct)} hot={koPct >= 55} href={null} />
-              )}
-              {subPct !== null && (
-                <OddsChip top="SUB" bottom={String(subPct)} hot={subPct >= 55} href={null} />
-              )}
-            </div>
-
-            {/* Fighter B row */}
-            <div className="flex items-center gap-1.5">
-              <div style={{ width: 68, flexShrink: 0 }}>
-                <p style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fight.fighterB.name.split(' ').slice(-1)[0]}</p>
-              </div>
-              {p.hasWinner && bWin !== null && (
-                <OddsChip top="WIN" bottom={String(bWin)} hot={bWin >= 55} href={p.polyWinnerUrl} />
-              )}
-              {p.hasTotal && under !== null && (
-                <OddsChip top={`U ${p.totalLine}`} bottom={String(under)} hot={under >= 55} href={p.polyTotalUrl} />
-              )}
-              {koPct !== null && (
-                <OddsChip top="KO/TKO" bottom={String(koPct)} hot={false} href={null} />
-              )}
-              {subPct !== null && (
-                <OddsChip top="SUB" bottom={String(subPct)} hot={false} href={null} />
-              )}
             </div>
           </div>
         )
@@ -2677,7 +2661,7 @@ function UFCSection() {
   return (
     <div>
       {/* Event selector */}
-      <div style={{ marginBottom: 24, borderRadius: 20, padding: '20px 24px', background: 'rgba(8,8,28,0.85)', border: `1px solid rgba(232,0,45,0.3)`, boxShadow: `0 0 40px rgba(232,0,45,0.08)` }}>
+      <div style={{ marginBottom: isMobile ? 14 : 24, borderRadius: isMobile ? 16 : 20, padding: isMobile ? '16px 14px' : '20px 24px', background: 'rgba(8,8,28,0.85)', border: `1px solid rgba(232,0,45,0.3)`, boxShadow: `0 0 40px rgba(232,0,45,0.08)` }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -2688,7 +2672,7 @@ function UFCSection() {
                 <span style={{ background: 'rgba(255,215,0,0.12)', border: '1px solid rgba(255,215,0,0.35)', borderRadius: 6, padding: '2px 8px', color: C.gold, fontSize: 9, fontWeight: 900 }}>🏆 TITLE CARD</span>
               )}
             </div>
-            <h2 style={{ color: C.textPrimary, fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em', marginBottom: 6 }}>{selectedEvent.name}</h2>
+            <h2 style={{ color: C.textPrimary, fontSize: isMobile ? 17 : 20, fontWeight: 900, letterSpacing: '-0.02em', marginBottom: 6 }}>{selectedEvent.name}</h2>
             <p style={{ color: C.textSecondary, fontSize: 12 }}>{formatEventDate(selectedEvent.date)}</p>
             {(selectedEvent.venue || selectedEvent.location) && (
               <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 2 }}>
@@ -2715,6 +2699,30 @@ function UFCSection() {
           )}
         </div>
       </div>
+
+      {/* UFC card command summary */}
+      {(() => {
+        const live = sortedFights.filter(f => f.status === 'in').length
+        const upcoming = sortedFights.filter(f => f.status === 'pre').length
+        const final = sortedFights.filter(f => f.status === 'post').length
+        const matched = sortedFights.filter(f => f.polyOdds?.hasWinner || f.polyOdds?.hasTotal).length
+        const nextFight = sortedFights.find(f => f.status === 'in') || sortedFights.find(f => f.status === 'pre')
+        return (
+          <div style={{ marginBottom: 14, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.2fr repeat(4, minmax(0, 0.55fr))', gap: 10 }}>
+            <div style={{ borderRadius: 16, padding: '12px 14px', background: 'rgba(232,0,45,0.06)', border: '1px solid rgba(232,0,45,0.22)' }}>
+              <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Next actionable bout</div>
+              <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 900, marginTop: 4 }}>{nextFight ? `${nextFight.fighterA.name} vs ${nextFight.fighterB.name}` : 'Card complete'}</div>
+              <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 2 }}>{nextFight ? `${getBoutLabel(nextFight, sortedFights.length)} · ${nextFight.statusDetail || nextFight.status}` : `${final} fights final`}</div>
+            </div>
+            {[['LIVE', live, C.green], ['UPCOMING', upcoming, C.gold], ['FINAL', final, C.textSecondary], ['MARKETS', `${matched}/${sortedFights.length}`, UFC_RED]].map(([label, value, color]) => (
+              <div key={String(label)} style={{ borderRadius: 16, padding: '12px 10px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
+                <div style={{ color: color as string, fontSize: 18, fontWeight: 950 }}>{value}</div>
+                <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.12em' }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {/* Fight card */}
       {sortedFights.length === 0 ? (
