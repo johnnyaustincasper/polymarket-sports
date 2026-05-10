@@ -101,6 +101,8 @@ interface PropsMarketSummary {
   executableMatched?: number
   playableMatched: number
   priceRejected?: number
+  status?: 'no_markets' | 'no_candidates' | 'priced_out' | 'playable'
+  statusLabel?: string
   pages: number
   stale: boolean
 }
@@ -1574,8 +1576,8 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                       {label}: <span style={{ color: C.textPrimary }}>{value}</span>
                     </span>
                   ))}
-                  {Boolean(props.marketSummary.priceRejected) && <span style={{ background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.24)', borderRadius: 999, padding: '4px 8px', color: C.gold, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Price passed: {props.marketSummary.priceRejected}</span>}
-                  {props.marketSummary.stale && <span style={{ background: 'rgba(255,215,0,0.10)', border: '1px solid rgba(255,215,0,0.28)', borderRadius: 999, padding: '4px 8px', color: C.gold, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>No executable edge yet</span>}
+                  {Boolean(props.marketSummary.priceRejected) && <span style={{ background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.24)', borderRadius: 999, padding: '4px 8px', color: C.gold, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Priced out: {props.marketSummary.priceRejected}</span>}
+                  {props.marketSummary.status && props.marketSummary.status !== 'playable' && <span style={{ background: props.marketSummary.status === 'priced_out' ? 'rgba(255,215,0,0.10)' : 'rgba(255,255,255,0.055)', border: `1px solid ${props.marketSummary.status === 'priced_out' ? 'rgba(255,215,0,0.28)' : 'rgba(255,255,255,0.12)'}`, borderRadius: 999, padding: '4px 8px', color: props.marketSummary.status === 'priced_out' ? C.gold : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{props.marketSummary.statusLabel || 'No executable edge yet'}</span>}
                 </div>
               )}
               {propsLoading ? (
