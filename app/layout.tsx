@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'NBA Lines',
-  description: 'Polymarket NBA odds — Winner, Spread, Totals',
+  title: 'AI Athlete Intelligence',
+  description: 'Premium athlete intelligence, market signals, and source-aware edge analysis',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'NBA Lines',
+    title: 'Athlete AI',
   },
   other: { 'mobile-web-app-capable': 'yes' },
 }
