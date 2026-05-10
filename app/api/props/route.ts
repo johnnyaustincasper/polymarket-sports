@@ -41,6 +41,8 @@ interface PropsMarketSummary {
   executableMatched: number
   playableMatched: number
   priceRejected: number
+  status: 'no_markets' | 'no_candidates' | 'priced_out' | 'playable'
+  statusLabel: string
   pages: number
   stale: boolean
 }
@@ -410,15 +412,32 @@ function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: PlayerProp
   const playableMatched = gatedPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
   const candidateProps = rawPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
   const executableMatched = countExecutableRecommendations(rawPlayers, sport, scan.markets)
+  const priceRejected = Math.max(0, executableMatched - playableMatched)
+  const status: PropsMarketSummary['status'] = scan.markets.length === 0
+    ? 'no_markets'
+    : candidateProps === 0
+      ? 'no_candidates'
+      : playableMatched > 0
+        ? 'playable'
+        : 'priced_out'
+  const statusLabel = status === 'playable'
+    ? 'Playable props live'
+    : status === 'priced_out'
+      ? 'Executable markets priced out'
+      : status === 'no_candidates'
+        ? 'No stat candidates passed model'
+        : 'No executable Kalshi markets'
   return {
     scanned: scan.scanned,
     gameMatched: scan.markets.length,
     candidateProps,
     executableMatched,
     playableMatched,
-    priceRejected: Math.max(0, executableMatched - playableMatched),
+    priceRejected,
+    status,
+    statusLabel,
     pages: scan.pages,
-    stale: scan.markets.length === 0 || playableMatched === 0,
+    stale: status === 'no_markets',
   }
 }
 

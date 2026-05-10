@@ -53,16 +53,56 @@ const ESPN_TO_POLY: Record<string, string[]> = {
 }
 
 
+function normalize(s: string) {
+  return s.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
 function getKeywords(abbr: string, name: string): string[] {
-  if (ESPN_TO_POLY[abbr]) return ESPN_TO_POLY[abbr]
-  const skip = new Set(['state', 'university', 'college', 'the', 'of', 'at'])
-  const words = name.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !skip.has(w))
-  return words.length ? [words[0]] : [name.toLowerCase()]
+  const direct = ESPN_TO_POLY[abbr] || []
+  const normalizedName = normalize(name)
+  const skip = new Set(['state', 'university', 'college', 'the', 'of', 'at', 'and', 'fc'])
+  const words = normalizedName.split(/\s+/).filter(w => w.length > 2 && !skip.has(w))
+  const fallback = words.length ? [words[0], words.at(-1)!, normalizedName] : [normalizedName]
+  return Array.from(new Set([...direct, ...fallback].map(normalize).filter(Boolean)))
+}
+
+function keywordScore(abbr: string, name: string, title: string): number {
+  const t = normalize(title)
+  let best = 0
+  for (const k of getKeywords(abbr, name)) {
+    if (t === k) best = Math.max(best, 4)
+    else if (t.includes(k)) best = Math.max(best, k.length >= 6 ? 3 : 2)
+  }
+  return best
 }
 
 function teamMatchesTitle(abbr: string, name: string, title: string): boolean {
-  const t = title.toLowerCase()
-  return getKeywords(abbr, name).some(k => t.includes(k))
+  return keywordScore(abbr, name, title) >= 2
+}
+
+function findDistinctTeamOutcomeIndexes(
+  outcomes: string[],
+  homeAbbr: string,
+  homeName: string,
+  awayAbbr: string,
+  awayName: string,
+): { homeIdx: number; awayIdx: number } | null {
+  const scores = outcomes.map(o => ({
+    home: keywordScore(homeAbbr, homeName, o),
+    away: keywordScore(awayAbbr, awayName, o),
+  }))
+  const homeCandidates = scores
+    .map((score, idx) => ({ ...score, idx }))
+    .filter(score => score.home >= 2 && score.home > score.away)
+  const awayCandidates = scores
+    .map((score, idx) => ({ ...score, idx }))
+    .filter(score => score.away >= 2 && score.away > score.home)
+
+  if (homeCandidates.length !== 1 || awayCandidates.length !== 1) return null
+  const homeIdx = homeCandidates[0].idx
+  const awayIdx = awayCandidates[0].idx
+  if (homeIdx === awayIdx) return null
+  return { homeIdx, awayIdx }
 }
 
 function safeJson<T>(raw: string | null | undefined, fallback: T): T {
@@ -74,15 +114,6 @@ function validProbability(v: unknown): number | null {
   return Number.isFinite(n) && n > 0 && n < 1 ? n : null
 }
 
-function findOutcomeIndexes(outcomes: string[], homeAbbr: string, homeName: string, awayAbbr: string, awayName: string): { homeIdx: number; awayIdx: number } | null {
-  if (outcomes.length !== 2) return null
-  const homeKw = getKeywords(homeAbbr, homeName)
-  const awayKw = getKeywords(awayAbbr, awayName)
-  const homeIdx = outcomes.findIndex((o: string) => homeKw.some(k => o.toLowerCase().includes(k)))
-  const awayIdx = outcomes.findIndex((o: string) => awayKw.some(k => o.toLowerCase().includes(k)))
-  if (homeIdx < 0 || awayIdx < 0 || homeIdx === awayIdx) return null
-  return { homeIdx, awayIdx }
-}
 
 interface Signal {
   gameId: string
@@ -221,9 +252,9 @@ export async function GET(req: Request) {
       const tokens = safeJson<string[]>(winnerMarket.clobTokenIds, [])
       if (outcomes.length !== 2 || prices.length !== 2) continue
 
-      const indexes = findOutcomeIndexes(outcomes, homeAbbr, homeName, awayAbbr, awayName)
-      if (!indexes) continue
-      const { homeIdx, awayIdx } = indexes
+      const outcomeIndexes = findDistinctTeamOutcomeIndexes(outcomes, homeAbbr, homeName, awayAbbr, awayName)
+      if (!outcomeIndexes) continue
+      const { homeIdx, awayIdx } = outcomeIndexes
 
       const polyHomePrice = validProbability(prices[homeIdx])
       const polyAwayPrice = validProbability(prices[awayIdx])
