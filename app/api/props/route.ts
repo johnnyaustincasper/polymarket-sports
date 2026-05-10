@@ -53,6 +53,12 @@ interface KalshiMarketScan {
   pages: number
 }
 
+type KalshiRawScan = KalshiMarketScan & { fetchedAt: number }
+
+const KALSHI_RAW_TTL_MS = 45_000
+const kalshiRawCache = new Map<Sport, KalshiRawScan>()
+const kalshiRawInflight = new Map<Sport, Promise<KalshiRawScan>>()
+
 interface PropRecommendation {
   metric: string
   label: string
@@ -294,33 +300,58 @@ function marketContainsGame(market: any, home: string, away: string): boolean {
   return (hay.includes(`${away}${home}`) || hay.includes(`${home}${away}`) || (hay.includes(home) && hay.includes(away)))
 }
 
+async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
+  const cached = kalshiRawCache.get(sport)
+  if (cached && Date.now() - cached.fetchedAt < KALSHI_RAW_TTL_MS) return cached
+
+  const inflight = kalshiRawInflight.get(sport)
+  if (inflight) return inflight
+
+  const promise = (async (): Promise<KalshiRawScan> => {
+    try {
+      const markets: any[] = []
+      let cursor = ''
+      let pages = 0
+      // Player props often sit beyond the first page. Fetch once per sport and
+      // share the raw book across all game cards so the Kalshi tab does not
+      // dogpile 10-15 identical scans in parallel.
+      for (let page = 0; page < 6; page++) {
+        const params = new URLSearchParams({ status: 'open', limit: '200' })
+        if (cursor) params.set('cursor', cursor)
+        const res = await fetch(`${KALSHI_API}/markets?${params.toString()}`, { signal: AbortSignal.timeout(12000), next: { revalidate: 30 } })
+        if (!res.ok) break
+        const data = await res.json()
+        markets.push(...(data.markets || []))
+        pages += 1
+        cursor = String(data.cursor || '')
+        if (!cursor) break
+      }
+      const scan = { markets, scanned: markets.length, pages, fetchedAt: Date.now() }
+      kalshiRawCache.set(sport, scan)
+      return scan
+    } catch {
+      const scan = { markets: [], scanned: 0, pages: 0, fetchedAt: Date.now() }
+      kalshiRawCache.set(sport, scan)
+      return scan
+    } finally {
+      kalshiRawInflight.delete(sport)
+    }
+  })()
+
+  kalshiRawInflight.set(sport, promise)
+  return promise
+}
+
 async function fetchKalshiPropMarkets(sport: Sport, home: string, away: string): Promise<KalshiMarketScan> {
   const homeCode = kalshiTeamCode(home, sport)
   const awayCode = kalshiTeamCode(away, sport)
   const prefix = sport === 'nba' ? 'KXNBA' : sport === 'nfl' ? 'KXNFL' : 'KXMLB'
-  try {
-    const markets: any[] = []
-    let cursor = ''
-    let pages = 0
-    // Player props often sit beyond the first page. Scan a bounded window so
-    // executable markets do not disappear just because Kalshi returned them late.
-    for (let page = 0; page < 6; page++) {
-      const params = new URLSearchParams({ status: 'open', limit: '200' })
-      if (cursor) params.set('cursor', cursor)
-      const res = await fetch(`${KALSHI_API}/markets?${params.toString()}`, { signal: AbortSignal.timeout(20000), next: { revalidate: 30 } })
-      if (!res.ok) break
-      const data = await res.json()
-      markets.push(...(data.markets || []))
-      pages += 1
-      cursor = String(data.cursor || '')
-      if (!cursor) break
-    }
-    return {
-      markets: markets.filter((m: any) => isExecutableGamePropMarket(m, prefix, homeCode, awayCode)),
-      scanned: markets.length,
-      pages,
-    }
-  } catch { return { markets: [], scanned: 0, pages: 0 } }
+  const raw = await fetchKalshiRawMarkets(sport)
+  return {
+    markets: raw.markets.filter((m: any) => isExecutableGamePropMarket(m, prefix, homeCode, awayCode)),
+    scanned: raw.scanned,
+    pages: raw.pages,
+  }
 }
 
 function isExecutableGamePropMarket(m: any, prefix: string, homeCode: string, awayCode: string): boolean {

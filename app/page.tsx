@@ -1286,18 +1286,27 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
   const [props, setProps] = useState<PropsPanelData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
 
   useEffect(() => {
+    if (!supportedKalshiSport) {
+      setLoading(false)
+      setProps(null)
+      setError(null)
+      return
+    }
     let cancelled = false
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 45_000)
     setLoading(true)
     setError(null)
-    fetch(`/api/props?home=${game.homeTeam.abbr}&away=${game.awayTeam.abbr}&sport=${sport}`)
+    fetch(`/api/props?home=${game.homeTeam.abbr}&away=${game.awayTeam.abbr}&sport=${sport}`, { signal: controller.signal })
       .then(r => r.json())
       .then(d => { if (!cancelled) setProps(d) })
-      .catch(e => { if (!cancelled) setError(e?.message || 'props unavailable') })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [game.homeTeam.abbr, game.awayTeam.abbr, game.id, sport])
+      .catch(e => { if (!cancelled) setError(e?.name === 'AbortError' ? 'scan timed out — retry in a few seconds' : e?.message || 'props unavailable') })
+      .finally(() => { clearTimeout(timeout); if (!cancelled) setLoading(false) })
+    return () => { cancelled = true; clearTimeout(timeout); controller.abort() }
+  }, [game.homeTeam.abbr, game.awayTeam.abbr, game.id, sport, supportedKalshiSport])
 
   const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => p.bestBet) : []
   const best = players.slice().sort((a: any, b: any) => (b.bestBet?.valueScore || b.bestBet?.confidence || 0) - (a.bestBet?.valueScore || a.bestBet?.confidence || 0)).slice(0, 4)
@@ -1326,7 +1335,9 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
           </div>
         )}
 
-        {loading ? (
+        {!supportedKalshiSport ? (
+          <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>Kalshi player prop cards are not wired for {sport.toUpperCase()} yet. Use Polymarket for this sport while we add that feed.</p>
+        ) : loading ? (
           <div style={{ display: 'grid', gap: 8 }}>
             {[0, 1, 2].map(i => <div key={i} style={{ height: 54, borderRadius: 12, background: 'rgba(255,255,255,0.035)', animation: 'pulse 2s infinite' }} />)}
           </div>
@@ -2857,7 +2868,7 @@ export default function Home() {
               </h1>
               <div style={{ display: 'flex', borderRadius: 10, overflowX: 'auto', maxWidth: '100%', border: `1px solid ${C.border}` }}>
                 {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map((s, idx) => (
-                  <button key={s} onClick={() => { setSport(s); setSubtab('slate'); setProvider('kalshi'); setLoading(true) }} style={{
+                  <button key={s} onClick={() => { setSport(s); setSubtab('slate'); setProvider((s === 'nba' || s === 'mlb' || s === 'nfl') ? 'kalshi' : 'polymarket'); setLoading(true) }} style={{
                     padding: isMobile ? '7px 9px' : '5px 12px', fontSize: isMobile ? 10 : 11, fontWeight: 800, letterSpacing: '0.08em',
                     textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s',
                     background: sport === s
