@@ -1211,14 +1211,24 @@ export default function BotPage() {
           <a href="/" style={{ color: C.textFaint, fontSize: 10, letterSpacing: '0.15em', textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>← BACK</a>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <div>
-              <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 900, letterSpacing: '-0.03em', margin: 0, lineHeight: 1 }}>
-                <span style={{ color: C.green, textShadow: `0 0 24px ${C.green}44` }}>ATHLETE AI</span>
-                <span style={{ color: C.text }}> SCANNER</span>
-              </h1>
-              <p style={{ color: C.textFaint, fontSize: 11, letterSpacing: '0.06em', marginTop: 4 }}>
-                AI Athlete Intelligence · player stat-bet scanner · {scanSport.toUpperCase()}
-              </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <a href="/" aria-label="AI Athlete Intelligence home" style={{
+                width: isMobile ? 64 : 78, height: isMobile ? 64 : 78, borderRadius: isMobile ? 14 : 18,
+                overflow: 'hidden', flexShrink: 0, background: '#02020f', border: '1px solid rgba(0,255,136,0.30)',
+                boxShadow: '0 0 24px rgba(0,255,136,0.16), 0 10px 28px rgba(0,0,0,0.48)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              </a>
+              <div>
+                <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 900, letterSpacing: '-0.03em', margin: 0, lineHeight: 1 }}>
+                  <span style={{ color: C.green, textShadow: `0 0 24px ${C.green}44` }}>STAT</span>
+                  <span style={{ color: C.text }}> SCANNER</span>
+                </h1>
+                <p style={{ color: C.textFaint, fontSize: 11, letterSpacing: '0.06em', marginTop: 4 }}>
+                  Know the player. Find your edge. · {scanSport.toUpperCase()}
+                </p>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: 4, padding: 3, borderRadius: 12, background: C.surface, border: `1px solid ${C.border}` }}>

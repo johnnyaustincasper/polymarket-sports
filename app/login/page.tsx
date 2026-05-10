@@ -49,24 +49,24 @@ export default function LoginPage() {
       <form onSubmit={submit} style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 360, padding: '0 16px' }}>
         <div style={{
           background: 'rgba(8,8,28,0.95)',
-          border: '1px solid rgba(0,240,255,0.2)',
+          border: '1px solid rgba(0,255,136,0.22)',
           borderRadius: 28,
           padding: '48px 32px',
-          boxShadow: '0 0 60px rgba(0,240,255,0.08), 0 24px 80px rgba(0,0,0,0.8)',
+          boxShadow: '0 0 60px rgba(0,255,136,0.09), 0 24px 80px rgba(0,0,0,0.8)',
           backdropFilter: 'blur(24px)',
         }}>
           {/* Logo */}
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <div style={{
-              width: 56, height: 56, borderRadius: 16, margin: '0 auto 16px',
-              background: 'linear-gradient(135deg, rgba(0,240,255,0.2), rgba(168,85,247,0.2))',
-              border: '1px solid rgba(0,240,255,0.4)',
-              boxShadow: '0 0 30px rgba(0,240,255,0.2)',
+              width: 118, height: 118, borderRadius: 28, margin: '0 auto 18px', overflow: 'hidden',
+              background: '#02020f', border: '1px solid rgba(0,255,136,0.35)',
+              boxShadow: '0 0 42px rgba(0,255,136,0.18), 0 18px 46px rgba(0,0,0,0.55)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 26, color: '#00f0ff',
-            }}>◈</div>
-            <p style={{ color: '#00f0ff', fontWeight: 900, fontSize: 20, letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(0,240,255,0.5)' }}>ATHLETE AI</p>
-            <p style={{ color: 'rgba(180,200,255,0.4)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 4 }}>AI Athlete Intelligence · Restricted Access</p>
+            }}>
+              <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </div>
+            <p style={{ color: '#a6ff3f', fontWeight: 900, fontSize: 12, letterSpacing: '0.22em', textTransform: 'uppercase', textShadow: '0 0 20px rgba(0,255,136,0.35)' }}>Know the player. Find your edge.</p>
+            <p style={{ color: 'rgba(180,200,255,0.4)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 6 }}>AI Athlete Intelligence · Restricted Access</p>
           </div>
 
           {/* Input */}

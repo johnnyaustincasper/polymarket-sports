@@ -2846,7 +2846,7 @@ export default function Home() {
       }} />
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,240,255,0.06) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(0,255,136,0.10) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(0,240,255,0.04) 0%, transparent 70%)',
       }} />
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '18px 10px 64px' : '32px 16px 80px' }}>
@@ -2854,18 +2854,15 @@ export default function Home() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-1" style={{ flexWrap: 'wrap' }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 10,
-                background: `linear-gradient(135deg, rgba(0,240,255,0.2), rgba(168,85,247,0.2))`,
-                border: `1px solid ${C.borderHot}`,
-                boxShadow: `0 0 20px rgba(0,240,255,0.2)`,
+              <a href="/" aria-label="AI Athlete Intelligence home" style={{
+                width: isMobile ? 78 : 104, height: isMobile ? 78 : 104, borderRadius: isMobile ? 16 : 22,
+                overflow: 'hidden', flexShrink: 0,
+                background: '#02020f', border: '1px solid rgba(0,255,136,0.28)',
+                boxShadow: '0 0 28px rgba(0,255,136,0.18), 0 10px 34px rgba(0,0,0,0.45)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 18
-              }}>◈</div>
-              <h1 style={{ fontSize: isMobile ? 21 : 26, fontWeight: 900, letterSpacing: '-0.03em', color: C.textPrimary }}>
-                AI ATHLETE
-                <span style={{ color: sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : sport === 'mlb' ? MLB_ORANGE : C.cyan, textShadow: `0 0 20px ${sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : sport === 'mlb' ? MLB_ORANGE : C.cyan}55` }}> INTELLIGENCE</span>
-              </h1>
+              }}>
+                <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              </a>
               <div style={{ display: 'flex', borderRadius: 10, overflowX: 'auto', maxWidth: '100%', border: `1px solid ${C.border}` }}>
                 {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map((s, idx) => (
                   <button key={s} onClick={() => { setSport(s); setSubtab('slate'); setProvider((s === 'nba' || s === 'mlb' || s === 'nfl') ? 'kalshi' : 'polymarket'); setLoading(true) }} style={{
@@ -2895,7 +2892,7 @@ export default function Home() {
               }}>⬡ Stat Scanner</a>
             </div>
             <p style={{ color: C.textSecondary, fontSize: isMobile ? 11 : 12, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Player stat-bet engine · NBA/NFL/MLB/UFC · Kalshi · DraftKings · Polymarket</span>
+              <span>Know the player. Find your edge. · NBA/NFL/MLB/UFC · Kalshi · DraftKings · Polymarket</span>
               {lastUpdatedLabel && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
