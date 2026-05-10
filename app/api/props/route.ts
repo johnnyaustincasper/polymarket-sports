@@ -34,6 +34,14 @@ interface KalshiMarketMatch {
   isCombo: boolean
 }
 
+interface PropsMarketSummary {
+  scanned: number
+  gameMatched: number
+  playableMatched: number
+  pages: number
+  stale: boolean
+}
+
 interface PropRecommendation {
   metric: string
   label: string
@@ -78,6 +86,7 @@ export interface PropsResponse {
   awayTeam: string
   sport: Sport
   available: boolean
+  marketSummary: PropsMarketSummary
 }
 
 const NFL_ABBR: Record<string, string> = {
@@ -226,31 +235,84 @@ function marketContainsGame(market: any, home: string, away: string): boolean {
 async function fetchKalshiPropMarkets(sport: Sport, home: string, away: string): Promise<any[]> {
   const homeCode = kalshiTeamCode(home, sport)
   const awayCode = kalshiTeamCode(away, sport)
+  const prefix = sport === 'nba' ? 'KXNBA' : 'KXNFL'
   try {
-    const res = await fetch(`${KALSHI_API}/markets?status=open&limit=200`, { signal: AbortSignal.timeout(20000), next: { revalidate: 30 } })
-    if (!res.ok) return []
-    const data = await res.json()
-    const prefix = sport === 'nba' ? 'KXNBA' : 'KXNFL'
-    return (data.markets || []).filter((m: any) => {
-      const ask = dollarsToCents(m.yes_ask_dollars)
-      const askSize = sizeToNum(m.yes_ask_size_fp)
-      if (ask <= 0 || ask >= 100 || askSize <= 0 || !['open', 'active'].includes(String(m.status))) return false
-      const legs = m.mve_selected_legs || []
-      const hasSportLeg = legs.some((l: any) => String(l.market_ticker || l.event_ticker || '').startsWith(prefix))
-      return hasSportLeg && marketContainsGame(m, homeCode, awayCode)
-    })
+    const markets: any[] = []
+    let cursor = ''
+    // Player props often sit beyond the first page. Scan a bounded window so
+    // executable markets do not disappear just because Kalshi returned them late.
+    for (let page = 0; page < 6; page++) {
+      const params = new URLSearchParams({ status: 'open', limit: '200' })
+      if (cursor) params.set('cursor', cursor)
+      const res = await fetch(`${KALSHI_API}/markets?${params.toString()}`, { signal: AbortSignal.timeout(20000), next: { revalidate: 30 } })
+      if (!res.ok) break
+      const data = await res.json()
+      markets.push(...(data.markets || []))
+      cursor = String(data.cursor || '')
+      if (!cursor) break
+    }
+    return markets.filter((m: any) => isPlayableGamePropMarket(m, prefix, homeCode, awayCode))
   } catch { return [] }
+}
+
+function isPlayableGamePropMarket(m: any, prefix: string, homeCode: string, awayCode: string): boolean {
+  const ask = dollarsToCents(m.yes_ask_dollars)
+  const askSize = sizeToNum(m.yes_ask_size_fp)
+  if (ask <= 0 || ask >= 100 || askSize <= 0 || !['open', 'active'].includes(String(m.status))) return false
+  const legs = m.mve_selected_legs || []
+  const hasSportLeg = legs.some((l: any) => String(l.market_ticker || l.event_ticker || '').startsWith(prefix))
+  return hasSportLeg && marketContainsGame(m, homeCode, awayCode)
+}
+
+function textHaystack(m: any): string {
+  return `${m.title || ''} ${m.yes_sub_title || ''} ${m.subtitle || ''} ${m.rules_primary || ''}`
+}
+
+function normalizeName(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function metricAliases(metric: string): string[] {
+  if (metric === 'points') return ['points', 'pts']
+  if (metric === 'rebounds') return ['rebounds', 'rebs', 'reb']
+  if (metric === 'assists') return ['assists', 'asts', 'ast']
+  if (metric === 'PTS+REB+AST') return ['pts reb ast', 'points rebounds assists', 'pra']
+  if (metric === 'passing yards') return ['passing yards', 'pass yards']
+  if (metric === 'passing TDs') return ['passing tds', 'passing touchdowns', 'pass tds', 'pass touchdowns']
+  if (metric === 'rushing yards') return ['rushing yards', 'rush yards']
+  if (metric === 'receiving yards') return ['receiving yards', 'rec yards']
+  if (metric === 'receptions') return ['receptions', 'catches']
+  return [metric]
+}
+
+function marketTextMatches(player: string, rec: PropRecommendation, m: any): boolean {
+  const raw = textHaystack(m)
+  const hay = normalizeName(raw)
+  const name = normalizeName(player)
+  const last = name.split(' ').at(-1) || name
+  if (!hay.includes(name) && !(last.length >= 5 && hay.includes(last))) return false
+
+  const line = String(rec.line).replace(/\.0$/, '')
+  const escaped = line.replace('.', '\\.')
+  const linePatterns = [
+    new RegExp(`\\b${escaped}\\s*\\+`),
+    new RegExp(`\\b${escaped}\\s*(?:or more|plus)`),
+    new RegExp(`over\\s*${escaped}`),
+  ]
+  if (!linePatterns.some(re => re.test(raw.toLowerCase()))) return false
+
+  const aliases = metricAliases(rec.metric).map(normalizeName)
+  return aliases.some(alias => hay.includes(alias))
 }
 
 function findKalshiMatch(player: string, rec: PropRecommendation, sport: Sport, markets: any[]): KalshiMarketMatch | null {
   const prefixes = metricPrefixes(rec.metric, sport)
   if (!prefixes.length) return null
-  const playerPattern = new RegExp(`${player.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:\\s*${rec.line}\\+`, 'i')
   const matches = markets
     .map((m: any) => {
       const legs = m.mve_selected_legs || []
-      const leg = legs.find((l: any) => prefixes.some(p => String(l.market_ticker || '').startsWith(p)) && playerPattern.test(m.title || m.yes_sub_title || ''))
-      if (!leg) return null
+      const leg = legs.find((l: any) => prefixes.some(p => String(l.market_ticker || '').startsWith(p)))
+      if (!leg || !marketTextMatches(player, rec, m)) return null
       return {
         ticker: String(m.ticker),
         title: String(m.title || m.yes_sub_title || ''),
@@ -321,6 +383,18 @@ function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: any[]): 
     const bestBet = recommendations[0] || null
     return { ...p, recommendations, bestBet }
   }).filter(p => p.bestBet) as PlayerPropLine[]
+}
+
+function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: PlayerPropLine[], markets: any[]): PropsMarketSummary {
+  const playableMatched = gatedPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
+  const gameMatched = rawPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
+  return {
+    scanned: markets.length,
+    gameMatched,
+    playableMatched,
+    pages: Math.max(1, Math.ceil(markets.length / 200)),
+    stale: markets.length === 0 || playableMatched === 0,
+  }
 }
 
 function recommendNBA(logs: GameLogEntry[]): PropRecommendation[] {
@@ -491,7 +565,8 @@ export async function GET(req: NextRequest) {
     const byPlayer = new Map(withXai.map(p => [`${p.team}|${p.player}`, p]))
     const homeProps = gatedHome.map(p => byPlayer.get(`${p.team}|${p.player}`) || p).slice(0, sport === 'nba' ? 8 : 10)
     const awayProps = gatedAway.map(p => byPlayer.get(`${p.team}|${p.player}`) || p).slice(0, sport === 'nba' ? 8 : 10)
-    return NextResponse.json({ home: homeProps, away: awayProps, homeTeam: home, awayTeam: away, sport, available: homeProps.length > 0 || awayProps.length > 0 } satisfies PropsResponse)
+    const marketSummary = summarizeMarkets([...homeRaw, ...awayRaw], [...homeProps, ...awayProps], kalshiMarkets)
+    return NextResponse.json({ home: homeProps, away: awayProps, homeTeam: home, awayTeam: away, sport, available: homeProps.length > 0 || awayProps.length > 0, marketSummary } satisfies PropsResponse)
   } catch (err) {
     console.error('Props error:', err)
     return NextResponse.json({ error: 'Failed to fetch props' }, { status: 500 })

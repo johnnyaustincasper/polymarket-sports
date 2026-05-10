@@ -94,6 +94,20 @@ interface BettingTrendData {
   totalLine: number; atsAvailable: boolean; notes: string
 }
 
+interface PropsMarketSummary {
+  scanned: number
+  gameMatched: number
+  playableMatched: number
+  pages: number
+  stale: boolean
+}
+interface PropsPanelData {
+  home: any[]
+  away: any[]
+  available: boolean
+  marketSummary?: PropsMarketSummary
+}
+
 interface FootballIntelData {
   prepScore: number
   readiness: { matchLabel: string; matchQuality: number; staleLabel: string; warnings: string[] }
@@ -1222,7 +1236,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
   const [loading, setLoading] = useState(true)
   const [lineups, setLineups] = useState<LineupsData | null>(null)
   const [lineupsLoading, setLineupsLoading] = useState(false)
-  const [props, setProps] = useState<{ home: any[]; away: any[]; available: boolean } | null>(null)
+  const [props, setProps] = useState<PropsPanelData | null>(null)
   const [propsLoading, setPropsLoading] = useState(true)
 
   useEffect(() => {
@@ -1545,6 +1559,20 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
             {/* Player Props */}
             <IntelCard fullWidth>
               <SectionHeader icon="🎲" label="Player Props" />
+              {props?.marketSummary && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                  {[
+                    ['Kalshi game markets', props.marketSummary.scanned],
+                    ['Candidate props', props.marketSummary.gameMatched],
+                    ['Playable', props.marketSummary.playableMatched],
+                  ].map(([label, value]) => (
+                    <span key={label} style={{ background: 'rgba(0,240,255,0.055)', border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 8px', color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      {label}: <span style={{ color: C.textPrimary }}>{value}</span>
+                    </span>
+                  ))}
+                  {props.marketSummary.stale && <span style={{ background: 'rgba(255,215,0,0.10)', border: '1px solid rgba(255,215,0,0.28)', borderRadius: 999, padding: '4px 8px', color: C.gold, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>No executable edge yet</span>}
+                </div>
+              )}
               {propsLoading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[...Array(4)].map((_, i) => <div key={i} style={{ height: 48, borderRadius: 10, background: 'rgba(255,255,255,0.03)', animation: 'pulse 2s infinite' }} />)}
@@ -1609,7 +1637,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                   ))}
                 </div>
               ) : (
-                <p style={{ color: C.textSecondary, fontSize: 11 }}>Props data unavailable</p>
+                <p style={{ color: C.textSecondary, fontSize: 11 }}>No playable Kalshi props at value right now. The card only shows markets with live ask/liquidity under our max price.</p>
               )}
             </IntelCard>
 
@@ -1796,7 +1824,7 @@ function RowGroup({ games, cols, activeGame, panel, onLogBet, drift, onOpenIntel
 
 function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void }) {
   const [intel, setIntel] = useState<FootballIntelData | null>(null)
-  const [props, setProps] = useState<{ home: any[]; away: any[]; available: boolean } | null>(null)
+  const [props, setProps] = useState<PropsPanelData | null>(null)
   const matched = game.hasWinnerOdds || game.hasSpreadOdds || game.hasTotalOdds
   const readiness = getMarketReadiness(game)
   const spreadGap = game.hasDkOdds && game.hasSpreadOdds && game.dkSpread != null
@@ -1889,6 +1917,14 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
             {intel.warnings.length > 0 && (
               <div style={{ color: C.gold, fontSize: 11, marginTop: 10 }}>⚠ {intel.warnings.slice(0, 3).join(' · ')}</div>
             )}
+          </div>
+        )}
+
+        {props?.marketSummary && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            {[['Kalshi markets', props.marketSummary.scanned], ['Candidates', props.marketSummary.gameMatched], ['Playable', props.marketSummary.playableMatched]].map(([label, value]) => (
+              <span key={label} style={{ background: 'rgba(0,255,136,0.055)', border: '1px solid rgba(0,255,136,0.16)', borderRadius: 999, padding: '4px 9px', color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}: <span style={{ color: C.textPrimary }}>{value}</span></span>
+            ))}
           </div>
         )}
 
