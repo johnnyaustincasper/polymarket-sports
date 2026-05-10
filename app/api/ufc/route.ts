@@ -162,6 +162,8 @@ export interface UFCFight {
   isMainEvent: boolean
   weightClass: string
   isTitleFight: boolean
+  status: 'pre' | 'in' | 'post'
+  statusDetail: string
   fighterA: UFCFighter
   fighterB: UFCFighter
   moneyLineA: number | null
@@ -286,7 +288,9 @@ function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>, 
   const state = ev.competitions?.[0]?.venue?.address?.state || ev.venue?.address?.state || ''
   const location = [city, state].filter(Boolean).join(', ')
 
-  const stateStr = ev.competitions?.[0]?.status?.type?.state || ev.status?.type?.state || 'pre'
+  // Event status must come from event.status. Using competitions[0] is wrong during live cards
+  // because early prelims may be final while the event itself is still in progress.
+  const stateStr = ev.status?.type?.state || ev.competitions?.[0]?.status?.type?.state || 'pre'
   const status: UFCEvent['status'] =
     stateStr === 'in' ? 'in' : stateStr === 'post' ? 'post' : 'pre'
 
@@ -304,7 +308,10 @@ function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>, 
     const boutOrder = totalBouts - i   // 1 = main event (last ESPN index)
     const isMainEvent = boutOrder === 1
 
-    const isCompleted = comp?.status?.type?.completed || false
+    const compState = comp?.status?.type?.state || 'pre'
+    const fightStatus: UFCFight['status'] = compState === 'in' ? 'in' : compState === 'post' ? 'post' : 'pre'
+    const statusDetail = comp?.status?.type?.shortDetail || comp?.status?.type?.detail || comp?.status?.type?.description || ''
+    const isCompleted = comp?.status?.type?.completed || fightStatus === 'post'
 
     // Weight class from competition type
     const weightClass = comp?.type?.text || comp?.type?.abbreviation || comp?.name || 'Unknown'
@@ -349,6 +356,8 @@ function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>, 
       isMainEvent,
       weightClass: String(weightClass),
       isTitleFight: Boolean(isTitleFight),
+      status: fightStatus,
+      statusDetail,
       fighterA,
       fighterB,
       moneyLineA,
@@ -358,19 +367,9 @@ function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>, 
     })
   }
 
-  // Sort: non-completed first (main event → co-main → prelims), completed last
-  fights.sort((a, b) => {
-    const aDone = a.result ? 1 : 0
-    const bDone = b.result ? 1 : 0
-    if (aDone !== bDone) return aDone - bDone   // pending fights first
-    return a.boutOrder - b.boutOrder             // within each group: main event first
-  })
-
-  // Fix isMainEvent — first fight in sorted order is the main event
-  if (fights.length > 0) {
-    fights[0].isMainEvent = true
-    for (let i = 1; i < fights.length; i++) fights[i].isMainEvent = false
-  }
+  // Keep the official card order: main event → co-main → main-card/prelim bouts.
+  // Do not promote live/completed prelims above the main event; that makes the card look wrong.
+  fights.sort((a, b) => a.boutOrder - b.boutOrder)
 
   return { id, name, date, venue, location, status, fights }
 }

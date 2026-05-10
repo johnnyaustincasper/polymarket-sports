@@ -2251,7 +2251,8 @@ interface UFCPolyOdds {
 }
 interface UFCFight {
   id: string; boutOrder: number; isMainEvent: boolean; weightClass: string
-  isTitleFight: boolean; fighterA: UFCFighter; fighterB: UFCFighter
+  isTitleFight: boolean; status: 'pre' | 'in' | 'post'; statusDetail: string
+  fighterA: UFCFighter; fighterB: UFCFighter
   moneyLineA: number | null; moneyLineB: number | null
   polyOdds: UFCPolyOdds
   result?: { winner: string; method: string; round: number; time: string }
@@ -2470,6 +2471,10 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
 }) {
   const boutLabel = getBoutLabel(fight, totalFights)
   const boutColor = fight.isMainEvent ? UFC_RED : fight.boutOrder === 2 ? C.gold : fight.boutOrder <= Math.ceil(totalFights / 2) ? C.purple : C.textSecondary
+  const statusColor = fight.status === 'in' ? C.green : fight.status === 'post' ? C.textSecondary : C.gold
+  const statusBg = fight.status === 'in' ? 'rgba(0,255,136,0.10)' : fight.status === 'post' ? 'rgba(255,255,255,0.05)' : 'rgba(255,215,0,0.10)'
+  const statusBorder = fight.status === 'in' ? 'rgba(0,255,136,0.35)' : fight.status === 'post' ? 'rgba(255,255,255,0.12)' : 'rgba(255,215,0,0.35)'
+  const statusLabel = fight.status === 'in' ? (fight.statusDetail || 'LIVE / PRE-FIGHT') : fight.status === 'post' ? 'FINAL' : (fight.statusDetail || 'SCHEDULED')
   const { fighterA: a, fighterB: b, result } = fight
 
   const RankBadge = ({ r }: { r: number | null }) => r !== null ? (
@@ -2512,7 +2517,8 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
           borderRadius: 8, padding: '2px 10px',
           color: boutColor, fontSize: 9, fontWeight: 900, letterSpacing: '0.12em',
         }}>{boutLabel}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <span style={{ background: statusBg, border: `1px solid ${statusBorder}`, borderRadius: 6, padding: '1px 7px', color: statusColor, fontSize: 8, fontWeight: 900, textTransform: 'uppercase' }}>{statusLabel}</span>
           {fight.isTitleFight && <span style={{ background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.4)', borderRadius: 6, padding: '1px 7px', color: C.gold, fontSize: 8, fontWeight: 900 }}>🏆 TITLE</span>}
           <span style={{ color: C.textSecondary, fontSize: 10 }}>{fight.weightClass}</span>
         </div>
