@@ -24,6 +24,16 @@ export const ESPN_ABBR: Record<string, string> = {
   SAC: 'sac', SAS: 'sa', TOR: 'tor', UTA: 'utah', WAS: 'wsh',
 }
 
+// ESPN sometimes emits display abbreviations that differ from our internal keys.
+export const ESPN_TO_INTERNAL_ABBR: Record<string, string> = Object.fromEntries(
+  Object.entries(ESPN_ABBR).map(([internal, espn]) => [espn.toUpperCase(), internal])
+)
+
+export function normalizeNbaAbbr(abbr: string | null | undefined): string {
+  const upper = String(abbr || '').toUpperCase()
+  return ESPN_TO_INTERNAL_ABBR[upper] || upper
+}
+
 // Full team names to abbreviation map (for matching ESPN data)
 export const TEAM_NAME_TO_ABBR: Record<string, string> = {
   'Atlanta Hawks': 'ATL', 'Boston Celtics': 'BOS', 'Brooklyn Nets': 'BKN',
@@ -80,10 +90,10 @@ export async function fetchTeamRecentGames(abbr: string, limit = 10): Promise<Ga
       const competitors: any[] = comp?.competitors || []
 
       const team = competitors.find((c: any) =>
-        c.team?.abbreviation?.toUpperCase() === upper
+        normalizeNbaAbbr(c.team?.abbreviation) === upper
       )
       const opp = competitors.find((c: any) =>
-        c.team?.abbreviation?.toUpperCase() !== upper
+        normalizeNbaAbbr(c.team?.abbreviation) !== upper
       )
 
       if (!team) continue
@@ -97,7 +107,7 @@ export async function fetchTeamRecentGames(abbr: string, limit = 10): Promise<Ga
         date: (event.date || '').slice(0, 10),
         win,
         score: `${teamScore}-${oppScore}`,
-        opponent: opp?.team?.abbreviation?.toUpperCase() || '???',
+        opponent: normalizeNbaAbbr(opp?.team?.abbreviation) || '???',
         isHome,
       })
     }
@@ -165,7 +175,7 @@ export async function fetchTodayTeamAbbrs(): Promise<string[]> {
     for (const event of data.events || []) {
       for (const comp of event.competitions || []) {
         for (const c of comp.competitors || []) {
-          const abbr = c.team?.abbreviation?.toUpperCase()
+          const abbr = normalizeNbaAbbr(c.team?.abbreviation)
           if (abbr) abbrs.add(abbr)
         }
       }

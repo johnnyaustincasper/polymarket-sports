@@ -86,6 +86,13 @@ interface StreakTeam {
   name: string; abbr: string; streak: number; streakLabel: string
   lastGames: ('W' | 'L')[]; analysis: string; keyFactors: string[]
 }
+interface BettingTrendData {
+  team: string; lastTenSU: string; ouRecord: string; ouOverPct: number
+  avgMargin: number; avgTotal: number; recentForm: string
+  scoringTrend: 'over' | 'under' | 'neutral'; edgeFlags: string[]
+  homeSURecord: string; awaySURecord: string; gamesAnalyzed: number
+  totalLine: number; atsAvailable: boolean; notes: string
+}
 
 interface FootballIntelData {
   prepScore: number
@@ -1118,6 +1125,67 @@ function StreakPanel() {
               </div>
             </div>
           )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+
+// ─── Betting Trends Panel ────────────────────────────────────────────────────
+function BettingTrendsPanel() {
+  const [data, setData] = useState<{ teams: BettingTrendData[]; totalLine: number; source: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/trends?limit=10')
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const teams = (data?.teams || []).filter(t => t.gamesAnalyzed >= 5 && t.edgeFlags.length > 0).slice(0, 6)
+  if (!loading && !teams.length) return null
+
+  return (
+    <section className="mb-8">
+      <div className="flex items-center gap-2 mb-3">
+        <span style={{ color: C.cyan, fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase' }}>◇ Recent Trend Board</span>
+        <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 700 }}>ESPN last-10 · totals baseline {data?.totalLine || 226.5}</span>
+        <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${C.border}, transparent)` }} />
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[...Array(3)].map((_, i) => <div key={i} style={{ height: 112, borderRadius: 16, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {teams.map(team => {
+            const trendColor = team.scoringTrend === 'over' ? C.green : team.scoringTrend === 'under' ? C.red : C.gold
+            return (
+              <div key={team.team} style={{ borderRadius: 16, padding: 14, background: 'rgba(0,240,255,0.035)', border: '1px solid rgba(0,240,255,0.16)' }}>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <p style={{ color: C.textPrimary, fontSize: 14, fontWeight: 900 }}>{team.team}</p>
+                    <p style={{ color: C.textSecondary, fontSize: 9 }}>Last {team.gamesAnalyzed}: {team.lastTenSU} · {team.recentForm}</p>
+                  </div>
+                  <span style={{ color: trendColor, border: `1px solid ${trendColor}55`, background: `${trendColor}18`, borderRadius: 10, padding: '3px 7px', fontSize: 9, fontWeight: 900, textTransform: 'uppercase' }}>
+                    {team.scoringTrend}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div><p style={{ color: C.textSecondary, fontSize: 8 }}>O/U</p><p style={{ color: C.textPrimary, fontSize: 12, fontWeight: 800 }}>{team.ouRecord}</p></div>
+                  <div><p style={{ color: C.textSecondary, fontSize: 8 }}>Margin</p><p style={{ color: team.avgMargin >= 0 ? C.green : C.red, fontSize: 12, fontWeight: 800 }}>{team.avgMargin > 0 ? '+' : ''}{team.avgMargin.toFixed(1)}</p></div>
+                  <div><p style={{ color: C.textSecondary, fontSize: 8 }}>Avg Total</p><p style={{ color: C.textPrimary, fontSize: 12, fontWeight: 800 }}>{team.avgTotal.toFixed(1)}</p></div>
+                </div>
+                {team.edgeFlags.slice(0, 2).map((flag, i) => (
+                  <p key={i} style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}>◆ {flag}</p>
+                ))}
+                {!team.atsAvailable && <p style={{ color: 'rgba(255,255,255,0.32)', fontSize: 8, marginTop: 8 }}>ATS waits for reliable closing spread feed.</p>}
+              </div>
+            )
+          })}
         </div>
       )}
     </section>
@@ -3242,6 +3310,8 @@ export default function Home() {
         {sport === 'nba' && mainTab === 'games' && <LastSixtyBoard games={upcoming} />}
 
         {sport === 'nba' && mainTab === 'games' && <StreakPanel />}
+
+        {sport === 'nba' && mainTab === 'games' && <BettingTrendsPanel />}
 
         {!loading && games.length > 0 && sport === 'nba' && mainTab === 'games' && (
           <DailyParlayCard games={games} bankroll={bankroll} />
