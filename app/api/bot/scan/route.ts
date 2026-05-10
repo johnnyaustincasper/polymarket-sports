@@ -65,6 +65,25 @@ function teamMatchesTitle(abbr: string, name: string, title: string): boolean {
   return getKeywords(abbr, name).some(k => t.includes(k))
 }
 
+function safeJson<T>(raw: string | null | undefined, fallback: T): T {
+  try { return raw ? JSON.parse(raw) : fallback } catch { return fallback }
+}
+
+function validProbability(v: unknown): number | null {
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 && n < 1 ? n : null
+}
+
+function findOutcomeIndexes(outcomes: string[], homeAbbr: string, homeName: string, awayAbbr: string, awayName: string): { homeIdx: number; awayIdx: number } | null {
+  if (outcomes.length !== 2) return null
+  const homeKw = getKeywords(homeAbbr, homeName)
+  const awayKw = getKeywords(awayAbbr, awayName)
+  const homeIdx = outcomes.findIndex((o: string) => homeKw.some(k => o.toLowerCase().includes(k)))
+  const awayIdx = outcomes.findIndex((o: string) => awayKw.some(k => o.toLowerCase().includes(k)))
+  if (homeIdx < 0 || awayIdx < 0 || homeIdx === awayIdx) return null
+  return { homeIdx, awayIdx }
+}
+
 interface Signal {
   gameId: string
   gameName: string
@@ -100,24 +119,16 @@ interface Signal {
   sport: string
 }
 
-async function getClobPrice(conditionId: string): Promise<{ yes: number; no: number } | null> {
+async function getBestAsk(tokenId: string): Promise<number | null> {
+  if (!tokenId) return null
   try {
-    // Get the midpoint price from CLOB order book
-    const res = await fetch(`${CLOB_API}/markets/${conditionId}`, {
-      next: { revalidate: 30 }
-    })
+    const res = await fetch(`${CLOB_API}/book?token_id=${encodeURIComponent(tokenId)}`, { next: { revalidate: 15 } })
     if (!res.ok) return null
     const data = await res.json()
-    // tokens[0] = outcome 0, tokens[1] = outcome 1
-    const t = data.tokens || []
-    if (t.length < 2) return null
-    return {
-      yes: parseFloat(t[0].price) || 0,
-      no: parseFloat(t[1].price) || 0
-    }
-  } catch {
-    return null
-  }
+    const asks: any[] = Array.isArray(data.asks) ? data.asks : []
+    const prices = asks.map(a => validProbability(a.price)).filter((p): p is number => p !== null)
+    return prices.length ? Math.min(...prices) : null
+  } catch { return null }
 }
 
 export async function GET(req: Request) {
@@ -205,30 +216,26 @@ export async function GET(req: Request) {
       if (!winnerMarket) continue
 
       // 6. Parse outcomes & current prices from Gamma API
-      const outcomes: string[] = JSON.parse(winnerMarket.outcomes || '[]')
-      const prices: string[] = JSON.parse(winnerMarket.outcomePrices || '[]')
+      const outcomes = safeJson<string[]>(winnerMarket.outcomes, [])
+      const prices = safeJson<string[]>(winnerMarket.outcomePrices, [])
+      const tokens = safeJson<string[]>(winnerMarket.clobTokenIds, [])
       if (outcomes.length !== 2 || prices.length !== 2) continue
 
-      const homeKw = getKeywords(homeAbbr, homeName)
-      const homeIdx = outcomes.findIndex((o: string) =>
-        homeKw.some(k => o.toLowerCase().includes(k))
-      )
-      const awayIdx = homeIdx === 0 ? 1 : 0
+      const indexes = findOutcomeIndexes(outcomes, homeAbbr, homeName, awayAbbr, awayName)
+      if (!indexes) continue
+      const { homeIdx, awayIdx } = indexes
 
-      const polyHomePrice = parseFloat(prices[homeIdx]) || 0
-      const polyAwayPrice = parseFloat(prices[awayIdx]) || 0
+      const polyHomePrice = validProbability(prices[homeIdx])
+      const polyAwayPrice = validProbability(prices[awayIdx])
+      if (polyHomePrice === null || polyAwayPrice === null) continue
 
-      // 7. Get live CLOB prices if available (more accurate than Gamma snapshot)
+      // 7. Prefer live CLOB best asks when token IDs are available; Gamma is fallback.
       const conditionId = winnerMarket.conditionId || ''
-      let liveHomePrice = polyHomePrice
-      let liveAwayPrice = polyAwayPrice
-      if (conditionId) {
-        const clob = await getClobPrice(conditionId)
-        if (clob) {
-          liveHomePrice = homeIdx === 0 ? clob.yes : clob.no
-          liveAwayPrice = awayIdx === 0 ? clob.yes : clob.no
-        }
-      }
+      const homeTokenId = tokens[homeIdx] || ''
+      const awayTokenId = tokens[awayIdx] || ''
+      const [clobHomeAsk, clobAwayAsk] = await Promise.all([getBestAsk(homeTokenId), getBestAsk(awayTokenId)])
+      const liveHomePrice = clobHomeAsk ?? polyHomePrice
+      const liveAwayPrice = clobAwayAsk ?? polyAwayPrice
 
       // 8. Calculate edge: DK_implied - Poly_price
       // Positive = Poly is cheap relative to sharp lines = BUY opportunity
@@ -249,13 +256,6 @@ export async function GET(req: Request) {
         bestEdge = awayEdge
         recommendation = `BUY ${awayName} YES @ ${(liveAwayPrice * 100).toFixed(1)}¢ | DK implies ${(dkAwayImplied * 100).toFixed(1)}¢ | Edge: +${(awayEdge * 100).toFixed(1)}¢`
       }
-
-      // Get token IDs for trade execution later
-      const tokens: any[] = winnerMarket.clobTokenIds
-        ? JSON.parse(winnerMarket.clobTokenIds)
-        : []
-      const homeTokenId = tokens[homeIdx] || ''
-      const awayTokenId = tokens[awayIdx] || ''
 
       signals.push({
         gameId: event.id,

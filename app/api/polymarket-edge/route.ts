@@ -35,6 +35,25 @@ function teamMatch(abbr: string, teamName: string, title: string): boolean {
   return getKeywords(abbr, teamName).some(k => t.includes(k))
 }
 
+function safeJson<T>(raw: string | null | undefined, fallback: T): T {
+  try { return raw ? JSON.parse(raw) : fallback } catch { return fallback }
+}
+
+function validProbability(v: unknown): number | null {
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 && n < 1 ? n : null
+}
+
+function findOutcomeIndexes(outcomes: string[], homeAbbr: string, homeName: string, awayAbbr: string, awayName: string): { homeIdx: number; awayIdx: number } | null {
+  if (outcomes.length !== 2) return null
+  const homeKw = getKeywords(homeAbbr, homeName)
+  const awayKw = getKeywords(awayAbbr, awayName)
+  const homeIdx = outcomes.findIndex(o => homeKw.some(k => o.toLowerCase().includes(k)))
+  const awayIdx = outcomes.findIndex(o => awayKw.some(k => o.toLowerCase().includes(k)))
+  if (homeIdx < 0 || awayIdx < 0 || homeIdx === awayIdx) return null
+  return { homeIdx, awayIdx }
+}
+
 function parseRecord(rec: string): number {
   const parts = rec.split('-').map(Number)
   if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return 0.5
@@ -133,17 +152,18 @@ export async function GET() {
         .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
       if (winnerMarket) {
-        const outcomes: string[] = JSON.parse(winnerMarket.outcomes || '[]')
-        const prices: string[] = JSON.parse(winnerMarket.outcomePrices || '[]')
-        const tokenIds: string[] = JSON.parse(winnerMarket.clobTokenIds || '[]')
+        const outcomes = safeJson<string[]>(winnerMarket.outcomes, [])
+        const prices = safeJson<string[]>(winnerMarket.outcomePrices, [])
+        const tokenIds = safeJson<string[]>(winnerMarket.clobTokenIds, [])
 
         if (outcomes.length === 2 && prices.length === 2) {
-          const homeKw = getKeywords(homeAbbr, homeName)
-          const homeIdx = outcomes.findIndex(o => homeKw.some(k => o.toLowerCase().includes(k)))
-          const awayIdx = homeIdx === 0 ? 1 : 0
+          const indexes = findOutcomeIndexes(outcomes, homeAbbr, homeName, awayAbbr, awayName)
+          if (!indexes) continue
+          const { homeIdx, awayIdx } = indexes
 
-          const homeMarketOdds = parseFloat(prices[homeIdx >= 0 ? homeIdx : 1] || '0.5')
-          const awayMarketOdds = parseFloat(prices[awayIdx] || '0.5')
+          const homeMarketOdds = validProbability(prices[homeIdx])
+          const awayMarketOdds = validProbability(prices[awayIdx])
+          if (homeMarketOdds === null || awayMarketOdds === null) continue
 
           const { homeEdge, awayEdge } = computeModelEdge(homeRecPct, awayRecPct, homeMarketOdds)
 
@@ -152,7 +172,7 @@ export async function GET() {
 
           // Flag if divergence > 5%
           if (Math.abs(homeDivergence) > 0.05) {
-            const homeTokenId = tokenIds[homeIdx >= 0 ? homeIdx : 1] || ''
+            const homeTokenId = tokenIds[homeIdx] || ''
             edgeMarkets.push({
               matchup,
               marketTitle: winnerMarket.question || `${awayName} vs ${homeName}`,
@@ -194,13 +214,13 @@ export async function GET() {
         .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
       if (spreadMarket) {
-        const outcomes: string[] = JSON.parse(spreadMarket.outcomes || '[]')
-        const prices: string[] = JSON.parse(spreadMarket.outcomePrices || '[]')
-        const tokenIds: string[] = JSON.parse(spreadMarket.clobTokenIds || '[]')
+        const outcomes = safeJson<string[]>(spreadMarket.outcomes, [])
+        const prices = safeJson<string[]>(spreadMarket.outcomePrices, [])
+        const tokenIds = safeJson<string[]>(spreadMarket.clobTokenIds, [])
 
         if (outcomes.length === 2 && prices.length === 2) {
           for (let i = 0; i < 2; i++) {
-            const price = parseFloat(prices[i] || '0.5')
+            const price = validProbability(prices[i]) ?? 0.5
             // Spread markets should be near 50/50 — flag if market diverges from 50% by more than 10% (i.e. strong lean)
             // vs our model read (which we approximate from the winner edge)
             const divergence = price - 0.5
