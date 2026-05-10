@@ -59,6 +59,8 @@ interface ScanResult {
 }
 interface SavedScan {
   id: string; report: string; gamesAnalyzed: number; scannedAt: string; bankroll: number
+  requires?: string
+  contexts?: string[]
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -948,8 +950,45 @@ function HistoryDrawer({
 }
 
 // ── Scan Report ───────────────────────────────────────────────────────────────
+function RawContextCard({ context, index }: { context: string; index: number }) {
+  const lines = context.split('\n').map(l => l.trim()).filter(Boolean)
+  const title = lines.find(l => !l.startsWith('═')) || `Game ${index + 1}`
+  const marketStart = context.indexOf('💰 MARKET ANALYSIS')
+  const statsStart = context.indexOf('📊 TEAM STATS')
+  const marketBlock = marketStart >= 0
+    ? context.slice(marketStart, statsStart > marketStart ? statsStart : undefined).trim()
+    : context.trim()
+  const statsBlock = statsStart >= 0 ? context.slice(statsStart).trim() : ''
+
+  return (
+    <div style={{
+      borderRadius: 16, padding: 14, marginTop: 12,
+      background: 'rgba(0,240,255,0.035)',
+      border: `1px solid ${C.border}`,
+    }}>
+      <div style={{ color: C.cyan, fontWeight: 900, fontSize: 12, lineHeight: 1.4, marginBottom: 10 }}>{title}</div>
+      <pre style={{
+        whiteSpace: 'pre-wrap', margin: 0, color: 'rgba(210,230,255,0.78)',
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        fontSize: 10.5, lineHeight: 1.55, overflowX: 'auto',
+      }}>{marketBlock}</pre>
+      {statsBlock && (
+        <details style={{ marginTop: 10 }}>
+          <summary style={{ color: C.textDim, cursor: 'pointer', fontSize: 11, fontWeight: 800 }}>Show full intel context</summary>
+          <pre style={{
+            whiteSpace: 'pre-wrap', margin: '10px 0 0', color: 'rgba(180,210,255,0.7)',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            fontSize: 10.5, lineHeight: 1.55, overflowX: 'auto',
+          }}>{statsBlock}</pre>
+        </details>
+      )}
+    </div>
+  )
+}
+
 function ScanReport({ scan }: { scan: SavedScan }) {
   const d = new Date(scan.scannedAt)
+  const hasRawContext = Boolean(scan.contexts?.length)
   return (
     <div>
       <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 12, background: C.surface, border: `1px solid ${C.border}` }}>
@@ -959,6 +998,17 @@ function ScanReport({ scan }: { scan: SavedScan }) {
           {' · '}{scan.gamesAnalyzed} games · ${scan.bankroll} bankroll
         </span>
       </div>
+
+      {scan.requires && (
+        <div style={{
+          marginBottom: 14, padding: '12px 14px', borderRadius: 14,
+          background: 'rgba(255,215,0,0.07)', border: '1px solid rgba(255,215,0,0.22)',
+          color: C.gold, fontSize: 12, lineHeight: 1.55,
+        }}>
+          AI narrative is waiting on <strong>{scan.requires}</strong>. Showing raw edge context instead, so the scan still produces usable information.
+        </div>
+      )}
+
       {scan.report.split('\n').map((line, i) => {
         const t = line.trim()
         if (!t) return <div key={i} style={{ height: 6 }} />
@@ -978,6 +1028,13 @@ function ScanReport({ scan }: { scan: SavedScan }) {
           return <p key={i} style={{ color: C.gold, fontWeight: 600, marginBottom: 4, fontSize: 13 }}>{rendered}</p>
         return <p key={i} style={{ color: 'rgba(180,210,255,0.75)', marginBottom: 4, fontSize: 13, lineHeight: 1.7 }}>{rendered}</p>
       })}
+
+      {hasRawContext && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ color: C.textFaint, fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Raw edge context</div>
+          {scan.contexts!.map((ctx, i) => <RawContextCard key={i} context={ctx} index={i} />)}
+        </div>
+      )}
     </div>
   )
 }
@@ -1259,7 +1316,7 @@ export default function BotPage() {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <span style={{ color: '#c4b5fd', fontSize: 12, fontWeight: 800, letterSpacing: '0.08em' }}>
-                  ◈ AI ANALYSIS · {fullScan.gamesAnalyzed} games
+                  ◈ {fullScan.requires ? 'RAW EDGE CONTEXT' : 'AI ANALYSIS'} · {fullScan.gamesAnalyzed} games
                 </span>
                 <span style={{ color: C.textFaint, fontSize: 10 }}>{new Date(fullScan.scannedAt).toLocaleTimeString()}</span>
               </div>
