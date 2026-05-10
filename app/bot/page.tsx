@@ -73,6 +73,18 @@ function hhmm(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
 }
 
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 640)
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+  return isMobile
+}
+
 function timeUntil(iso: string): string {
   const diff = new Date(iso).getTime() - Date.now()
   if (diff <= 0) return 'Now'
@@ -207,6 +219,7 @@ function RoiSpark({ calls }: { calls: TrackedCall[] }) {
 
 // ── Stats Bar (top of page) ───────────────────────────────────────────────────
 function StatsBar({ calls }: { calls: TrackedCall[] }) {
+  const isMobile = useIsMobile()
   const s = useMemo(() => calcStats(calls), [calls])
   if (s.total === 0) return null
 
@@ -219,7 +232,7 @@ function StatsBar({ calls }: { calls: TrackedCall[] }) {
       border: `1px solid ${C.borderMid}`,
       overflow: 'hidden',
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', padding: '18px 16px', gap: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', padding: isMobile ? '14px 12px' : '18px 16px', gap: 4 }}>
         <BigStat label="Calls" value={String(s.total)} sub={`${s.settled} settled`} />
         <BigStat
           label="Win Rate"
@@ -284,6 +297,7 @@ function SignalCard({
   onAnalyze: () => void
 }) {
   const [analysisOpen, setAnalysisOpen] = useState(false)
+  const isMobile = useIsMobile()
   const hasEdge = s.bestSide !== 'none'
   const isLive = s.isLive || s.status === 'in'
   const today   = new Date().toISOString().slice(0, 10)
@@ -323,7 +337,7 @@ function SignalCard({
         <div style={{
           background: 'linear-gradient(135deg, rgba(0,255,136,0.12) 0%, rgba(0,240,255,0.05) 100%)',
           borderBottom: `1px solid rgba(0,255,136,0.2)`,
-          padding: '16px 18px 14px',
+          padding: isMobile ? '14px 14px 12px' : '16px 18px 14px',
         }}>
           {/* Banner title */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -346,7 +360,7 @@ function SignalCard({
 
           {/* Bet line */}
           <div style={{
-            color: C.green, fontWeight: 900, fontSize: 19,
+            color: C.green, fontWeight: 900, fontSize: isMobile ? 16 : 19,
             letterSpacing: '-0.01em', marginBottom: 12, lineHeight: 1.1,
           }}>
             BET: {betTeam?.toUpperCase()} YES @ {cent(betPrice!)}
@@ -354,14 +368,14 @@ function SignalCard({
 
           {/* 3-col odds */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 1px 1fr 1px 1fr',
+            display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1px 1fr 1px 1fr',
             background: 'rgba(0,0,0,0.25)', borderRadius: 14, overflow: 'hidden',
             border: '1px solid rgba(255,255,255,0.06)',
           }}>
             <OddsCol label="Polymarket" value={cent(betPrice!)} color={C.cyan} />
-            <div style={{ background: 'rgba(255,255,255,0.06)' }} />
+            {!isMobile && <div style={{ background: 'rgba(255,255,255,0.06)' }} />}
             <OddsCol label="DK Implied" value={cent(dkImp!)} color={C.text} />
-            <div style={{ background: 'rgba(255,255,255,0.06)' }} />
+            {!isMobile && <div style={{ background: 'rgba(255,255,255,0.06)' }} />}
             <OddsCol label="Spread" value={spreadDisplay} color={C.purple} sub={s.dkTotal ? `O/U ${s.dkTotal}` : undefined} />
           </div>
 
@@ -469,7 +483,7 @@ function SignalCard({
         <div style={{ color: C.textFaint, fontSize: 8, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>
           All Odds
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
           {[
             { team: s.polyAwayTeam || awayName, price: s.polyAwayPrice, imp: s.dkAwayImplied, e: s.awayEdge, ml: s.dkAwayML, side: 'AWAY' },
             { team: s.polyHomeTeam || homeName, price: s.polyHomePrice, imp: s.dkHomeImplied, e: s.homeEdge, ml: s.dkHomeML, side: 'HOME' },
@@ -1054,6 +1068,7 @@ export default function BotPage() {
   const [showHistory,     setShowHistory]     = useState(false)
   const [showTracker,     setShowTracker]     = useState(false)
   const [trackedCalls,    setTrackedCalls]    = useState<TrackedCall[]>([])
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     const stored = localStorage.getItem('poly-scans')
@@ -1190,7 +1205,7 @@ export default function BotPage() {
         background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,255,136,0.03) 0%, transparent 60%)',
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 680, margin: '0 auto', padding: '28px 14px 80px' }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 680, margin: '0 auto', padding: isMobile ? '18px 10px 64px' : '28px 14px 80px' }}>
 
         {/* ── HEADER ── */}
         <div style={{ marginBottom: 24 }}>
@@ -1198,7 +1213,7 @@ export default function BotPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div>
-              <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', margin: 0, lineHeight: 1 }}>
+              <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 900, letterSpacing: '-0.03em', margin: 0, lineHeight: 1 }}>
                 <span style={{ color: C.green, textShadow: `0 0 24px ${C.green}44` }}>EDGE</span>
                 <span style={{ color: C.text }}> SCANNER</span>
               </h1>
@@ -1218,7 +1233,7 @@ export default function BotPage() {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: isMobile ? 'stretch' : 'flex-start' }}>
               <button onClick={() => setShowTracker(true)} style={{
                 position: 'relative', padding: '9px 14px', borderRadius: 12,
                 fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', cursor: 'pointer',
