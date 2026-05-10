@@ -1045,6 +1045,7 @@ export default function BotPage() {
   const [loading,         setLoading]         = useState(true)
   const [error,           setError]           = useState<string | null>(null)
   const [filter,          setFilter]          = useState<'edge' | 'all'>('edge')
+  const [scanSport,       setScanSport]       = useState<'nba' | 'nfl'>('nba')
   const [narratives,      setNarratives]      = useState<Record<string, NarrativeResult | 'loading' | 'error'>>({})
   const [fullScan,        setFullScan]        = useState<SavedScan | null>(null)
   const [fullScanLoading, setFullScanLoading] = useState(false)
@@ -1111,7 +1112,7 @@ export default function BotPage() {
   async function scan() {
     setLoading(true); setError(null)
     try {
-      const res  = await fetch('/api/bot/scan')
+      const res  = await fetch(`/api/bot/scan?sport=${scanSport}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       if (json.error) throw new Error(json.error)
@@ -1158,7 +1159,7 @@ export default function BotPage() {
     setTrackedCalls(loadCalls())
   }
 
-  useEffect(() => { scan() }, [])
+  useEffect(() => { scan() }, [scanSport])
 
   // Sort: edges first (by bestEdge desc), then no-edge games
   const allSignals = data?.signals || []
@@ -1202,8 +1203,19 @@ export default function BotPage() {
                 <span style={{ color: C.text }}> SCANNER</span>
               </h1>
               <p style={{ color: C.textFaint, fontSize: 11, letterSpacing: '0.06em', marginTop: 4 }}>
-                Polymarket vs DraftKings · NBA · Paper Trading
+                Polymarket vs DraftKings · {scanSport.toUpperCase()} · Paper Trading
               </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 4, padding: 3, borderRadius: 12, background: C.surface, border: `1px solid ${C.border}` }}>
+              {(['nba', 'nfl'] as const).map(s => (
+                <button key={s} onClick={() => { setScanSport(s); setLoading(true) }} style={{
+                  padding: '7px 11px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                  background: scanSport === s ? (s === 'nfl' ? 'rgba(0,255,136,0.14)' : 'rgba(0,240,255,0.12)') : 'transparent',
+                  color: scanSport === s ? (s === 'nfl' ? C.green : C.cyan) : C.textDim,
+                  fontSize: 10, fontWeight: 900, letterSpacing: '0.1em',
+                }}>{s.toUpperCase()}</button>
+              ))}
             </div>
 
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

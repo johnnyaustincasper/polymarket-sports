@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const GAMMA_API = 'https://gamma-api.polymarket.com'
 const CLOB_API = 'https://clob.polymarket.com'
 
@@ -33,7 +36,7 @@ const ESPN_TO_POLY: Record<string, string[]> = {
   DAL: ['mavericks', 'dallas'], DEN: ['nuggets', 'denver'], DET: ['pistons', 'detroit'],
   GSW: ['warriors', 'golden state'], GS: ['warriors', 'golden state'],
   HOU: ['rockets', 'houston'], IND: ['pacers', 'indiana'],
-  LAC: ['clippers', 'clippers'], LAL: ['lakers', 'los angeles lakers', 'lakers'],
+  LAC: ['clippers', 'chargers', 'los angeles chargers'], LAL: ['lakers', 'los angeles lakers', 'lakers'],
   MEM: ['grizzlies', 'memphis'], MIA: ['heat', 'miami'], MIL: ['bucks', 'milwaukee'],
   MIN: ['timberwolves', 'minnesota'], NOP: ['pelicans', 'new orleans'], NO: ['pelicans', 'new orleans'],
   NYK: ['knicks', 'new york'], NY: ['knicks', 'new york'], OKC: ['thunder', 'oklahoma city'],
@@ -41,8 +44,14 @@ const ESPN_TO_POLY: Record<string, string[]> = {
   PHX: ['suns', 'phoenix'], POR: ['trail blazers', 'portland'],
   SAC: ['kings', 'sacramento'], SAS: ['spurs', 'san antonio'], SA: ['spurs', 'san antonio'],
   TOR: ['raptors', 'toronto'], UTA: ['jazz', 'utah'], UTAH: ['jazz', 'utah'],
-  WAS: ['wizards', 'washington'], WSH: ['wizards', 'washington'],
+  WAS: ['wizards', 'washington', 'commanders'], WSH: ['wizards', 'washington', 'commanders'],
+  ARI: ['cardinals', 'arizona'], BAL: ['ravens', 'baltimore'], BUF: ['bills', 'buffalo'], CAR: ['panthers', 'carolina'],
+  CIN: ['bengals', 'cincinnati'], GB: ['packers', 'green bay'], JAX: ['jaguars', 'jacksonville'], KC: ['chiefs', 'kansas city'],
+  LAR: ['rams', 'los angeles rams'], LV: ['raiders', 'las vegas'], NE: ['patriots', 'new england'],
+  NYG: ['giants', 'new york giants'], NYJ: ['jets', 'new york jets'], PIT: ['steelers', 'pittsburgh'], SEA: ['seahawks', 'seattle'],
+  SF: ['49ers', 'niners', 'san francisco'], TB: ['buccaneers', 'bucs', 'tampa bay'], TEN: ['titans', 'tennessee'],
 }
+
 
 function getKeywords(abbr: string, name: string): string[] {
   if (ESPN_TO_POLY[abbr]) return ESPN_TO_POLY[abbr]
@@ -111,22 +120,27 @@ async function getClobPrice(conditionId: string): Promise<{ yes: number; no: num
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    // 1. Fetch today's NBA games from ESPN
-    const today = new Date()
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '')
+    const { searchParams } = new URL(req.url)
+    const sportParam = (searchParams.get('sport') || 'nba').toLowerCase()
+    const sport = sportParam === 'nfl' ? 'nfl' : 'nba'
+    const leaguePath = sport === 'nfl' ? 'football/nfl' : 'basketball/nba'
+    const polyTag = sport === 'nfl' ? 'nfl' : 'nba'
+    const label = sport.toUpperCase()
+    const cst = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }))
+    const dateStr = searchParams.get('date') || `${cst.getFullYear()}${String(cst.getMonth()+1).padStart(2,'0')}${String(cst.getDate()).padStart(2,'0')}`
     const espnRes = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateStr}`,
-      { next: { revalidate: 120 } }
+      `https://site.api.espn.com/apis/site/v2/sports/${leaguePath}/scoreboard?dates=${dateStr}`,
+      { cache: 'no-store' }
     )
     if (!espnRes.ok) return NextResponse.json({ error: 'ESPN fetch failed' }, { status: 500 })
     const espnData = await espnRes.json()
     const events: any[] = espnData.events || []
 
-    // 2. Fetch active Polymarket NBA events
+    // 2. Fetch active Polymarket events
     const polyRes = await fetch(
-      `${GAMMA_API}/events?active=true&closed=false&tag_slug=nba&limit=200`,
+      `${GAMMA_API}/events?active=true&closed=false&tag_slug=${polyTag}&limit=200`,
       { next: { revalidate: 60 } }
     )
     if (!polyRes.ok) return NextResponse.json({ error: 'Polymarket fetch failed' }, { status: 500 })
@@ -271,7 +285,7 @@ export async function GET() {
         bestSide,
         bestEdge: Math.round(bestEdge * 1000) / 1000,
         recommendation,
-        sport: 'NBA',
+        sport: label,
       })
     }
 
@@ -280,7 +294,7 @@ export async function GET() {
 
     return NextResponse.json({
       scannedAt: new Date().toISOString(),
-      gamesScanned: events.filter(e => e.competitions?.[0]?.status?.type?.state === 'pre').length,
+      gamesScanned: events.filter(e => ['pre', 'in'].includes(e.competitions?.[0]?.status?.type?.state)).length,
       polyMarketsFound: signals.length,
       edgeSignals: signals.filter(s => s.bestSide !== 'none').length,
       signals,
