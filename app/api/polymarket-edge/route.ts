@@ -84,16 +84,6 @@ function validProbability(v: unknown): number | null {
   return Number.isFinite(n) && n > 0 && n < 1 ? n : null
 }
 
-function findOutcomeIndexes(outcomes: string[], homeAbbr: string, homeName: string, awayAbbr: string, awayName: string): { homeIdx: number; awayIdx: number } | null {
-  if (outcomes.length !== 2) return null
-  const homeKw = getKeywords(homeAbbr, homeName)
-  const awayKw = getKeywords(awayAbbr, awayName)
-  const homeIdx = outcomes.findIndex(o => homeKw.some(k => o.toLowerCase().includes(k)))
-  const awayIdx = outcomes.findIndex(o => awayKw.some(k => o.toLowerCase().includes(k)))
-  if (homeIdx < 0 || awayIdx < 0 || homeIdx === awayIdx) return null
-  return { homeIdx, awayIdx }
-}
-
 function parseRecord(rec: string): number {
   const parts = rec.split('-').map(Number)
   if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return 0.5

@@ -63,6 +63,15 @@ interface PolyOdds {
   totalLine: number; overOdds: number; underOdds: number; hasTotalOdds: boolean
   polyWinnerUrl: string | null; polySpreadUrl: string | null; polyTotalUrl: string | null
   polyEventTitle: string | null; polyMatchScore: number
+  oddsUpdatedAt: string | null; polyFetchOk: boolean; usedGammaFallback: boolean
+  polyError: string | null; sourceStatus: 'matched' | 'unmatched' | 'no_events' | 'poly_error'
+}
+
+interface PolyEventsFetch {
+  events: any[]
+  fetchedAt: string
+  fetchOk: boolean
+  error: string | null
 }
 
 function normalize(s: string) {
@@ -120,8 +129,7 @@ function isWinnerQuestion(q: string): boolean {
 }
 
 function isSpreadQuestion(q: string): boolean {
-  const n = normalize(q)
-  return n.startsWith('spread') || /\([+-]?\d+\.?\d*\)/.test(q)
+  return hasSpreadLanguage(q) && /\([+-]?\d+\.?\d*\)/.test(q)
 }
 
 function isTotalQuestion(q: string): boolean {
@@ -129,21 +137,47 @@ function isTotalQuestion(q: string): boolean {
   return (n.includes('o u') || n.includes('over under') || n.includes('total')) && !n.includes('player')
 }
 
-async function fetchPolyEvents(sport: SportKey): Promise<any[]> {
+async function fetchPolyEvents(sport: SportKey): Promise<PolyEventsFetch> {
   const seen = new Set<string>()
   const events: any[] = []
+  const errors: string[] = []
   for (const slug of SPORTS[sport].polyTags) {
-    const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=${slug}&limit=200`, { next: { revalidate: 60 } })
-    if (!res.ok) continue
-    const data: any[] = await res.json()
-    for (const event of data) {
-      const id = String(event.id || event.slug || event.title || '')
-      if (!id || seen.has(id)) continue
-      seen.add(id)
-      events.push(event)
+    try {
+      const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=${slug}&limit=200`, { next: { revalidate: 60 } })
+      if (!res.ok) {
+        errors.push(`${slug}: ${res.status}`)
+        continue
+      }
+      const data: any[] = await res.json()
+      for (const event of data) {
+        const id = String(event.id || event.slug || event.title || '')
+        if (!id || seen.has(id)) continue
+        seen.add(id)
+        events.push(event)
+      }
+    } catch (err) {
+      errors.push(`${slug}: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
-  return events
+  return {
+    events,
+    fetchedAt: new Date().toISOString(),
+    fetchOk: errors.length === 0,
+    error: errors.length ? errors.slice(0, 3).join('; ') : null,
+  }
+}
+
+function latestPolyUpdatedAt(event: any, markets: any[], fetchedAt: string): string {
+  const candidates = [event?.updatedAt, event?.updated_at, event?.createdAt, ...markets.flatMap(m => [m?.updatedAt, m?.updated_at, m?.createdAt])]
+  const timestamps = candidates
+    .map(v => (v ? new Date(v).getTime() : NaN))
+    .filter(v => Number.isFinite(v))
+  if (!timestamps.length) return fetchedAt
+  return new Date(Math.max(...timestamps)).toISOString()
+}
+
+function hasSpreadLanguage(question: string): boolean {
+  return /\b(spread|handicap|point\s+spread|against\s+the\s+spread|ats)\b/i.test(question)
 }
 
 function findBestPolyEvent(events: any[], awayAbbr: string, homeAbbr: string, awayName: string, homeName: string, sport: SportKey) {
@@ -166,7 +200,7 @@ async function getPolyOdds(
   awayAbbr: string, homeAbbr: string,
   awayName: string, homeName: string,
   sport: SportKey,
-  polyEvents?: any[],
+  polyFetch?: PolyEventsFetch,
 ): Promise<PolyOdds> {
   const defaultOdds: PolyOdds = {
     homeWinOdds: 0.5, awayWinOdds: 0.5, hasWinnerOdds: false,
@@ -174,14 +208,23 @@ async function getPolyOdds(
     totalLine: 0, overOdds: 0.5, underOdds: 0.5, hasTotalOdds: false,
     polyWinnerUrl: null, polySpreadUrl: null, polyTotalUrl: null,
     polyEventTitle: null, polyMatchScore: 0,
+    oddsUpdatedAt: null, polyFetchOk: false, usedGammaFallback: true,
+    polyError: null, sourceStatus: 'poly_error',
   }
 
   try {
-    const events = polyEvents || await fetchPolyEvents(sport)
-    if (!events.length) return defaultOdds
+    const poly = polyFetch || await fetchPolyEvents(sport)
+    const baseOdds: PolyOdds = {
+      ...defaultOdds,
+      oddsUpdatedAt: poly.fetchedAt,
+      polyFetchOk: poly.fetchOk,
+      polyError: poly.error,
+      sourceStatus: poly.fetchOk ? 'no_events' : 'poly_error',
+    }
+    if (!poly.events.length) return baseOdds
 
-    const { event, score } = findBestPolyEvent(events, awayAbbr, homeAbbr, awayName, homeName, sport)
-    if (!event) return defaultOdds
+    const { event, score } = findBestPolyEvent(poly.events, awayAbbr, homeAbbr, awayName, homeName, sport)
+    if (!event) return { ...baseOdds, sourceStatus: 'unmatched' }
 
     const markets: any[] = event.markets || []
 
@@ -196,10 +239,10 @@ async function getPolyOdds(
 
     const spreadMarket = markets
       .filter(m => {
-        const q = String(m.question || '')
+        const q = `${m.question || ''} ${m.title || ''}`
         const outcomes = safeJson<string[]>(m.outcomes, [])
         const hasTeamOutcome = outcomes.some(o => teamMatchesKeywords(awayName, awayAbbr, o, sport) || teamMatchesKeywords(homeName, homeAbbr, o, sport))
-        return isSpreadQuestion(q) && hasTeamOutcome
+        return hasSpreadLanguage(q) && isSpreadQuestion(q) && hasTeamOutcome
       })
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
@@ -212,7 +255,13 @@ async function getPolyOdds(
       .sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0))[0]
 
     const polySlug = (m: any) => m?.slug ? `https://polymarket.com/event/${m.slug}` : event?.slug ? `https://polymarket.com/event/${event.slug}` : null
-    const result = { ...defaultOdds, polyEventTitle: event.title || null, polyMatchScore: score }
+    const result: PolyOdds = {
+      ...baseOdds,
+      polyEventTitle: event.title || null,
+      polyMatchScore: score,
+      oddsUpdatedAt: latestPolyUpdatedAt(event, markets, poly.fetchedAt),
+      sourceStatus: 'matched',
+    }
 
     if (winnerMarket) {
       const outcomes = safeJson<string[]>(winnerMarket.outcomes, [])
@@ -277,10 +326,12 @@ async function getPolyOdds(
     result.polyWinnerUrl = polySlug(winnerMarket)
     result.polySpreadUrl = polySlug(spreadMarket)
     result.polyTotalUrl  = polySlug(totalMarket)
+    result.usedGammaFallback = !(result.hasWinnerOdds || result.hasSpreadOdds || result.hasTotalOdds)
+    if (result.usedGammaFallback) result.sourceStatus = 'unmatched'
 
     return result
-  } catch {
-    return defaultOdds
+  } catch (err) {
+    return { ...defaultOdds, polyError: err instanceof Error ? err.message : String(err) }
   }
 }
 
@@ -296,7 +347,7 @@ export async function GET(req: Request) {
     const dateParam = searchParams.get('date') || toCST(new Date())
 
     const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/${SPORTS[sport].leaguePath}/scoreboard?dates=${dateParam}`
-    const [espnRes, polyEvents] = await Promise.all([
+    const [espnRes, polyFetch] = await Promise.all([
       fetch(espnUrl, { cache: 'no-store' }),
       fetchPolyEvents(sport),
     ])
@@ -306,9 +357,9 @@ export async function GET(req: Request) {
     if (!events.length) return NextResponse.json([])
     const sourceHealth = {
       espn: { ok: true, events: events.length, date: dateParam },
-      polymarket: { ok: polyEvents.length > 0, events: polyEvents.length, tags: SPORTS[sport].polyTags },
-      stale: polyEvents.length === 0,
-      checkedAt: new Date().toISOString(),
+      polymarket: { ok: polyFetch.fetchOk, events: polyFetch.events.length, tags: SPORTS[sport].polyTags, error: polyFetch.error },
+      stale: !polyFetch.fetchOk || polyFetch.events.length === 0,
+      checkedAt: polyFetch.fetchedAt,
     }
 
     const games = await Promise.all(events.map(async (event: any) => {
@@ -332,7 +383,7 @@ export async function GET(req: Request) {
       if (isLive) gameTime = statusDetail
       else if (isPost) gameTime = 'Final'
 
-      const odds = await getPolyOdds(awayAbbr, homeAbbr, awayName, homeName, sport, polyEvents)
+      const odds = await getPolyOdds(awayAbbr, homeAbbr, awayName, homeName, sport, polyFetch)
 
       const oddsArr: any[] = comp?.odds || []
       const dk = oddsArr.find((o: any) => o.provider?.name?.toLowerCase().includes('draft')) || oddsArr[0]
