@@ -97,7 +97,10 @@ interface BettingTrendData {
 interface PropsMarketSummary {
   scanned: number
   gameMatched: number
+  candidateProps?: number
+  executableMatched?: number
   playableMatched: number
+  priceRejected?: number
   pages: number
   stale: boolean
 }
@@ -1562,14 +1565,16 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
               {props?.marketSummary && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                   {[
-                    ['Kalshi game markets', props.marketSummary.scanned],
-                    ['Candidate props', props.marketSummary.gameMatched],
+                    ['Kalshi scanned', props.marketSummary.scanned],
+                    ['Game markets', props.marketSummary.gameMatched],
+                    ['Executable asks', props.marketSummary.executableMatched ?? props.marketSummary.gameMatched],
                     ['Playable', props.marketSummary.playableMatched],
                   ].map(([label, value]) => (
                     <span key={label} style={{ background: 'rgba(0,240,255,0.055)', border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 8px', color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                       {label}: <span style={{ color: C.textPrimary }}>{value}</span>
                     </span>
                   ))}
+                  {Boolean(props.marketSummary.priceRejected) && <span style={{ background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.24)', borderRadius: 999, padding: '4px 8px', color: C.gold, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Price passed: {props.marketSummary.priceRejected}</span>}
                   {props.marketSummary.stale && <span style={{ background: 'rgba(255,215,0,0.10)', border: '1px solid rgba(255,215,0,0.28)', borderRadius: 999, padding: '4px 8px', color: C.gold, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>No executable edge yet</span>}
                 </div>
               )}
@@ -1922,7 +1927,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
 
         {props?.marketSummary && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-            {[['Kalshi markets', props.marketSummary.scanned], ['Candidates', props.marketSummary.gameMatched], ['Playable', props.marketSummary.playableMatched]].map(([label, value]) => (
+            {[['Kalshi scanned', props.marketSummary.scanned], ['Game markets', props.marketSummary.gameMatched], ['Executable asks', props.marketSummary.executableMatched ?? props.marketSummary.gameMatched], ['Playable', props.marketSummary.playableMatched]].map(([label, value]) => (
               <span key={label} style={{ background: 'rgba(0,255,136,0.055)', border: '1px solid rgba(0,255,136,0.16)', borderRadius: 999, padding: '4px 9px', color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}: <span style={{ color: C.textPrimary }}>{value}</span></span>
             ))}
           </div>

@@ -37,9 +37,18 @@ interface KalshiMarketMatch {
 interface PropsMarketSummary {
   scanned: number
   gameMatched: number
+  candidateProps: number
+  executableMatched: number
   playableMatched: number
+  priceRejected: number
   pages: number
   stale: boolean
+}
+
+interface KalshiMarketScan {
+  markets: any[]
+  scanned: number
+  pages: number
 }
 
 interface PropRecommendation {
@@ -232,13 +241,14 @@ function marketContainsGame(market: any, home: string, away: string): boolean {
   return (hay.includes(`${away}${home}`) || hay.includes(`${home}${away}`) || (hay.includes(home) && hay.includes(away)))
 }
 
-async function fetchKalshiPropMarkets(sport: Sport, home: string, away: string): Promise<any[]> {
+async function fetchKalshiPropMarkets(sport: Sport, home: string, away: string): Promise<KalshiMarketScan> {
   const homeCode = kalshiTeamCode(home, sport)
   const awayCode = kalshiTeamCode(away, sport)
   const prefix = sport === 'nba' ? 'KXNBA' : 'KXNFL'
   try {
     const markets: any[] = []
     let cursor = ''
+    let pages = 0
     // Player props often sit beyond the first page. Scan a bounded window so
     // executable markets do not disappear just because Kalshi returned them late.
     for (let page = 0; page < 6; page++) {
@@ -248,16 +258,23 @@ async function fetchKalshiPropMarkets(sport: Sport, home: string, away: string):
       if (!res.ok) break
       const data = await res.json()
       markets.push(...(data.markets || []))
+      pages += 1
       cursor = String(data.cursor || '')
       if (!cursor) break
     }
-    return markets.filter((m: any) => isPlayableGamePropMarket(m, prefix, homeCode, awayCode))
-  } catch { return [] }
+    return {
+      markets: markets.filter((m: any) => isExecutableGamePropMarket(m, prefix, homeCode, awayCode)),
+      scanned: markets.length,
+      pages,
+    }
+  } catch { return { markets: [], scanned: 0, pages: 0 } }
 }
 
-function isPlayableGamePropMarket(m: any, prefix: string, homeCode: string, awayCode: string): boolean {
+function isExecutableGamePropMarket(m: any, prefix: string, homeCode: string, awayCode: string): boolean {
   const ask = dollarsToCents(m.yes_ask_dollars)
   const askSize = sizeToNum(m.yes_ask_size_fp)
+  // A positive YES ask with size is executable for buying. Kalshi combo props
+  // often show no bid even when there is live ask-side liquidity.
   if (ask <= 0 || ask >= 100 || askSize <= 0 || !['open', 'active'].includes(String(m.status))) return false
   const legs = m.mve_selected_legs || []
   const hasSportLeg = legs.some((l: any) => String(l.market_ticker || l.event_ticker || '').startsWith(prefix))
@@ -385,15 +402,23 @@ function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: any[]): 
   }).filter(p => p.bestBet) as PlayerPropLine[]
 }
 
-function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: PlayerPropLine[], markets: any[]): PropsMarketSummary {
+function countExecutableRecommendations(rawPlayers: PlayerPropLine[], sport: Sport, markets: any[]): number {
+  return rawPlayers.reduce((sum, p) => sum + p.recommendations.filter(r => findKalshiMatch(p.player, r, sport, markets)).length, 0)
+}
+
+function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: PlayerPropLine[], sport: Sport, scan: KalshiMarketScan): PropsMarketSummary {
   const playableMatched = gatedPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
-  const gameMatched = rawPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
+  const candidateProps = rawPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
+  const executableMatched = countExecutableRecommendations(rawPlayers, sport, scan.markets)
   return {
-    scanned: markets.length,
-    gameMatched,
+    scanned: scan.scanned,
+    gameMatched: scan.markets.length,
+    candidateProps,
+    executableMatched,
     playableMatched,
-    pages: Math.max(1, Math.ceil(markets.length / 200)),
-    stale: markets.length === 0 || playableMatched === 0,
+    priceRejected: Math.max(0, executableMatched - playableMatched),
+    pages: scan.pages,
+    stale: scan.markets.length === 0 || playableMatched === 0,
   }
 }
 
@@ -558,14 +583,15 @@ export async function GET(req: NextRequest) {
   if (!home || !away) return NextResponse.json({ error: 'Missing home or away param' }, { status: 400 })
 
   try {
-    const [homeRaw, awayRaw, kalshiMarkets] = await Promise.all([fetchTeamProps(home, sport), fetchTeamProps(away, sport), fetchKalshiPropMarkets(sport, home, away)])
+    const [homeRaw, awayRaw, kalshiScan] = await Promise.all([fetchTeamProps(home, sport), fetchTeamProps(away, sport), fetchKalshiPropMarkets(sport, home, away)])
+    const kalshiMarkets = kalshiScan.markets
     const gatedHome = gateToKalshi(homeRaw, sport, kalshiMarkets)
     const gatedAway = gateToKalshi(awayRaw, sport, kalshiMarkets)
     const withXai = await applyXaiPropIntel([...gatedAway, ...gatedHome])
     const byPlayer = new Map(withXai.map(p => [`${p.team}|${p.player}`, p]))
     const homeProps = gatedHome.map(p => byPlayer.get(`${p.team}|${p.player}`) || p).slice(0, sport === 'nba' ? 8 : 10)
     const awayProps = gatedAway.map(p => byPlayer.get(`${p.team}|${p.player}`) || p).slice(0, sport === 'nba' ? 8 : 10)
-    const marketSummary = summarizeMarkets([...homeRaw, ...awayRaw], [...homeProps, ...awayProps], kalshiMarkets)
+    const marketSummary = summarizeMarkets([...homeRaw, ...awayRaw], [...homeProps, ...awayProps], sport, kalshiScan)
     return NextResponse.json({ home: homeProps, away: awayProps, homeTeam: home, awayTeam: away, sport, available: homeProps.length > 0 || awayProps.length > 0, marketSummary } satisfies PropsResponse)
   } catch (err) {
     console.error('Props error:', err)
