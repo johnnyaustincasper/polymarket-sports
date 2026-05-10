@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const GAMMA_API = 'https://gamma-api.polymarket.com'
 
 // NBA team keyword map (same as markets route)

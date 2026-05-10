@@ -129,8 +129,165 @@ function deriveGameEdge(game: Game): GameEdge | null {
     ourProb,
     marketProb,
     kelly: computeKelly(ourProb, marketProb),
-    edgeScore,
+  edgeScore,
   }
+}
+
+interface LastMinuteBoardEntry {
+  game: Game
+  minutesToTip: number
+  recommendedSide: string
+  marketProb: number
+  ourProb: number
+  winEdge: number
+  lineGap: number
+  totalGap: number
+  score: number
+  reasons: string[]
+}
+
+function getMinutesToTip(gameDate: string): number {
+  return Math.round((new Date(gameDate).getTime() - Date.now()) / 60000)
+}
+
+function buildLastMinuteBoard(games: Game[]): LastMinuteBoardEntry[] {
+  return games
+    .filter(game => game.status === 'pre')
+    .map((game) => {
+      const minutesToTip = getMinutesToTip(game.gameDate)
+      if (minutesToTip < 0 || minutesToTip > 60) return null
+
+      const winEdge = deriveGameEdge(game)
+      const lineGap = game.hasDkOdds && game.hasSpreadOdds && game.dkSpread != null
+        ? Math.abs(game.spreadLine - game.dkSpread)
+        : 0
+      const totalGap = game.hasDkOdds && game.hasTotalOdds && game.dkTotal != null
+        ? Math.abs(game.totalLine - game.dkTotal)
+        : 0
+
+      const reasons: string[] = []
+      if (winEdge) reasons.push(`${winEdge.team} ML +${Math.round(winEdge.edgeScore * 100)}% edge`)
+      if (lineGap >= 1.5) reasons.push(`Spread ${lineGap.toFixed(1)} pts off DK`)
+      if (totalGap >= 2) reasons.push(`Total ${totalGap.toFixed(1)} pts off DK`)
+      if (minutesToTip <= 20) reasons.push('Execution window open now')
+
+      const score =
+        (winEdge?.edgeScore || 0) * 100 +
+        lineGap * 4 +
+        totalGap * 2 +
+        Math.max(0, (60 - minutesToTip) / 12)
+
+      if (!reasons.length) return null
+
+      return {
+        game,
+        minutesToTip,
+        recommendedSide: winEdge?.team || (game.spreadFavoriteTeam || game.homeTeam.abbr),
+        marketProb: winEdge?.marketProb || 0.5,
+        ourProb: winEdge?.ourProb || 0.5,
+        winEdge: winEdge?.edgeScore || 0,
+        lineGap,
+        totalGap,
+        score,
+        reasons,
+      }
+    })
+    .filter((entry): entry is LastMinuteBoardEntry => entry !== null)
+    .sort((a, b) => b.score - a.score)
+}
+
+function LastSixtyBoard({ games }: { games: Game[] }) {
+  const board = buildLastMinuteBoard(games)
+
+  if (!board.length) return null
+
+  return (
+    <section className="mb-8">
+      <div style={{
+        borderRadius: 20,
+        padding: '20px 24px',
+        background: 'linear-gradient(135deg, rgba(255,68,102,0.08), rgba(0,240,255,0.05), rgba(168,85,247,0.06))',
+        border: '1px solid rgba(255,68,102,0.22)',
+        boxShadow: '0 0 30px rgba(255,68,102,0.08), 0 4px 40px rgba(0,0,0,0.45)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 14 }}>⏳</span>
+          <span style={{ color: C.red, fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Last 60 Minutes Before Tip</span>
+          <span style={{ background: 'rgba(255,68,102,0.12)', border: '1px solid rgba(255,68,102,0.35)', borderRadius: 8, padding: '2px 8px', color: '#ff8aa0', fontSize: 9, fontWeight: 800 }}>
+            {board.length} live setups
+          </span>
+          <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(255,68,102,0.3), transparent)' }} />
+        </div>
+
+        <p style={{ color: C.textSecondary, fontSize: 11, marginBottom: 14 }}>
+          Small board, just the near-tip windows with real misprice signals. This is the playoff execution layer, not the whole slate.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+          {board.map((entry) => (
+            <div
+              key={entry.game.id}
+              style={{
+                borderRadius: 16,
+                padding: '14px 16px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,68,102,0.16)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+                <div>
+                  <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 800 }}>{entry.game.awayTeam.abbr} @ {entry.game.homeTeam.abbr}</p>
+                  <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 2 }}>{entry.minutesToTip <= 0 ? 'Tipping now' : `${entry.minutesToTip}m to tip`}</p>
+                </div>
+                <div style={{
+                  background: entry.minutesToTip <= 20 ? 'rgba(255,68,102,0.16)' : 'rgba(255,215,0,0.12)',
+                  border: `1px solid ${entry.minutesToTip <= 20 ? 'rgba(255,68,102,0.45)' : 'rgba(255,215,0,0.35)'}`,
+                  borderRadius: 10,
+                  padding: '4px 8px',
+                }}>
+                  <span style={{ color: entry.minutesToTip <= 20 ? C.red : C.gold, fontSize: 10, fontWeight: 900 }}>
+                    {entry.recommendedSide}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                {entry.winEdge > 0.02 && (
+                  <span style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.25)', borderRadius: 8, padding: '3px 8px', color: C.green, fontSize: 10, fontWeight: 800 }}>
+                    ML +{Math.round(entry.winEdge * 100)}%
+                  </span>
+                )}
+                {entry.lineGap >= 1.5 && (
+                  <span style={{ background: 'rgba(0,240,255,0.08)', border: `1px solid ${C.border}`, borderRadius: 8, padding: '3px 8px', color: C.cyan, fontSize: 10, fontWeight: 800 }}>
+                    Spread {entry.lineGap.toFixed(1)}
+                  </span>
+                )}
+                {entry.totalGap >= 2 && (
+                  <span style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 8, padding: '3px 8px', color: C.purple, fontSize: 10, fontWeight: 800 }}>
+                    Total {entry.totalGap.toFixed(1)}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {entry.reasons.slice(0, 3).map((reason, idx) => (
+                  <p key={idx} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, opacity: 0.88 }}>
+                    ◆ {reason}
+                  </p>
+                ))}
+              </div>
+
+              {entry.winEdge > 0.02 && (
+                <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 10 }}>
+                  Model {Math.round(entry.ourProb * 100)}% vs market {Math.round(entry.marketProb * 100)}%
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
 }
 
 // ─── Daily Parlay Builder ─────────────────────────────────────────────────────
@@ -1989,10 +2146,17 @@ interface UFCFighter {
   strikingAccuracy: number | null; takedownAccuracy: number | null
   recentForm: string[]
 }
+interface UFCPolyOdds {
+  fighterAWin: number | null; fighterBWin: number | null; hasWinner: boolean
+  totalLine: number | null; overOdds: number | null; underOdds: number | null; hasTotal: boolean
+  koTkoOdds: number | null; submissionOdds: number | null; goDistanceOdds: number | null
+  polyWinnerUrl: string | null; polyTotalUrl: string | null
+}
 interface UFCFight {
   id: string; boutOrder: number; isMainEvent: boolean; weightClass: string
   isTitleFight: boolean; fighterA: UFCFighter; fighterB: UFCFighter
   moneyLineA: number | null; moneyLineB: number | null
+  polyOdds: UFCPolyOdds
   result?: { winner: string; method: string; round: number; time: string }
 }
 interface UFCEvent {
@@ -2001,28 +2165,58 @@ interface UFCEvent {
 }
 
 // ─── UFC Intel Panel ──────────────────────────────────────────────────────────
+interface UFCIntel {
+  verdict: string          // 1-sentence who wins and why
+  edge: string             // who has the edge overall
+  striking: string         // striking breakdown, 1-2 sentences
+  grappling: string        // grappling/wrestling breakdown
+  keyFactors: string[]     // 3 bullet points max
+  prediction: string       // method of victory prediction
+  watchFor: string         // key x-factor to watch
+}
+
 function UFCIntelPanel({ fight, onClose }: { fight: UFCFight; onClose: () => void }) {
-  const [analysis, setAnalysis] = useState('')
+  const [intel, setIntel] = useState<UFCIntel | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const { fighterA: a, fighterB: b, weightClass, isTitleFight } = fight
     const fmtForm = (f: UFCFighter) => f.recentForm.length > 0 ? f.recentForm.slice(0, 5).join('') : 'N/A'
     const fmtRank = (f: UFCFighter) => f.ranking !== null ? (f.ranking === 0 ? 'Champion' : `#${f.ranking}`) : 'NR'
-    const prompt = `UFC fight analysis: ${a.name} (${a.record}, ranked ${fmtRank(a)}, recent form: ${fmtForm(a)}) vs ${b.name} (${b.record}, ranked ${fmtRank(b)}, recent form: ${fmtForm(b)}). Weight class: ${weightClass}${isTitleFight ? ' (TITLE FIGHT)' : ''}. Analyze this matchup — who has the edge and why? Be concise.`
+    const prompt = `You are a sharp UFC analyst. Analyze this fight and respond ONLY with valid JSON (no markdown, no extra text).
+
+Fight: ${a.name} vs ${b.name} | ${weightClass}${isTitleFight ? ' — TITLE FIGHT' : ''}
+${a.name}: ${a.record} | Rank: ${fmtRank(a)} | Form: ${fmtForm(a)} | Striking Acc: ${a.strikingAccuracy ?? '?'}% | TD Acc: ${a.takedownAccuracy ?? '?'}% | Age: ${a.age ?? '?'} | Height: ${a.height} | Reach: ${a.reach}
+${b.name}: ${b.record} | Rank: ${fmtRank(b)} | Form: ${fmtForm(b)} | Striking Acc: ${b.strikingAccuracy ?? '?'}% | TD Acc: ${b.takedownAccuracy ?? '?'}% | Age: ${b.age ?? '?'} | Height: ${b.height} | Reach: ${b.reach}
+Polymarket win odds: ${a.name} ${fight.polyOdds?.fighterAWin ? Math.round(fight.polyOdds.fighterAWin * 100) : '?'}% | ${b.name} ${fight.polyOdds?.fighterBWin ? Math.round(fight.polyOdds.fighterBWin * 100) : '?'}%
+
+IMPORTANT RULES:
+- Do NOT base the verdict on win/loss record alone — records are misleading due to opponent quality
+- Analyze: fighting style, range/reach advantages, striking accuracy, takedown offense/defense, submission threat, cardio, age/experience, recent competition level, how their styles match up
+- Use Polymarket odds as a signal of market consensus but identify if there's an edge against it
+- Be specific — name actual skills, tendencies, and stylistic matchup reasons
+
+Return this exact JSON:
+{"verdict":"<1 sentence who wins and why — based on skills/style, not just record>","edge":"<${a.name} or ${b.name}>","striking":"<striking matchup: range, accuracy, volume, power, who controls distance and why>","grappling":"<grappling matchup: who shoots more, takedown defense, submission threat, cage control>","keyFactors":["<specific stylistic or physical factor>","<specific factor>","<specific factor>"],"prediction":"<method of victory e.g. Decision, KO R2, Sub R1>","watchFor":"<key x-factor, upset scenario, or stylistic wrinkle that could flip the fight>"}`
+
     fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        teamA: a.name, teamB: b.name,
-        polyOddsA: 50, polyOddsB: 50,
-        recordA: a.record, recordB: b.record,
-        context: prompt,
-      }),
+      body: JSON.stringify({ context: prompt }),
     })
       .then(r => r.json())
-      .then(d => { setAnalysis(d.analysis || d.error || 'No analysis available'); setLoading(false) })
-      .catch(() => { setAnalysis('Analysis failed.'); setLoading(false) })
+      .then(d => {
+        const raw = d.analysis || ''
+        try {
+          const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
+          setIntel(parsed)
+        } catch {
+          // fallback: put entire text in verdict
+          setIntel({ verdict: raw, edge: '', striking: '', grappling: '', keyFactors: [], prediction: '', watchFor: '' })
+        }
+        setLoading(false)
+      })
+      .catch(() => { setIntel(null); setLoading(false) })
   }, [fight])
 
   const renderStatBar = (label: string, valA: number | null, valB: number | null, suffix = '%') => {
@@ -2056,7 +2250,7 @@ function UFCIntelPanel({ fight, onClose }: { fight: UFCFight; onClose: () => voi
         <button onClick={onClose} style={{ color: C.textSecondary, fontSize: 16, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, cursor: 'pointer' }}>×</button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, maxWidth: 1200, margin: '0 auto' }}>
 
         {/* Fighter comparison */}
         <div style={{ background: 'rgba(8,8,28,0.9)', border: `1px solid rgba(232,0,45,0.2)`, borderRadius: 16, padding: 20, gridColumn: '1 / -1' }}>
@@ -2101,21 +2295,66 @@ function UFCIntelPanel({ fight, onClose }: { fight: UFCFight; onClose: () => voi
           {renderStatBar('Takedown Acc', a.takedownAccuracy, b.takedownAccuracy)}
         </div>
 
-        {/* AI Edge Read */}
-        <div style={{ background: 'linear-gradient(135deg, rgba(232,0,45,0.08), rgba(168,85,247,0.05))', border: '1px solid rgba(232,0,45,0.25)', borderRadius: 16, padding: 20, gridColumn: '1 / -1' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <span style={{ fontSize: 12 }}>🎯</span>
-            <span style={{ color: 'rgba(0,240,255,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>AI Edge Read</span>
+        {/* AI Intel — structured */}
+        {loading ? (
+          <div style={{ background: 'rgba(8,8,28,0.9)', border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, gridColumn: '1 / -1' }}>
+            {[...Array(4)].map((_, i) => <div key={i} style={{ height: 14, borderRadius: 4, background: 'rgba(255,255,255,0.04)', marginBottom: 10, width: i % 2 === 0 ? '100%' : '75%' }} />)}
+            <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', letterSpacing: '0.15em' }}>ANALYZING…</p>
           </div>
-          {loading ? (
-            <div>
-              {[...Array(3)].map((_, i) => <div key={i} style={{ height: 16, borderRadius: 4, background: 'rgba(255,255,255,0.04)', marginBottom: 8 }} />)}
-              <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', letterSpacing: '0.1em' }}>ANALYZING…</p>
+        ) : intel ? (
+          <>
+            {/* Top row: Verdict + Method */}
+            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 12, alignItems: 'stretch', flexWrap: 'wrap' }}>
+              <div style={{ flex: 3, minWidth: 220, background: 'linear-gradient(135deg, rgba(232,0,45,0.1), rgba(168,85,247,0.05))', border: '1px solid rgba(232,0,45,0.3)', borderRadius: 14, padding: '14px 16px' }}>
+                <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 6 }}>🎯 VERDICT</p>
+                <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 700, lineHeight: 1.55 }}>{intel.verdict}</p>
+              </div>
+              {intel.prediction && (
+                <div style={{ flex: 1, minWidth: 120, background: 'rgba(232,0,45,0.08)', border: '1px solid rgba(232,0,45,0.25)', borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                  <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>METHOD</p>
+                  <p style={{ color: UFC_RED, fontSize: 14, fontWeight: 900 }}>{intel.prediction}</p>
+                </div>
+              )}
             </div>
-          ) : (
-            <p style={{ color: C.textPrimary, fontSize: 13, lineHeight: 1.7, fontStyle: 'italic' }}>{analysis}</p>
-          )}
-        </div>
+
+            {/* Bottom row: Striking | Grappling | Key Factors | Watch For */}
+            {intel.striking && (
+              <div style={{ background: 'rgba(8,8,28,0.9)', border: `1px solid rgba(0,240,255,0.15)`, borderRadius: 14, padding: '14px 16px' }}>
+                <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>👊 STRIKING</p>
+                <p style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.6, opacity: 0.9 }}>{intel.striking}</p>
+              </div>
+            )}
+            {intel.grappling && (
+              <div style={{ background: 'rgba(8,8,28,0.9)', border: `1px solid rgba(0,240,255,0.15)`, borderRadius: 14, padding: '14px 16px' }}>
+                <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>🤼 GRAPPLING</p>
+                <p style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.6, opacity: 0.9 }}>{intel.grappling}</p>
+              </div>
+            )}
+            {intel.keyFactors?.length > 0 && (
+              <div style={{ background: 'rgba(8,8,28,0.9)', border: `1px solid rgba(168,85,247,0.2)`, borderRadius: 14, padding: '14px 16px' }}>
+                <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>⚡ KEY FACTORS</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {intel.keyFactors.map((f, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <span style={{ color: C.purple, fontSize: 9, fontWeight: 900, flexShrink: 0, marginTop: 2 }}>◆</span>
+                      <p style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.55, opacity: 0.9 }}>{f}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {intel.watchFor && (
+              <div style={{ background: 'rgba(255,215,0,0.04)', border: '1px solid rgba(255,215,0,0.18)', borderRadius: 14, padding: '14px 16px' }}>
+                <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>👁 WATCH FOR</p>
+                <p style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.6, opacity: 0.9 }}>{intel.watchFor}</p>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ background: 'rgba(8,8,28,0.9)', border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, gridColumn: '1 / -1' }}>
+            <p style={{ color: C.textSecondary, fontSize: 12, textAlign: 'center' }}>Analysis unavailable</p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -2147,27 +2386,20 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
     const isLoser = result && result.winner !== f.name
     return (
       <div style={{ flex: 1, textAlign: side === 'left' ? 'left' : 'right', opacity: isLoser ? 0.55 : 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: side === 'right' ? 'flex-end' : 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: side === 'right' ? 'flex-end' : 'flex-start' }}>
           {side === 'right' && <RankBadge r={f.ranking} />}
-          <span style={{ color: isWinner ? '#fff' : C.textPrimary, fontSize: 14, fontWeight: 900, textShadow: isWinner ? `0 0 16px ${UFC_RED}88` : 'none' }}>{f.name}</span>
-          <span style={{ fontSize: 14 }}>{f.country}</span>
+          <span style={{ color: isWinner ? '#fff' : C.textPrimary, fontSize: 13, fontWeight: 900, textShadow: isWinner ? `0 0 16px ${UFC_RED}88` : 'none' }}>{f.name}</span>
+          <span style={{ fontSize: 12 }}>{f.country}</span>
           {side === 'left' && <RankBadge r={f.ranking} />}
         </div>
-        <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 2 }}>{f.record}</p>
-        {f.recentForm.length > 0 && (
-          <div style={{ display: 'flex', gap: 3, marginTop: 4, justifyContent: side === 'right' ? 'flex-end' : 'flex-start' }}>
-            {f.recentForm.slice(0, 5).map((r, i) => (
-              <div key={i} style={{ width: 12, height: 12, borderRadius: 3, background: r === 'W' ? C.green : r === 'L' ? C.red : C.gold, opacity: 0.8, fontSize: 7, color: '#000', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r}</div>
-            ))}
-          </div>
-        )}
+        <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 1 }}>{f.record}</p>
       </div>
     )
   }
 
   return (
     <div style={{
-      borderRadius: 20, padding: '16px 20px',
+      borderRadius: 20, padding: '20px',
       background: isActive ? 'rgba(232,0,45,0.06)' : 'rgba(8,8,28,0.85)',
       border: `1px solid ${isActive ? 'rgba(232,0,45,0.5)' : fight.isMainEvent ? 'rgba(232,0,45,0.3)' : C.border}`,
       boxShadow: fight.isMainEvent ? `0 0 30px rgba(232,0,45,0.1)` : 'none',
@@ -2176,7 +2408,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
       transition: 'all 0.2s',
     }} onClick={onOpenIntel}>
       {/* Bout header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <span style={{
           background: fight.isMainEvent ? `rgba(232,0,45,0.15)` : 'rgba(255,255,255,0.06)',
           border: `1px solid ${boutColor}`,
@@ -2187,7 +2419,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
           {fight.isTitleFight && <span style={{ background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.4)', borderRadius: 6, padding: '1px 7px', color: C.gold, fontSize: 8, fontWeight: 900 }}>🏆 TITLE</span>}
           <span style={{ color: C.textSecondary, fontSize: 10 }}>{fight.weightClass}</span>
         </div>
-        <button style={{ fontSize: 9, padding: '3px 8px', borderRadius: 8, background: 'rgba(232,0,45,0.1)', border: `1px solid rgba(232,0,45,0.3)`, color: UFC_RED, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.08em' }}>📊 INTEL</button>
+        <button onClick={e => { e.stopPropagation(); onOpenIntel() }} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 8, background: 'rgba(232,0,45,0.1)', border: `1px solid rgba(232,0,45,0.3)`, color: UFC_RED, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.08em' }}>📊 INTEL</button>
       </div>
 
       {/* Fighters */}
@@ -2205,20 +2437,73 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
         <Fighter f={b} side="right" />
       </div>
 
-      {/* Odds row */}
-      {!result && (() => {
-        const { moneyLineA: mlA, moneyLineB: mlB } = fight
-        if (mlA === null && mlB === null) {
-          return <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', marginTop: 10, opacity: 0.45 }}>No odds available</p>
-        }
-        const favA = mlA !== null && mlB !== null ? mlA < mlB : mlA !== null && mlA < 0
-        const favB = mlA !== null && mlB !== null ? mlB < mlA : mlB !== null && mlB < 0
-        const fmtML = (v: number | null) => v === null ? '–' : v > 0 ? `+${v}` : String(v)
+      {/* Polymarket Odds — same layout as NBA lines table */}
+      {(() => {
+        const p = fight.polyOdds
+        const hasAny = p?.hasWinner || p?.hasTotal || p?.koTkoOdds !== null
+        if (!hasAny) return (
+          <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', marginTop: 10, opacity: 0.45 }}>No Polymarket odds yet</p>
+        )
+
+        const aWin  = p.fighterAWin  !== null ? Math.round(p.fighterAWin  * 100) : null
+        const bWin  = p.fighterBWin  !== null ? Math.round(p.fighterBWin  * 100) : null
+        const over  = p.overOdds     !== null ? Math.round(p.overOdds     * 100) : null
+        const under = p.underOdds    !== null ? Math.round(p.underOdds    * 100) : null
+        const koPct = p.koTkoOdds    !== null ? Math.round(p.koTkoOdds    * 100) : null
+        const subPct= p.submissionOdds !== null ? Math.round(p.submissionOdds * 100) : null
+
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid rgba(255,255,255,0.06)` }}>
-            <span style={{ color: favA ? UFC_RED : C.green, fontSize: 13, fontWeight: 900 }}>{fmtML(mlA)}</span>
-            <span style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.1em' }}>MONEYLINE</span>
-            <span style={{ color: favB ? UFC_RED : C.green, fontSize: 13, fontWeight: 900 }}>{fmtML(mlB)}</span>
+          <div style={{ marginTop: 8 }}>
+            {/* Column headers */}
+            <div className="flex items-center gap-1.5 mb-1">
+              <div style={{ width: 68, flexShrink: 0 }} />
+              {[
+                p.hasWinner ? 'WIN' : null,
+                p.hasTotal  ? `O/U ${p.totalLine}` : null,
+                koPct !== null ? 'KO/TKO' : null,
+                subPct !== null ? 'SUB' : null,
+              ].filter(Boolean).map(h => (
+                <div key={h!} style={{ minWidth: 64, textAlign: 'center', fontSize: 7, color: C.textSecondary, fontWeight: 800, letterSpacing: '0.1em' }}>{h}</div>
+              ))}
+            </div>
+
+            {/* Fighter A row */}
+            <div className="flex items-center gap-1.5 mb-1">
+              <div style={{ width: 68, flexShrink: 0 }}>
+                <p style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fight.fighterA.name.split(' ').slice(-1)[0]}</p>
+              </div>
+              {p.hasWinner && aWin !== null && (
+                <OddsChip top="WIN" bottom={String(aWin)} hot={aWin >= 55} href={p.polyWinnerUrl} />
+              )}
+              {p.hasTotal && over !== null && (
+                <OddsChip top={`O ${p.totalLine}`} bottom={String(over)} hot={over >= 55} href={p.polyTotalUrl} />
+              )}
+              {koPct !== null && (
+                <OddsChip top="KO/TKO" bottom={String(koPct)} hot={koPct >= 55} href={null} />
+              )}
+              {subPct !== null && (
+                <OddsChip top="SUB" bottom={String(subPct)} hot={subPct >= 55} href={null} />
+              )}
+            </div>
+
+            {/* Fighter B row */}
+            <div className="flex items-center gap-1.5">
+              <div style={{ width: 68, flexShrink: 0 }}>
+                <p style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fight.fighterB.name.split(' ').slice(-1)[0]}</p>
+              </div>
+              {p.hasWinner && bWin !== null && (
+                <OddsChip top="WIN" bottom={String(bWin)} hot={bWin >= 55} href={p.polyWinnerUrl} />
+              )}
+              {p.hasTotal && under !== null && (
+                <OddsChip top={`U ${p.totalLine}`} bottom={String(under)} hot={under >= 55} href={p.polyTotalUrl} />
+              )}
+              {koPct !== null && (
+                <OddsChip top="KO/TKO" bottom={String(koPct)} hot={false} href={null} />
+              )}
+              {subPct !== null && (
+                <OddsChip top="SUB" bottom={String(subPct)} hot={false} href={null} />
+              )}
+            </div>
           </div>
         )
       })()}
@@ -2228,10 +2513,18 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
 
 // ─── UFC Section ──────────────────────────────────────────────────────────────
 function UFCSection() {
+  const cols = useColCount()
   const [events, setEvents] = useState<UFCEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [activeFight, setActiveFight] = useState<UFCFight | null>(null)
+  useEffect(() => {
+    if (activeFight) {
+      setTimeout(() => {
+        document.getElementById('ufc-intel-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 50)
+    }
+  }, [activeFight])
 
   useEffect(() => {
     fetch('/api/ufc')
@@ -2239,9 +2532,15 @@ function UFCSection() {
       .then((data: UFCEvent[]) => {
         if (Array.isArray(data) && data.length > 0) {
           setEvents(data)
-          // Select the next upcoming event, or the first one
-          const upcoming = data.find(e => e.status === 'pre') || data.find(e => e.status === 'in') || data[0]
-          setSelectedEventId(upcoming.id)
+          // Prefer live > event with most Polymarket odds > upcoming > first
+          const live = data.find(e => e.status === 'in')
+          const withOdds = [...data].sort((a, b) => {
+            const aOdds = a.fights?.filter(f => f.polyOdds?.hasWinner).length || 0
+            const bOdds = b.fights?.filter(f => f.polyOdds?.hasWinner).length || 0
+            return bOdds - aOdds
+          })[0]
+          const best = live || (withOdds && (withOdds.fights?.filter(f => f.polyOdds?.hasWinner).length || 0) > 0 ? withOdds : null) || data.find(e => e.status === 'pre') || data[0]
+          setSelectedEventId(best.id)
         }
         setLoading(false)
       })
@@ -2319,22 +2618,30 @@ function UFCSection() {
           <p style={{ color: C.textSecondary, fontSize: 13 }}>Fight card details not yet available</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {sortedFights.map(fight => (
-            <div key={fight.id}>
-              <FightCard
-                fight={fight}
-                totalFights={sortedFights.length}
-                isActive={activeFight?.id === fight.id}
-                onOpenIntel={() => setActiveFight(prev => prev?.id === fight.id ? null : fight)}
-              />
-              {activeFight?.id === fight.id && (
-                <div style={{ marginTop: 4 }}>
-                  <UFCIntelPanel fight={fight} onClose={() => setActiveFight(null)} />
+        <div>
+          {chunkArray(sortedFights, cols).map((row, rowIdx) => {
+            const rowHasActive = activeFight != null && row.some(f => f.id === activeFight.id)
+            return (
+              <div key={rowIdx} style={{ marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
+                  {row.map(fight => (
+                    <FightCard
+                      key={fight.id}
+                      fight={fight}
+                      totalFights={sortedFights.length}
+                      isActive={activeFight?.id === fight.id}
+                      onOpenIntel={() => setActiveFight(prev => prev?.id === fight.id ? null : fight)}
+                    />
+                  ))}
                 </div>
-              )}
-            </div>
-          ))}
+                {rowHasActive && activeFight && (
+                  <div id="ufc-intel-panel" style={{ marginTop: 8 }}>
+                    <UFCIntelPanel fight={activeFight} onClose={() => setActiveFight(null)} />
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -2526,7 +2833,7 @@ export default function Home() {
               }}>⬡ Edge Bot</a>
             </div>
             <p style={{ color: C.textSecondary, fontSize: 12, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Polymarket · DraftKings · AI Intelligence</span>
+              <span>Polymarket · DraftKings · Near-tip misprice board</span>
               {lastUpdatedLabel && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -2594,6 +2901,8 @@ export default function Home() {
             <PolymarketEdgeSection />
           </div>
         )}
+
+        {sport === 'nba' && mainTab === 'games' && <LastSixtyBoard games={upcoming} />}
 
         {sport === 'nba' && mainTab === 'games' && <StreakPanel />}
 

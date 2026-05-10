@@ -8,6 +8,9 @@ import {
 } from '@/app/lib/nba-api'
 import type { TeamIntel } from '@/app/lib/types'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 

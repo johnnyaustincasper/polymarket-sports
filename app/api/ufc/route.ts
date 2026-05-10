@@ -1,5 +1,146 @@
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+const GAMMA_API = 'https://gamma-api.polymarket.com'
+
+// ─── Polymarket UFC odds ──────────────────────────────────────────────────────
+export interface UFCPolyOdds {
+  fighterAWin: number | null      // 0–1
+  fighterBWin: number | null
+  hasWinner: boolean
+  totalLine: number | null        // e.g. 2.5
+  overOdds: number | null
+  underOdds: number | null
+  hasTotal: boolean
+  koTkoOdds: number | null        // prob fight ends by KO/TKO
+  submissionOdds: number | null
+  goDistanceOdds: number | null
+  polyWinnerUrl: string | null
+  polyTotalUrl: string | null
+}
+
+let _polyCache: { events: any[]; ts: number } | null = null
+const POLY_TTL = 5 * 60 * 1000
+
+async function fetchPolyUFCEvents(): Promise<any[]> {
+  if (_polyCache && Date.now() - _polyCache.ts < POLY_TTL) return _polyCache.events
+  try {
+    const res = await fetch(`${GAMMA_API}/events?active=true&closed=false&tag_slug=ufc&limit=200`, {
+      cache: 'no-store',
+    })
+    if (!res.ok) return []
+    const data: any[] = await res.json()
+    _polyCache = { events: data, ts: Date.now() }
+    return data
+  } catch { return [] }
+}
+
+function normalizeName(n: string) {
+  return n.toLowerCase().replace(/[^a-z]/g, '')
+}
+
+function getPolyOddsForFight(fighterA: string, fighterB: string, polyEvents: any[]): UFCPolyOdds {
+  const def: UFCPolyOdds = {
+    fighterAWin: null, fighterBWin: null, hasWinner: false,
+    totalLine: null, overOdds: null, underOdds: null, hasTotal: false,
+    koTkoOdds: null, submissionOdds: null, goDistanceOdds: null,
+    polyWinnerUrl: null, polyTotalUrl: null,
+  }
+
+  const nA = normalizeName(fighterA)
+  const nB = normalizeName(fighterB)
+
+  // Match Polymarket event by checking if both fighter names appear in the title
+  const event = polyEvents.find(e => {
+    const t = normalizeName(e.title || '')
+    // Need at least a significant portion of each name to match
+    const aLast = nA.slice(Math.max(0, nA.length - 6))
+    const bLast = nB.slice(Math.max(0, nB.length - 6))
+    return t.includes(aLast) && t.includes(bLast)
+  })
+  if (!event) return def
+
+  const markets: any[] = event.markets || []
+  const result = { ...def }
+
+  // Winner market: outcomes are fighter names
+  const winnerMkt = markets.find(m => {
+    const outcomes: string[] = JSON.parse(m.outcomes || '[]')
+    return outcomes.length === 2 && outcomes.every((o: string) => {
+      const on = normalizeName(o)
+      const aLast = nA.slice(Math.max(0, nA.length - 5))
+      const bLast = nB.slice(Math.max(0, nB.length - 5))
+      return on.includes(aLast) || on.includes(bLast)
+    })
+  })
+  if (winnerMkt) {
+    const outcomes: string[] = JSON.parse(winnerMkt.outcomes || '[]')
+    const prices: number[] = JSON.parse(winnerMkt.outcomePrices || '[]').map(Number)
+    const aLast = nA.slice(Math.max(0, nA.length - 5))
+    const idxA = outcomes.findIndex((o: string) => normalizeName(o).includes(aLast))
+    const idxB = idxA === 0 ? 1 : 0
+    result.fighterAWin = prices[idxA >= 0 ? idxA : 0] ?? null
+    result.fighterBWin = prices[idxB] ?? null
+    result.hasWinner = result.fighterAWin !== null
+    result.polyWinnerUrl = winnerMkt.slug ? `https://polymarket.com/event/${winnerMkt.slug}` : null
+  }
+
+  // Best O/U total market (prefer 2.5)
+  const totalMkts = markets
+    .filter(m => (m.question || '').startsWith('O/U'))
+    .sort((a, b) => {
+      const lineA = parseFloat((a.question || '').match(/(\d+\.?\d*)/)?.[1] || '0')
+      const lineB = parseFloat((b.question || '').match(/(\d+\.?\d*)/)?.[1] || '0')
+      return Math.abs(lineA - 2.5) - Math.abs(lineB - 2.5) // prefer closest to 2.5
+    })
+  const bestTotal = totalMkts[0]
+  if (bestTotal) {
+    const line = parseFloat((bestTotal.question || '').match(/(\d+\.?\d*)/)?.[1] || '0')
+    const prices: number[] = JSON.parse(bestTotal.outcomePrices || '[]').map(Number)
+    const outcomes: string[] = JSON.parse(bestTotal.outcomes || '[]')
+    const overIdx = outcomes.findIndex((o: string) => o.toLowerCase() === 'over')
+    result.totalLine = line
+    result.overOdds = prices[overIdx >= 0 ? overIdx : 0] ?? null
+    result.underOdds = prices[overIdx === 0 ? 1 : 0] ?? null
+    result.hasTotal = result.totalLine !== null
+    result.polyTotalUrl = bestTotal.slug ? `https://polymarket.com/event/${bestTotal.slug}` : null
+  }
+
+  // KO/TKO market
+  const koMkt = markets.find(m => {
+    const q = (m.question || '').toLowerCase()
+    return q.includes('ko or tko') && !q.includes('will ') // overall KO/TKO, not per-fighter
+  })
+  if (koMkt) {
+    const outcomes: string[] = JSON.parse(koMkt.outcomes || '[]')
+    const prices: number[] = JSON.parse(koMkt.outcomePrices || '[]').map(Number)
+    const yesIdx = outcomes.findIndex((o: string) => o.toLowerCase() === 'yes')
+    result.koTkoOdds = prices[yesIdx >= 0 ? yesIdx : 0] ?? null
+  }
+
+  // Submission market
+  const subMkt = markets.find(m => (m.question || '').toLowerCase().includes('by submission'))
+  if (subMkt) {
+    const outcomes: string[] = JSON.parse(subMkt.outcomes || '[]')
+    const prices: number[] = JSON.parse(subMkt.outcomePrices || '[]').map(Number)
+    const yesIdx = outcomes.findIndex((o: string) => o.toLowerCase() === 'yes')
+    result.submissionOdds = prices[yesIdx >= 0 ? yesIdx : 0] ?? null
+  }
+
+  // Go the distance
+  const distMkt = markets.find(m => (m.question || '').toLowerCase().includes('go the distance'))
+  if (distMkt) {
+    const outcomes: string[] = JSON.parse(distMkt.outcomes || '[]')
+    const prices: number[] = JSON.parse(distMkt.outcomePrices || '[]').map(Number)
+    const yesIdx = outcomes.findIndex((o: string) => o.toLowerCase() === 'yes')
+    result.goDistanceOdds = prices[yesIdx >= 0 ? yesIdx : 0] ?? null
+  }
+
+  return result
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface UFCFighter {
   id: string
@@ -25,6 +166,7 @@ export interface UFCFight {
   fighterB: UFCFighter
   moneyLineA: number | null
   moneyLineB: number | null
+  polyOdds: UFCPolyOdds
   result?: { winner: string; method: string; round: number; time: string }
 }
 
@@ -133,7 +275,7 @@ async function fetchRankingsMap(): Promise<Record<string, number>> {
   return map
 }
 
-function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>): UFCEvent {
+function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>, polyEvents: any[] = []): UFCEvent {
   const id = String(ev.id || ev.uid || '')
   const name = ev.name || ev.shortName || 'UFC Event'
   const dateRaw = ev.date || ev.competitions?.[0]?.date || ''
@@ -158,8 +300,8 @@ function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>):
     const competitors: any[] = comp?.competitors || []
     if (competitors.length < 2) continue
 
-    // ESPN orders competitions main-event-first (index 0 = main event)
-    const boutOrder = i + 1
+    // ESPN orders competitions prelim-first, main event last — reverse for display
+    const boutOrder = totalBouts - i   // 1 = main event (last ESPN index)
     const isMainEvent = boutOrder === 1
 
     const isCompleted = comp?.status?.type?.completed || false
@@ -199,6 +341,8 @@ function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>):
       }
     }
 
+    const polyOdds = getPolyOddsForFight(fighterA.name, fighterB.name, polyEvents)
+
     fights.push({
       id: String(comp?.id || i),
       boutOrder,
@@ -209,14 +353,20 @@ function parseEventFromScoreboard(ev: any, rankingsMap: Record<string, number>):
       fighterB,
       moneyLineA,
       moneyLineB,
+      polyOdds,
       result,
     })
   }
 
-  // Sort: main event first (boutOrder 1), then co-main, etc.
-  fights.sort((a, b) => a.boutOrder - b.boutOrder)
+  // Sort: non-completed first (main event → co-main → prelims), completed last
+  fights.sort((a, b) => {
+    const aDone = a.result ? 1 : 0
+    const bDone = b.result ? 1 : 0
+    if (aDone !== bDone) return aDone - bDone   // pending fights first
+    return a.boutOrder - b.boutOrder             // within each group: main event first
+  })
 
-  // Fix isMainEvent — first fight in sorted order is main event
+  // Fix isMainEvent — first fight in sorted order is the main event
   if (fights.length > 0) {
     fights[0].isMainEvent = true
     for (let i = 1; i < fights.length; i++) fights[i].isMainEvent = false
@@ -230,7 +380,7 @@ async function fetchUFCEvents(): Promise<UFCEvent[]> {
     return _cache.events
   }
 
-  const rankingsMap = await fetchRankingsMap()
+  const [rankingsMap, polyEvents] = await Promise.all([fetchRankingsMap(), fetchPolyUFCEvents()])
 
   // Get the calendar from scoreboard to find upcoming event dates
   const baseScoreboard = await safeFetch('https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard')
@@ -262,7 +412,7 @@ async function fetchUFCEvents(): Promise<UFCEvent[]> {
     const eid = String(ev.id || '')
     if (eid && !seenIds.has(eid)) {
       seenIds.add(eid)
-      events.push(parseEventFromScoreboard(ev, rankingsMap))
+      events.push(parseEventFromScoreboard(ev, rankingsMap, polyEvents))
     }
   }
 
@@ -280,7 +430,7 @@ async function fetchUFCEvents(): Promise<UFCEvent[]> {
       const eid = String(ev.id || '')
       if (eid && !seenIds.has(eid)) {
         seenIds.add(eid)
-        events.push(parseEventFromScoreboard(ev, rankingsMap))
+        events.push(parseEventFromScoreboard(ev, rankingsMap, polyEvents))
       }
     }
   }

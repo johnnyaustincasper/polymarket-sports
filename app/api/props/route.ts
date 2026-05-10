@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ESPN_ABBR } from '@/app/lib/nba-api'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export interface PlayerPropLine {
   player: string
   team: string

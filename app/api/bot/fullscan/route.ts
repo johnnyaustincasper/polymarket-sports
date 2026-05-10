@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 const GAMMA_API = 'https://gamma-api.polymarket.com'
 
@@ -502,6 +505,18 @@ ${playerIntel || 'None found'}
     if (gameContexts.length === 0) {
       return NextResponse.json({ report: 'No pre-game NBA games found today.' })
     }
+
+    if (!ANTHROPIC_KEY) {
+      return NextResponse.json({
+        report: `AI fullscan is available once ANTHROPIC_API_KEY is configured. Raw edge context generated successfully for ${gameContexts.length} game${gameContexts.length === 1 ? '' : 's'}.`,
+        gamesAnalyzed: gameContexts.length,
+        scannedAt: new Date().toISOString(),
+        requires: 'ANTHROPIC_API_KEY',
+        contexts: gameContexts,
+      })
+    }
+
+    const client = new Anthropic({ apiKey: ANTHROPIC_KEY })
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-5',

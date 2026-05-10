@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchTeamRecentGames, calcStreak, calcRestDays } from '@/app/lib/nba-api'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // Parse "W-L" record string to win percentage
 function parseWinPct(record: string): number {
   const parts = record.split('-').map(Number)
