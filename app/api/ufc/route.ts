@@ -41,6 +41,19 @@ function normalizeName(n: string) {
   return n.toLowerCase().replace(/[^a-z]/g, '')
 }
 
+function safeArray<T = any>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[]
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed as T[] : []
+  } catch { return [] }
+}
+
+function toProb(v: unknown): number | null {
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 && n < 1 ? n : null
+}
+
 function getPolyOddsForFight(fighterA: string, fighterB: string, polyEvents: any[]): UFCPolyOdds {
   const def: UFCPolyOdds = {
     fighterAWin: null, fighterBWin: null, hasWinner: false,
@@ -67,7 +80,7 @@ function getPolyOddsForFight(fighterA: string, fighterB: string, polyEvents: any
 
   // Winner market: outcomes are fighter names
   const winnerMkt = markets.find(m => {
-    const outcomes: string[] = JSON.parse(m.outcomes || '[]')
+    const outcomes = safeArray<string>(m.outcomes)
     return outcomes.length === 2 && outcomes.every((o: string) => {
       const on = normalizeName(o)
       const aLast = nA.slice(Math.max(0, nA.length - 5))
@@ -76,15 +89,18 @@ function getPolyOddsForFight(fighterA: string, fighterB: string, polyEvents: any
     })
   })
   if (winnerMkt) {
-    const outcomes: string[] = JSON.parse(winnerMkt.outcomes || '[]')
-    const prices: number[] = JSON.parse(winnerMkt.outcomePrices || '[]').map(Number)
+    const outcomes = safeArray<string>(winnerMkt.outcomes)
+    const prices = safeArray<unknown>(winnerMkt.outcomePrices)
     const aLast = nA.slice(Math.max(0, nA.length - 5))
+    const bLast = nB.slice(Math.max(0, nB.length - 5))
     const idxA = outcomes.findIndex((o: string) => normalizeName(o).includes(aLast))
-    const idxB = idxA === 0 ? 1 : 0
-    result.fighterAWin = prices[idxA >= 0 ? idxA : 0] ?? null
-    result.fighterBWin = prices[idxB] ?? null
-    result.hasWinner = result.fighterAWin !== null
-    result.polyWinnerUrl = winnerMkt.slug ? `https://polymarket.com/event/${winnerMkt.slug}` : null
+    const idxB = outcomes.findIndex((o: string) => normalizeName(o).includes(bLast))
+    if (idxA >= 0 && idxB >= 0 && idxA !== idxB) {
+      result.fighterAWin = toProb(prices[idxA])
+      result.fighterBWin = toProb(prices[idxB])
+      result.hasWinner = result.fighterAWin !== null && result.fighterBWin !== null
+      result.polyWinnerUrl = winnerMkt.slug ? `https://polymarket.com/event/${winnerMkt.slug}` : null
+    }
   }
 
   // Best O/U total market (prefer 2.5)
@@ -98,13 +114,13 @@ function getPolyOddsForFight(fighterA: string, fighterB: string, polyEvents: any
   const bestTotal = totalMkts[0]
   if (bestTotal) {
     const line = parseFloat((bestTotal.question || '').match(/(\d+\.?\d*)/)?.[1] || '0')
-    const prices: number[] = JSON.parse(bestTotal.outcomePrices || '[]').map(Number)
-    const outcomes: string[] = JSON.parse(bestTotal.outcomes || '[]')
+    const prices = safeArray<unknown>(bestTotal.outcomePrices)
+    const outcomes = safeArray<string>(bestTotal.outcomes)
     const overIdx = outcomes.findIndex((o: string) => o.toLowerCase() === 'over')
     result.totalLine = line
-    result.overOdds = prices[overIdx >= 0 ? overIdx : 0] ?? null
-    result.underOdds = prices[overIdx === 0 ? 1 : 0] ?? null
-    result.hasTotal = result.totalLine !== null
+    result.overOdds = toProb(prices[overIdx >= 0 ? overIdx : 0])
+    result.underOdds = toProb(prices[overIdx === 0 ? 1 : 0])
+    result.hasTotal = result.totalLine !== null && result.overOdds !== null && result.underOdds !== null
     result.polyTotalUrl = bestTotal.slug ? `https://polymarket.com/event/${bestTotal.slug}` : null
   }
 
@@ -114,28 +130,28 @@ function getPolyOddsForFight(fighterA: string, fighterB: string, polyEvents: any
     return q.includes('ko or tko') && !q.includes('will ') // overall KO/TKO, not per-fighter
   })
   if (koMkt) {
-    const outcomes: string[] = JSON.parse(koMkt.outcomes || '[]')
-    const prices: number[] = JSON.parse(koMkt.outcomePrices || '[]').map(Number)
+    const outcomes = safeArray<string>(koMkt.outcomes)
+    const prices = safeArray<unknown>(koMkt.outcomePrices)
     const yesIdx = outcomes.findIndex((o: string) => o.toLowerCase() === 'yes')
-    result.koTkoOdds = prices[yesIdx >= 0 ? yesIdx : 0] ?? null
+    result.koTkoOdds = toProb(prices[yesIdx >= 0 ? yesIdx : 0])
   }
 
   // Submission market
   const subMkt = markets.find(m => (m.question || '').toLowerCase().includes('by submission'))
   if (subMkt) {
-    const outcomes: string[] = JSON.parse(subMkt.outcomes || '[]')
-    const prices: number[] = JSON.parse(subMkt.outcomePrices || '[]').map(Number)
+    const outcomes = safeArray<string>(subMkt.outcomes)
+    const prices = safeArray<unknown>(subMkt.outcomePrices)
     const yesIdx = outcomes.findIndex((o: string) => o.toLowerCase() === 'yes')
-    result.submissionOdds = prices[yesIdx >= 0 ? yesIdx : 0] ?? null
+    result.submissionOdds = toProb(prices[yesIdx >= 0 ? yesIdx : 0])
   }
 
   // Go the distance
   const distMkt = markets.find(m => (m.question || '').toLowerCase().includes('go the distance'))
   if (distMkt) {
-    const outcomes: string[] = JSON.parse(distMkt.outcomes || '[]')
-    const prices: number[] = JSON.parse(distMkt.outcomePrices || '[]').map(Number)
+    const outcomes = safeArray<string>(distMkt.outcomes)
+    const prices = safeArray<unknown>(distMkt.outcomePrices)
     const yesIdx = outcomes.findIndex((o: string) => o.toLowerCase() === 'yes')
-    result.goDistanceOdds = prices[yesIdx >= 0 ? yesIdx : 0] ?? null
+    result.goDistanceOdds = toProb(prices[yesIdx >= 0 ? yesIdx : 0])
   }
 
   return result
