@@ -28,6 +28,10 @@ interface PropRecommendation {
   games: number
   quality: PropQuality
   confidence: number
+  valueScore: number
+  maxYesPrice: number
+  fairProbability: number
+  risk: 'low' | 'medium' | 'high'
   explanation: string
 }
 
@@ -86,28 +90,56 @@ function pct(n: number): number {
   return Math.round(n * 100)
 }
 
+
+function minimumPlayableLine(avgValue: number, metricLabel: string): number {
+  if (metricLabel === 'points') return avgValue >= 27 ? 20 : avgValue >= 20 ? 15 : avgValue >= 14 ? 10 : 0
+  if (metricLabel === 'rebounds') return avgValue >= 11 ? 10 : avgValue >= 8 ? 8 : avgValue >= 6 ? 6 : 0
+  if (metricLabel === 'assists') return avgValue >= 9 ? 8 : avgValue >= 6 ? 6 : avgValue >= 4 ? 4 : 0
+  if (metricLabel === 'PTS+REB+AST') return avgValue >= 42 ? 35 : avgValue >= 34 ? 30 : avgValue >= 26 ? 25 : 0
+  if (metricLabel === 'passing yards') return avgValue >= 275 ? 250 : avgValue >= 240 ? 225 : avgValue >= 205 ? 200 : 0
+  if (metricLabel === 'passing TDs') return avgValue >= 2.2 ? 2 : 1
+  if (metricLabel === 'rushing yards') return avgValue >= 80 ? 60 : avgValue >= 55 ? 40 : avgValue >= 35 ? 30 : 0
+  if (metricLabel === 'receiving yards') return avgValue >= 80 ? 60 : avgValue >= 55 ? 40 : avgValue >= 35 ? 30 : 0
+  if (metricLabel === 'receptions') return avgValue >= 7 ? 6 : avgValue >= 5 ? 4 : avgValue >= 3 ? 3 : 0
+  return 0
+}
+
 function findBestThreshold(values: number[], thresholds: number[], metricLabel: string): PropRecommendation | null {
   if (values.length < 4) return null
   const last12Avg = avg(values)
+  const minPlayableLine = minimumPlayableLine(last12Avg, metricLabel)
+  const volatility = Math.sqrt(avg(values.map(v => Math.pow(v - last12Avg, 2))))
   const candidates = thresholds
-    .filter(line => last12Avg >= line * 0.82)
+    // keep realistic plus-money / playable alt lines; avoid junk lines far below average unless consistency is elite
+    .filter(line => line >= minPlayableLine && last12Avg >= line * 0.75 && line <= last12Avg + Math.max(3, volatility * 0.35))
     .map(line => {
       const hits = values.filter(v => v >= line).length
       const hitRate = hits / values.length
       const margin = last12Avg - line
-      const confidence = Math.max(0, Math.min(95, Math.round(hitRate * 72 + Math.max(0, margin) * 3 + Math.min(values.length, 12))))
-      const quality: PropQuality = hitRate >= 0.67 && margin >= 1 ? 'bet' : hitRate >= 0.58 && margin >= 0 ? 'lean' : hitRate >= 0.5 ? 'watch' : 'skip'
-      return { line, hits, hitRate, margin, confidence, quality }
+      const cushion = volatility ? margin / volatility : margin
+      const fairProbability = Math.max(0.05, Math.min(0.92, hitRate * 0.72 + (last12Avg >= line ? 0.10 : -0.06) + Math.max(-0.08, Math.min(0.08, cushion * 0.05))))
+      const maxYesPrice = Math.max(5, Math.min(88, Math.round(fairProbability * 100 - 6)))
+      const confidence = Math.max(0, Math.min(95, Math.round(hitRate * 64 + Math.max(0, cushion) * 8 + Math.min(values.length, 12))))
+      const quality: PropQuality = hitRate >= 0.67 && margin >= 0 ? 'bet' : hitRate >= 0.58 && margin >= -0.5 ? 'lean' : hitRate >= 0.5 ? 'watch' : 'skip'
+      const risk: PropRecommendation['risk'] = volatility <= Math.max(3, last12Avg * 0.22) ? 'low' : volatility <= Math.max(6, last12Avg * 0.38) ? 'medium' : 'high'
+      // Value score favors playable thresholds, not just the safest tiny line.
+      const thresholdAmbition = last12Avg > 0 ? Math.min(20, (line / last12Avg) * 22) : 0
+      const consistency = hitRate * 55
+      const cushionScore = Math.max(-8, Math.min(12, cushion * 6))
+      const riskPenalty = risk === 'high' ? 8 : risk === 'medium' ? 3 : 0
+      const valueScore = Math.round(consistency + thresholdAmbition + cushionScore - riskPenalty)
+      return { line, hits, hitRate, margin, confidence, quality, valueScore, maxYesPrice, fairProbability, risk }
     })
     .filter(c => c.quality !== 'skip')
     .sort((a, b) => {
       const rank = (q: PropQuality) => q === 'bet' ? 3 : q === 'lean' ? 2 : q === 'watch' ? 1 : 0
-      return rank(b.quality) - rank(a.quality) || b.confidence - a.confidence || b.line - a.line
+      return rank(b.quality) - rank(a.quality) || b.valueScore - a.valueScore || b.line - a.line
     })
 
   const best = candidates[0]
   if (!best) return null
   const label = `${best.line}+ ${metricLabel}`
+  const priceText = `I would only bet YES at ${best.maxYesPrice}¢ or better`
   return {
     metric: metricLabel,
     label,
@@ -119,7 +151,11 @@ function findBestThreshold(values: number[], thresholds: number[], metricLabel: 
     games: values.length,
     quality: best.quality,
     confidence: best.confidence,
-    explanation: `${label} makes sense because he cleared it in ${best.hits}/${values.length} recent games with a ${last12Avg.toFixed(1)} last-12 average${best.margin >= 0 ? `, ${best.margin.toFixed(1)} above the line` : ''}.`,
+    valueScore: best.valueScore,
+    maxYesPrice: best.maxYesPrice,
+    fairProbability: pct(best.fairProbability),
+    risk: best.risk,
+    explanation: `${label} is the best value threshold: hit ${best.hits}/${values.length}, ${last12Avg.toFixed(1)} last-12 avg, ${best.margin >= 0 ? `${best.margin.toFixed(1)} cushion` : `${Math.abs(best.margin).toFixed(1)} below average`}. ${priceText}. Risk: ${best.risk}.`,
   }
 }
 
@@ -230,7 +266,7 @@ async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLin
     const recommendations = sport === 'nba' ? recommendNBA(logs) : recommendNFL(logs)
     const bestBet = [...recommendations].sort((a, b) => {
       const rank = (q: PropQuality) => q === 'bet' ? 3 : q === 'lean' ? 2 : q === 'watch' ? 1 : 0
-      return rank(b.quality) - rank(a.quality) || b.confidence - a.confidence
+      return rank(b.quality) - rank(a.quality) || b.valueScore - a.valueScore || b.confidence - a.confidence
     })[0] || null
 
     if (sport === 'nba') {
