@@ -65,8 +65,8 @@ export default function LoginPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 26, color: '#00f0ff',
             }}>◈</div>
-            <p style={{ color: '#00f0ff', fontWeight: 900, fontSize: 20, letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(0,240,255,0.5)' }}>NBA LINES</p>
-            <p style={{ color: 'rgba(180,200,255,0.4)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 4 }}>Restricted Access</p>
+            <p style={{ color: '#00f0ff', fontWeight: 900, fontSize: 20, letterSpacing: '-0.02em', textShadow: '0 0 20px rgba(0,240,255,0.5)' }}>ATHLETE AI</p>
+            <p style={{ color: 'rgba(180,200,255,0.4)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 4 }}>AI Athlete Intelligence · Restricted Access</p>
           </div>
 
           {/* Input */}

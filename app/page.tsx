@@ -3297,8 +3297,8 @@ export default function Home() {
                 fontSize: 18
               }}>◈</div>
               <h1 style={{ fontSize: isMobile ? 21 : 26, fontWeight: 900, letterSpacing: '-0.03em', color: C.textPrimary }}>
-                {sport === 'nba' ? 'NBA' : sport === 'ncaab' ? 'NCAAB' : sport === 'nfl' ? 'NFL' : sport === 'ncaaf' ? 'NCAAF' : 'UFC'}
-                <span style={{ color: sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : C.cyan, textShadow: `0 0 20px ${sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : C.cyan}55` }}>{sport === 'ufc' ? ' FIGHTS' : sport === 'nfl' || sport === 'ncaaf' ? ' GRIDIRON' : ' LINES'}</span>
+                AI ATHLETE
+                <span style={{ color: sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : C.cyan, textShadow: `0 0 20px ${sport === 'ufc' ? UFC_RED : sport === 'nfl' || sport === 'ncaaf' ? C.green : C.cyan}55` }}> INTELLIGENCE</span>
               </h1>
               <div style={{ display: 'flex', borderRadius: 10, overflowX: 'auto', maxWidth: '100%', border: `1px solid ${C.border}` }}>
                 {(['nba', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map((s, idx) => (
@@ -3327,7 +3327,7 @@ export default function Home() {
               }}>⬡ Edge Bot</a>
             </div>
             <p style={{ color: C.textSecondary, fontSize: isMobile ? 11 : 12, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Polymarket · DraftKings · NFL-ready misprice board</span>
+              <span>Athlete signal engine · Polymarket · DraftKings · source-aware edge board</span>
               {lastUpdatedLabel && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,

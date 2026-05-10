@@ -1214,11 +1214,11 @@ export default function BotPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div>
               <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 900, letterSpacing: '-0.03em', margin: 0, lineHeight: 1 }}>
-                <span style={{ color: C.green, textShadow: `0 0 24px ${C.green}44` }}>EDGE</span>
+                <span style={{ color: C.green, textShadow: `0 0 24px ${C.green}44` }}>ATHLETE AI</span>
                 <span style={{ color: C.text }}> SCANNER</span>
               </h1>
               <p style={{ color: C.textFaint, fontSize: 11, letterSpacing: '0.06em', marginTop: 4 }}>
-                Polymarket vs DraftKings · {scanSport.toUpperCase()} · Paper Trading
+                AI Athlete Intelligence · Polymarket vs DraftKings · {scanSport.toUpperCase()} · Paper Trading
               </p>
             </div>
 
