@@ -1149,7 +1149,7 @@ function IntelCard({ children, fullWidth = false, style = {} }: { children: Reac
   )
 }
 
-function GameIntelPanel({ home, away, gameId, venue, onClose }: { home: string; away: string; gameId?: string; venue?: { name: string; location: string } | null; onClose: () => void }) {
+function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: { home: string; away: string; gameId?: string; venue?: { name: string; location: string } | null; sport?: 'nba' | 'nfl'; onClose: () => void }) {
   const [intel, setIntel] = useState<TeamIntelData | null>(null)
   const [loading, setLoading] = useState(true)
   const [lineups, setLineups] = useState<LineupsData | null>(null)
@@ -1175,11 +1175,11 @@ function GameIntelPanel({ home, away, gameId, venue, onClose }: { home: string; 
 
   useEffect(() => {
     setPropsLoading(true)
-    fetch(`/api/props?home=${home}&away=${away}`)
+    fetch(`/api/props?home=${home}&away=${away}&sport=${sport}`)
       .then(r => r.json())
       .then(d => { setProps(d); setPropsLoading(false) })
       .catch(() => setPropsLoading(false))
-  }, [home, away])
+  }, [home, away, sport])
 
   const formDots = (games: ('W' | 'L')[]) => {
     const ordered = [...games].reverse()
@@ -1490,39 +1490,48 @@ function GameIntelPanel({ home, away, gameId, venue, onClose }: { home: string; 
                     <div key={label} style={{ marginBottom: 16 }}>
                       <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {players.map((p: any, i: number) => (
-                          <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                {p.headshot && <img src={p.headshot} alt={p.player} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.border}` }} />}
-                                <div>
-                                  <p style={{ color: C.textPrimary, fontSize: 12, fontWeight: 700, lineHeight: 1 }}>{p.player}</p>
-                                  <p style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.position} · {p.gamesPlayed}G</p>
-                                </div>
-                              </div>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                              {[
-                                { label: 'PTS', data: p.pts },
-                                { label: 'REB', data: p.reb },
-                                { label: 'AST', data: p.ast },
-                              ].map(({ label, data }) => {
-                                const trendColor = data.trend === 'over' ? C.green : data.trend === 'under' ? C.red : C.gold
-                                const trendIcon = data.trend === 'over' ? '▲' : data.trend === 'under' ? '▼' : '—'
-                                return (
-                                  <div key={label} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
-                                    <p style={{ color: C.textSecondary, fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>{label}</p>
-                                    <p style={{ color: C.textPrimary, fontWeight: 900, fontSize: 16, lineHeight: 1 }}>{data.line}</p>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, marginTop: 4 }}>
-                                      <span style={{ color: trendColor, fontSize: 9, fontWeight: 800 }}>{trendIcon}</span>
-                                      <span style={{ color: C.textSecondary, fontSize: 8 }}>avg {data.avg}</span>
-                                    </div>
+                        {players.map((p: any, i: number) => {
+                          const best = p.bestBet
+                          const logs = p.last12 || []
+                          return (
+                            <div key={i} style={{ background: best?.quality === 'bet' ? 'rgba(0,255,136,0.055)' : 'rgba(255,255,255,0.02)', border: `1px solid ${best?.quality === 'bet' ? 'rgba(0,255,136,0.28)' : C.border}`, borderRadius: 12, padding: '11px 12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                                  {p.headshot && <img src={p.headshot} alt={p.player} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.border}` }} />}
+                                  <div>
+                                    <p style={{ color: C.textPrimary, fontSize: 12, fontWeight: 800, lineHeight: 1 }}>{p.player}</p>
+                                    <p style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.position} · last {p.gamesPlayed || logs.length} games</p>
                                   </div>
-                                )
-                              })}
+                                </div>
+                                {best && (
+                                  <div style={{ borderRadius: 10, padding: '5px 8px', background: best.quality === 'bet' ? 'rgba(0,255,136,0.12)' : 'rgba(255,215,0,0.10)', border: `1px solid ${best.quality === 'bet' ? 'rgba(0,255,136,0.38)' : 'rgba(255,215,0,0.28)'}`, textAlign: 'right' }}>
+                                    <div style={{ color: best.quality === 'bet' ? C.green : C.gold, fontSize: 11, fontWeight: 950 }}>{best.label}</div>
+                                    <div style={{ color: C.textSecondary, fontSize: 8 }}>{best.hits}/{best.games} hit · C{best.confidence}</div>
+                                  </div>
+                                )}
+                              </div>
+                              {best && <p style={{ color: 'rgba(230,245,255,0.78)', fontSize: 10, lineHeight: 1.45, marginBottom: 9 }}>{best.explanation}</p>}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))', gap: 6, marginBottom: logs.length ? 9 : 0 }}>
+                                {(p.recommendations || []).slice(0, 4).map((r: any) => (
+                                  <div key={`${p.player}-${r.label}`} style={{ background: 'rgba(0,0,0,0.22)', borderRadius: 8, padding: '6px 7px', textAlign: 'center', border: `1px solid ${r.quality === 'bet' ? 'rgba(0,255,136,0.22)' : 'rgba(255,255,255,0.06)'}` }}>
+                                    <p style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>{r.metric}</p>
+                                    <p style={{ color: r.quality === 'bet' ? C.green : C.textPrimary, fontWeight: 900, fontSize: 13, lineHeight: 1 }}>{r.line}+</p>
+                                    <p style={{ color: C.textSecondary, fontSize: 8, marginTop: 3 }}>{r.hitRate}% · avg {r.avg}</p>
+                                  </div>
+                                ))}
+                              </div>
+                              {logs.length > 0 && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 4 }}>
+                                  {logs.slice(0, 12).map((g: any, idx: number) => {
+                                    const val = best ? (best.metric === 'points' ? g.stats.points : best.metric === 'rebounds' ? g.stats.rebounds : best.metric === 'assists' ? g.stats.assists : best.metric === 'PTS+REB+AST' ? g.stats.points + g.stats.rebounds + g.stats.assists : best.metric === 'passing yards' ? g.stats.passingYards : best.metric === 'passing TDs' ? g.stats.passingTouchdowns : best.metric === 'rushing yards' ? g.stats.rushingYards : best.metric === 'receptions' ? g.stats.receptions : g.stats.receivingYards) : 0
+                                    const hit = best ? val >= best.line : false
+                                    return <div key={`${g.eventId}-${idx}`} title={`${g.opponent || ''} ${val}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(0,255,136,0.13)' : 'rgba(255,255,255,0.04)', border: `1px solid ${hit ? 'rgba(0,255,136,0.28)' : 'rgba(255,255,255,0.06)'}`, color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}>{val}</div>
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   ))}
@@ -1699,7 +1708,7 @@ function RowGroup({ games, cols, activeGame, panel, onLogBet, drift, onOpenIntel
           {activeGame.sport === 'nfl' || activeGame.sport === 'ncaaf' ? (
             <FootballPrepPanel game={activeGame} onClose={() => onOpenIntel(activeGame)} />
           ) : (
-            <GameIntelPanel home={activeGame.homeTeam.abbr} away={activeGame.awayTeam.abbr} gameId={activeGame.id} venue={activeGame.venue} onClose={() => onOpenIntel(activeGame)} />
+            <GameIntelPanel home={activeGame.homeTeam.abbr} away={activeGame.awayTeam.abbr} gameId={activeGame.id} venue={activeGame.venue} sport="nba" onClose={() => onOpenIntel(activeGame)} />
           )}
         </div>
       )}
@@ -1715,6 +1724,7 @@ function RowGroup({ games, cols, activeGame, panel, onLogBet, drift, onOpenIntel
 
 function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void }) {
   const [intel, setIntel] = useState<FootballIntelData | null>(null)
+  const [props, setProps] = useState<{ home: any[]; away: any[]; available: boolean } | null>(null)
   const matched = game.hasWinnerOdds || game.hasSpreadOdds || game.hasTotalOdds
   const readiness = getMarketReadiness(game)
   const spreadGap = game.hasDkOdds && game.hasSpreadOdds && game.dkSpread != null
@@ -1748,6 +1758,14 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
       .then(r => r.json())
       .then(d => setIntel(d))
       .catch(() => setIntel(null))
+  }, [game])
+
+  useEffect(() => {
+    if (game.sport !== 'nfl') return
+    fetch(`/api/props?home=${game.homeTeam.abbr}&away=${game.awayTeam.abbr}&sport=nfl`)
+      .then(r => r.json())
+      .then(d => setProps(d))
+      .catch(() => setProps(null))
   }, [game])
 
   const items = [
@@ -1799,6 +1817,34 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
             {intel.warnings.length > 0 && (
               <div style={{ color: C.gold, fontSize: 11, marginTop: 10 }}>⚠ {intel.warnings.slice(0, 3).join(' · ')}</div>
             )}
+          </div>
+        )}
+
+        {props?.available && (
+          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(0,255,136,0.035)', border: '1px solid rgba(0,255,136,0.16)', marginBottom: 12 }}>
+            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>NFL Player Prop Reads</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+              {[...(props.away || []), ...(props.home || [])].filter((p: any) => p.bestBet).slice(0, 8).map((p: any) => (
+                <div key={`${p.team}-${p.player}`} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${p.bestBet?.quality === 'bet' ? 'rgba(0,255,136,0.32)' : C.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 900 }}>{p.player}</div>
+                      <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.team} · {p.position}</div>
+                    </div>
+                    <div style={{ color: p.bestBet?.quality === 'bet' ? C.green : C.gold, fontSize: 11, fontWeight: 950, textAlign: 'right' }}>{p.bestBet?.label}</div>
+                  </div>
+                  <div style={{ color: 'rgba(230,245,255,0.74)', fontSize: 10, lineHeight: 1.45, marginTop: 7 }}>{p.bestBet?.hits}/{p.bestBet?.games} hit · avg {p.bestBet?.avg}. {p.bestBet?.explanation}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 4, marginTop: 8 }}>
+                    {(p.last12 || []).slice(0, 12).map((g: any, idx: number) => {
+                      const metric = p.bestBet?.metric
+                      const val = metric === 'passing yards' ? g.stats.passingYards : metric === 'passing TDs' ? g.stats.passingTouchdowns : metric === 'rushing yards' ? g.stats.rushingYards : metric === 'receptions' ? g.stats.receptions : g.stats.receivingYards
+                      const hit = val >= p.bestBet?.line
+                      return <div key={`${g.eventId}-${idx}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(0,255,136,0.13)' : 'rgba(255,255,255,0.04)', color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}>{val}</div>
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
