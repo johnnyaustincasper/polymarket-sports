@@ -23,16 +23,56 @@ const ESPN_TO_POLY: Record<string, string[]> = {
   WAS: ['wizards', 'washington'], WSH: ['wizards', 'washington'],
 }
 
+function normalize(s: string) {
+  return s.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
 function getKeywords(abbr: string, teamName: string): string[] {
-  if (ESPN_TO_POLY[abbr]) return ESPN_TO_POLY[abbr]
-  const skip = new Set(['state', 'university', 'college', 'the', 'of', 'at'])
-  const words = teamName.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !skip.has(w))
-  return words.length ? [words[0], teamName.toLowerCase()] : [teamName.toLowerCase()]
+  const direct = ESPN_TO_POLY[abbr] || []
+  const normalizedName = normalize(teamName)
+  const skip = new Set(['state', 'university', 'college', 'the', 'of', 'at', 'and', 'fc'])
+  const words = normalizedName.split(/\s+/).filter(w => w.length > 2 && !skip.has(w))
+  const fallback = words.length ? [words[0], words.at(-1)!, normalizedName] : [normalizedName]
+  return Array.from(new Set([...direct, ...fallback].map(normalize).filter(Boolean)))
+}
+
+function keywordScore(abbr: string, teamName: string, title: string): number {
+  const t = normalize(title)
+  let best = 0
+  for (const k of getKeywords(abbr, teamName)) {
+    if (t === k) best = Math.max(best, 4)
+    else if (t.includes(k)) best = Math.max(best, k.length >= 6 ? 3 : 2)
+  }
+  return best
 }
 
 function teamMatch(abbr: string, teamName: string, title: string): boolean {
-  const t = title.toLowerCase()
-  return getKeywords(abbr, teamName).some(k => t.includes(k))
+  return keywordScore(abbr, teamName, title) >= 2
+}
+
+function findDistinctTeamOutcomeIndexes(
+  outcomes: string[],
+  homeAbbr: string,
+  homeName: string,
+  awayAbbr: string,
+  awayName: string,
+): { homeIdx: number; awayIdx: number } | null {
+  const scores = outcomes.map(o => ({
+    home: keywordScore(homeAbbr, homeName, o),
+    away: keywordScore(awayAbbr, awayName, o),
+  }))
+  const homeCandidates = scores
+    .map((score, idx) => ({ ...score, idx }))
+    .filter(score => score.home >= 2 && score.home > score.away)
+  const awayCandidates = scores
+    .map((score, idx) => ({ ...score, idx }))
+    .filter(score => score.away >= 2 && score.away > score.home)
+
+  if (homeCandidates.length !== 1 || awayCandidates.length !== 1) return null
+  const homeIdx = homeCandidates[0].idx
+  const awayIdx = awayCandidates[0].idx
+  if (homeIdx === awayIdx) return null
+  return { homeIdx, awayIdx }
 }
 
 function parseRecord(rec: string): number {
@@ -138,11 +178,11 @@ export async function GET() {
         const tokenIds: string[] = JSON.parse(winnerMarket.clobTokenIds || '[]')
 
         if (outcomes.length === 2 && prices.length === 2) {
-          const homeKw = getKeywords(homeAbbr, homeName)
-          const homeIdx = outcomes.findIndex(o => homeKw.some(k => o.toLowerCase().includes(k)))
-          const awayIdx = homeIdx === 0 ? 1 : 0
+          const outcomeIndexes = findDistinctTeamOutcomeIndexes(outcomes, homeAbbr, homeName, awayAbbr, awayName)
+          if (!outcomeIndexes) continue
+          const { homeIdx, awayIdx } = outcomeIndexes
 
-          const homeMarketOdds = parseFloat(prices[homeIdx >= 0 ? homeIdx : 1] || '0.5')
+          const homeMarketOdds = parseFloat(prices[homeIdx] || '0.5')
           const awayMarketOdds = parseFloat(prices[awayIdx] || '0.5')
 
           const { homeEdge, awayEdge } = computeModelEdge(homeRecPct, awayRecPct, homeMarketOdds)
@@ -152,7 +192,7 @@ export async function GET() {
 
           // Flag if divergence > 5%
           if (Math.abs(homeDivergence) > 0.05) {
-            const homeTokenId = tokenIds[homeIdx >= 0 ? homeIdx : 1] || ''
+            const homeTokenId = tokenIds[homeIdx] || ''
             edgeMarkets.push({
               matchup,
               marketTitle: winnerMarket.question || `${awayName} vs ${homeName}`,
