@@ -134,6 +134,8 @@ interface LastMinuteBoardEntry {
   matchQuality: number
   warnings: string[]
   reasons: string[]
+  actionLabel: string
+  actionTone: 'execute' | 'watch' | 'blocked'
 }
 
 function buildLastMinuteBoard(games: Game[]): LastMinuteBoardEntry[] {
@@ -156,6 +158,15 @@ function buildLastMinuteBoard(games: Game[]): LastMinuteBoardEntry[] {
       if (readiness.warnings.length) reasons.push(readiness.warnings[0])
 
       const confidence = winEdge?.confidence || Math.min(72, 52 + lineGap * 5 + totalGap * 2 + (readiness.matchQuality >= 55 ? 6 : 0))
+      const hasTradeLink = Boolean(game.polyWinnerUrl || game.polySpreadUrl || game.polyTotalUrl)
+      const marketReady = readiness.matched && readiness.matchQuality >= 55 && !readiness.stale && hasTradeLink
+      const playableQuality = winEdge?.quality === 'play' || winEdge?.quality === 'premium' || lineGap >= 1.5 || totalGap >= 2
+      const actionTone: LastMinuteBoardEntry['actionTone'] = marketReady && playableQuality ? 'execute' : marketReady ? 'watch' : 'blocked'
+      const actionLabel = actionTone === 'execute'
+        ? 'Executable link live'
+        : actionTone === 'watch'
+          ? 'Watch — confirm price'
+          : 'Watch only — market not ready'
       const score =
         (winEdge?.edgeScore || 0) * 100 +
         lineGap * 4 +
@@ -179,6 +190,8 @@ function buildLastMinuteBoard(games: Game[]): LastMinuteBoardEntry[] {
         matchQuality: readiness.matchQuality,
         warnings: readiness.warnings,
         reasons,
+        actionLabel,
+        actionTone,
       }
     })
     .filter((entry): entry is LastMinuteBoardEntry => entry !== null)
@@ -228,16 +241,25 @@ function LastSixtyBoard({ games }: { games: Game[] }) {
                   <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 800 }}>{entry.game.awayTeam.abbr} @ {entry.game.homeTeam.abbr}</p>
                   <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 2 }}>{entry.minutesToTip <= 0 ? 'Tipping now' : `${entry.minutesToTip}m to tip`}</p>
                 </div>
-                <div style={{
-                  background: entry.minutesToTip <= 20 ? 'rgba(255,68,102,0.16)' : 'rgba(255,215,0,0.12)',
-                  border: `1px solid ${entry.minutesToTip <= 20 ? 'rgba(255,68,102,0.45)' : 'rgba(255,215,0,0.35)'}`,
-                  borderRadius: 10,
-                  padding: '4px 8px',
-                }}>
-                  <span style={{ color: entry.minutesToTip <= 20 ? C.red : C.gold, fontSize: 10, fontWeight: 900 }}>
-                    {entry.recommendedSide}
-                  </span>
-                  <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, marginLeft: 6 }}>C{entry.confidence}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+                  <div style={{
+                    background: entry.minutesToTip <= 20 ? 'rgba(255,68,102,0.16)' : 'rgba(255,215,0,0.12)',
+                    border: `1px solid ${entry.minutesToTip <= 20 ? 'rgba(255,68,102,0.45)' : 'rgba(255,215,0,0.35)'}`,
+                    borderRadius: 10,
+                    padding: '4px 8px',
+                  }}>
+                    <span style={{ color: entry.minutesToTip <= 20 ? C.red : C.gold, fontSize: 10, fontWeight: 900 }}>
+                      {entry.recommendedSide}
+                    </span>
+                    <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, marginLeft: 6 }}>C{entry.confidence}</span>
+                  </div>
+                  <span style={{
+                    background: entry.actionTone === 'execute' ? 'rgba(0,255,136,0.12)' : entry.actionTone === 'watch' ? 'rgba(255,215,0,0.10)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${entry.actionTone === 'execute' ? 'rgba(0,255,136,0.35)' : entry.actionTone === 'watch' ? 'rgba(255,215,0,0.30)' : 'rgba(255,255,255,0.12)'}`,
+                    borderRadius: 999, padding: '3px 8px',
+                    color: entry.actionTone === 'execute' ? C.green : entry.actionTone === 'watch' ? C.gold : C.textSecondary,
+                    fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase'
+                  }}>{entry.actionLabel}</span>
                 </div>
               </div>
 
@@ -1664,7 +1686,7 @@ function PredictionBadge({ winPct, team, confidence }: { winPct: number; team: s
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, background: bg, border: `1px solid ${border}` }}>
       <span style={{ fontSize: 8 }}>🎯</span>
-      <span style={{ color, fontSize: 9, fontWeight: 800 }}>Edge: {team} {winPct}%</span>
+      <span style={{ color, fontSize: 9, fontWeight: 800 }}>Model lean / watch: {team} {winPct}%</span>
     </div>
   )
 }
@@ -2066,6 +2088,15 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
   const dkSpreadDiff = game.hasDkOdds && game.hasSpreadOdds && game.dkSpread != null ? Math.abs(game.spreadLine - game.dkSpread) : 0
   const dkTotalDiff = game.hasDkOdds && game.hasTotalOdds && game.dkTotal != null ? Math.abs(game.totalLine - game.dkTotal) : 0
   const hasEdge = dkSpreadDiff >= 1.5 || dkTotalDiff >= 2
+  const marketReadiness = getMarketReadiness(game)
+  const hasTradeLink = Boolean(game.polyWinnerUrl || game.polySpreadUrl || game.polyTotalUrl)
+  const marketReady = marketReadiness.matched && marketReadiness.matchQuality >= 55 && hasTradeLink && !marketReadiness.stale
+  const readinessTone = marketReady ? 'execute' : marketReadiness.matched ? 'watch' : 'blocked'
+  const readinessLabel = marketReady
+    ? 'Market ready · links live'
+    : marketReadiness.matched
+      ? `Watch only · match ${marketReadiness.matchQuality}%`
+      : 'Watch only · no market'
 
   // Drift helpers
   const awayWinDelta = drift?.winnerHomeDelta != null ? -(drift.winnerHomeDelta) : null
@@ -2147,6 +2178,13 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                     )}
                   </div>
                 )}
+                <span style={{
+                  background: readinessTone === 'execute' ? 'rgba(0,255,136,0.10)' : readinessTone === 'watch' ? 'rgba(255,215,0,0.10)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${readinessTone === 'execute' ? 'rgba(0,255,136,0.32)' : readinessTone === 'watch' ? 'rgba(255,215,0,0.30)' : 'rgba(255,255,255,0.12)'}`,
+                  borderRadius: 999, padding: '2px 8px',
+                  color: readinessTone === 'execute' ? C.green : readinessTone === 'watch' ? C.gold : C.textSecondary,
+                  fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase'
+                }}>{readinessLabel}</span>
                 {hasEdge && (
                   <div style={{ position: 'relative' }}>
                     <button onClick={() => setShowEdgeInfo(v => !v)} style={{
@@ -2270,7 +2308,7 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                   const kellyFrac = computeKelly(ourProb, marketProb)
                   const halfKelly = kellyFrac * 0.5
                   const edgeScore = ourProb - marketProb
-                  if (edgeScore <= 0.02) return null
+                  if (edgeScore <= 0.02 || !marketReady) return null
                   const betAmt = (bankroll || 0) * halfKelly
                   return (
                     <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -2280,7 +2318,7 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                         background: 'rgba(0,255,136,0.07)', border: '1px solid rgba(0,255,136,0.25)',
                       }}>
                         <span style={{ fontSize: 9 }}>📐</span>
-                        <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 700 }}>Kelly:</span>
+                        <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 700 }}>Sizing hint · verify ask:</span>
                         <span style={{ color: C.green, fontSize: 9, fontWeight: 900 }}>{(halfKelly * 100).toFixed(1)}% of bankroll</span>
                         {bankroll ? (
                           <span style={{ color: C.textSecondary, fontSize: 9 }}>→ <span style={{ color: C.green, fontWeight: 800 }}>${betAmt.toFixed(2)}</span></span>
@@ -2771,9 +2809,10 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
         const p = fight.polyOdds
         const hasAny = p?.hasWinner || p?.hasTotal || p?.koTkoOdds !== null || p?.submissionOdds !== null || p?.goDistanceOdds !== null
         if (!hasAny) return (
-          <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', marginTop: 12, opacity: 0.5 }}>No Polymarket markets matched yet</p>
+          <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', marginTop: 12, opacity: 0.75 }}>WATCH ONLY · no Polymarket market matched yet</p>
         )
         const lean = marketLean(fight)
+        const hasExecutableLink = Boolean(p?.polyWinnerUrl || p?.polyTotalUrl)
         const chips: Array<{ label: string; value: string; hot?: boolean; href?: string | null }> = []
         if (p.hasWinner) {
           chips.push({ label: `${fight.fighterA.name.split(' ').slice(-1)[0]} win`, value: pctLabel(p.fighterAWin), hot: (p.fighterAWin || 0) >= 0.55, href: p.polyWinnerUrl })
@@ -2789,6 +2828,10 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
 
         return (
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8, padding: '7px 10px', borderRadius: 12, background: hasExecutableLink ? 'rgba(0,255,136,0.07)' : 'rgba(255,215,0,0.07)', border: `1px solid ${hasExecutableLink ? 'rgba(0,255,136,0.25)' : 'rgba(255,215,0,0.25)'}` }}>
+              <span style={{ color: hasExecutableLink ? C.green : C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{hasExecutableLink ? 'Market ready · linked chips executable' : 'Watch only · no executable link'}</span>
+              <span style={{ color: C.textSecondary, fontSize: 9 }}>Confirm price/liquidity before sizing</span>
+            </div>
             {lean && (
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8, padding: '8px 10px', borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{lean.label}</span>
