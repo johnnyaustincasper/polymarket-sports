@@ -209,6 +209,10 @@ const GLOBAL_STYLES = `
     0% { transform: translateX(-140%); }
     100% { transform: translateX(140%); }
   }
+  @keyframes analysisCardBlink {
+    0%, 100% { opacity: 1; transform: scale(1); filter: brightness(1.08); }
+    50% { opacity: 0.48; transform: scale(0.985); filter: brightness(1.85); }
+  }
   .no-scrollbar {
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -445,7 +449,7 @@ function AnalyzingLoader({ title = 'Analyzing matchup', subtitle = 'XAI is scann
   )
 }
 
-function AnalysisPanel({ game, onClose }: { game: Game; onClose: () => void }) {
+function AnalysisPanel({ game, onClose, onDone }: { game: Game; onClose: () => void; onDone?: () => void }) {
   const [analysis, setAnalysis] = useState('')
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<number | null>(0)
@@ -461,9 +465,9 @@ function AnalysisPanel({ game, onClose }: { game: Game; onClose: () => void }) {
       }),
     })
       .then(r => r.json())
-      .then(d => { setAnalysis(d.analysis || d.error || 'No analysis available'); setLoading(false) })
-      .catch(() => { setAnalysis('Failed.'); setLoading(false) })
-  }, [])
+      .then(d => { setAnalysis(d.analysis || d.error || 'No analysis available'); setLoading(false); onDone?.() })
+      .catch(() => { setAnalysis('Failed.'); setLoading(false); onDone?.() })
+  }, [onDone])
 
   const sections = analysis ? parseAnalysis(analysis) : []
 
@@ -1462,11 +1466,13 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
   )
 }
 
-function RowGroup({ games, cols, activeGame, panel, onLogBet, drift, onOpenIntel, onOpenAnalysis, bankroll }: {
+function RowGroup({ games, cols, activeGame, panel, analysisLoadingGameId, onAnalysisDone, onLogBet, drift, onOpenIntel, onOpenAnalysis, bankroll }: {
   games: Game[]
   cols: number
   activeGame: Game | null
   panel: 'intel' | 'analysis' | null
+  analysisLoadingGameId?: string | null
+  onAnalysisDone?: () => void
   onLogBet: (bet: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) => void
   drift: Record<string, OddsDrift>
   onOpenIntel: (g: Game) => void
@@ -1480,6 +1486,7 @@ function RowGroup({ games, cols, activeGame, panel, onLogBet, drift, onOpenIntel
         {games.map(g => (
           <GameCard key={g.id} game={g} onLogBet={onLogBet} drift={drift[g.id]}
             isActive={activeGame?.id === g.id}
+            isAnalyzing={analysisLoadingGameId === g.id}
             onOpenIntel={() => onOpenIntel(g)}
             onOpenAnalysis={() => onOpenAnalysis(g)}
             bankroll={bankroll} />
@@ -1496,7 +1503,7 @@ function RowGroup({ games, cols, activeGame, panel, onLogBet, drift, onOpenIntel
       )}
       {hasActivePanel && panel === 'analysis' && activeGame && (
         <div id="active-panel" style={{ width: '100%', marginTop: 8 }}>
-          <AnalysisPanel game={activeGame} onClose={() => onOpenAnalysis(activeGame)} />
+          <AnalysisPanel game={activeGame} onClose={() => onOpenAnalysis(activeGame)} onDone={onAnalysisDone} />
         </div>
       )}
     </div>
@@ -1658,11 +1665,12 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
 }
 
 // ─── Game Card ────────────────────────────────────────────────────────────────
-function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis, bankroll }: {
+function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, onOpenAnalysis, bankroll }: {
   game: Game
   onLogBet: (bet: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) => void
   drift?: OddsDrift
   isActive?: boolean
+  isAnalyzing?: boolean
   onOpenIntel?: () => void
   onOpenAnalysis?: () => void
   bankroll?: number
@@ -1792,7 +1800,17 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
   return (
     <>
       <div className="mb-4" style={{ position: 'relative' }}>
-        <div className={isLive ? '' : 'holo-projection holo-scanlines rounded-3xl'} style={cardStyle}>
+        <div className={isLive ? '' : 'holo-projection holo-scanlines rounded-3xl'} style={{
+          ...cardStyle,
+          animation: isAnalyzing ? 'analysisCardBlink 0.72s ease-in-out infinite' : cardStyle.animation,
+          border: isAnalyzing ? `1px solid ${C.green}` : cardStyle.border,
+          boxShadow: isAnalyzing ? `0 0 56px rgba(166,255,63,0.48), 0 18px 70px rgba(0,0,0,0.75), inset 0 0 28px rgba(166,255,63,0.10)` : cardStyle.boxShadow,
+        }}>
+          {isAnalyzing && (
+            <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(3,5,0,0.30)', borderRadius: 24 }}>
+              <div style={{ padding: '8px 12px', borderRadius: 999, background: 'rgba(3,5,0,0.88)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', boxShadow: '0 0 24px rgba(166,255,63,0.35)' }}>Analyzing…</div>
+            </div>
+          )}
           <div className="p-5">
             {/* Header row */}
             <div className="flex items-center justify-between mb-4">
@@ -2962,6 +2980,7 @@ export default function Home() {
   const prevGamesRef = useRef<Map<string, Game>>(new Map())
   const [activeIntelGame, setActiveIntelGame] = useState<Game | null>(null)
   const [activeAnalysisGame, setActiveAnalysisGame] = useState<Game | null>(null)
+  const [analysisLoadingGameId, setAnalysisLoadingGameId] = useState<string | null>(null)
   const cols = useColCount()
   const isMobile = useIsMobile()
 
@@ -3135,9 +3154,11 @@ export default function Home() {
                       <RowGroup key={i} games={row} cols={cols}
                         activeGame={activeIntelGame || activeAnalysisGame}
                         panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
+                        analysisLoadingGameId={analysisLoadingGameId}
+                        onAnalysisDone={() => setAnalysisLoadingGameId(null)}
                         onLogBet={logBet} drift={oddsDrift}
                         onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
-                        onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => prev?.id === g.id ? null : g); setActiveIntelGame(null) }} />
+                        onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
                     ))}
                   </div>
                 )}
@@ -3156,9 +3177,11 @@ export default function Home() {
                       <RowGroup key={i} games={row} cols={cols}
                         activeGame={activeIntelGame || activeAnalysisGame}
                         panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
+                        analysisLoadingGameId={analysisLoadingGameId}
+                        onAnalysisDone={() => setAnalysisLoadingGameId(null)}
                         onLogBet={logBet} drift={oddsDrift}
                         onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
-                        onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => prev?.id === g.id ? null : g); setActiveIntelGame(null) }} />
+                        onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
                     ))}
                   </div>
                 )}
@@ -3172,9 +3195,11 @@ export default function Home() {
                     <RowGroup key={i} games={row} cols={cols}
                       activeGame={activeIntelGame || activeAnalysisGame}
                       panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
+                      analysisLoadingGameId={analysisLoadingGameId}
+                      onAnalysisDone={() => setAnalysisLoadingGameId(null)}
                       onLogBet={logBet} drift={oddsDrift}
                       onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
-                      onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => prev?.id === g.id ? null : g); setActiveIntelGame(null) }} />
+                      onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
                   ))}
                 </div>
               </section>
