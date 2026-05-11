@@ -1428,8 +1428,27 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
   const playable = summary?.playableMatched ?? best.length
 
   return (
-    <div style={{ borderRadius: 22, padding: 1, background: playable > 0 ? 'linear-gradient(135deg, rgba(166,255,63,0.64), rgba(255,255,255,0.14), rgba(166,255,63,0.12))' : 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.06))', boxShadow: playable > 0 ? '0 0 30px rgba(166,255,63,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)' }}>
-      <div style={{ borderRadius: 21, padding: 16, background: SURFACE.panel, minHeight: 220, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}>
+    <div style={{
+      borderRadius: 22,
+      padding: 1,
+      background: playable > 0 ? 'linear-gradient(135deg, rgba(166,255,63,0.64), rgba(255,255,255,0.14), rgba(166,255,63,0.12))' : 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.06))',
+      boxShadow: loading ? '0 0 56px rgba(166,255,63,0.42), 0 18px 70px rgba(0,0,0,0.72)' : playable > 0 ? '0 0 30px rgba(166,255,63,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)',
+      animation: loading ? 'analysisCardBlink 0.94s steps(1, end) infinite' : undefined,
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {loading && supportedKalshiSport && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none', borderRadius: 22, overflow: 'hidden', background: 'rgba(3,5,0,0.12)', mixBlendMode: 'screen' }}>
+          <div style={{ position: 'absolute', inset: 0, opacity: 0.58, backgroundImage: 'repeating-linear-gradient(0deg, rgba(166,255,63,0.16) 0px, rgba(166,255,63,0.16) 1px, transparent 1px, transparent 4px)' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '34%', background: 'linear-gradient(180deg, transparent, rgba(166,255,63,0.28), transparent)', animation: 'tvStaticSweep 0.72s linear infinite' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '25%', height: 22, background: 'rgba(166,255,63,0.18)', animation: 'tvGlitchSlice 0.94s steps(1, end) infinite' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '64%', height: 14, background: 'rgba(255,255,255,0.16)', animation: 'tvGlitchSlice 0.71s steps(1, end) infinite reverse' }} />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ padding: '8px 12px', borderRadius: 999, background: 'rgba(3,5,0,0.88)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', boxShadow: '0 0 24px rgba(166,255,63,0.42)' }}>Signal scanning…</div>
+          </div>
+        </div>
+      )}
+      <div style={{ borderRadius: 21, padding: 16, background: SURFACE.panel, minHeight: 220, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)', position: 'relative' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
           <div>
             <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi Player Props</div>
@@ -1453,7 +1472,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
           <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>Kalshi player prop cards are not wired for {sport.toUpperCase()} yet. Use Polymarket for this sport while we add that feed.</p>
         ) : loading ? (
           <div style={{ display: 'grid', gap: 8 }}>
-            {[0, 1, 2].map(i => <div key={i} style={{ height: 54, borderRadius: 12, background: 'rgba(255,255,255,0.035)', animation: 'pulse 2s infinite' }} />)}
+            {[0, 1, 2].map(i => <div key={i} style={{ height: 54, borderRadius: 12, background: 'rgba(166,255,63,0.055)', border: '1px solid rgba(166,255,63,0.12)', animation: `scanCardGlow ${0.9 + i * 0.15}s ease-in-out infinite` }} />)}
           </div>
         ) : error ? (
           <p style={{ color: C.gold, fontSize: 11 }}>Kalshi scan unavailable: {error}</p>
