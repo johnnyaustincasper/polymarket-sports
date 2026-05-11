@@ -5,7 +5,7 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-html { min-height: 100%; background: #02020f fixed; }
+html { min-height: 100%; background: #030502 fixed; }
 body { background: transparent !important; min-height: 100dvh; }
 
 /* ── Hologram flicker — rare, subtle ───────────────────────── */
@@ -26,7 +26,7 @@ body { background: transparent !important; min-height: 100dvh; }
 
 /* ── Chromatic aberration drift ─────────────────────────────── */
 @keyframes chroma-drift {
-  0%, 100% { text-shadow: -1px 0 rgba(255,0,80,0.25), 1px 0 rgba(0,240,255,0.25); }
+  0%, 100% { text-shadow: -1px 0 rgba(255,0,80,0.25), 1px 0 rgba(166,255,63,0.25); }
   50%       { text-shadow: -2px 0 rgba(255,0,80,0.15), 2px 0 rgba(0,240,255,0.15); }
 }
 
@@ -63,8 +63,8 @@ body { background: transparent !important; min-height: 100dvh; }
     0deg,
     transparent,
     transparent 2px,
-    rgba(0, 200, 255, 0.018) 2px,
-    rgba(0, 200, 255, 0.018) 3px
+    rgba(166, 255, 63, 0.018) 2px,
+    rgba(166, 255, 63, 0.018) 3px
   );
   pointer-events: none;
   z-index: 9;

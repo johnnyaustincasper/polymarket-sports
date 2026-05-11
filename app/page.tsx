@@ -134,17 +134,17 @@ const MLB_ORANGE = '#ff8a00'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  cyan:    '#00f0ff',
-  purple:  '#a855f7',
-  green:   '#00ff88',
+  cyan:    '#a6ff3f',
+  purple:  '#7f5cff',
+  green:   '#7CFF00',
   red:     '#ff4466',
   gold:    '#ffd700',
-  bg:      '#02020f',
-  card:    'rgba(8,8,28,0.85)',
-  border:  'rgba(0,240,255,0.12)',
-  borderHot: 'rgba(0,240,255,0.45)',
-  textPrimary: '#a8f0ff',
-  textSecondary: 'rgba(0,240,255,0.45)',
+  bg:      '#030502',
+  card:    'rgba(7,10,6,0.88)',
+  border:  'rgba(166,255,63,0.14)',
+  borderHot: 'rgba(166,255,63,0.50)',
+  textPrimary: '#f6fff0',
+  textSecondary: 'rgba(226,255,204,0.55)',
 }
 
 // ─── Global CSS keyframes ──────────────────────────────────────────────────────
@@ -2839,30 +2839,34 @@ export default function Home() {
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
         backgroundImage: `
-          linear-gradient(rgba(0,240,255,0.03) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(0,240,255,0.03) 1px, transparent 1px)
+          linear-gradient(rgba(166,255,63,0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(166,255,63,0.035) 1px, transparent 1px)
         `,
         backgroundSize: '48px 48px',
       }} />
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(0,255,136,0.10) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(0,240,255,0.04) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(166,255,63,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(124,255,0,0.055) 0%, transparent 70%)',
       }} />
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '18px 10px 64px' : '32px 16px 80px' }}>
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" style={{ borderRadius: isMobile ? 22 : 30, padding: isMobile ? '12px' : '16px 18px', background: 'linear-gradient(135deg, rgba(8,12,6,0.90), rgba(0,0,0,0.66))', border: '1px solid rgba(166,255,63,0.16)', boxShadow: '0 18px 70px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
           <div>
             <div className="flex items-center gap-3 mb-1" style={{ flexWrap: 'wrap' }}>
               <a href="/" aria-label="AI Athlete Intelligence home" style={{
                 width: isMobile ? 78 : 104, height: isMobile ? 78 : 104, borderRadius: isMobile ? 16 : 22,
                 overflow: 'hidden', flexShrink: 0,
                 background: '#02020f', border: '1px solid rgba(0,255,136,0.28)',
-                boxShadow: '0 0 28px rgba(0,255,136,0.18), 0 10px 34px rgba(0,0,0,0.45)',
+                boxShadow: '0 0 34px rgba(166,255,63,0.22), 0 10px 34px rgba(0,0,0,0.45)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               </a>
+              <div style={{ minWidth: isMobile ? '100%' : 200 }}>
+                <p style={{ margin: 0, color: '#f7fff0', fontSize: isMobile ? 19 : 24, fontWeight: 950, letterSpacing: '-0.045em', lineHeight: 0.95 }}>AI ATHLETE</p>
+                <p style={{ margin: '3px 0 0', color: C.green, fontSize: isMobile ? 11 : 13, fontWeight: 950, letterSpacing: '0.22em', textTransform: 'uppercase', textShadow: '0 0 20px rgba(166,255,63,0.32)' }}>INTELLIGENCE</p>
+              </div>
               <div style={{ display: 'flex', borderRadius: 10, overflowX: 'auto', maxWidth: '100%', border: `1px solid ${C.border}` }}>
                 {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map((s, idx) => (
                   <button key={s} onClick={() => { setSport(s); setSubtab('slate'); setProvider((s === 'nba' || s === 'mlb' || s === 'nfl') ? 'kalshi' : 'polymarket'); setLoading(true) }} style={{
