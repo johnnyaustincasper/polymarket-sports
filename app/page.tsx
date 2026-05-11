@@ -2793,7 +2793,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
       backdropFilter: isMobile ? 'blur(22px)' : undefined,
       WebkitBackdropFilter: isMobile ? 'blur(22px)' : undefined,
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '96px minmax(0, 1fr)' : '172px minmax(0, 1fr)', gap: isMobile ? 10 : 16, alignItems: 'center' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '96px minmax(0, 1fr)' : '172px minmax(0, 1fr)', gap: isMobile ? 10 : 16, alignItems: 'stretch' }}>
         <a href="/" aria-label="AI Athlete Intelligence home" style={{
           width: isMobile ? 96 : 172, height: isMobile ? 96 : 172, borderRadius: isMobile ? 22 : 34,
           overflow: 'hidden', flexShrink: 0,
@@ -2804,20 +2804,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
           <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         </a>
 
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: isMobile ? 7 : 10 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: C.green, fontSize: isMobile ? 11 : 12, fontWeight: 950, letterSpacing: '0.20em', textTransform: 'uppercase' }}>AI Athlete Intelligence</div>
-              {!isMobile && <p style={{ margin: '4px 0 0', color: C.textSecondary, fontSize: 12, letterSpacing: '0.06em' }}>Know the player. Find your edge. · Kalshi · DraftKings · Polymarket</p>}
-            </div>
-            {lastUpdatedLabel && (
-              <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 999, background: 'rgba(166,255,63,0.07)', border: '1px solid rgba(166,255,63,0.20)', color: C.green, fontSize: 9, fontWeight: 900, whiteSpace: 'nowrap' }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: loading ? C.gold : C.green, display: 'inline-block' }} />
-                {loading ? 'Sync' : lastUpdatedLabel}
-              </span>
-            )}
-          </div>
-
+        <div style={{ minWidth: 0, display: 'flex', alignItems: 'stretch' }}>
           <div className="no-scrollbar" style={{
             display: isMobile ? 'flex' : 'grid',
             gridTemplateColumns: isMobile ? undefined : 'repeat(6, minmax(0, 1fr))',
@@ -2825,6 +2812,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
             overflowX: isMobile ? 'auto' : 'visible',
             paddingBottom: isMobile ? 2 : 0,
             width: '100%',
+            height: '100%',
           }}>
             {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map(s => {
               const active = sport === s
@@ -2861,13 +2849,24 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
           </div>
         </div>
 
-        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, justifyContent: isMobile ? 'space-between' : 'flex-end', minWidth: 0 }}>
-          <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', minWidth: 0, paddingBottom: 1 }}>
+        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', minWidth: 0, marginTop: isMobile ? 2 : 0 }}>
+          {!isMobile && (
+            <div style={{ minWidth: 0, color: C.textSecondary, fontSize: 12, letterSpacing: '0.06em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Know the player. Find your edge. · Kalshi · DraftKings · Polymarket
+            </div>
+          )}
+          <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', minWidth: 0, paddingBottom: 1, marginLeft: 'auto' }}>
             {days.map(day => (
               <ControlButton key={day.value} active={date === day.value} accent={activeAccent} onClick={() => setDate(day.value)} minWidth={isMobile ? 58 : 0}>{day.label}</ControlButton>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+            {lastUpdatedLabel && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 999, background: 'rgba(166,255,63,0.07)', border: '1px solid rgba(166,255,63,0.20)', color: C.green, fontSize: 9, fontWeight: 900, whiteSpace: 'nowrap' }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: loading ? C.gold : C.green, display: 'inline-block' }} />
+                {loading ? 'Sync' : lastUpdatedLabel}
+              </span>
+            )}
             <a href="/bot" aria-label="Open stat scanner bot" style={{ width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: 'rgba(166,255,63,0.08)', border: '1px solid rgba(166,255,63,0.25)', color: C.green, boxShadow: '0 0 12px rgba(166,255,63,0.10)', fontSize: 15 }}>⬡</a>
             <button onClick={onOpenTracker} aria-label="Open bet tracker" style={{ position: 'relative', width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               ◫
