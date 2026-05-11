@@ -580,8 +580,25 @@ function SignalCard({
         )}
 
         {narrative === 'loading' && (
-          <div style={{ padding: '14px 18px', color: C.textDim, fontSize: 11, letterSpacing: '0.08em', borderBottom: `1px solid ${C.border}` }}>
-            ◈ Analyzing intel…
+          <div style={{ padding: 18, borderBottom: `1px solid ${C.border}` }}>
+            <div style={{
+              position: 'relative', overflow: 'hidden', borderRadius: 16, padding: 18,
+              background: 'linear-gradient(145deg, rgba(166,255,63,0.09), rgba(3,5,0,0.92))',
+              border: `1px solid ${C.borderHot}`,
+              boxShadow: '0 0 34px rgba(166,255,63,0.14)',
+              display: 'flex', alignItems: 'center', gap: 14,
+            }}>
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(166,255,63,0.95), transparent)', animation: 'botAnalyzeSweep 1.1s linear infinite' }} />
+              <div style={{
+                width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+                border: '2px solid rgba(166,255,63,0.18)', borderTopColor: C.green, borderRightColor: 'rgba(166,255,63,0.65)',
+                animation: 'botAnalyzeOrbit 0.8s linear infinite', boxShadow: '0 0 20px rgba(166,255,63,0.22)',
+              }} />
+              <div>
+                <div style={{ color: C.green, fontSize: 11, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Analyzing intel</div>
+                <div style={{ color: C.text, fontSize: 13, fontWeight: 800, marginTop: 3 }}>Checking injuries, motivation, market signal, and edge quality…</div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1191,6 +1208,8 @@ export default function BotPage() {
       <style>{`
         @keyframes shimmer { 0% { opacity: 0.3 } 50% { opacity: 0.7 } 100% { opacity: 0.3 } }
         @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.3 } }
+        @keyframes botAnalyzeOrbit { 0% { transform: rotate(0deg) } 100% { transform: rotate(360deg) } }
+        @keyframes botAnalyzeSweep { 0% { transform: translateX(-120%) } 100% { transform: translateX(120%) } }
       `}</style>
 
       {/* Background */}

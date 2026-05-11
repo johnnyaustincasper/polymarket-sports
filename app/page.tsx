@@ -189,6 +189,18 @@ const GLOBAL_STYLES = `
     0%, 100% { opacity: 1; }
     50%       { opacity: 0.5; }
   }
+  @keyframes aiAnalyzeOrbit {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @keyframes aiAnalyzePulse {
+    0%, 100% { opacity: 0.45; transform: scale(0.96); }
+    50% { opacity: 1; transform: scale(1.04); }
+  }
+  @keyframes aiAnalyzeSweep {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(120%); }
+  }
   .no-scrollbar {
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -375,6 +387,56 @@ function parseAnalysis(text: string): { title: string; emoji: string; content: s
   return sections.length ? sections : [{ title: 'Analysis', emoji: '◈', content: text }]
 }
 
+function AnalyzingLoader({ title = 'Analyzing matchup', subtitle = 'XAI is scanning markets, records, price movement, and matchup context.' }: { title?: string; subtitle?: string }) {
+  return (
+    <div style={{
+      maxWidth: 900, margin: '0 auto', borderRadius: 22, padding: '26px 22px',
+      background: 'linear-gradient(145deg, rgba(166,255,63,0.075), rgba(3,5,0,0.96))',
+      border: `1px solid ${C.borderHot}`,
+      boxShadow: '0 0 46px rgba(166,255,63,0.16), 0 18px 60px rgba(0,0,0,0.52)',
+      overflow: 'hidden', position: 'relative',
+    }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.42, background: 'radial-gradient(circle at 50% 0%, rgba(166,255,63,0.22), transparent 46%)' }} />
+      <div style={{
+        position: 'absolute', left: 0, right: 0, top: 0, height: 2,
+        background: 'linear-gradient(90deg, transparent, rgba(166,255,63,0.95), transparent)',
+        animation: 'aiAnalyzeSweep 1.15s linear infinite',
+      }} />
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center' }}>
+        <div style={{ position: 'relative', width: 74, height: 74, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: '50%',
+            border: '2px solid rgba(166,255,63,0.18)', borderTopColor: C.green, borderRightColor: 'rgba(166,255,63,0.65)',
+            animation: 'aiAnalyzeOrbit 0.82s linear infinite',
+            boxShadow: '0 0 24px rgba(166,255,63,0.22)',
+          }} />
+          <div style={{
+            width: 42, height: 42, borderRadius: 14,
+            background: 'rgba(166,255,63,0.12)', border: '1px solid rgba(166,255,63,0.38)',
+            color: C.green, fontSize: 20, fontWeight: 950, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'aiAnalyzePulse 1.05s ease-in-out infinite',
+          }}>◈</div>
+        </div>
+        <div>
+          <div style={{ color: C.green, fontSize: 12, fontWeight: 950, letterSpacing: '0.22em', textTransform: 'uppercase' }}>{title}</div>
+          <div style={{ color: C.textPrimary, fontSize: 18, fontWeight: 950, marginTop: 6 }}>Building intelligence brief…</div>
+          <p style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.55, margin: '8px auto 0', maxWidth: 520 }}>{subtitle}</p>
+        </div>
+        <div style={{ width: 'min(460px, 100%)', display: 'grid', gap: 7, marginTop: 4 }}>
+          {['Market signal', 'Team context', 'Edge verdict'].map((label, i) => (
+            <div key={label} style={{ display: 'grid', gridTemplateColumns: '110px 1fr', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', textAlign: 'right' }}>{label}</span>
+              <span style={{ height: 8, borderRadius: 999, background: 'rgba(166,255,63,0.08)', overflow: 'hidden', border: '1px solid rgba(166,255,63,0.12)' }}>
+                <span style={{ display: 'block', width: `${55 + i * 14}%`, height: '100%', borderRadius: 999, background: 'linear-gradient(90deg, rgba(166,255,63,0.18), rgba(166,255,63,0.86))', animation: `aiAnalyzePulse ${0.9 + i * 0.18}s ease-in-out infinite` }} />
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AnalysisPanel({ game, onClose }: { game: Game; onClose: () => void }) {
   const [analysis, setAnalysis] = useState('')
   const [loading, setLoading] = useState(true)
@@ -408,12 +470,7 @@ function AnalysisPanel({ game, onClose }: { game: Game; onClose: () => void }) {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 900, margin: '0 auto' }}>
-          {[...Array(5)].map((_, i) => (
-            <div key={i} style={{ height: 48, borderRadius: 14, background: 'rgba(166,255,63,0.04)', border: `1px solid ${C.border}` }} />
-          ))}
-          <p style={{ color: C.textSecondary, fontSize: 11, textAlign: 'center', marginTop: 8, letterSpacing: '0.1em' }}>PROCESSING INTELLIGENCE…</p>
-        </div>
+        <AnalyzingLoader />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10, maxWidth: 1200, margin: '0 auto' }}>
           {sections.map((s, i) => {
@@ -2201,9 +2258,8 @@ Return this exact JSON:
 
         {/* AI Intel — structured */}
         {loading ? (
-          <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, gridColumn: '1 / -1' }}>
-            {[...Array(4)].map((_, i) => <div key={i} style={{ height: 14, borderRadius: 4, background: 'rgba(255,255,255,0.04)', marginBottom: 10, width: i % 2 === 0 ? '100%' : '75%' }} />)}
-            <p style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', letterSpacing: '0.15em' }}>ANALYZING…</p>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <AnalyzingLoader title="Analyzing fight" subtitle="XAI is checking fighter style, range, grappling paths, market odds, and upset triggers." />
           </div>
         ) : intel ? (
           <>
