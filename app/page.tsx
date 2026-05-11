@@ -2793,7 +2793,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
       backdropFilter: isMobile ? 'blur(22px)' : undefined,
       WebkitBackdropFilter: isMobile ? 'blur(22px)' : undefined,
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '96px minmax(0, 1fr)' : '172px minmax(0, 1fr) auto', gap: isMobile ? 10 : 16, alignItems: 'center' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '96px minmax(0, 1fr)' : '172px minmax(0, 1fr)', gap: isMobile ? 10 : 16, alignItems: 'center' }}>
         <a href="/" aria-label="AI Athlete Intelligence home" style={{
           width: isMobile ? 96 : 172, height: isMobile ? 96 : 172, borderRadius: isMobile ? 22 : 34,
           overflow: 'hidden', flexShrink: 0,
@@ -2818,14 +2818,50 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
             )}
           </div>
 
-          <div className="no-scrollbar" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 2 }}>
-            {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map(s => (
-              <ControlButton key={s} active={sport === s} accent={sportAccent(s)} onClick={() => setSport(s)} minWidth={isMobile ? 54 : 66}>{s.toUpperCase()}</ControlButton>
-            ))}
+          <div className="no-scrollbar" style={{
+            display: isMobile ? 'flex' : 'grid',
+            gridTemplateColumns: isMobile ? undefined : 'repeat(6, minmax(0, 1fr))',
+            gap: isMobile ? 8 : 10,
+            overflowX: isMobile ? 'auto' : 'visible',
+            paddingBottom: isMobile ? 2 : 0,
+            width: '100%',
+          }}>
+            {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map(s => {
+              const active = sport === s
+              const accent = sportAccent(s)
+              return (
+                <button key={s} onClick={() => setSport(s)} style={{
+                  flexShrink: 0,
+                  width: isMobile ? 96 : '100%',
+                  height: isMobile ? 96 : 172,
+                  borderRadius: isMobile ? 22 : 34,
+                  background: active
+                    ? `linear-gradient(145deg, ${accent}24, rgba(255,255,255,0.055), rgba(3,5,0,0.96))`
+                    : 'linear-gradient(145deg, rgba(255,255,255,0.045), rgba(3,5,0,0.94))',
+                  border: `1px solid ${active ? accent : 'rgba(166,255,63,0.30)'}`,
+                  color: active ? accent : C.textPrimary,
+                  boxShadow: active
+                    ? `0 0 34px ${accent}2b, 0 10px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08)`
+                    : '0 10px 34px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.045)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  gap: isMobile ? 6 : 10,
+                  cursor: 'pointer', transition: 'all 0.18s ease',
+                  textTransform: 'uppercase', letterSpacing: '0.10em',
+                }}>
+                  <span style={{
+                    width: isMobile ? 9 : 12, height: isMobile ? 9 : 12, borderRadius: '50%',
+                    background: active ? accent : 'rgba(166,255,63,0.22)',
+                    boxShadow: active ? `0 0 18px ${accent}` : 'none',
+                  }} />
+                  <span style={{ fontSize: isMobile ? 20 : 30, fontWeight: 950, lineHeight: 1 }}>{s.toUpperCase()}</span>
+                  {!isMobile && <span style={{ color: active ? C.textPrimary : C.textSecondary, fontSize: 9, fontWeight: 900, letterSpacing: '0.18em' }}>SPORT</span>}
+                </button>
+              )
+            })}
           </div>
         </div>
 
-        <div style={{ gridColumn: isMobile ? '1 / -1' : undefined, display: 'flex', alignItems: 'center', gap: 8, justifyContent: isMobile ? 'space-between' : 'flex-end', minWidth: 0 }}>
+        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, justifyContent: isMobile ? 'space-between' : 'flex-end', minWidth: 0 }}>
           <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', minWidth: 0, paddingBottom: 1 }}>
             {days.map(day => (
               <ControlButton key={day.value} active={date === day.value} accent={activeAccent} onClick={() => setDate(day.value)} minWidth={isMobile ? 58 : 0}>{day.label}</ControlButton>
@@ -3010,15 +3046,7 @@ export default function Home() {
   return (
     <main style={{ minHeight: '100vh', background: C.bg, color: C.textPrimary, position: 'relative', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <style>{GLOBAL_STYLES}</style>
-      {/* Grid background */}
-      <div style={{
-        position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-        backgroundImage: `
-          linear-gradient(rgba(166,255,63,0.032) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(166,255,63,0.032) 1px, transparent 1px)
-        `,
-        backgroundSize: '48px 48px',
-      }} />
+      {/* Soft logo glow background */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
         background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(166,255,63,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(166,255,63,0.05) 0%, transparent 70%)',
