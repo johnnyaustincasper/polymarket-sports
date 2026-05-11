@@ -28,27 +28,27 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#02020f', fontFamily: 'system-ui, -apple-system, sans-serif',
+      background: '#030502', fontFamily: 'system-ui, -apple-system, sans-serif',
       position: 'relative', overflow: 'hidden',
     }}>
       {/* Grid */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none',
         backgroundImage: `
-          linear-gradient(rgba(0,240,255,0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(0,240,255,0.04) 1px, transparent 1px)
+          linear-gradient(rgba(166,255,63,0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(166,255,63,0.035) 1px, transparent 1px)
         `,
         backgroundSize: '48px 48px',
       }} />
       {/* Glow */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 60% 60% at 50% 50%, rgba(0,240,255,0.06) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse 60% 60% at 50% 50%, rgba(166,255,63,0.10) 0%, transparent 70%)',
       }} />
 
       <form onSubmit={submit} style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 360, padding: '0 16px' }}>
         <div style={{
-          background: 'rgba(8,8,28,0.95)',
+          background: 'linear-gradient(135deg, rgba(8,12,6,0.97), rgba(0,0,0,0.88))',
           border: '1px solid rgba(0,255,136,0.22)',
           borderRadius: 28,
           padding: '48px 32px',
@@ -59,14 +59,14 @@ export default function LoginPage() {
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <div style={{
               width: 118, height: 118, borderRadius: 28, margin: '0 auto 18px', overflow: 'hidden',
-              background: '#02020f', border: '1px solid rgba(0,255,136,0.35)',
+              background: '#030502', border: '1px solid rgba(0,255,136,0.35)',
               boxShadow: '0 0 42px rgba(0,255,136,0.18), 0 18px 46px rgba(0,0,0,0.55)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
             <p style={{ color: '#a6ff3f', fontWeight: 900, fontSize: 12, letterSpacing: '0.22em', textTransform: 'uppercase', textShadow: '0 0 20px rgba(0,255,136,0.35)' }}>Know the player. Find your edge.</p>
-            <p style={{ color: 'rgba(180,200,255,0.4)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 6 }}>AI Athlete Intelligence · Restricted Access</p>
+            <p style={{ color: 'rgba(226,255,204,0.45)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 6 }}>AI Athlete Intelligence · Restricted Access</p>
           </div>
 
           {/* Input */}
@@ -81,10 +81,10 @@ export default function LoginPage() {
               style={{
                 width: '100%', padding: '16px', borderRadius: 16,
                 textAlign: 'center', fontSize: 24, letterSpacing: '0.6em',
-                background: error ? 'rgba(255,68,102,0.05)' : 'rgba(0,240,255,0.05)',
-                border: `1px solid ${error ? 'rgba(255,68,102,0.4)' : 'rgba(0,240,255,0.2)'}`,
-                color: '#00f0ff', outline: 'none', boxSizing: 'border-box',
-                caretColor: '#00f0ff',
+                background: error ? 'rgba(255,68,102,0.05)' : 'rgba(166,255,63,0.055)',
+                border: `1px solid ${error ? 'rgba(255,68,102,0.4)' : 'rgba(166,255,63,0.22)'}`,
+                color: '#a6ff3f', outline: 'none', boxSizing: 'border-box',
+                caretColor: '#a6ff3f',
                 boxShadow: error ? '0 0 16px rgba(255,68,102,0.1)' : 'none',
                 transition: 'all 0.2s',
               }}
@@ -98,11 +98,11 @@ export default function LoginPage() {
             cursor: password.length === 0 || loading ? 'not-allowed' : 'pointer',
             background: password.length === 0 || loading
               ? 'rgba(255,255,255,0.04)'
-              : 'linear-gradient(135deg, rgba(0,240,255,0.2), rgba(168,85,247,0.2))',
+              : 'linear-gradient(135deg, rgba(166,255,63,0.22), rgba(124,255,0,0.12))',
             borderWidth: 1, borderStyle: 'solid',
-            borderColor: password.length === 0 || loading ? 'rgba(255,255,255,0.08)' : 'rgba(0,240,255,0.4)',
-            color: password.length === 0 || loading ? 'rgba(180,200,255,0.3)' : '#00f0ff',
-            boxShadow: password.length > 0 && !loading ? '0 0 20px rgba(0,240,255,0.15)' : 'none',
+            borderColor: password.length === 0 || loading ? 'rgba(255,255,255,0.08)' : 'rgba(166,255,63,0.45)',
+            color: password.length === 0 || loading ? 'rgba(226,255,204,0.3)' : '#a6ff3f',
+            boxShadow: password.length > 0 && !loading ? '0 0 24px rgba(166,255,63,0.18)' : 'none',
             transition: 'all 0.2s',
           }}>
             {loading ? 'AUTHENTICATING…' : 'AUTHENTICATE'}

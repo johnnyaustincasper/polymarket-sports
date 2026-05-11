@@ -9,23 +9,23 @@ import {
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
-  cyan:          '#00f0ff',
-  purple:        '#bf8fff',
-  green:         '#00ff88',
+  cyan:          '#a6ff3f',
+  purple:        '#8f6cff',
+  green:         '#7CFF00',
   red:           '#ff4466',
   gold:          '#ffd700',
-  bg:            '#02020f',
-  card:          'rgba(10,10,30,0.95)',
-  cardEdge:      'rgba(0,20,10,0.97)',
-  cardMuted:     'rgba(8,8,22,0.85)',
-  surface:       'rgba(255,255,255,0.03)',
-  border:        'rgba(0,240,255,0.10)',
-  borderMid:     'rgba(0,240,255,0.22)',
-  borderHot:     'rgba(0,240,255,0.5)',
-  borderGreen:   'rgba(0,255,136,0.35)',
-  text:          '#e8f0ff',
-  textDim:       'rgba(180,200,255,0.5)',
-  textFaint:     'rgba(180,200,255,0.28)',
+  bg:            '#030502',
+  card:          'rgba(7,10,6,0.95)',
+  cardEdge:      'rgba(3,18,4,0.97)',
+  cardMuted:     'rgba(7,10,8,0.88)',
+  surface:       'rgba(255,255,255,0.035)',
+  border:        'rgba(166,255,63,0.11)',
+  borderMid:     'rgba(166,255,63,0.24)',
+  borderHot:     'rgba(166,255,63,0.52)',
+  borderGreen:   'rgba(124,255,0,0.38)',
+  text:          '#f6fff0',
+  textDim:       'rgba(226,255,204,0.62)',
+  textFaint:     'rgba(226,255,204,0.36)',
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1196,18 +1196,18 @@ export default function BotPage() {
       {/* Background */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-        backgroundImage: `linear-gradient(rgba(0,240,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,240,255,0.02) 1px, transparent 1px)`,
+        backgroundImage: `linear-gradient(rgba(166,255,63,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(166,255,63,0.03) 1px, transparent 1px)`,
         backgroundSize: '48px 48px',
       }} />
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,255,136,0.03) 0%, transparent 60%)',
+        background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(166,255,63,0.10) 0%, transparent 60%)',
       }} />
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 680, margin: '0 auto', padding: isMobile ? '18px 10px 64px' : '28px 14px 80px' }}>
 
         {/* ── HEADER ── */}
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 24, borderRadius: isMobile ? 22 : 28, padding: isMobile ? 12 : 16, background: 'linear-gradient(135deg, rgba(8,12,6,0.92), rgba(0,0,0,0.70))', border: '1px solid rgba(166,255,63,0.16)', boxShadow: '0 18px 70px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
           <a href="/" style={{ color: C.textFaint, fontSize: 10, letterSpacing: '0.15em', textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>← BACK</a>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
@@ -1215,12 +1215,13 @@ export default function BotPage() {
               <a href="/" aria-label="AI Athlete Intelligence home" style={{
                 width: isMobile ? 64 : 78, height: isMobile ? 64 : 78, borderRadius: isMobile ? 14 : 18,
                 overflow: 'hidden', flexShrink: 0, background: '#02020f', border: '1px solid rgba(0,255,136,0.30)',
-                boxShadow: '0 0 24px rgba(0,255,136,0.16), 0 10px 28px rgba(0,0,0,0.48)',
+                boxShadow: '0 0 28px rgba(166,255,63,0.22), 0 10px 28px rgba(0,0,0,0.48)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               </a>
               <div>
+                <div style={{ color: C.text, fontSize: isMobile ? 11 : 12, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 4 }}>AI Athlete Intelligence</div>
                 <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 900, letterSpacing: '-0.03em', margin: 0, lineHeight: 1 }}>
                   <span style={{ color: C.green, textShadow: `0 0 24px ${C.green}44` }}>STAT</span>
                   <span style={{ color: C.text }}> SCANNER</span>
