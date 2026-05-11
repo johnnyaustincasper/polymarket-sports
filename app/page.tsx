@@ -210,8 +210,38 @@ const GLOBAL_STYLES = `
     100% { transform: translateX(140%); }
   }
   @keyframes analysisCardBlink {
-    0%, 100% { opacity: 1; transform: scale(1); filter: brightness(1.08); }
-    50% { opacity: 0.48; transform: scale(0.985); filter: brightness(1.85); }
+    0%, 8%, 100% { opacity: 1; transform: translate(0, 0) scale(1); filter: brightness(1.05) contrast(1.12) saturate(1.1); }
+    10% { opacity: 0.12; transform: translate(-2px, 1px) scale(0.992); filter: brightness(2.4) contrast(1.9) saturate(0.35); }
+    12% { opacity: 0.96; transform: translate(3px, -1px) scale(1.006); filter: brightness(0.75) contrast(2.2) hue-rotate(10deg); }
+    15% { opacity: 0.04; transform: translate(0, 0) scale(0.986); filter: brightness(0.15) contrast(3); }
+    18% { opacity: 1; transform: translate(-4px, 0) scale(1.01); filter: brightness(2.1) contrast(1.7); }
+    23% { opacity: 0.62; transform: translate(2px, 2px) scale(0.997); filter: brightness(1.45) contrast(2.4); }
+    29% { opacity: 1; transform: translate(0, -1px) scale(1); filter: brightness(1) contrast(1.2); }
+    38% { opacity: 0.2; transform: translate(5px, 0) skewX(-1deg) scale(0.99); filter: brightness(2.7) contrast(2.6) saturate(0.45); }
+    41% { opacity: 0.98; transform: translate(-3px, 1px) skewX(1deg) scale(1.004); filter: brightness(0.85) contrast(1.85); }
+    57% { opacity: 1; transform: translate(0, 0) scale(1); filter: brightness(1.18) contrast(1.25); }
+    61% { opacity: 0.06; transform: translate(0, 0) scale(0.982); filter: brightness(0.05) contrast(4); }
+    64% { opacity: 1; transform: translate(4px, -2px) scale(1.008); filter: brightness(2.25) contrast(2); }
+    72% { opacity: 0.48; transform: translate(-2px, 2px) scale(0.992); filter: brightness(1.8) contrast(2.4); }
+    76% { opacity: 1; transform: translate(0, 0) scale(1); filter: brightness(1.1) contrast(1.2); }
+  }
+  @keyframes tvStaticSweep {
+    0% { transform: translateY(-120%); opacity: 0.12; }
+    12% { opacity: 0.58; }
+    28% { opacity: 0.22; }
+    100% { transform: translateY(120%); opacity: 0.12; }
+  }
+  @keyframes tvGlitchSlice {
+    0%, 100% { transform: translateX(0); opacity: 0; }
+    8% { transform: translateX(-18px); opacity: 0.55; }
+    10% { transform: translateX(20px); opacity: 0.25; }
+    15% { opacity: 0; }
+    39% { transform: translateX(16px); opacity: 0.42; }
+    42% { transform: translateX(-22px); opacity: 0.18; }
+    47% { opacity: 0; }
+    63% { transform: translateX(-14px); opacity: 0.50; }
+    66% { transform: translateX(18px); opacity: 0.18; }
+    70% { opacity: 0; }
   }
   .no-scrollbar {
     scrollbar-width: none;
@@ -1802,13 +1832,19 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
       <div className="mb-4" style={{ position: 'relative' }}>
         <div className={isLive ? '' : 'holo-projection holo-scanlines rounded-3xl'} style={{
           ...cardStyle,
-          animation: isAnalyzing ? 'analysisCardBlink 0.72s ease-in-out infinite' : cardStyle.animation,
+          animation: isAnalyzing ? 'analysisCardBlink 0.94s steps(1, end) infinite' : cardStyle.animation,
           border: isAnalyzing ? `1px solid ${C.green}` : cardStyle.border,
           boxShadow: isAnalyzing ? `0 0 56px rgba(166,255,63,0.48), 0 18px 70px rgba(0,0,0,0.75), inset 0 0 28px rgba(166,255,63,0.10)` : cardStyle.boxShadow,
         }}>
           {isAnalyzing && (
-            <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(3,5,0,0.30)', borderRadius: 24 }}>
-              <div style={{ padding: '8px 12px', borderRadius: 999, background: 'rgba(3,5,0,0.88)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', boxShadow: '0 0 24px rgba(166,255,63,0.35)' }}>Analyzing…</div>
+            <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', borderRadius: 24, overflow: 'hidden', background: 'rgba(3,5,0,0.16)', mixBlendMode: 'screen' }}>
+              <div style={{ position: 'absolute', inset: 0, opacity: 0.55, backgroundImage: 'repeating-linear-gradient(0deg, rgba(166,255,63,0.16) 0px, rgba(166,255,63,0.16) 1px, transparent 1px, transparent 4px)' }} />
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '34%', background: 'linear-gradient(180deg, transparent, rgba(166,255,63,0.28), transparent)', animation: 'tvStaticSweep 0.72s linear infinite' }} />
+              <div style={{ position: 'absolute', left: 0, right: 0, top: '28%', height: 22, background: 'rgba(166,255,63,0.18)', animation: 'tvGlitchSlice 0.94s steps(1, end) infinite' }} />
+              <div style={{ position: 'absolute', left: 0, right: 0, top: '61%', height: 14, background: 'rgba(255,255,255,0.16)', animation: 'tvGlitchSlice 0.71s steps(1, end) infinite reverse' }} />
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ padding: '8px 12px', borderRadius: 999, background: 'rgba(3,5,0,0.88)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', boxShadow: '0 0 24px rgba(166,255,63,0.42)' }}>Signal analyzing…</div>
+              </div>
             </div>
           )}
           <div className="p-5">
