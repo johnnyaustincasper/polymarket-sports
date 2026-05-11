@@ -1414,8 +1414,13 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
     const timeout = setTimeout(() => controller.abort(), 45_000)
     setLoading(true)
     setError(null)
+    setProps(null)
     fetch(`/api/props?home=${game.homeTeam.abbr}&away=${game.awayTeam.abbr}&sport=${sport}`, { signal: controller.signal })
-      .then(r => r.json())
+      .then(async r => {
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(d?.error || `props scan failed (${r.status})`)
+        return d
+      })
       .then(d => { if (!cancelled) setProps(d) })
       .catch(e => { if (!cancelled) setError(e?.name === 'AbortError' ? 'scan timed out — retry in a few seconds' : e?.message || 'props unavailable') })
       .finally(() => { clearTimeout(timeout); if (!cancelled) setLoading(false) })
@@ -1432,23 +1437,22 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
       borderRadius: 22,
       padding: 1,
       background: playable > 0 ? 'linear-gradient(135deg, rgba(166,255,63,0.64), rgba(255,255,255,0.14), rgba(166,255,63,0.12))' : 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.06))',
-      boxShadow: loading ? '0 0 56px rgba(166,255,63,0.42), 0 18px 70px rgba(0,0,0,0.72)' : playable > 0 ? '0 0 30px rgba(166,255,63,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)',
-      animation: loading ? 'analysisCardBlink 0.94s steps(1, end) infinite' : undefined,
+      boxShadow: loading ? '0 0 34px rgba(166,255,63,0.18), 0 18px 58px rgba(0,0,0,0.58)' : playable > 0 ? '0 0 30px rgba(166,255,63,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)',
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {loading && supportedKalshiSport && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none', borderRadius: 22, overflow: 'hidden', background: 'rgba(3,5,0,0.12)', mixBlendMode: 'screen' }}>
-          <div style={{ position: 'absolute', inset: 0, opacity: 0.58, backgroundImage: 'repeating-linear-gradient(0deg, rgba(166,255,63,0.16) 0px, rgba(166,255,63,0.16) 1px, transparent 1px, transparent 4px)' }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '34%', background: 'linear-gradient(180deg, transparent, rgba(166,255,63,0.28), transparent)', animation: 'tvStaticSweep 0.72s linear infinite' }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, top: '25%', height: 22, background: 'rgba(166,255,63,0.18)', animation: 'tvGlitchSlice 0.94s steps(1, end) infinite' }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, top: '64%', height: 14, background: 'rgba(255,255,255,0.16)', animation: 'tvGlitchSlice 0.71s steps(1, end) infinite reverse' }} />
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ padding: '8px 12px', borderRadius: 999, background: 'rgba(3,5,0,0.88)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', boxShadow: '0 0 24px rgba(166,255,63,0.42)' }}>Signal scanning…</div>
+      <div style={{ borderRadius: 21, padding: 16, background: SURFACE.panel, minHeight: 220, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)', position: 'relative', overflow: 'hidden' }}>
+        {loading && supportedKalshiSport && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none', borderRadius: 21, overflow: 'hidden', background: 'rgba(3,5,0,0.38)' }}>
+            <div style={{ position: 'absolute', inset: 0, opacity: 0.50, backgroundImage: 'repeating-linear-gradient(0deg, rgba(166,255,63,0.14) 0px, rgba(166,255,63,0.14) 1px, transparent 1px, transparent 4px)' }} />
+            <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '34%', background: 'linear-gradient(180deg, transparent, rgba(166,255,63,0.26), transparent)', animation: 'tvStaticSweep 0.72s linear infinite' }} />
+            <div style={{ position: 'absolute', left: 0, right: 0, top: '25%', height: 22, background: 'rgba(166,255,63,0.18)', animation: 'tvGlitchSlice 0.94s steps(1, end) infinite' }} />
+            <div style={{ position: 'absolute', left: 0, right: 0, top: '64%', height: 14, background: 'rgba(255,255,255,0.14)', animation: 'tvGlitchSlice 0.71s steps(1, end) infinite reverse' }} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ padding: '8px 12px', borderRadius: 999, background: 'rgba(3,5,0,0.92)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', boxShadow: '0 0 24px rgba(166,255,63,0.42)' }}>Signal scanning…</div>
+            </div>
           </div>
-        </div>
-      )}
-      <div style={{ borderRadius: 21, padding: 16, background: SURFACE.panel, minHeight: 220, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)', position: 'relative' }}>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
           <div>
             <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi Player Props</div>
