@@ -90,7 +90,7 @@ export function getMarketReadiness(game: SportsGameLike, lastUpdated?: Date | nu
 
   if (!matched) warnings.push('No Polymarket match yet')
   else if (matchQuality < 55) warnings.push('Low-confidence market match')
-  if (!game.hasDkOdds) warnings.push('DraftKings reference missing')
+  if (!game.hasDkOdds) warnings.push('Reference line missing')
   if (stale) warnings.push(`Feed stale: ${Math.floor((ageSec || 0) / 60)}m old`)
 
   return {

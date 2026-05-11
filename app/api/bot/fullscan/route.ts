@@ -28,10 +28,10 @@ function normCdf(x: number): number {
   return 0.5 * (1 + sign * y)
 }
 
-// Convert DK spread to win probability using NBA std dev (~11 pts/game)
+// Convert reference spread to win probability using NBA std dev (~11 pts/game)
 // Positive spread = underdog (getting points), negative = favorite (giving points)
 function spreadToWinProb(spread: number): number {
-  // DK spread is from the home team's perspective: negative means home is favored
+  // reference spread is from the home team's perspective: negative means home is favored
   // spreadToWinProb returns the HOME team win probability
   const NBA_STD = 11
   return normCdf(spread / (NBA_STD * Math.sqrt(2)))
@@ -346,13 +346,13 @@ export async function GET(req: Request) {
         : new Date(comp.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })
       const today2 = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-      // DK moneyline + spread
+      // reference moneyline + spread
       const oddsArr: any[] = comp.odds || []
-      const dk = oddsArr.find((o: any) => o.provider?.name?.toLowerCase().includes('draft')) || oddsArr[0]
-      const dkHomeML = dk?.moneyline?.home?.close?.odds || ''
-      const dkAwayML = dk?.moneyline?.away?.close?.odds || ''
-      const dkSpread = dk?.spread ?? null
-      const dkTotal = dk?.overUnder ?? null
+      const referenceOdds = oddsArr[0]
+      const dkHomeML = referenceOdds?.moneyline?.home?.close?.odds || ''
+      const dkAwayML = referenceOdds?.moneyline?.away?.close?.odds || ''
+      const dkSpread = referenceOdds?.spread ?? null
+      const dkTotal = referenceOdds?.overUnder ?? null
 
       let dkHomeImplied = 0.5, dkAwayImplied = 0.5
       if (dkHomeML && dkAwayML) {
@@ -361,13 +361,13 @@ export async function GET(req: Request) {
       }
 
       // Spread-implied probability — second independent probability estimate
-      // DK spread is stored as a negative number for the home team favorite
+      // reference spread is stored as a negative number for the home team favorite
       // e.g. spread = -4.5 means home is favored by 4.5
       let spreadHomeImplied = 0.5, spreadAwayImplied = 0.5
       let spreadAbs = 0
       if (dkSpread !== null) {
         spreadAbs = Math.abs(dkSpread)
-        // dkSpread from ESPN is typically the away team spread (positive = away dog, negative = away fave)
+        // reference spread from ESPN is typically the away team spread (positive = away dog, negative = away fave)
         // We'll treat it as: positive dkSpread = home is favored
         spreadHomeImplied = spreadToWinProb(dkSpread)
         spreadAwayImplied = 1 - spreadHomeImplied
@@ -511,8 +511,8 @@ ${awayName.toUpperCase()} @ ${homeName.toUpperCase()} — ${gameTime}${scoreStr}
 ════════════════════════════════════════
 
 💰 MARKET ANALYSIS (is Polymarket wrong, and by how much?):
-DK Moneyline: ${awayName} ${dkAwayML} | ${homeName} ${dkHomeML}
-DK Spread: ${dkSpread !== null ? `${awayAbbr} ${dkSpread > 0 ? '+' : ''}${-dkSpread}` : 'N/A'} | Total O/U: ${dkTotal ?? 'N/A'}
+Reference Moneyline: ${awayName} ${dkAwayML} | ${homeName} ${dkHomeML}
+Reference Spread: ${dkSpread !== null ? `${awayAbbr} ${dkSpread > 0 ? '+' : ''}${-dkSpread}` : 'N/A'} | Total O/U: ${dkTotal ?? 'N/A'}
 Polymarket: ${polyLine}
 
 AWAY — ${awayEVStr}

@@ -123,12 +123,12 @@ interface Signal {
   isLive: boolean
   awayScore: string
   homeScore: string
-  // DK moneyline
+  // reference moneyline
   dkAwayML: string
   dkHomeML: string
   dkAwayImplied: number  // vig-removed
   dkHomeImplied: number  // vig-removed
-  // DK spread / total
+  // reference spread / total
   dkSpread: number | null
   dkTotal: number | null
   // Polymarket
@@ -142,7 +142,7 @@ interface Signal {
   polyAwayTokenId: string
   polyHomeTokenId: string
   // Edge
-  awayEdge: number  // polymarket price - dk implied (positive = poly is CHEAP = buy opportunity)
+  awayEdge: number  // polymarket price - reference implied (positive = poly is CHEAP = buy opportunity)
   homeEdge: number
   bestSide: 'away' | 'home' | 'none'
   bestEdge: number
@@ -209,13 +209,13 @@ export async function GET(req: Request) {
       const homeName = home.team.displayName
       const awayName = away.team.displayName
 
-      // 3. Get DK moneyline from ESPN odds
+      // 3. Get reference moneyline from ESPN odds
       const oddsArr: any[] = comp.odds || []
-      const dk = oddsArr.find((o: any) => o.provider?.name?.toLowerCase().includes('draft')) || oddsArr[0]
-      const dkHomeML: string = dk?.moneyline?.home?.close?.odds || ''
-      const dkAwayML: string = dk?.moneyline?.away?.close?.odds || ''
-      const dkSpread: number | null = dk?.spread ?? null
-      const dkTotal: number | null = dk?.overUnder ?? null
+      const referenceOdds = oddsArr[0]
+      const dkHomeML: string = referenceOdds?.moneyline?.home?.close?.odds || ''
+      const dkAwayML: string = referenceOdds?.moneyline?.away?.close?.odds || ''
+      const dkSpread: number | null = referenceOdds?.spread ?? null
+      const dkTotal: number | null = referenceOdds?.overUnder ?? null
       const awayScore: string = away?.score?.toString() || ''
       const homeScore: string = home?.score?.toString() || ''
 
@@ -268,7 +268,7 @@ export async function GET(req: Request) {
       const liveHomePrice = clobHomeAsk ?? polyHomePrice
       const liveAwayPrice = clobAwayAsk ?? polyAwayPrice
 
-      // 8. Calculate edge: DK_implied - Poly_price
+      // 8. Calculate edge: reference_implied - Poly_price
       // Positive = Poly is cheap relative to sharp lines = BUY opportunity
       const homeEdge = dkHomeImplied - liveHomePrice
       const awayEdge = dkAwayImplied - liveAwayPrice
@@ -281,11 +281,11 @@ export async function GET(req: Request) {
       if (homeEdge >= MIN_EDGE && homeEdge >= awayEdge) {
         bestSide = 'home'
         bestEdge = homeEdge
-        recommendation = `BUY ${homeName} YES @ ${(liveHomePrice * 100).toFixed(1)}¢ | DK implies ${(dkHomeImplied * 100).toFixed(1)}¢ | Edge: +${(homeEdge * 100).toFixed(1)}¢`
+        recommendation = `BUY ${homeName} YES @ ${(liveHomePrice * 100).toFixed(1)}¢ | Reference implies ${(dkHomeImplied * 100).toFixed(1)}¢ | Edge: +${(homeEdge * 100).toFixed(1)}¢`
       } else if (awayEdge >= MIN_EDGE) {
         bestSide = 'away'
         bestEdge = awayEdge
-        recommendation = `BUY ${awayName} YES @ ${(liveAwayPrice * 100).toFixed(1)}¢ | DK implies ${(dkAwayImplied * 100).toFixed(1)}¢ | Edge: +${(awayEdge * 100).toFixed(1)}¢`
+        recommendation = `BUY ${awayName} YES @ ${(liveAwayPrice * 100).toFixed(1)}¢ | Reference implies ${(dkAwayImplied * 100).toFixed(1)}¢ | Edge: +${(awayEdge * 100).toFixed(1)}¢`
       }
 
       signals.push({

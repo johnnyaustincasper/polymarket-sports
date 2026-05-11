@@ -1488,8 +1488,8 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
   const items = [
     { label: 'Market match', value: matched ? `${readiness.matchLabel} · ${readiness.matchQuality}%` : 'No Polymarket match yet', color: matched && readiness.matchQuality >= 55 ? C.green : C.gold },
     { label: 'Winner market', value: game.hasWinnerOdds ? `${game.awayTeam.abbr} ${(game.awayWinOdds * 100).toFixed(1)}¢ / ${game.homeTeam.abbr} ${(game.homeWinOdds * 100).toFixed(1)}¢` : 'Waiting', color: game.hasWinnerOdds ? C.cyan : C.textSecondary },
-    { label: 'Spread gap', value: spreadGap != null ? `${spreadGap.toFixed(1)} pts` : 'Need DK + Poly spread', color: spreadGap != null && spreadGap >= 1 ? C.green : C.textSecondary },
-    { label: 'Total gap', value: totalGap != null ? `${totalGap.toFixed(1)} pts` : 'Need DK + Poly total', color: totalGap != null && totalGap >= 1.5 ? C.green : C.textSecondary },
+    { label: 'Spread gap', value: spreadGap != null ? `${spreadGap.toFixed(1)} pts` : 'Need market spread', color: spreadGap != null && spreadGap >= 1 ? C.green : C.textSecondary },
+    { label: 'Total gap', value: totalGap != null ? `${totalGap.toFixed(1)} pts` : 'Need market total', color: totalGap != null && totalGap >= 1.5 ? C.green : C.textSecondary },
   ]
 
   return (
@@ -1794,10 +1794,10 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                         boxShadow: `0 0 40px rgba(166,255,63,0.15), 0 16px 40px rgba(0,0,0,0.8)`,
                       }}>
                         <p style={{ color: C.cyan, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>⚡ POLYMARKET LINE DISCREPANCY</p>
-                        <p style={{ color: C.textPrimary, fontSize: 12, lineHeight: 1.6, opacity: 0.8, marginBottom: 10 }}>Polymarket's line differs significantly from DraftKings. This gap is a potential edge.</p>
+                        <p style={{ color: C.textPrimary, fontSize: 12, lineHeight: 1.6, opacity: 0.8, marginBottom: 10 }}>Polymarket's line differs from the reference market. This gap is a potential edge.</p>
                         <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
                           <p style={{ color: C.textSecondary, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>How to exploit it:</p>
-                          {['Bet the DK-aligned side on Polymarket — sharp books set sharper lines.', 'Arbitrage: bet both sides across platforms to lock guaranteed profit.', 'Move fast — these gaps close within hours.'].map((t, i) => (
+                          {['Bet the reference-aligned side on Polymarket when the price still lags.', 'Arbitrage: bet both sides across platforms to lock guaranteed profit.', 'Move fast — these gaps close within hours.'].map((t, i) => (
                             <div key={i} className="flex gap-2 mb-1.5">
                               <span style={{ color: C.cyan, opacity: 0.5, flexShrink: 0, fontSize: 10 }}>◆</span>
                               <p style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.5, opacity: 0.75 }}>{t}</p>
@@ -1970,41 +1970,6 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                   {game.hasTotalOdds
                     ? <OddsChip top={`U ${game.totalLine}`} bottom={String(pct(game.underOdds))} hot={pct(game.underOdds) >= 55} href={game.polyTotalUrl} delta={underDelta} flashDir={underDelta != null ? (underDelta > 0 ? 'up' : 'down') : null} />
                     : <div style={{ minWidth: 72, textAlign: 'center', color: C.textSecondary, fontSize: 13 }}>—</div>}
-                </div>
-              </div>
-            )}
-
-            {/* DK comparison */}
-            {game.hasDkOdds && (game.hasSpreadOdds || game.hasTotalOdds) && (
-              <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${C.border}` }}>
-                <p style={{ color: C.textSecondary, fontSize: 8, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 800, marginBottom: 8 }}>Line Comparison · Polymarket vs DraftKings</p>
-                <div className="flex flex-col gap-1.5">
-                  {game.hasSpreadOdds && game.dkSpread != null && (() => {
-                    const edge = Math.abs(game.spreadLine - game.dkSpread!) >= 1.5
-                    return (
-                      <div className="grid grid-cols-3 items-center py-2 px-3 rounded-xl" style={{ background: edge ? 'rgba(166,255,63,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${edge ? C.borderHot : C.border}` }}>
-                        <span style={{ color: C.textSecondary, fontSize: 11 }}>Spread</span>
-                        <span style={{ textAlign: 'center', color: C.textSecondary, fontSize: 11, fontFamily: 'monospace' }}>{game.dkSpread! > 0 ? '+' : ''}{game.dkSpread}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                          <span style={{ color: edge ? C.cyan : C.textSecondary, fontSize: 11, fontFamily: 'monospace', fontWeight: edge ? 800 : 400 }}>{game.spreadLine > 0 ? '+' : ''}{game.spreadLine}</span>
-                          {edge && <span style={{ color: C.cyan, fontSize: 10 }}>⚡</span>}
-                        </div>
-                      </div>
-                    )
-                  })()}
-                  {game.hasTotalOdds && game.dkTotal != null && (() => {
-                    const edge = Math.abs(game.totalLine - game.dkTotal!) >= 2
-                    return (
-                      <div className="grid grid-cols-3 items-center py-2 px-3 rounded-xl" style={{ background: edge ? 'rgba(166,255,63,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${edge ? C.borderHot : C.border}` }}>
-                        <span style={{ color: C.textSecondary, fontSize: 11 }}>Total</span>
-                        <span style={{ textAlign: 'center', color: C.textSecondary, fontSize: 11, fontFamily: 'monospace' }}>{game.dkTotal}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                          <span style={{ color: edge ? C.cyan : C.textSecondary, fontSize: 11, fontFamily: 'monospace', fontWeight: edge ? 800 : 400 }}>{game.totalLine}</span>
-                          {edge && <span style={{ color: C.cyan, fontSize: 10 }}>⚡</span>}
-                        </div>
-                      </div>
-                    )
-                  })()}
                 </div>
               </div>
             )}
@@ -2852,7 +2817,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
         <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', minWidth: 0, marginTop: isMobile ? 2 : 0 }}>
           {!isMobile && (
             <div style={{ minWidth: 0, color: C.textSecondary, fontSize: 12, letterSpacing: '0.06em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Know the player. Find your edge. · Kalshi · DraftKings · Polymarket
+              Know the player. Find your edge. · Kalshi · Polymarket
             </div>
           )}
           <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', minWidth: 0, paddingBottom: 1, marginLeft: 'auto' }}>

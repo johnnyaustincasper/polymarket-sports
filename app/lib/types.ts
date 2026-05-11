@@ -101,7 +101,7 @@ export interface BettingTrend {
 
 export interface PlayerProp {
   // TODO: Player prop value detection (over/under)
-  // Data source: DraftKings, FanDuel, PrizePicks APIs
+  // Data source: market and sports data APIs
   player: string
   team: string
   opponent: string

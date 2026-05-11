@@ -81,7 +81,7 @@ export async function GET(req: Request) {
     },
     checklist: [
       { label: 'Market match quality', value: readiness.matchLabel, status: readiness.matchQuality >= 55 ? 'ready' : 'watch' },
-      { label: 'Line gap scan', value: spreadGap || ttlGap ? `Spread ${spreadGap.toFixed(1)} / Total ${ttlGap.toFixed(1)}` : 'No DK/poly gap yet', status: spreadGap >= 1.5 || ttlGap >= 2 ? 'edge' : 'watch' },
+      { label: 'Line gap scan', value: spreadGap || ttlGap ? `Spread ${spreadGap.toFixed(1)} / Total ${ttlGap.toFixed(1)}` : 'No line gap yet', status: spreadGap >= 1.5 || ttlGap >= 2 ? 'edge' : 'watch' },
       { label: 'Venue/weather', value: dome ? 'Dome/controlled environment' : 'Outdoor weather check required', status: dome ? 'ready' : 'watch' },
       { label: 'Game context', value: divisional ? 'Divisional matchup' : 'Non-division spot', status: divisional ? 'watch' : 'ready' },
       { label: 'Injury/QB timing', value: daysOut >= 4 ? 'Wait for practice reports' : 'Game-week reports closer', status: 'watch' },

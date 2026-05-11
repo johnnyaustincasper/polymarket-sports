@@ -374,7 +374,7 @@ function SignalCard({
           }}>
             <OddsCol label="Polymarket" value={cent(betPrice!)} color={C.cyan} />
             {!isMobile && <div style={{ background: 'rgba(255,255,255,0.06)' }} />}
-            <OddsCol label="DK Implied" value={cent(dkImp!)} color={C.text} />
+            <OddsCol label="Reference" value={cent(dkImp!)} color={C.text} />
             {!isMobile && <div style={{ background: 'rgba(255,255,255,0.06)' }} />}
             <OddsCol label="Spread" value={spreadDisplay} color={C.purple} sub={s.dkTotal ? `O/U ${s.dkTotal}` : undefined} />
           </div>
@@ -513,7 +513,7 @@ function SignalCard({
                     <div style={{ color: hasThisEdge ? C.cyan : C.text, fontWeight: 900, fontSize: 20 }}>{cent(side.price)}</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ color: C.textFaint, fontSize: 7, letterSpacing: '0.1em' }}>DK%</div>
+                    <div style={{ color: C.textFaint, fontSize: 7, letterSpacing: '0.1em' }}>REF%</div>
                     <div style={{ color: C.textDim, fontWeight: 700, fontSize: 14 }}>{cent(side.imp)}</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>

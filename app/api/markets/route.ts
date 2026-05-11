@@ -397,10 +397,10 @@ export async function GET(req: Request) {
       const odds = await getPolyOdds(awayAbbr, homeAbbr, awayName, homeName, sport, polyFetch)
 
       const oddsArr: any[] = comp?.odds || []
-      const dk = oddsArr.find((o: any) => o.provider?.name?.toLowerCase().includes('draft')) || oddsArr[0]
-      const dkSpread: number | null = dk?.spread ?? null
-      const dkTotal: number | null = dk?.overUnder ?? null
-      const dkDetails: string = dk?.details ?? ''
+      const referenceOdds = oddsArr[0]
+      const dkSpread: number | null = referenceOdds?.spread ?? null
+      const dkTotal: number | null = referenceOdds?.overUnder ?? null
+      const dkDetails: string = referenceOdds?.details ?? ''
 
       const isCollege = sport === 'ncaab' || sport === 'ncaaf'
       const homeDisplayAbbr = isCollege ? (home?.team?.shortDisplayName || homeAbbr) : homeAbbr
@@ -444,7 +444,7 @@ export async function GET(req: Request) {
         })(),
         status: event.status?.type?.state || 'pre',
         dkSpread, dkTotal, dkDetails,
-        hasDkOdds: dk != null,
+        hasDkOdds: referenceOdds != null,
         sourceHealth: {
           ...sourceHealth,
           polymarket: { ...sourceHealth.polymarket, matched: odds.polyEventTitle != null, matchScore: odds.polyMatchScore },
