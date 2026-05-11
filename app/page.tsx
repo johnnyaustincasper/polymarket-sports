@@ -3079,9 +3079,35 @@ export default function Home() {
 
   const fetchGames = useCallback(async () => {
     try {
-      const res = await fetch(`/api/markets?date=${date}&sport=${sport}`)
-      const json = await res.json()
-      const newGames: Game[] = Array.isArray(json) ? json : []
+      const loadDate = async (yyyymmdd: string): Promise<Game[]> => {
+        const res = await fetch(`/api/markets?date=${yyyymmdd}&sport=${sport}`)
+        const json = await res.json()
+        return Array.isArray(json) ? json : []
+      }
+      const addDays = (yyyymmdd: string, daysToAdd: number) => {
+        const d = new Date(`${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}T12:00:00`)
+        d.setDate(d.getDate() + daysToAdd)
+        return d.toISOString().slice(0, 10).replace(/-/g, '')
+      }
+
+      let resolvedDate = date
+      let newGames: Game[] = await loadDate(date)
+
+      // Kalshi is actionable-market first. If today's ESPN slate is empty or already final,
+      // jump forward to the next active slate so we don't show stale/no-market final cards
+      // while Kalshi is already listing tomorrow's player props.
+      if (provider === 'kalshi' && sport !== 'ufc' && (newGames.length === 0 || newGames.every(g => g.status === 'post'))) {
+        for (let i = 1; i <= 3; i++) {
+          const candidateDate = addDays(date, i)
+          const candidateGames = await loadDate(candidateDate)
+          if (candidateGames.some(g => g.status !== 'post')) {
+            resolvedDate = candidateDate
+            newGames = candidateGames
+            break
+          }
+        }
+        if (resolvedDate !== date) setDate(resolvedDate)
+      }
 
       // Compute odds drift vs previous
       const newDrift: Record<string, OddsDrift> = {}
@@ -3112,7 +3138,7 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [date, sport])
+  }, [date, sport, provider])
 
   useEffect(() => {
     setLoading(true)
