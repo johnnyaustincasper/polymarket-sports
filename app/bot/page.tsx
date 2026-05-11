@@ -11,7 +11,7 @@ import {
 const C = {
   cyan:          '#a6ff3f',
   purple:        '#8f6cff',
-  green:         '#7CFF00',
+  green:         '#a6ff3f',
   red:           '#ff4466',
   gold:          '#ffd700',
   bg:            '#030502',
@@ -22,7 +22,7 @@ const C = {
   border:        'rgba(166,255,63,0.11)',
   borderMid:     'rgba(166,255,63,0.24)',
   borderHot:     'rgba(166,255,63,0.52)',
-  borderGreen:   'rgba(124,255,0,0.38)',
+  borderGreen:   'rgba(166,255,63,0.38)',
   text:          '#f6fff0',
   textDim:       'rgba(226,255,204,0.62)',
   textFaint:     'rgba(226,255,204,0.36)',
@@ -320,7 +320,7 @@ function SignalCard({
     : 'N/A'
 
   const glowStyle = hasEdge
-    ? { boxShadow: '0 4px 40px rgba(0,255,136,0.12), 0 0 0 1px rgba(0,255,136,0.2)' }
+    ? { boxShadow: '0 4px 40px rgba(166,255,63,0.12), 0 0 0 1px rgba(166,255,63,0.2)' }
     : {}
 
   return (
@@ -335,8 +335,8 @@ function SignalCard({
       {/* ── EDGE DETECTED banner ── */}
       {hasEdge && (
         <div style={{
-          background: 'linear-gradient(135deg, rgba(0,255,136,0.12) 0%, rgba(0,240,255,0.05) 100%)',
-          borderBottom: `1px solid rgba(0,255,136,0.2)`,
+          background: 'linear-gradient(135deg, rgba(166,255,63,0.12) 0%, rgba(0,240,255,0.05) 100%)',
+          borderBottom: `1px solid rgba(166,255,63,0.2)`,
           padding: isMobile ? '14px 14px 12px' : '16px 18px 14px',
         }}>
           {/* Banner title */}
@@ -351,7 +351,7 @@ function SignalCard({
             </div>
             <div style={{
               padding: '5px 14px', borderRadius: 99,
-              background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.4)',
+              background: 'rgba(166,255,63,0.15)', border: '1px solid rgba(166,255,63,0.4)',
               color: C.green, fontWeight: 900, fontSize: 22, letterSpacing: '-0.01em',
             }}>
               {edge(s.bestEdge)}
@@ -392,7 +392,7 @@ function SignalCard({
             {evPer100 && (
               <div style={{
                 flex: 1, padding: '8px 12px', borderRadius: 10,
-                background: 'rgba(0,255,136,0.07)', border: '1px solid rgba(0,255,136,0.15)',
+                background: 'rgba(166,255,63,0.07)', border: '1px solid rgba(166,255,63,0.15)',
                 textAlign: 'center',
               }}>
                 <div style={{ color: C.textFaint, fontSize: 8, letterSpacing: '0.12em', marginBottom: 2 }}>EV / $100</div>
@@ -411,7 +411,7 @@ function SignalCard({
                 {s.bestEdge >= 0.10 ? 'STRONG' : s.bestEdge >= 0.06 ? 'SOLID' : 'LEAN'}
               </span>
             </div>
-            <div style={{ height: 4, borderRadius: 4, background: 'rgba(0,255,136,0.1)', overflow: 'hidden' }}>
+            <div style={{ height: 4, borderRadius: 4, background: 'rgba(166,255,63,0.1)', overflow: 'hidden' }}>
               <div style={{
                 height: '100%', borderRadius: 4,
                 width: `${Math.min(s.bestEdge * 600, 100)}%`,
@@ -434,7 +434,7 @@ function SignalCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
           <SportBadge sport={s.sport || 'NBA'} />
           {isLive && <LiveBadge />}
-          {tracked && <Pill label="tracked" color={C.green} bg="rgba(0,255,136,0.12)" />}
+          {tracked && <Pill label="tracked" color={C.green} bg="rgba(166,255,63,0.12)" />}
           {!hasEdge && <Pill label="no edge" color={C.textFaint} bg="rgba(255,255,255,0.04)" />}
         </div>
 
@@ -495,8 +495,8 @@ function SignalCard({
             return (
               <div key={side.team} style={{
                 borderRadius: 12, padding: '10px 12px',
-                background: hasThisEdge ? 'rgba(0,255,136,0.06)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${hasThisEdge ? 'rgba(0,255,136,0.25)' : C.border}`,
+                background: hasThisEdge ? 'rgba(166,255,63,0.06)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${hasThisEdge ? 'rgba(166,255,63,0.25)' : C.border}`,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <span style={{ color: C.textFaint, fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
@@ -671,7 +671,7 @@ function SignalCard({
           <button onClick={onTrack} style={{
             padding: '6px 16px', borderRadius: 99,
             fontSize: 10, fontWeight: 800, letterSpacing: '0.08em',
-            background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)',
+            background: 'rgba(166,255,63,0.1)', border: '1px solid rgba(166,255,63,0.3)',
             color: C.green, cursor: 'pointer',
           }}>+ Track Call</button>
         )}
@@ -691,9 +691,9 @@ function SlateSummary({ signals }: { signals: Signal[] }) {
     <div style={{
       borderRadius: 16, padding: '14px 18px', marginBottom: 16,
       background: edgeSignals.length > 0
-        ? 'linear-gradient(135deg, rgba(0,255,136,0.07), rgba(0,240,255,0.03))'
+        ? 'linear-gradient(135deg, rgba(166,255,63,0.07), rgba(0,240,255,0.03))'
         : C.surface,
-      border: `1px solid ${edgeSignals.length > 0 ? 'rgba(0,255,136,0.2)' : C.border}`,
+      border: `1px solid ${edgeSignals.length > 0 ? 'rgba(166,255,63,0.2)' : C.border}`,
       display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
     }}>
       <span style={{ color: C.textDim, fontSize: 12, fontWeight: 600 }}>
@@ -834,7 +834,7 @@ function TrackerDrawer({
               return (
                 <div key={c.id} style={{
                   borderRadius: 16, padding: '14px 16px',
-                  background: c.status === 'won' ? 'rgba(0,255,136,0.04)'
+                  background: c.status === 'won' ? 'rgba(166,255,63,0.04)'
                     : c.status === 'lost' ? 'rgba(255,68,102,0.04)'
                     : C.surface,
                   border: `1px solid ${sc}25`,
@@ -1213,8 +1213,8 @@ export default function BotPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <a href="/" aria-label="AI Athlete Intelligence home" style={{
-                width: isMobile ? 64 : 78, height: isMobile ? 64 : 78, borderRadius: isMobile ? 14 : 18,
-                overflow: 'hidden', flexShrink: 0, background: '#02020f', border: '1px solid rgba(0,255,136,0.30)',
+                width: isMobile ? 92 : 132, height: isMobile ? 92 : 132, borderRadius: isMobile ? 22 : 30,
+                overflow: 'hidden', flexShrink: 0, background: '#02020f', border: '1px solid rgba(166,255,63,0.30)',
                 boxShadow: '0 0 28px rgba(166,255,63,0.22), 0 10px 28px rgba(0,0,0,0.48)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
@@ -1222,7 +1222,7 @@ export default function BotPage() {
               </a>
               <div>
                 <div style={{ color: C.text, fontSize: isMobile ? 11 : 12, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 4 }}>AI Athlete Intelligence</div>
-                <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 900, letterSpacing: '-0.03em', margin: 0, lineHeight: 1 }}>
+                <h1 style={{ fontSize: isMobile ? 17 : 21, fontWeight: 900, letterSpacing: '-0.03em', margin: 0, lineHeight: 1 }}>
                   <span style={{ color: C.green, textShadow: `0 0 24px ${C.green}44` }}>STAT</span>
                   <span style={{ color: C.text }}> SCANNER</span>
                 </h1>
@@ -1236,7 +1236,7 @@ export default function BotPage() {
               {(['nba', 'nfl'] as const).map(s => (
                 <button key={s} onClick={() => { setScanSport(s); setLoading(true) }} style={{
                   padding: '7px 11px', borderRadius: 9, border: 'none', cursor: 'pointer',
-                  background: scanSport === s ? (s === 'nfl' ? 'rgba(0,255,136,0.14)' : 'rgba(0,240,255,0.12)') : 'transparent',
+                  background: scanSport === s ? (s === 'nfl' ? 'rgba(166,255,63,0.14)' : 'rgba(0,240,255,0.12)') : 'transparent',
                   color: scanSport === s ? (s === 'nfl' ? C.green : C.cyan) : C.textDim,
                   fontSize: 10, fontWeight: 900, letterSpacing: '0.1em',
                 }}>{s.toUpperCase()}</button>
@@ -1275,7 +1275,7 @@ export default function BotPage() {
               <button onClick={scan} disabled={loading} style={{
                 padding: '9px 16px', borderRadius: 12,
                 fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', cursor: 'pointer',
-                background: 'rgba(0,255,136,0.1)', border: `1px solid rgba(0,255,136,0.3)`,
+                background: 'rgba(166,255,63,0.1)', border: `1px solid rgba(166,255,63,0.3)`,
                 color: loading ? C.textDim : C.green,
               }}>
                 {loading ? '⟳' : '⟳ SCAN'}
@@ -1297,8 +1297,8 @@ export default function BotPage() {
             ].map(s => (
               <div key={s.label} style={{
                 flex: '1 1 80px', borderRadius: 14, padding: '10px 12px', textAlign: 'center',
-                background: s.glow ? 'rgba(0,255,136,0.06)' : C.surface,
-                border: `1px solid ${s.glow ? 'rgba(0,255,136,0.22)' : C.border}`,
+                background: s.glow ? 'rgba(166,255,63,0.06)' : C.surface,
+                border: `1px solid ${s.glow ? 'rgba(166,255,63,0.22)' : C.border}`,
               }}>
                 <div style={{ fontWeight: 900, fontSize: 20, color: s.glow ? C.green : C.text }}>{s.val}</div>
                 <div style={{ color: C.textFaint, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>{s.label}</div>

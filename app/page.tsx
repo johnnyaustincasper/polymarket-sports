@@ -134,25 +134,25 @@ const MLB_ORANGE = '#ff8a00'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  cyan:    '#d7ff3f',
+  cyan:    '#a6ff3f',
   purple:  '#e7eee2',
-  green:   '#b7ff00',
+  green:   '#a6ff3f',
   red:     '#ff3f5f',
   gold:    '#f8d94a',
   bg:      '#030500',
   card:    'rgba(7,11,5,0.88)',
-  border:  'rgba(183,255,0,0.14)',
-  borderHot: 'rgba(183,255,0,0.52)',
+  border:  'rgba(166,255,63,0.14)',
+  borderHot: 'rgba(166,255,63,0.52)',
   textPrimary: '#f7fff0',
   textSecondary: 'rgba(219,255,191,0.54)',
 }
 
 const SURFACE = {
   panel: 'linear-gradient(145deg, rgba(10,16,7,0.96), rgba(3,5,0,0.94) 58%, rgba(16,22,11,0.9))',
-  panelSoft: 'linear-gradient(145deg, rgba(255,255,255,0.045), rgba(183,255,0,0.028))',
-  tactical: 'linear-gradient(135deg, rgba(183,255,0,0.18), rgba(255,255,255,0.08), rgba(3,5,0,0.2))',
-  border: 'rgba(183,255,0,0.18)',
-  borderStrong: 'rgba(183,255,0,0.42)',
+  panelSoft: 'linear-gradient(145deg, rgba(255,255,255,0.045), rgba(166,255,63,0.028))',
+  tactical: 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.08), rgba(3,5,0,0.2))',
+  border: 'rgba(166,255,63,0.18)',
+  borderStrong: 'rgba(166,255,63,0.42)',
   shadow: '0 18px 60px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
@@ -160,12 +160,12 @@ const SURFACE = {
 const GLOBAL_STYLES = `
   @keyframes liveBorderPulse {
     0%, 100% {
-      box-shadow: 0 0 24px rgba(183,255,0,0.25), 0 4px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
-      border-color: rgba(183,255,0,0.35);
+      box-shadow: 0 0 24px rgba(166,255,63,0.25), 0 4px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
+      border-color: rgba(166,255,63,0.35);
     }
     50% {
-      box-shadow: 0 0 52px rgba(183,255,0,0.55), 0 8px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06);
-      border-color: rgba(183,255,0,0.75);
+      box-shadow: 0 0 52px rgba(166,255,63,0.55), 0 8px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06);
+      border-color: rgba(166,255,63,0.75);
     }
   }
   @keyframes liveDotPulse {
@@ -178,7 +178,7 @@ const GLOBAL_STYLES = `
     100% { opacity: 0; }
   }
   @keyframes flashGreen {
-    0%   { background: rgba(0,255,136,0.35); }
+    0%   { background: rgba(166,255,63,0.35); }
     100% { background: transparent; }
   }
   @keyframes flashRed {
@@ -269,7 +269,7 @@ function OddsChip({ top, bottom, hot, href, onClick, delta, flashDir }: {
   delta?: number | null
   flashDir?: 'up' | 'down' | null
 }) {
-  const bg = hot ? 'linear-gradient(180deg, rgba(183,255,0,0.13), rgba(183,255,0,0.035))' : 'rgba(255,255,255,0.025)'
+  const bg = hot ? 'linear-gradient(180deg, rgba(166,255,63,0.13), rgba(166,255,63,0.035))' : 'rgba(255,255,255,0.025)'
   const border = hot ? C.borderHot : SURFACE.border
   const textColor = hot ? C.cyan : 'rgba(247,255,240,0.82)'
   const glow = hot ? `0 0 22px ${C.cyan}35, inset 0 1px 0 rgba(255,255,255,0.06)` : 'inset 0 1px 0 rgba(255,255,255,0.035)'
@@ -331,7 +331,7 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
   }
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(2,2,15,0.85)', backdropFilter: 'blur(12px)' }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-t-3xl p-6" style={{ background: 'rgba(8,12,5,0.98)', border: `1px solid ${C.border}`, borderBottom: 'none', boxShadow: `0 -20px 60px rgba(183,255,0,0.08)` }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-t-3xl p-6" style={{ background: 'rgba(8,12,5,0.98)', border: `1px solid ${C.border}`, borderBottom: 'none', boxShadow: `0 -20px 60px rgba(166,255,63,0.08)` }} onClick={e => e.stopPropagation()}>
         <div className="w-8 h-0.5 rounded-full mx-auto mb-5" style={{ background: C.border }} />
         <p style={{ color: C.textSecondary, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
         <h3 style={{ color: C.textPrimary, fontWeight: 800, fontSize: 18, marginTop: 4 }}>{betLabel}</h3>
@@ -341,7 +341,7 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
           <input
             type="number" value={stake} onChange={e => setStake(e.target.value)}
             className="w-full mt-2 text-center text-2xl font-bold focus:outline-none"
-            style={{ background: 'rgba(183,255,0,0.05)', border: `1px solid ${C.border}`, borderRadius: 16, padding: '12px', color: C.cyan, caretColor: C.cyan }}
+            style={{ background: 'rgba(166,255,63,0.05)', border: `1px solid ${C.border}`, borderRadius: 16, padding: '12px', color: C.cyan, caretColor: C.cyan }}
           />
         </div>
         <div className="flex justify-between mb-6" style={{ fontSize: 12, color: C.textSecondary }}>
@@ -350,7 +350,7 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
         </div>
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-3 rounded-2xl font-semibold transition-all" style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, color: C.textSecondary }}>Cancel</button>
-          <button onClick={save} className="flex-1 py-3 rounded-2xl font-bold transition-all" style={{ background: `linear-gradient(135deg, rgba(183,255,0,0.2), rgba(231,238,226,0.2))`, border: `1px solid ${C.borderHot}`, color: C.cyan, boxShadow: `0 0 20px ${C.cyan}22` }}>Log Bet</button>
+          <button onClick={save} className="flex-1 py-3 rounded-2xl font-bold transition-all" style={{ background: `linear-gradient(135deg, rgba(166,255,63,0.2), rgba(231,238,226,0.2))`, border: `1px solid ${C.borderHot}`, color: C.cyan, boxShadow: `0 0 20px ${C.cyan}22` }}>Log Bet</button>
         </div>
       </div>
     </div>
@@ -398,19 +398,19 @@ function AnalysisPanel({ game, onClose }: { game: Game; onClose: () => void }) {
   const sections = analysis ? parseAnalysis(analysis) : []
 
   return (
-    <div style={{ width: '100%', background: 'rgba(2,2,15,0.98)', borderTop: `1px solid rgba(183,255,0,0.2)`, borderBottom: `1px solid rgba(183,255,0,0.2)`, padding: '16px 20px 24px' }}>
+    <div style={{ width: '100%', background: 'rgba(2,2,15,0.98)', borderTop: `1px solid rgba(166,255,63,0.2)`, borderBottom: `1px solid rgba(166,255,63,0.2)`, padding: '16px 20px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, maxWidth: 900, margin: '0 auto 16px' }}>
         <div>
           <p style={{ color: C.textSecondary, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' as const }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
           <h3 style={{ color: C.cyan, fontWeight: 900, fontSize: 16, letterSpacing: '-0.02em', textShadow: `0 0 20px ${C.cyan}55` }}>◈ INTELLIGENCE BRIEF</h3>
         </div>
-        <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(183,255,0,0.07)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
+        <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(166,255,63,0.07)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
       </div>
 
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 900, margin: '0 auto' }}>
           {[...Array(5)].map((_, i) => (
-            <div key={i} style={{ height: 48, borderRadius: 14, background: 'rgba(183,255,0,0.04)', border: `1px solid ${C.border}` }} />
+            <div key={i} style={{ height: 48, borderRadius: 14, background: 'rgba(166,255,63,0.04)', border: `1px solid ${C.border}` }} />
           ))}
           <p style={{ color: C.textSecondary, fontSize: 11, textAlign: 'center', marginTop: 8, letterSpacing: '0.1em' }}>PROCESSING INTELLIGENCE…</p>
         </div>
@@ -422,7 +422,7 @@ function AnalysisPanel({ game, onClose }: { game: Game; onClose: () => void }) {
             return (
               <div key={i} style={{
                 borderRadius: 14, overflow: 'hidden',
-                background: isPick ? 'rgba(183,255,0,0.06)' : isOpen ? 'rgba(231,238,226,0.06)' : 'rgba(255,255,255,0.02)',
+                background: isPick ? 'rgba(166,255,63,0.06)' : isOpen ? 'rgba(231,238,226,0.06)' : 'rgba(255,255,255,0.02)',
                 border: `1px solid ${isPick ? C.borderHot : isOpen ? 'rgba(231,238,226,0.3)' : C.border}`,
                 boxShadow: isPick ? `0 0 20px ${C.cyan}15` : 'none',
               }}>
@@ -475,13 +475,13 @@ function BetTracker({ bets, onUpdate, onClose }: {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(2,2,15,0.96)', backdropFilter: 'blur(24px)' }}>
-      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(183,255,0,0.015) 2px, rgba(183,255,0,0.015) 4px)' }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(166,255,63,0.015) 2px, rgba(166,255,63,0.015) 4px)' }} />
       <div className="flex-1 overflow-y-auto max-w-lg w-full mx-auto px-5 py-8" style={{ position: 'relative', zIndex: 1 }}>
         <button onClick={onClose} style={{ color: C.textSecondary, fontSize: 12, letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20 }}>← CLOSE</button>
         <h3 style={{ color: C.cyan, fontWeight: 900, fontSize: 20, letterSpacing: '-0.02em', textShadow: `0 0 20px ${C.cyan}55` }}>◈ BET TRACKER</h3>
 
         {settled.length > 0 && (
-          <div className="mt-4 mb-6 rounded-2xl p-4 grid grid-cols-3 text-center" style={{ background: 'rgba(183,255,0,0.04)', border: `1px solid ${C.border}` }}>
+          <div className="mt-4 mb-6 rounded-2xl p-4 grid grid-cols-3 text-center" style={{ background: 'rgba(166,255,63,0.04)', border: `1px solid ${C.border}` }}>
             {[['BETS', settled.length, C.textPrimary], ['STAKED', `$${totalStaked.toFixed(0)}`, C.textPrimary], ['P&L', `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, totalPnl >= 0 ? C.green : C.red]].map(([label, val, color]) => (
               <div key={String(label)}>
                 <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</p>
@@ -504,7 +504,7 @@ function BetTracker({ bets, onUpdate, onClose }: {
                   <button onClick={() => remove(b.id)} style={{ color: C.textSecondary, fontSize: 12 }}>✕</button>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setResult(b.id, 'win')} className="flex-1 py-2 rounded-xl font-bold transition-all" style={{ background: 'rgba(0,255,136,0.1)', border: '1px solid rgba(0,255,136,0.3)', color: C.green, fontSize: 12 }}>WIN</button>
+                  <button onClick={() => setResult(b.id, 'win')} className="flex-1 py-2 rounded-xl font-bold transition-all" style={{ background: 'rgba(166,255,63,0.1)', border: '1px solid rgba(166,255,63,0.3)', color: C.green, fontSize: 12 }}>WIN</button>
                   <button onClick={() => setResult(b.id, 'loss')} className="flex-1 py-2 rounded-xl font-bold transition-all" style={{ background: 'rgba(255,68,102,0.1)', border: '1px solid rgba(255,68,102,0.3)', color: C.red, fontSize: 12 }}>LOSS</button>
                 </div>
               </div>
@@ -579,11 +579,11 @@ function StreakPanel() {
               <p style={{ color: C.green, fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>🔥 Hot Streaks ({hot.length})</p>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {hot.map(team => (
-                  <div key={team.abbr} style={{ flexShrink: 0, width: expanded === team.abbr ? 280 : 140, transition: 'width 0.3s ease', borderRadius: 16, background: 'rgba(0,255,136,0.06)', border: `1px solid rgba(0,255,136,0.25)`, padding: '12px', cursor: 'pointer' }}
+                  <div key={team.abbr} style={{ flexShrink: 0, width: expanded === team.abbr ? 280 : 140, transition: 'width 0.3s ease', borderRadius: 16, background: 'rgba(166,255,63,0.06)', border: `1px solid rgba(166,255,63,0.25)`, padding: '12px', cursor: 'pointer' }}
                     onClick={() => setExpanded(prev => prev === team.abbr ? null : team.abbr)}>
                     <div className="flex items-center justify-between">
                       <span style={{ color: C.textPrimary, fontWeight: 800, fontSize: 13 }}>{team.abbr}</span>
-                      <span style={{ background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.4)', borderRadius: 8, padding: '2px 6px', color: C.green, fontSize: 11, fontWeight: 800 }}>{team.streakLabel}</span>
+                      <span style={{ background: 'rgba(166,255,63,0.15)', border: '1px solid rgba(166,255,63,0.4)', borderRadius: 8, padding: '2px 6px', color: C.green, fontSize: 11, fontWeight: 800 }}>{team.streakLabel}</span>
                     </div>
                     <div className="flex gap-1 mt-2">
                       {[...team.lastGames].reverse().map((r, i) => (
@@ -673,7 +673,7 @@ function BettingTrendsPanel() {
           {teams.map(team => {
             const trendColor = team.scoringTrend === 'over' ? C.green : team.scoringTrend === 'under' ? C.red : C.gold
             return (
-              <div key={team.team} style={{ borderRadius: 16, padding: 14, background: 'rgba(183,255,0,0.035)', border: '1px solid rgba(183,255,0,0.16)' }}>
+              <div key={team.team} style={{ borderRadius: 16, padding: 14, background: 'rgba(166,255,63,0.035)', border: '1px solid rgba(166,255,63,0.16)' }}>
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div>
                     <p style={{ color: C.textPrimary, fontSize: 14, fontWeight: 900 }}>{team.team}</p>
@@ -706,7 +706,7 @@ function SectionHeader({ icon, label }: { icon: string; label: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
       <span style={{ fontSize: 12 }}>{icon}</span>
-      <span style={{ color: 'rgba(183,255,0,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' as const, fontVariant: 'small-caps' }}>{label}</span>
+      <span style={{ color: 'rgba(166,255,63,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' as const, fontVariant: 'small-caps' }}>{label}</span>
     </div>
   )
 }
@@ -774,7 +774,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
     <div style={{
       width: '100%',
       background: 'rgba(2,2,15,0.97)',
-      borderTop: '1px solid rgba(183,255,0,0.2)',
+      borderTop: '1px solid rgba(166,255,63,0.2)',
       padding: '20px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -886,7 +886,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
                             <span style={{ color: C.textSecondary, fontSize: 8, fontFamily: 'monospace', width: 16, textAlign: 'right', flexShrink: 0 }}>#{p.jersey}</span>
                             <span style={{ color: isOut ? 'rgba(255,68,102,0.55)' : C.textPrimary, fontSize: 11, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: isOut ? 'line-through' : 'none' }}>{p.name}</span>
-                            <span style={{ background: 'rgba(183,255,0,0.08)', border: `1px solid ${C.border}`, borderRadius: 4, padding: '1px 5px', color: C.cyan, fontSize: 8, fontWeight: 700, flexShrink: 0 }}>{p.position}</span>
+                            <span style={{ background: 'rgba(166,255,63,0.08)', border: `1px solid ${C.border}`, borderRadius: 4, padding: '1px 5px', color: C.cyan, fontSize: 8, fontWeight: 700, flexShrink: 0 }}>{p.position}</span>
                             {isOut && <span style={{ background: '#ff4466', borderRadius: 4, padding: '1px 5px', color: '#fff', fontSize: 8, fontWeight: 900, flexShrink: 0, minWidth: 14, textAlign: 'center' }}>O</span>}
                             {isQ && <span style={{ background: '#c8960c', borderRadius: 4, padding: '1px 5px', color: '#fff', fontSize: 8, fontWeight: 900, flexShrink: 0, minWidth: 14, textAlign: 'center' }}>Q</span>}
                           </div>
@@ -979,21 +979,21 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
               <SectionHeader icon="🔄" label="Season Series + Arena" />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <p style={{ color: 'rgba(183,255,0,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>H2H Record</p>
+                  <p style={{ color: 'rgba(166,255,63,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>H2H Record</p>
                   <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 700 }}>{intel.h2h}</p>
                   {intel.h2hLastMeeting && (
                     <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>Last: {intel.h2hLastMeeting}</p>
                   )}
                   {intel.refs && intel.refs.length > 0 && (
                     <div style={{ marginTop: 10 }}>
-                      <p style={{ color: 'rgba(183,255,0,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 4 }}>🦺 Refs</p>
+                      <p style={{ color: 'rgba(166,255,63,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 4 }}>🦺 Refs</p>
                       <p style={{ color: C.textPrimary, fontSize: 10 }}>{intel.refs.join(', ')}</p>
                       <p style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>High-foul crew → O/U leans over</p>
                     </div>
                   )}
                 </div>
                 <div>
-                  <p style={{ color: 'rgba(183,255,0,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>🏟️ Arena</p>
+                  <p style={{ color: 'rgba(166,255,63,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>🏟️ Arena</p>
                   <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 10, padding: '10px 12px', border: `1px solid ${C.border}` }}>
                     {venue ? (
                       <>
@@ -1063,7 +1063,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                     ['Executable asks', props.marketSummary.executableMatched ?? props.marketSummary.gameMatched],
                     ['Playable', props.marketSummary.playableMatched],
                   ].map(([label, value]) => (
-                    <span key={label} style={{ background: 'rgba(183,255,0,0.055)', border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 8px', color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    <span key={label} style={{ background: 'rgba(166,255,63,0.055)', border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 8px', color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                       {label}: <span style={{ color: C.textPrimary }}>{value}</span>
                     </span>
                   ))}
@@ -1088,7 +1088,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                           const best = p.bestBet
                           const logs = p.last12 || []
                           return (
-                            <div key={i} style={{ background: best?.quality === 'bet' ? 'rgba(0,255,136,0.055)' : 'rgba(255,255,255,0.02)', border: `1px solid ${best?.quality === 'bet' ? 'rgba(0,255,136,0.28)' : C.border}`, borderRadius: 12, padding: '11px 12px' }}>
+                            <div key={i} style={{ background: best?.quality === 'bet' ? 'rgba(166,255,63,0.055)' : 'rgba(255,255,255,0.02)', border: `1px solid ${best?.quality === 'bet' ? 'rgba(166,255,63,0.28)' : C.border}`, borderRadius: 12, padding: '11px 12px' }}>
                               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                                   {p.headshot && <img src={p.headshot} alt={p.player} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.border}` }} />}
@@ -1098,7 +1098,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                                   </div>
                                 </div>
                                 {best && (
-                                  <div style={{ borderRadius: 10, padding: '5px 8px', background: best.quality === 'bet' ? 'rgba(0,255,136,0.12)' : 'rgba(255,215,0,0.10)', border: `1px solid ${best.quality === 'bet' ? 'rgba(0,255,136,0.38)' : 'rgba(255,215,0,0.28)'}`, textAlign: 'right' }}>
+                                  <div style={{ borderRadius: 10, padding: '5px 8px', background: best.quality === 'bet' ? 'rgba(166,255,63,0.12)' : 'rgba(255,215,0,0.10)', border: `1px solid ${best.quality === 'bet' ? 'rgba(166,255,63,0.38)' : 'rgba(255,215,0,0.28)'}`, textAlign: 'right' }}>
                                     <div style={{ color: best.quality === 'bet' ? C.green : C.gold, fontSize: 11, fontWeight: 950 }}>{best.label}</div>
                                     <div style={{ color: C.textSecondary, fontSize: 8 }}>{best.hits}/{best.games} hit · C{best.confidence}</div>
                                     <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900 }}>Kalshi ask {best.kalshi?.yesAsk ?? '—'}¢ · max {best.maxYesPrice}¢</div>
@@ -1110,7 +1110,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                               {best?.kalshi && <a href={best.kalshi.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', marginBottom: 9, color: C.cyan, fontSize: 9, fontWeight: 900, textDecoration: 'none' }}>Trade Kalshi market · {best.kalshi.isCombo ? 'combo' : 'single'} · {best.kalshi.yesAskSize} ask size ↗</a>}
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))', gap: 6, marginBottom: logs.length ? 9 : 0 }}>
                                 {(p.recommendations || []).slice(0, 4).map((r: any) => (
-                                  <div key={`${p.player}-${r.label}`} style={{ background: 'rgba(0,0,0,0.22)', borderRadius: 8, padding: '6px 7px', textAlign: 'center', border: `1px solid ${r.quality === 'bet' ? 'rgba(0,255,136,0.22)' : 'rgba(255,255,255,0.06)'}` }}>
+                                  <div key={`${p.player}-${r.label}`} style={{ background: 'rgba(0,0,0,0.22)', borderRadius: 8, padding: '6px 7px', textAlign: 'center', border: `1px solid ${r.quality === 'bet' ? 'rgba(166,255,63,0.22)' : 'rgba(255,255,255,0.06)'}` }}>
                                     <p style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>{r.metric}</p>
                                     <p style={{ color: r.quality === 'bet' ? C.green : C.textPrimary, fontWeight: 900, fontSize: 13, lineHeight: 1 }}>{r.line}+</p>
                                     <p style={{ color: C.textSecondary, fontSize: 8, marginTop: 3 }}>{r.hitRate}% · avg {r.avg}</p>
@@ -1123,7 +1123,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                                   {logs.slice(0, 12).map((g: any, idx: number) => {
                                     const val = best ? (best.metric === 'points' ? g.stats.points : best.metric === 'rebounds' ? g.stats.rebounds : best.metric === 'assists' ? g.stats.assists : best.metric === 'PTS+REB+AST' ? g.stats.points + g.stats.rebounds + g.stats.assists : best.metric === 'passing yards' ? g.stats.passingYards : best.metric === 'passing TDs' ? g.stats.passingTouchdowns : best.metric === 'rushing yards' ? g.stats.rushingYards : best.metric === 'receptions' ? g.stats.receptions : g.stats.receivingYards) : 0
                                     const hit = best ? val >= best.line : false
-                                    return <div key={`${g.eventId}-${idx}`} title={`${g.opponent || ''} ${val}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(0,255,136,0.13)' : 'rgba(255,255,255,0.04)', border: `1px solid ${hit ? 'rgba(0,255,136,0.28)' : 'rgba(255,255,255,0.06)'}`, color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}>{val}</div>
+                                    return <div key={`${g.eventId}-${idx}`} title={`${g.opponent || ''} ${val}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.13)' : 'rgba(255,255,255,0.04)', border: `1px solid ${hit ? 'rgba(166,255,63,0.28)' : 'rgba(255,255,255,0.06)'}`, color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}>{val}</div>
                                   })}
                                 </div>
                               )}
@@ -1151,9 +1151,9 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
 
 // ─── Prediction Badge ─────────────────────────────────────────────────────────
 function PredictionBadge({ winPct, team, confidence }: { winPct: number; team: string; confidence: number }) {
-  const color = confidence >= 65 ? '#00ff88' : confidence >= 55 ? '#ffd700' : 'rgba(183,255,0,0.4)'
-  const bg = confidence >= 65 ? 'rgba(0,255,136,0.08)' : confidence >= 55 ? 'rgba(255,215,0,0.08)' : 'rgba(183,255,0,0.04)'
-  const border = confidence >= 65 ? 'rgba(0,255,136,0.35)' : confidence >= 55 ? 'rgba(255,215,0,0.35)' : 'rgba(183,255,0,0.15)'
+  const color = confidence >= 65 ? '#a6ff3f' : confidence >= 55 ? '#ffd700' : 'rgba(166,255,63,0.4)'
+  const bg = confidence >= 65 ? 'rgba(166,255,63,0.08)' : confidence >= 55 ? 'rgba(255,215,0,0.08)' : 'rgba(166,255,63,0.04)'
+  const border = confidence >= 65 ? 'rgba(166,255,63,0.35)' : confidence >= 55 ? 'rgba(255,215,0,0.35)' : 'rgba(166,255,63,0.15)'
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, background: bg, border: `1px solid ${border}` }}>
       <span style={{ fontSize: 8 }}>🎯</span>
@@ -1200,8 +1200,8 @@ function LiveScoreDisplay({ game }: { game: Game }) {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {game.awayTeam.logo
-              ? <img src={game.awayTeam.logo} style={{ width: 40, height: 40, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(183,255,0,0.3))' }} />
-              : <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(183,255,0,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 11, fontWeight: 800 }}>{game.awayTeam.abbr.slice(0, 2)}</div>
+              ? <img src={game.awayTeam.logo} style={{ width: 40, height: 40, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(166,255,63,0.3))' }} />
+              : <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(166,255,63,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 11, fontWeight: 800 }}>{game.awayTeam.abbr.slice(0, 2)}</div>
             }
             <div>
               <p style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700 }}>{game.awayTeam.abbr}</p>
@@ -1227,8 +1227,8 @@ function LiveScoreDisplay({ game }: { game: Game }) {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row-reverse' }}>
             {game.homeTeam.logo
-              ? <img src={game.homeTeam.logo} style={{ width: 40, height: 40, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(183,255,0,0.3))' }} />
-              : <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(183,255,0,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 11, fontWeight: 800 }}>{game.homeTeam.abbr.slice(0, 2)}</div>
+              ? <img src={game.homeTeam.logo} style={{ width: 40, height: 40, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(166,255,63,0.3))' }} />
+              : <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(166,255,63,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 11, fontWeight: 800 }}>{game.homeTeam.abbr.slice(0, 2)}</div>
             }
             <div style={{ textAlign: 'right' }}>
               <p style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700 }}>{game.homeTeam.abbr}</p>
@@ -1329,7 +1329,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
   const playable = summary?.playableMatched ?? best.length
 
   return (
-    <div style={{ borderRadius: 22, padding: 1, background: playable > 0 ? 'linear-gradient(135deg, rgba(183,255,0,0.64), rgba(255,255,255,0.14), rgba(183,255,0,0.12))' : 'linear-gradient(135deg, rgba(183,255,0,0.18), rgba(255,255,255,0.06))', boxShadow: playable > 0 ? '0 0 30px rgba(183,255,0,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)' }}>
+    <div style={{ borderRadius: 22, padding: 1, background: playable > 0 ? 'linear-gradient(135deg, rgba(166,255,63,0.64), rgba(255,255,255,0.14), rgba(166,255,63,0.12))' : 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.06))', boxShadow: playable > 0 ? '0 0 30px rgba(166,255,63,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)' }}>
       <div style={{ borderRadius: 21, padding: 16, background: SURFACE.panel, minHeight: 220, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
           <div>
@@ -1337,7 +1337,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
             <div style={{ color: C.textPrimary, fontSize: 15, fontWeight: 950, marginTop: 4 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
             <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 2 }}>{game.status} · {sport.toUpperCase()}</div>
           </div>
-          <span style={{ borderRadius: 999, padding: '4px 8px', background: playable > 0 ? 'rgba(0,255,136,0.11)' : 'rgba(255,255,255,0.05)', border: `1px solid ${playable > 0 ? 'rgba(0,255,136,0.32)' : C.border}`, color: playable > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <span style={{ borderRadius: 999, padding: '4px 8px', background: playable > 0 ? 'rgba(166,255,63,0.11)' : 'rgba(255,255,255,0.05)', border: `1px solid ${playable > 0 ? 'rgba(166,255,63,0.32)' : C.border}`, color: playable > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             {loading ? 'Scanning' : playable > 0 ? `${playable} playable` : 'No play'}
           </span>
         </div>
@@ -1363,7 +1363,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
             {best.map((p: any) => {
               const bet = p.bestBet
               return (
-                <div key={`${game.id}-${p.team}-${p.player}-${bet.metric}`} style={{ borderRadius: 14, padding: 11, background: 'rgba(0,255,136,0.045)', border: `1px solid ${bet.quality === 'bet' ? 'rgba(0,255,136,0.34)' : 'rgba(255,215,0,0.22)'}` }}>
+                <div key={`${game.id}-${p.team}-${p.player}-${bet.metric}`} style={{ borderRadius: 14, padding: 11, background: 'rgba(166,255,63,0.045)', border: `1px solid ${bet.quality === 'bet' ? 'rgba(166,255,63,0.34)' : 'rgba(255,215,0,0.22)'}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                     <div>
                       <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{p.player}</div>
@@ -1381,7 +1381,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
                     {(p.last12 || []).slice(0, 12).map((g: any, idx: number) => {
                       const val = getPropStatValue(p, g, bet.metric)
                       const hit = val != null && val >= bet.line
-                      return <div key={`${g.eventId || idx}-${idx}`} style={{ borderRadius: 5, padding: '3px 1px', textAlign: 'center', background: hit ? 'rgba(0,255,136,0.15)' : 'rgba(255,255,255,0.05)', color: hit ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900 }}>{val ?? '—'}</div>
+                      return <div key={`${g.eventId || idx}-${idx}`} style={{ borderRadius: 5, padding: '3px 1px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.15)' : 'rgba(255,255,255,0.05)', color: hit ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900 }}>{val ?? '—'}</div>
                     })}
                   </div>
                   {bet.kalshi?.url && <a href={bet.kalshi.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', marginTop: 8, color: C.cyan, fontSize: 9, fontWeight: 950, textDecoration: 'none' }}>Open Kalshi market ↗</a>}
@@ -1510,7 +1510,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 16 }}>
           {items.map(item => (
-            <div key={item.label} style={{ borderRadius: 14, padding: 12, background: 'rgba(0,255,136,0.045)', border: '1px solid rgba(0,255,136,0.14)' }}>
+            <div key={item.label} style={{ borderRadius: 14, padding: 12, background: 'rgba(166,255,63,0.045)', border: '1px solid rgba(166,255,63,0.14)' }}>
               <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{item.label}</div>
               <div style={{ color: item.color, fontSize: 14, fontWeight: 900, marginTop: 5 }}>{item.value}</div>
             </div>
@@ -1518,14 +1518,14 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
         </div>
 
         {intel && (
-          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(0,255,136,0.035)', border: '1px solid rgba(0,255,136,0.16)', marginBottom: 12 }}>
+          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(166,255,63,0.035)', border: '1px solid rgba(166,255,63,0.16)', marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
               <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>NFL Prep Score</div>
               <div style={{ color: intel.prepScore >= 70 ? C.green : C.gold, fontSize: 20, fontWeight: 950 }}>{intel.prepScore}</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 8 }}>
               {intel.checklist.map(item => (
-                <div key={item.label} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${item.status === 'edge' ? 'rgba(0,255,136,0.35)' : C.border}` }}>
+                <div key={item.label} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${item.status === 'edge' ? 'rgba(166,255,63,0.35)' : C.border}` }}>
                   <div style={{ color: item.status === 'edge' ? C.green : item.status === 'ready' ? C.cyan : C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{item.label}</div>
                   <div style={{ color: 'rgba(247,255,240,0.84)', fontSize: 11, marginTop: 4, lineHeight: 1.35 }}>{item.value}</div>
                 </div>
@@ -1540,17 +1540,17 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
         {props?.marketSummary && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             {[['Kalshi scanned', props.marketSummary.scanned], ['Game markets', props.marketSummary.gameMatched], ['Executable asks', props.marketSummary.executableMatched ?? props.marketSummary.gameMatched], ['Playable', props.marketSummary.playableMatched]].map(([label, value]) => (
-              <span key={label} style={{ background: 'rgba(0,255,136,0.055)', border: '1px solid rgba(0,255,136,0.16)', borderRadius: 999, padding: '4px 9px', color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}: <span style={{ color: C.textPrimary }}>{value}</span></span>
+              <span key={label} style={{ background: 'rgba(166,255,63,0.055)', border: '1px solid rgba(166,255,63,0.16)', borderRadius: 999, padding: '4px 9px', color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}: <span style={{ color: C.textPrimary }}>{value}</span></span>
             ))}
           </div>
         )}
 
         {props?.available && (
-          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(0,255,136,0.035)', border: '1px solid rgba(0,255,136,0.16)', marginBottom: 12 }}>
+          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(166,255,63,0.035)', border: '1px solid rgba(166,255,63,0.16)', marginBottom: 12 }}>
             <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>NFL Player Prop Reads</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
               {[...(props.away || []), ...(props.home || [])].filter((p: any) => p.bestBet).slice(0, 8).map((p: any) => (
-                <div key={`${p.team}-${p.player}`} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${p.bestBet?.quality === 'bet' ? 'rgba(0,255,136,0.32)' : C.border}` }}>
+                <div key={`${p.team}-${p.player}`} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${p.bestBet?.quality === 'bet' ? 'rgba(166,255,63,0.32)' : C.border}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 900 }}>{p.player}</div>
@@ -1568,7 +1568,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
                       const metric = p.bestBet?.metric
                       const val = metric === 'passing yards' ? g.stats.passingYards : metric === 'passing TDs' ? g.stats.passingTouchdowns : metric === 'rushing yards' ? g.stats.rushingYards : metric === 'receptions' ? g.stats.receptions : g.stats.receivingYards
                       const hit = val >= p.bestBet?.line
-                      return <div key={`${g.eventId}-${idx}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(0,255,136,0.13)' : 'rgba(255,255,255,0.04)', color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}>{val}</div>
+                      return <div key={`${g.eventId}-${idx}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.13)' : 'rgba(255,255,255,0.04)', color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}>{val}</div>
                     })}
                   </div>
                 </div>
@@ -1712,7 +1712,7 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
     background: SURFACE.panel,
     border: `1px solid ${C.borderHot}`,
     borderRadius: 24,
-    boxShadow: `0 0 26px rgba(183,255,0,0.18), ${SURFACE.shadow}`,
+    boxShadow: `0 0 26px rgba(166,255,63,0.18), ${SURFACE.shadow}`,
     outline: 'none',
   } : {
     position: 'relative' as const,
@@ -1770,8 +1770,8 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                   </div>
                 )}
                 <span style={{
-                  background: readinessTone === 'execute' ? 'rgba(0,255,136,0.10)' : readinessTone === 'watch' ? 'rgba(255,215,0,0.10)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${readinessTone === 'execute' ? 'rgba(0,255,136,0.32)' : readinessTone === 'watch' ? 'rgba(255,215,0,0.30)' : 'rgba(255,255,255,0.12)'}`,
+                  background: readinessTone === 'execute' ? 'rgba(166,255,63,0.10)' : readinessTone === 'watch' ? 'rgba(255,215,0,0.10)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${readinessTone === 'execute' ? 'rgba(166,255,63,0.32)' : readinessTone === 'watch' ? 'rgba(255,215,0,0.30)' : 'rgba(255,255,255,0.12)'}`,
                   borderRadius: 999, padding: '2px 8px',
                   color: readinessTone === 'execute' ? C.green : readinessTone === 'watch' ? C.gold : C.textSecondary,
                   fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase'
@@ -1782,7 +1782,7 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                       display: 'flex', alignItems: 'center', gap: 4,
                       fontSize: 9, fontWeight: 800, letterSpacing: '0.1em',
                       padding: '3px 8px', borderRadius: 8,
-                      background: 'rgba(183,255,0,0.1)', border: `1px solid ${C.borderHot}`,
+                      background: 'rgba(166,255,63,0.1)', border: `1px solid ${C.borderHot}`,
                       color: C.cyan, textTransform: 'uppercase',
                       boxShadow: `0 0 12px ${C.cyan}22`, cursor: 'pointer'
                     }}>⚡ LINE GAP</button>
@@ -1791,7 +1791,7 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                         position: 'absolute', left: 0, top: 30, zIndex: 30, width: 280,
                         background: 'rgba(8,12,5,0.98)', border: `1px solid ${C.borderHot}`,
                         borderRadius: 16, padding: 16,
-                        boxShadow: `0 0 40px rgba(183,255,0,0.15), 0 16px 40px rgba(0,0,0,0.8)`,
+                        boxShadow: `0 0 40px rgba(166,255,63,0.15), 0 16px 40px rgba(0,0,0,0.8)`,
                       }}>
                         <p style={{ color: C.cyan, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>⚡ POLYMARKET LINE DISCREPANCY</p>
                         <p style={{ color: C.textPrimary, fontSize: 12, lineHeight: 1.6, opacity: 0.8, marginBottom: 10 }}>Polymarket's line differs significantly from DraftKings. This gap is a potential edge.</p>
@@ -1816,8 +1816,8 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                 <button onClick={() => onOpenIntel && onOpenIntel()} style={{
                   fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
                   padding: '4px 10px', borderRadius: 10, fontWeight: 700,
-                  background: isActive ? 'rgba(183,255,0,0.12)' : 'rgba(183,255,0,0.06)',
-                  border: `1px solid ${isActive ? C.borderHot : 'rgba(183,255,0,0.2)'}`,
+                  background: isActive ? 'rgba(166,255,63,0.12)' : 'rgba(166,255,63,0.06)',
+                  border: `1px solid ${isActive ? C.borderHot : 'rgba(166,255,63,0.2)'}`,
                   color: isActive ? C.cyan : C.textSecondary, cursor: 'pointer', transition: 'all 0.2s',
                 }}>📊 Intel</button>
                 <button onClick={() => onOpenAnalysis && onOpenAnalysis()} style={{
@@ -1837,24 +1837,24 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
               <div className="flex items-center justify-between px-1 mb-4">
                 <div className="flex items-center gap-2.5">
                   {game.awayTeam.logo
-                    ? <img src={game.awayTeam.logo} style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(183,255,0,0.3))' }} />
-                    : <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(183,255,0,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 10, fontWeight: 800 }}>{game.awayTeam.abbr.slice(0, 2)}</div>}
+                    ? <img src={game.awayTeam.logo} style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(166,255,63,0.3))' }} />
+                    : <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(166,255,63,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 10, fontWeight: 800 }}>{game.awayTeam.abbr.slice(0, 2)}</div>}
                   <span style={{ color: C.textPrimary, fontSize: 28, fontWeight: 900 }}>{game.awayTeam.score}</span>
                 </div>
                 <span style={{ color: C.textSecondary, fontSize: 12 }}>—</span>
                 <div className="flex items-center gap-2.5">
                   <span style={{ color: C.textPrimary, fontSize: 28, fontWeight: 900 }}>{game.homeTeam.score}</span>
                   {game.homeTeam.logo
-                    ? <img src={game.homeTeam.logo} style={{ width: 36, height: 36, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(183,255,0,0.3))' }} />
-                    : <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(183,255,0,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 10, fontWeight: 800 }}>{game.homeTeam.abbr.slice(0, 2)}</div>}
+                    ? <img src={game.homeTeam.logo} style={{ width: 36, height: 36, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(166,255,63,0.3))' }} />
+                    : <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(166,255,63,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 10, fontWeight: 800 }}>{game.homeTeam.abbr.slice(0, 2)}</div>}
                 </div>
               </div>
             ) : (
               <div className="flex items-center justify-between px-1 mb-4">
                 <div className="flex items-center gap-2.5">
                   {game.awayTeam.logo
-                    ? <img src={game.awayTeam.logo} style={{ width: 32, height: 32, objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(183,255,0,0.25))' }} />
-                    : <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(183,255,0,0.08)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 9, fontWeight: 800 }}>{game.awayTeam.abbr.slice(0, 2)}</div>}
+                    ? <img src={game.awayTeam.logo} style={{ width: 32, height: 32, objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(166,255,63,0.25))' }} />
+                    : <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(166,255,63,0.08)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 9, fontWeight: 800 }}>{game.awayTeam.abbr.slice(0, 2)}</div>}
                   <div>
                     <p style={{ color: C.textPrimary, fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em' }}>{game.awayTeam.abbr}</p>
                     <p style={{ color: C.textSecondary, fontSize: 10 }}>{game.awayTeam.record}</p>
@@ -1866,8 +1866,8 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                 </div>
                 <div className="flex items-center gap-2.5 flex-row-reverse">
                   {game.homeTeam.logo
-                    ? <img src={game.homeTeam.logo} style={{ width: 32, height: 32, objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(183,255,0,0.25))' }} />
-                    : <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(183,255,0,0.08)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 9, fontWeight: 800 }}>{game.homeTeam.abbr.slice(0, 2)}</div>}
+                    ? <img src={game.homeTeam.logo} style={{ width: 32, height: 32, objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(166,255,63,0.25))' }} />
+                    : <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(166,255,63,0.08)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 9, fontWeight: 800 }}>{game.homeTeam.abbr.slice(0, 2)}</div>}
                   <div style={{ textAlign: 'right' }}>
                     <p style={{ color: C.textPrimary, fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em' }}>{game.homeTeam.abbr}</p>
                     <p style={{ color: C.textSecondary, fontSize: 10 }}>{game.homeTeam.record}</p>
@@ -1906,7 +1906,7 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 5,
                         padding: '3px 10px', borderRadius: 8,
-                        background: 'rgba(0,255,136,0.07)', border: '1px solid rgba(0,255,136,0.25)',
+                        background: 'rgba(166,255,63,0.07)', border: '1px solid rgba(166,255,63,0.25)',
                       }}>
                         <span style={{ fontSize: 9 }}>📐</span>
                         <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 700 }}>Sizing hint · verify ask:</span>
@@ -1982,7 +1982,7 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                   {game.hasSpreadOdds && game.dkSpread != null && (() => {
                     const edge = Math.abs(game.spreadLine - game.dkSpread!) >= 1.5
                     return (
-                      <div className="grid grid-cols-3 items-center py-2 px-3 rounded-xl" style={{ background: edge ? 'rgba(183,255,0,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${edge ? C.borderHot : C.border}` }}>
+                      <div className="grid grid-cols-3 items-center py-2 px-3 rounded-xl" style={{ background: edge ? 'rgba(166,255,63,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${edge ? C.borderHot : C.border}` }}>
                         <span style={{ color: C.textSecondary, fontSize: 11 }}>Spread</span>
                         <span style={{ textAlign: 'center', color: C.textSecondary, fontSize: 11, fontFamily: 'monospace' }}>{game.dkSpread! > 0 ? '+' : ''}{game.dkSpread}</span>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
@@ -1995,7 +1995,7 @@ function GameCard({ game, onLogBet, drift, isActive, onOpenIntel, onOpenAnalysis
                   {game.hasTotalOdds && game.dkTotal != null && (() => {
                     const edge = Math.abs(game.totalLine - game.dkTotal!) >= 2
                     return (
-                      <div className="grid grid-cols-3 items-center py-2 px-3 rounded-xl" style={{ background: edge ? 'rgba(183,255,0,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${edge ? C.borderHot : C.border}` }}>
+                      <div className="grid grid-cols-3 items-center py-2 px-3 rounded-xl" style={{ background: edge ? 'rgba(166,255,63,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${edge ? C.borderHot : C.border}` }}>
                         <span style={{ color: C.textSecondary, fontSize: 11 }}>Total</span>
                         <span style={{ textAlign: 'center', color: C.textSecondary, fontSize: 11, fontFamily: 'monospace' }}>{game.dkTotal}</span>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
@@ -2195,7 +2195,7 @@ Return this exact JSON:
         <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(232,0,45,0.2)`, borderRadius: 16, padding: 20, gridColumn: '1 / -1' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
             <span style={{ fontSize: 12 }}>⚔️</span>
-            <span style={{ color: 'rgba(183,255,0,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>Fighter Stats Comparison</span>
+            <span style={{ color: 'rgba(166,255,63,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>Fighter Stats Comparison</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, alignItems: 'center', marginBottom: 20 }}>
             <div style={{ textAlign: 'center' }}>
@@ -2258,13 +2258,13 @@ Return this exact JSON:
 
             {/* Bottom row: Striking | Grappling | Key Factors | Watch For */}
             {intel.striking && (
-              <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(183,255,0,0.15)`, borderRadius: 14, padding: '14px 16px' }}>
+              <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(166,255,63,0.15)`, borderRadius: 14, padding: '14px 16px' }}>
                 <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>👊 STRIKING</p>
                 <p style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.6, opacity: 0.9 }}>{intel.striking}</p>
               </div>
             )}
             {intel.grappling && (
-              <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(183,255,0,0.15)`, borderRadius: 14, padding: '14px 16px' }}>
+              <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(166,255,63,0.15)`, borderRadius: 14, padding: '14px 16px' }}>
                 <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>🤼 GRAPPLING</p>
                 <p style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.6, opacity: 0.9 }}>{intel.grappling}</p>
               </div>
@@ -2327,8 +2327,8 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
   const boutLabel = getBoutLabel(fight, totalFights)
   const boutColor = fight.isMainEvent ? UFC_RED : fight.boutOrder === 2 ? C.gold : fight.boutOrder <= Math.ceil(totalFights / 2) ? C.purple : C.textSecondary
   const statusColor = fight.status === 'in' ? C.green : fight.status === 'post' ? C.textSecondary : C.gold
-  const statusBg = fight.status === 'in' ? 'rgba(0,255,136,0.10)' : fight.status === 'post' ? 'rgba(255,255,255,0.05)' : 'rgba(255,215,0,0.10)'
-  const statusBorder = fight.status === 'in' ? 'rgba(0,255,136,0.35)' : fight.status === 'post' ? 'rgba(255,255,255,0.12)' : 'rgba(255,215,0,0.35)'
+  const statusBg = fight.status === 'in' ? 'rgba(166,255,63,0.10)' : fight.status === 'post' ? 'rgba(255,255,255,0.05)' : 'rgba(255,215,0,0.10)'
+  const statusBorder = fight.status === 'in' ? 'rgba(166,255,63,0.35)' : fight.status === 'post' ? 'rgba(255,255,255,0.12)' : 'rgba(255,215,0,0.35)'
   const statusLabel = fight.status === 'in' ? (fight.statusDetail || 'LIVE / PRE-FIGHT') : fight.status === 'post' ? 'FINAL' : (fight.statusDetail || 'SCHEDULED')
   const { fighterA: a, fighterB: b, result } = fight
 
@@ -2419,7 +2419,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
 
         return (
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8, padding: '7px 10px', borderRadius: 12, background: hasExecutableLink ? 'rgba(0,255,136,0.07)' : 'rgba(255,215,0,0.07)', border: `1px solid ${hasExecutableLink ? 'rgba(0,255,136,0.25)' : 'rgba(255,215,0,0.25)'}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8, padding: '7px 10px', borderRadius: 12, background: hasExecutableLink ? 'rgba(166,255,63,0.07)' : 'rgba(255,215,0,0.07)', border: `1px solid ${hasExecutableLink ? 'rgba(166,255,63,0.25)' : 'rgba(255,215,0,0.25)'}` }}>
               <span style={{ color: hasExecutableLink ? C.green : C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{hasExecutableLink ? 'Market ready · linked chips executable' : 'Watch only · no executable link'}</span>
               <span style={{ color: C.textSecondary, fontSize: 9 }}>Confirm price/liquidity before sizing</span>
             </div>
@@ -2513,7 +2513,7 @@ function UFCSection() {
   return (
     <div>
       {/* Event selector */}
-      <div style={{ marginBottom: isMobile ? 14 : 24, borderRadius: isMobile ? 16 : 20, padding: isMobile ? '16px 14px' : '20px 24px', background: 'rgba(8,12,5,0.85)', border: `1px solid rgba(232,0,45,0.3)`, boxShadow: `0 0 40px rgba(232,0,45,0.08)` }}>
+      <div style={{ marginBottom: isMobile ? 16 : 28, borderRadius: isMobile ? 16 : 20, padding: isMobile ? '16px 14px' : '20px 24px', background: 'rgba(8,12,5,0.85)', border: `1px solid rgba(232,0,45,0.3)`, boxShadow: `0 0 40px rgba(232,0,45,0.08)` }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -2660,7 +2660,7 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
       marginBottom: isMobile ? 14 : 22,
       borderRadius: isMobile ? 20 : 28,
       padding: 1,
-      background: `linear-gradient(135deg, ${accent}72, rgba(255,255,255,0.16), rgba(183,255,0,0.12))`,
+      background: `linear-gradient(135deg, ${accent}72, rgba(255,255,255,0.16), rgba(166,255,63,0.12))`,
       boxShadow: `0 0 44px ${accent}18, 0 12px 70px rgba(0,0,0,0.55)`,
     }}>
       <div style={{
@@ -2707,8 +2707,8 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
           </div>
           <div style={{
             borderRadius: isMobile ? 14 : 20, padding: isMobile ? 12 : 16,
-            background: isFootball ? 'rgba(0,255,136,0.055)' : isBaseball ? 'rgba(255,138,0,0.055)' : 'rgba(183,255,0,0.045)',
-            border: `1px solid ${isFootball ? 'rgba(0,255,136,0.22)' : isBaseball ? 'rgba(255,138,0,0.24)' : C.border}`,
+            background: isFootball ? 'rgba(166,255,63,0.055)' : isBaseball ? 'rgba(255,138,0,0.055)' : 'rgba(166,255,63,0.045)',
+            border: `1px solid ${isFootball ? 'rgba(166,255,63,0.22)' : isBaseball ? 'rgba(255,138,0,0.24)' : C.border}`,
           }}>
             <div style={{ color: accent, fontSize: 11, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>
               {isFootball ? 'Football stat-bet checklist' : isBaseball ? 'MLB stat-bet checklist' : 'Player stat-bet checklist'}
@@ -2784,21 +2784,21 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
   return (
     <header style={{
       position: isMobile ? 'sticky' : 'relative', top: isMobile ? 0 : undefined, zIndex: 30,
-      marginBottom: isMobile ? 14 : 24,
-      padding: isMobile ? 10 : 0,
+      marginBottom: isMobile ? 16 : 28,
+      padding: isMobile ? 12 : 0,
       borderRadius: isMobile ? 22 : 0,
       background: isMobile ? 'linear-gradient(135deg, rgba(2,2,15,0.96), rgba(3,12,10,0.92))' : 'transparent',
-      border: isMobile ? '1px solid rgba(0,255,136,0.16)' : 'none',
-      boxShadow: isMobile ? '0 16px 44px rgba(0,0,0,0.50), 0 0 28px rgba(0,255,136,0.09)' : 'none',
+      border: isMobile ? '1px solid rgba(166,255,63,0.16)' : 'none',
+      boxShadow: isMobile ? '0 16px 44px rgba(0,0,0,0.50), 0 0 28px rgba(166,255,63,0.09)' : 'none',
       backdropFilter: isMobile ? 'blur(22px)' : undefined,
       WebkitBackdropFilter: isMobile ? 'blur(22px)' : undefined,
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '58px minmax(0, 1fr)' : '104px minmax(0, 1fr) auto', gap: isMobile ? 10 : 16, alignItems: 'center' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '96px minmax(0, 1fr)' : '172px minmax(0, 1fr) auto', gap: isMobile ? 10 : 16, alignItems: 'center' }}>
         <a href="/" aria-label="AI Athlete Intelligence home" style={{
-          width: isMobile ? 58 : 104, height: isMobile ? 58 : 104, borderRadius: isMobile ? 14 : 22,
+          width: isMobile ? 96 : 172, height: isMobile ? 96 : 172, borderRadius: isMobile ? 22 : 34,
           overflow: 'hidden', flexShrink: 0,
-          background: '#02020f', border: '1px solid rgba(0,255,136,0.30)',
-          boxShadow: '0 0 28px rgba(0,255,136,0.20), 0 10px 34px rgba(0,0,0,0.45)',
+          background: '#02020f', border: '1px solid rgba(166,255,63,0.30)',
+          boxShadow: '0 0 28px rgba(166,255,63,0.20), 0 10px 34px rgba(0,0,0,0.45)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -2807,11 +2807,11 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: isMobile ? 7 : 10 }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ color: C.green, fontSize: isMobile ? 10 : 11, fontWeight: 950, letterSpacing: '0.20em', textTransform: 'uppercase' }}>AI Athlete Intelligence</div>
+              <div style={{ color: C.green, fontSize: isMobile ? 11 : 12, fontWeight: 950, letterSpacing: '0.20em', textTransform: 'uppercase' }}>AI Athlete Intelligence</div>
               {!isMobile && <p style={{ margin: '4px 0 0', color: C.textSecondary, fontSize: 12, letterSpacing: '0.06em' }}>Know the player. Find your edge. · Kalshi · DraftKings · Polymarket</p>}
             </div>
             {lastUpdatedLabel && (
-              <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 999, background: 'rgba(0,255,136,0.07)', border: '1px solid rgba(0,255,136,0.20)', color: C.green, fontSize: 9, fontWeight: 900, whiteSpace: 'nowrap' }}>
+              <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 999, background: 'rgba(166,255,63,0.07)', border: '1px solid rgba(166,255,63,0.20)', color: C.green, fontSize: 9, fontWeight: 900, whiteSpace: 'nowrap' }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: loading ? C.gold : C.green, display: 'inline-block' }} />
                 {loading ? 'Sync' : lastUpdatedLabel}
               </span>
@@ -2832,7 +2832,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
             ))}
           </div>
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            <a href="/bot" aria-label="Open stat scanner bot" style={{ width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.25)', color: C.green, boxShadow: '0 0 12px rgba(0,255,136,0.10)', fontSize: 15 }}>⬡</a>
+            <a href="/bot" aria-label="Open stat scanner bot" style={{ width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: 'rgba(166,255,63,0.08)', border: '1px solid rgba(166,255,63,0.25)', color: C.green, boxShadow: '0 0 12px rgba(166,255,63,0.10)', fontSize: 15 }}>⬡</a>
             <button onClick={onOpenTracker} aria-label="Open bet tracker" style={{ position: 'relative', width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               ◫
               {pendingBets > 0 && <span style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: activeAccent, color: C.bg, fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pendingBets}</span>}
@@ -3014,14 +3014,14 @@ export default function Home() {
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
         backgroundImage: `
-          linear-gradient(rgba(183,255,0,0.032) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(183,255,0,0.032) 1px, transparent 1px)
+          linear-gradient(rgba(166,255,63,0.032) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(166,255,63,0.032) 1px, transparent 1px)
         `,
         backgroundSize: '48px 48px',
       }} />
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(166,255,63,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(183,255,0,0.05) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(166,255,63,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(166,255,63,0.05) 0%, transparent 70%)',
       }} />
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '18px 10px 64px' : '32px 16px 80px' }}>

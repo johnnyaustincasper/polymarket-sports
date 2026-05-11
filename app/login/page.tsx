@@ -49,23 +49,23 @@ export default function LoginPage() {
       <form onSubmit={submit} style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 360, padding: '0 16px' }}>
         <div style={{
           background: 'linear-gradient(135deg, rgba(8,12,6,0.97), rgba(0,0,0,0.88))',
-          border: '1px solid rgba(0,255,136,0.22)',
+          border: '1px solid rgba(166,255,63,0.22)',
           borderRadius: 28,
           padding: '48px 32px',
-          boxShadow: '0 0 60px rgba(0,255,136,0.09), 0 24px 80px rgba(0,0,0,0.8)',
+          boxShadow: '0 0 60px rgba(166,255,63,0.09), 0 24px 80px rgba(0,0,0,0.8)',
           backdropFilter: 'blur(24px)',
         }}>
           {/* Logo */}
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <div style={{
-              width: 118, height: 118, borderRadius: 28, margin: '0 auto 18px', overflow: 'hidden',
-              background: '#030502', border: '1px solid rgba(0,255,136,0.35)',
-              boxShadow: '0 0 42px rgba(0,255,136,0.18), 0 18px 46px rgba(0,0,0,0.55)',
+              width: 172, height: 172, borderRadius: 38, margin: '0 auto 18px', overflow: 'hidden',
+              background: '#030502', border: '1px solid rgba(166,255,63,0.35)',
+              boxShadow: '0 0 42px rgba(166,255,63,0.18), 0 18px 46px rgba(0,0,0,0.55)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
-            <p style={{ color: '#a6ff3f', fontWeight: 900, fontSize: 12, letterSpacing: '0.22em', textTransform: 'uppercase', textShadow: '0 0 20px rgba(0,255,136,0.35)' }}>Know the player. Find your edge.</p>
+            <p style={{ color: '#a6ff3f', fontWeight: 900, fontSize: 12, letterSpacing: '0.22em', textTransform: 'uppercase', textShadow: '0 0 20px rgba(166,255,63,0.35)' }}>Know the player. Find your edge.</p>
             <p style={{ color: 'rgba(226,255,204,0.45)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 6 }}>AI Athlete Intelligence · Restricted Access</p>
           </div>
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
             cursor: password.length === 0 || loading ? 'not-allowed' : 'pointer',
             background: password.length === 0 || loading
               ? 'rgba(255,255,255,0.04)'
-              : 'linear-gradient(135deg, rgba(166,255,63,0.22), rgba(124,255,0,0.12))',
+              : 'linear-gradient(135deg, rgba(166,255,63,0.22), rgba(166,255,63,0.12))',
             borderWidth: 1, borderStyle: 'solid',
             borderColor: password.length === 0 || loading ? 'rgba(255,255,255,0.08)' : 'rgba(166,255,63,0.45)',
             color: password.length === 0 || loading ? 'rgba(226,255,204,0.3)' : '#a6ff3f',
