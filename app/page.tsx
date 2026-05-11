@@ -201,6 +201,14 @@ const GLOBAL_STYLES = `
     0% { transform: translateX(-120%); }
     100% { transform: translateX(120%); }
   }
+  @keyframes scanCardGlow {
+    0%, 100% { opacity: 0.55; transform: scale(0.985); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes scanCardSweep {
+    0% { transform: translateX(-140%); }
+    100% { transform: translateX(140%); }
+  }
   .no-scrollbar {
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -2661,94 +2669,88 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
   if (sport === 'ufc') return null
   const matched = games.filter(g => g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds).length
   const live = games.filter(g => g.status === 'in').length
-  const pre = games.filter(g => g.status === 'pre').length
-  const matchRate = games.length ? Math.round((matched / games.length) * 100) : 0
-  const avgMatchQuality = matched ? Math.round(games.reduce((sum, g) => sum + getMarketReadiness(g).matchQuality, 0) / games.length) : 0
+  const upcoming = games.filter(g => g.status === 'pre').length
+  const executable = games.filter(g => Boolean(g.polyWinnerUrl || g.polySpreadUrl || g.polyTotalUrl)).length
   const staleFeed = feedAgeSec >= 180
   const thinMatches = games.filter(g => (g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds) && getMarketReadiness(g).matchQuality < 55).length
-  const isFootball = sport === 'nfl' || sport === 'ncaaf'
-  const isBaseball = sport === 'mlb'
-  const phase = isFootball && games.length === 0 ? 'OFFSEASON BUILD MODE' : live ? 'LIVE PLAYER SCAN' : pre ? 'PLAYER STAT SCAN' : 'STAT MARKET WATCH'
-  const accent = isFootball ? C.green : isBaseball ? MLB_ORANGE : C.cyan
-  const prepItems = isFootball
-    ? ['Player usage baseline', 'Injury / snap-count delta', 'Weather / wind / dome flag', 'Opponent matchup', 'Executable stat market']
-    : isBaseball
-      ? ['Batter/pitcher split', 'Last-12 form', 'Lineup confirmation', 'Weather / park context', 'Executable stat market']
-      : ['Player usage baseline', 'Last-12 hit rate', 'Minutes / fatigue context', 'Injury / lineup confirmation', 'Executable stat market']
+  const accent = sport === 'mlb' ? MLB_ORANGE : C.green
+  const status = loading ? 'Scanning markets…' : staleFeed ? 'Feed stale' : executable > 0 ? 'Executable markets ready' : matched > 0 ? 'Markets matched' : 'Waiting on markets'
+  const statusColor = loading ? C.gold : staleFeed ? C.gold : executable > 0 ? accent : C.textSecondary
 
   return (
     <section style={{
-      marginBottom: isMobile ? 14 : 22,
-      borderRadius: isMobile ? 20 : 28,
-      padding: 1,
-      background: `linear-gradient(135deg, ${accent}72, rgba(255,255,255,0.16), rgba(166,255,63,0.12))`,
-      boxShadow: `0 0 44px ${accent}18, 0 12px 70px rgba(0,0,0,0.55)`,
+      marginBottom: isMobile ? 12 : 18,
+      borderRadius: isMobile ? 18 : 22,
+      padding: isMobile ? '11px 12px' : '13px 16px',
+      background: 'linear-gradient(145deg, rgba(255,255,255,0.035), rgba(3,5,0,0.92))',
+      border: `1px solid ${loading ? 'rgba(248,217,74,0.24)' : C.border}`,
+      boxShadow: loading ? '0 0 28px rgba(248,217,74,0.09), 0 12px 44px rgba(0,0,0,0.38)' : '0 12px 44px rgba(0,0,0,0.34)',
+      position: 'relative', overflow: 'hidden',
     }}>
-      <div style={{
-        borderRadius: isMobile ? 19 : 27,
-        padding: isMobile ? '15px 14px' : '20px 22px',
-        background: 'linear-gradient(135deg, rgba(3,7,18,0.96), rgba(8,12,5,0.92) 48%, rgba(2,2,15,0.98))',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.32, background: `radial-gradient(circle at 15% 0%, ${accent}34, transparent 35%), linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.045) 46%, transparent 62%)` }} />
-        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.2fr) minmax(280px, 0.8fr)', gap: isMobile ? 12 : 18 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-              <span style={{ color: accent, fontSize: 10, fontWeight: 950, letterSpacing: '0.22em', textTransform: 'uppercase' }}>{phase}</span>
-              <span style={{ color: C.textSecondary, fontSize: 10 }}>Feed {loading ? 'syncing…' : lastUpdatedLabel ? `updated ${lastUpdatedLabel}` : 'standing by'}</span>
-            </div>
-            <h2 style={{ margin: 0, color: C.textPrimary, fontSize: isMobile ? 22 : 30, lineHeight: 1, letterSpacing: '-0.045em', fontWeight: 950 }}>
-              {isFootball ? 'Football Player Stat Scanner' : isBaseball ? 'MLB Player Stat Scanner' : 'Player Stat Intelligence'}
-            </h2>
-            <p style={{ margin: '8px 0 0', color: 'rgba(219,255,191,0.58)', fontSize: isMobile ? 12 : 13, lineHeight: 1.5, maxWidth: 620 }}>
-              {isFootball
-                ? 'Scan every player in upcoming games for usage, matchup, availability, and executable stat-bet markets.'
-                : isBaseball
-                  ? 'MLB slate view built around player props: hits, total bases, home runs, pitcher strikeouts, lineup context, and executable markets.'
-                  : 'Upcoming-game player scanner: hit rates, minutes, injury context, and real executable stat bets in one command strip.'}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: isMobile ? 8 : 10, marginTop: isMobile ? 12 : 18 }}>
-              {[
-                ['Games', games.length], ['Live', live], ['Market Match', `${matchRate}%`], ['Readiness', `${avgMatchQuality}%`],
-              ].map(([label, value]) => (
-                <div key={label} style={{
-                  borderRadius: isMobile ? 12 : 16, padding: isMobile ? '9px 10px' : '12px 10px',
-                  background: 'rgba(255,255,255,0.035)', border: `1px solid ${C.border}`,
-                }}>
-                  <div style={{ color: accent, fontSize: isMobile ? 18 : 22, fontWeight: 950, letterSpacing: '-0.03em' }}>{value}</div>
-                  <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{label}</div>
-                </div>
-              ))}
-            </div>
-            {(staleFeed || thinMatches > 0) && (
-              <div style={{ marginTop: 14, borderRadius: 14, padding: '10px 12px', background: 'rgba(255,215,0,0.07)', border: '1px solid rgba(255,215,0,0.25)', color: C.gold, fontSize: 11, fontWeight: 800 }}>
-                ⚠ {staleFeed ? `Feed stale (${lastUpdatedLabel})` : `${thinMatches} thin market match${thinMatches === 1 ? '' : 'es'}`} — confirm prices before firing commands.
-              </div>
-            )}
-          </div>
-          <div style={{
-            borderRadius: isMobile ? 14 : 20, padding: isMobile ? 12 : 16,
-            background: isFootball ? 'rgba(166,255,63,0.055)' : isBaseball ? 'rgba(255,138,0,0.055)' : 'rgba(166,255,63,0.045)',
-            border: `1px solid ${isFootball ? 'rgba(166,255,63,0.22)' : isBaseball ? 'rgba(255,138,0,0.24)' : C.border}`,
-          }}>
-            <div style={{ color: accent, fontSize: 11, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>
-              {isFootball ? 'Football stat-bet checklist' : isBaseball ? 'MLB stat-bet checklist' : 'Player stat-bet checklist'}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {prepItems.map(item => (
-                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(247,255,240,0.82)', fontSize: 12 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: accent, boxShadow: `0 0 10px ${accent}` }} />
-                  {item}
-                </div>
-              ))}
+      {loading && <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(248,217,74,0.92), transparent)', animation: 'scanCardSweep 1.1s linear infinite' }} />}
+      <div style={{ position: 'relative', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 12, flexDirection: isMobile ? 'column' : 'row' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <span style={{
+            width: 10, height: 10, borderRadius: '50%', background: statusColor,
+            boxShadow: `0 0 16px ${statusColor}`,
+            animation: loading ? 'liveDotPulse 1s ease-in-out infinite' : undefined,
+            flexShrink: 0,
+          }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: statusColor, fontSize: 10, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>{status}</div>
+            <div style={{ color: C.textSecondary, fontSize: 11, marginTop: 3, whiteSpace: isMobile ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {loading ? 'Building the card slate and checking live executable prices.' : lastUpdatedLabel ? `Updated ${lastUpdatedLabel}` : 'Standing by for market data.'}
+              {(staleFeed || thinMatches > 0) && !loading ? ` · ${staleFeed ? 'refresh recommended' : `${thinMatches} thin match${thinMatches === 1 ? '' : 'es'}`}` : ''}
             </div>
           </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(72px, 1fr))', gap: 8, width: isMobile ? '100%' : 'auto' }}>
+          {[
+            ['Games', games.length], ['Live', live], ['Upcoming', upcoming], ['Executable', executable || matched],
+          ].map(([label, value]) => (
+            <div key={label} style={{ borderRadius: 12, padding: '8px 10px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
+              <div style={{ color: label === 'Executable' ? accent : C.textPrimary, fontSize: 16, fontWeight: 950 }}>{value}</div>
+              <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{label}</div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
   )
 }
 
+function LoadingMarketCards({ cols = 3, count = 6 }: { cols?: number; count?: number }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: 16 }}>
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} style={{
+          height: 250, borderRadius: 24, padding: 1,
+          background: 'linear-gradient(135deg, rgba(166,255,63,0.36), rgba(255,255,255,0.10), rgba(166,255,63,0.08))',
+          boxShadow: '0 0 34px rgba(166,255,63,0.10), 0 14px 48px rgba(0,0,0,0.42)',
+          animation: `scanCardGlow ${1.15 + (i % 3) * 0.18}s ease-in-out infinite`,
+          overflow: 'hidden', position: 'relative',
+        }}>
+          <div style={{ position: 'absolute', inset: 1, borderRadius: 23, background: 'linear-gradient(145deg, rgba(10,16,7,0.96), rgba(3,5,0,0.96))' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(166,255,63,0.95), transparent)', animation: `scanCardSweep ${1 + (i % 2) * 0.2}s linear infinite` }} />
+          <div style={{ position: 'relative', padding: 18, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                <div style={{ width: 86, height: 10, borderRadius: 999, background: 'rgba(166,255,63,0.22)' }} />
+                <div style={{ width: 36, height: 10, borderRadius: 999, background: 'rgba(255,255,255,0.08)' }} />
+              </div>
+              <div style={{ height: 24, borderRadius: 10, background: 'rgba(247,255,240,0.10)', marginBottom: 10, width: '76%' }} />
+              <div style={{ height: 14, borderRadius: 8, background: 'rgba(166,255,63,0.10)', width: '54%' }} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {[0, 1, 2].map(n => <div key={n} style={{ height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(166,255,63,0.10)' }} />)}
+            </div>
+            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase', textAlign: 'center' }}>Scanning card slate…</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 
 type DayOption = { label: string; value: string }
@@ -3110,11 +3112,7 @@ export default function Home() {
         {sport === 'ufc' && <UFCSection />}
 
         {sport !== 'ufc' && (provider === 'kalshi' || sport !== 'nba' || subtab === 'slate') && (loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} style={{ borderRadius: 24, height: 220, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />
-            ))}
-          </div>
+          <LoadingMarketCards cols={cols} count={6} />
         ) : games.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0' }}>
             <p style={{ color: C.textSecondary, fontSize: 16 }}>No games scheduled</p>
