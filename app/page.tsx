@@ -3246,21 +3246,27 @@ export default function Home() {
                 )}
               </section>
             )}
-            {provider === 'polymarket' && final.length > 0 && (
+            {final.length > 0 && (
               <section>
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Final</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {chunkArray(final, cols).map((row, i) => (
-                    <RowGroup key={i} games={row} cols={cols}
-                      activeGame={activeIntelGame || activeAnalysisGame}
-                      panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
-                      analysisLoadingGameId={analysisLoadingGameId}
-                      onAnalysisDone={() => setAnalysisLoadingGameId(null)}
-                      onLogBet={logBet} drift={oddsDrift}
-                      onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
-                      onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
-                  ))}
-                </div>
+                {provider === 'kalshi' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
+                    {final.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {chunkArray(final, cols).map((row, i) => (
+                      <RowGroup key={i} games={row} cols={cols}
+                        activeGame={activeIntelGame || activeAnalysisGame}
+                        panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
+                        analysisLoadingGameId={analysisLoadingGameId}
+                        onAnalysisDone={() => setAnalysisLoadingGameId(null)}
+                        onLogBet={logBet} drift={oddsDrift}
+                        onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
+                        onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
+                    ))}
+                  </div>
+                )}
               </section>
             )}
           </div>
