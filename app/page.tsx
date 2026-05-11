@@ -189,6 +189,11 @@ const GLOBAL_STYLES = `
     0%, 100% { opacity: 1; }
     50%       { opacity: 0.5; }
   }
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 `
 
 // ─── Countdown to tip-off ────────────────────────────────────────────────────
@@ -2723,6 +2728,165 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
   )
 }
 
+
+
+type DayOption = { label: string; value: string }
+
+function sportAccent(sport: SupportedSport | 'ufc') {
+  if (sport === 'ufc') return UFC_RED
+  if (sport === 'nfl' || sport === 'ncaaf') return C.green
+  if (sport === 'mlb') return MLB_ORANGE
+  return C.cyan
+}
+
+function ControlButton({ active, accent, children, onClick, minWidth = 0 }: {
+  active: boolean
+  accent: string
+  children: React.ReactNode
+  onClick: () => void
+  minWidth?: number
+}) {
+  return (
+    <button onClick={onClick} style={{
+      flexShrink: 0,
+      minHeight: 36,
+      minWidth,
+      borderRadius: 999,
+      padding: '8px 12px',
+      background: active ? `${accent}22` : 'rgba(255,255,255,0.045)',
+      border: `1px solid ${active ? accent : 'rgba(255,255,255,0.10)'}`,
+      color: active ? accent : 'rgba(168,240,255,0.58)',
+      fontSize: 10,
+      fontWeight: 950,
+      letterSpacing: '0.10em',
+      textTransform: 'uppercase',
+      cursor: 'pointer',
+      boxShadow: active ? `0 0 18px ${accent}1f, inset 0 1px 0 rgba(255,255,255,0.07)` : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+      whiteSpace: 'nowrap',
+    }}>{children}</button>
+  )
+}
+
+function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, onOpenTracker, onRefresh, loading, lastUpdatedLabel, isMobile }: {
+  sport: SupportedSport | 'ufc'
+  setSport: (s: SupportedSport | 'ufc') => void
+  days: DayOption[]
+  date: string
+  setDate: (date: string) => void
+  pendingBets: number
+  onOpenTracker: () => void
+  onRefresh: () => void
+  loading: boolean
+  lastUpdatedLabel: string | null
+  isMobile: boolean
+}) {
+  const activeAccent = sportAccent(sport)
+  return (
+    <header style={{
+      position: isMobile ? 'sticky' : 'relative', top: isMobile ? 0 : undefined, zIndex: 30,
+      marginBottom: isMobile ? 14 : 24,
+      padding: isMobile ? 10 : 0,
+      borderRadius: isMobile ? 22 : 0,
+      background: isMobile ? 'linear-gradient(135deg, rgba(2,2,15,0.96), rgba(3,12,10,0.92))' : 'transparent',
+      border: isMobile ? '1px solid rgba(0,255,136,0.16)' : 'none',
+      boxShadow: isMobile ? '0 16px 44px rgba(0,0,0,0.50), 0 0 28px rgba(0,255,136,0.09)' : 'none',
+      backdropFilter: isMobile ? 'blur(22px)' : undefined,
+      WebkitBackdropFilter: isMobile ? 'blur(22px)' : undefined,
+    }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '58px minmax(0, 1fr)' : '104px minmax(0, 1fr) auto', gap: isMobile ? 10 : 16, alignItems: 'center' }}>
+        <a href="/" aria-label="AI Athlete Intelligence home" style={{
+          width: isMobile ? 58 : 104, height: isMobile ? 58 : 104, borderRadius: isMobile ? 14 : 22,
+          overflow: 'hidden', flexShrink: 0,
+          background: '#02020f', border: '1px solid rgba(0,255,136,0.30)',
+          boxShadow: '0 0 28px rgba(0,255,136,0.20), 0 10px 34px rgba(0,0,0,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </a>
+
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: isMobile ? 7 : 10 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: C.green, fontSize: isMobile ? 10 : 11, fontWeight: 950, letterSpacing: '0.20em', textTransform: 'uppercase' }}>AI Athlete Intelligence</div>
+              {!isMobile && <p style={{ margin: '4px 0 0', color: C.textSecondary, fontSize: 12, letterSpacing: '0.06em' }}>Know the player. Find your edge. · Kalshi · DraftKings · Polymarket</p>}
+            </div>
+            {lastUpdatedLabel && (
+              <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 999, background: 'rgba(0,255,136,0.07)', border: '1px solid rgba(0,255,136,0.20)', color: C.green, fontSize: 9, fontWeight: 900, whiteSpace: 'nowrap' }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: loading ? C.gold : C.green, display: 'inline-block' }} />
+                {loading ? 'Sync' : lastUpdatedLabel}
+              </span>
+            )}
+          </div>
+
+          <div className="no-scrollbar" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 2 }}>
+            {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map(s => (
+              <ControlButton key={s} active={sport === s} accent={sportAccent(s)} onClick={() => setSport(s)} minWidth={isMobile ? 54 : 66}>{s.toUpperCase()}</ControlButton>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ gridColumn: isMobile ? '1 / -1' : undefined, display: 'flex', alignItems: 'center', gap: 8, justifyContent: isMobile ? 'space-between' : 'flex-end', minWidth: 0 }}>
+          <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', minWidth: 0, paddingBottom: 1 }}>
+            {days.map(day => (
+              <ControlButton key={day.value} active={date === day.value} accent={activeAccent} onClick={() => setDate(day.value)} minWidth={isMobile ? 58 : 0}>{day.label}</ControlButton>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <a href="/bot" aria-label="Open stat scanner bot" style={{ width: 36, height: 36, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.25)', color: C.green, boxShadow: '0 0 12px rgba(0,255,136,0.10)', fontSize: 15 }}>⬡</a>
+            <button onClick={onOpenTracker} aria-label="Open bet tracker" style={{ position: 'relative', width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              ◫
+              {pendingBets > 0 && <span style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: activeAccent, color: C.bg, fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pendingBets}</span>}
+            </button>
+            <button onClick={onRefresh} aria-label="Refresh markets" style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↻</button>
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function MarketModeDock({ sport, provider, setProvider, subtab, setSubtab, isMobile }: {
+  sport: SupportedSport | 'ufc'
+  provider: MarketProvider
+  setProvider: (provider: MarketProvider) => void
+  subtab: 'slate' | 'trends'
+  setSubtab: (tab: 'slate' | 'trends') => void
+  isMobile: boolean
+}) {
+  if (sport === 'ufc') return null
+  const supportsTrends = sport === 'nba' && provider === 'polymarket'
+  return (
+    <div className="no-scrollbar" style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: isMobile ? 'nowrap' : 'wrap',
+      overflowX: isMobile ? 'auto' : 'visible', margin: isMobile ? '-2px 0 12px' : '0 0 14px', padding: isMobile ? '7px' : 0,
+      borderRadius: isMobile ? 18 : 0,
+      background: isMobile ? 'rgba(2,2,15,0.72)' : 'transparent',
+      border: isMobile ? '1px solid rgba(255,255,255,0.08)' : 'none',
+      backdropFilter: isMobile ? 'blur(14px)' : undefined,
+      WebkitBackdropFilter: isMobile ? 'blur(14px)' : undefined,
+    }}>
+      <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
+        {([
+          ['kalshi', 'Kalshi', C.green],
+          ['polymarket', 'Poly', C.purple],
+        ] as const).map(([id, label, accent]) => (
+          <ControlButton key={id} active={provider === id} accent={accent} onClick={() => { setProvider(id); setSubtab('slate') }} minWidth={isMobile ? 92 : 122}>{label}</ControlButton>
+        ))}
+      </div>
+      {supportsTrends && (
+        <div style={{ display: 'flex', gap: 7, flexShrink: 0, marginLeft: isMobile ? 0 : 'auto' }}>
+          {([
+            ['slate', 'Slate'],
+            ['trends', 'Trends'],
+          ] as const).map(([id, label]) => (
+            <ControlButton key={id} active={subtab === id} accent={C.cyan} onClick={() => setSubtab(id)} minWidth={isMobile ? 78 : 0}>{label}</ControlButton>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
@@ -2861,142 +3025,32 @@ export default function Home() {
       }} />
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '18px 10px 64px' : '32px 16px 80px' }}>
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" style={{ borderRadius: isMobile ? 22 : 30, padding: isMobile ? '12px' : '16px 18px', background: 'linear-gradient(135deg, rgba(8,12,6,0.90), rgba(0,0,0,0.66))', border: '1px solid rgba(166,255,63,0.16)', boxShadow: '0 18px 70px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
-          <div>
-            <div className="flex items-center gap-3 mb-1" style={{ flexWrap: 'wrap' }}>
-              <a href="/" aria-label="AI Athlete Intelligence home" style={{
-                width: isMobile ? 78 : 104, height: isMobile ? 78 : 104, borderRadius: isMobile ? 16 : 22,
-                overflow: 'hidden', flexShrink: 0,
-                background: '#030500', border: '1px solid rgba(183,255,0,0.32)',
-                boxShadow: '0 0 34px rgba(166,255,63,0.22), 0 10px 34px rgba(0,0,0,0.45)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              </a>
-              <div style={{ minWidth: isMobile ? '100%' : 200 }}>
-                <p style={{ margin: 0, color: '#f7fff0', fontSize: isMobile ? 19 : 24, fontWeight: 950, letterSpacing: '-0.045em', lineHeight: 0.95 }}>AI ATHLETE</p>
-                <p style={{ margin: '3px 0 0', color: C.green, fontSize: isMobile ? 11 : 13, fontWeight: 950, letterSpacing: '0.22em', textTransform: 'uppercase', textShadow: '0 0 20px rgba(166,255,63,0.32)' }}>INTELLIGENCE</p>
-              </div>
-              <div style={{ display: 'flex', borderRadius: 10, overflowX: 'auto', maxWidth: '100%', border: `1px solid ${C.border}` }}>
-                {(['nba', 'mlb', 'nfl', 'ncaaf', 'ufc', 'ncaab'] as const).map((s, idx) => (
-                  <button key={s} onClick={() => { setSport(s); setSubtab('slate'); setProvider((s === 'nba' || s === 'mlb' || s === 'nfl') ? 'kalshi' : 'polymarket'); setLoading(true) }} style={{
-                    padding: isMobile ? '7px 9px' : '5px 12px', fontSize: isMobile ? 10 : 11, fontWeight: 800, letterSpacing: '0.08em',
-                    textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s',
-                    background: sport === s
-                      ? s === 'ufc'
-                        ? 'linear-gradient(135deg, rgba(232,0,45,0.25), rgba(168,0,20,0.15))'
-                        : s === 'nfl' || s === 'ncaaf'
-                          ? 'linear-gradient(135deg, rgba(0,255,136,0.18), rgba(255,215,0,0.10))'
-                          : s === 'mlb'
-                            ? 'linear-gradient(135deg, rgba(255,138,0,0.22), rgba(255,215,0,0.10))'
-                            : `linear-gradient(135deg, rgba(183,255,0,0.2), rgba(231,238,226,0.15))`
-                      : 'rgba(255,255,255,0.03)',
-                    color: sport === s ? (s === 'ufc' ? UFC_RED : s === 'nfl' || s === 'ncaaf' ? C.green : s === 'mlb' ? MLB_ORANGE : C.cyan) : C.textSecondary,
-                    borderRight: idx < 5 ? `1px solid ${C.border}` : 'none',
-                  }}>{s.toUpperCase()}</button>
-                ))}
-              </div>
-              <a href="/bot" style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                padding: isMobile ? '7px 10px' : '5px 12px', borderRadius: 10, fontSize: 11, fontWeight: 800,
-                letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none',
-                background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.25)',
-                color: C.green, boxShadow: '0 0 12px rgba(0,255,136,0.1)',
-                transition: 'all 0.2s',
-              }}>⬡ Stat Scanner</a>
-            </div>
-            <p style={{ color: C.textSecondary, fontSize: isMobile ? 11 : 12, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>Know the player. Find your edge. · NBA/NFL/MLB/UFC · Kalshi · DraftKings · Polymarket</span>
-              {lastUpdatedLabel && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  padding: '2px 8px', borderRadius: 6,
-                  background: 'rgba(183,255,0,0.06)', border: `1px solid ${C.border}`,
-                  color: C.textSecondary, fontSize: 10, fontWeight: 600,
-                }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, display: 'inline-block' }} />
-                  Updated {lastUpdatedLabel}
-                </span>
-              )}
-            </p>
-          </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
-              {days.map(day => (
-                <button key={day.value} onClick={() => setDate(day.value)} style={{
-                  flexShrink: 0, padding: '5px 12px', borderRadius: 20,
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                  background: date === day.value ? 'rgba(183,255,0,0.12)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${date === day.value ? C.borderHot : C.border}`,
-                  color: date === day.value ? C.cyan : C.textSecondary,
-                  boxShadow: date === day.value ? `0 0 12px ${C.cyan}22` : 'none',
-                }}>{day.label}</button>
-              ))}
-            </div>
-            <button onClick={() => setShowTracker(true)} style={{
-              position: 'relative', width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-              background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`,
-              color: C.textSecondary, fontSize: 15, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              ◫
-              {pendingBets > 0 && <span style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: C.cyan, color: C.bg, fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pendingBets}</span>}
-            </button>
-            <button onClick={() => { setLoading(true); fetchGames() }} style={{
-              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-              background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`,
-              color: C.textSecondary, fontSize: 16, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>↻</button>
-          </div>
-        </div>
+        <AIAthleteHeader
+          sport={sport}
+          setSport={(s) => { setSport(s); setSubtab('slate'); setProvider((s === 'nba' || s === 'mlb' || s === 'nfl') ? 'kalshi' : 'polymarket'); setLoading(true) }}
+          days={days}
+          date={date}
+          setDate={setDate}
+          pendingBets={pendingBets}
+          onOpenTracker={() => setShowTracker(true)}
+          onRefresh={() => { setLoading(true); fetchGames() }}
+          loading={loading}
+          lastUpdatedLabel={lastUpdatedLabel}
+          isMobile={isMobile}
+        />
 
         <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedLabel={lastUpdatedLabel} feedAgeSec={lastUpdated ? secsSinceUpdate : 0} isMobile={isMobile} />
 
-        {sport !== 'ufc' && (
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '0 0 12px', paddingBottom: 2 }}>
-            {([
-              ['kalshi', 'Kalshi'],
-              ['polymarket', 'Polymarket'],
-            ] as const).map(([id, label]) => {
-              const active = provider === id
-              const accent = id === 'kalshi' ? C.green : C.purple
-              return (
-                <button key={id} onClick={() => { setProvider(id); setSubtab('slate') }} style={{
-                  flexShrink: 0, minHeight: 40, minWidth: 122, borderRadius: 12, padding: '9px 16px',
-                  background: active ? `${accent}22` : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${active ? accent : C.border}`,
-                  color: active ? accent : C.textSecondary,
-                  fontSize: 12, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer',
-                  boxShadow: active ? `0 0 20px ${accent}1f` : 'none',
-                }}>{label}</button>
-              )
-            })}
-          </div>
-        )}
+        <MarketModeDock
+          sport={sport}
+          provider={provider}
+          setProvider={setProvider}
+          subtab={subtab}
+          setSubtab={setSubtab}
+          isMobile={isMobile}
+        />
 
-        {sport === 'nba' && provider === 'polymarket' && (
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 0 16px', paddingBottom: 2 }}>
-            {[
-              ['slate', 'Slate'],
-              ['trends', 'Trends + Context'],
-            ].map(([id, label]) => {
-              const active = subtab === id
-              return (
-                <button key={id} onClick={() => setSubtab(id as 'slate' | 'trends')} style={{
-                  flexShrink: 0, minHeight: 38, borderRadius: 999, padding: '8px 14px',
-                  background: active ? 'rgba(183,255,0,0.14)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${active ? C.borderHot : C.border}`,
-                  color: active ? C.cyan : C.textSecondary,
-                  fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer',
-                  boxShadow: active ? `0 0 18px ${C.cyan}18` : 'none',
-                }}>{label}</button>
-              )
-            })}
-          </div>
-        )}
 
         {sport === 'nba' && provider === 'polymarket' && subtab === 'trends' && (
           <>
