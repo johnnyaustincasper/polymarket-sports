@@ -1,10 +1,69 @@
 'use client'
 
+import { SignIn } from '@clerk/nextjs'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import AuthShell from '../components/AuthShell'
+
+const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 
 export default function LoginPage() {
-  const [password, setPassword] = useState('')
+  if (clerkEnabled) {
+    return (
+      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Sign in" subtitle="Use Google, Discord, or email to access the premium intelligence desk.">
+        <SignIn
+          routing="path"
+          path="/login"
+          signUpUrl="/sign-up"
+          afterSignInUrl="/subscribe"
+          appearance={clerkAppearance}
+        />
+        <GuestButton />
+      </AuthShell>
+    )
+  }
+
+  return <LegacyLogin />
+}
+
+function GuestButton() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const router = useRouter()
+
+  async function continueAsGuest() {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/guest', { method: 'POST' })
+      if (!res.ok) throw new Error('Guest access unavailable.')
+      router.push(new URLSearchParams(window.location.search).get('next') || '/')
+      router.refresh()
+    } catch (e: any) {
+      setError(e?.message || 'Guest access unavailable.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ width: '100%', display: 'grid', gap: 8, marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ height: 1, flex: 1, background: 'rgba(166,255,63,0.14)' }} />
+        <span style={{ color: 'rgba(226,255,204,0.48)', fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Testing access</span>
+        <span style={{ height: 1, flex: 1, background: 'rgba(166,255,63,0.14)' }} />
+      </div>
+      <button type="button" onClick={continueAsGuest} disabled={loading} style={guestButton(loading)}>{loading ? 'Opening…' : 'Continue as Guest'}</button>
+      {error && <p style={{ color: '#ff4466', fontSize: 11, textAlign: 'center', fontWeight: 800 }}>{error}</p>}
+    </div>
+  )
+}
+
+function LegacyLogin() {
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -17,98 +76,96 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, code, name: mode === 'signup' ? name : undefined }),
       })
-      if (res.ok) { router.push('/'); router.refresh() }
-      else { setError('ACCESS DENIED'); setPassword('') }
-    } catch { setError('CONNECTION ERROR') }
-    finally { setLoading(false) }
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        router.push(new URLSearchParams(window.location.search).get('next') || '/')
+        router.refresh()
+      } else {
+        setError(data.error || 'Access denied.')
+        setCode('')
+      }
+    } catch {
+      setError('Connection error. Try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
+  const disabled = loading || !email.trim() || !code.trim() || (mode === 'signup' && !name.trim())
+
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#030502', fontFamily: 'system-ui, -apple-system, sans-serif',
-      position: 'relative', overflow: 'hidden',
-    }}>
-      {/* Grid */}
-      <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none',
-        backgroundImage: `
-          linear-gradient(rgba(166,255,63,0.035) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(166,255,63,0.035) 1px, transparent 1px)
-        `,
-        backgroundSize: '48px 48px',
-      }} />
-      {/* Glow */}
-      <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 60% 60% at 50% 50%, rgba(166,255,63,0.10) 0%, transparent 70%)',
-      }} />
-
-      <form onSubmit={submit} style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 360, padding: '0 16px' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(8,12,6,0.97), rgba(0,0,0,0.88))',
-          border: '1px solid rgba(166,255,63,0.22)',
-          borderRadius: 28,
-          padding: '48px 32px',
-          boxShadow: '0 0 60px rgba(166,255,63,0.09), 0 24px 80px rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(24px)',
-        }}>
-          {/* Logo */}
-          <div style={{ textAlign: 'center', marginBottom: 40 }}>
-            <div style={{
-              width: 172, height: 172, borderRadius: 38, margin: '0 auto 18px', overflow: 'hidden',
-              background: '#030502', border: '1px solid rgba(166,255,63,0.35)',
-              boxShadow: '0 0 42px rgba(166,255,63,0.18), 0 18px 46px rgba(0,0,0,0.55)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            </div>
-            <p style={{ color: '#a6ff3f', fontWeight: 900, fontSize: 12, letterSpacing: '0.22em', textTransform: 'uppercase', textShadow: '0 0 20px rgba(166,255,63,0.35)' }}>Know the player. Find your edge.</p>
-            <p style={{ color: 'rgba(226,255,204,0.45)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 6 }}>AI Athlete Intelligence · Restricted Access</p>
-          </div>
-
-          {/* Input */}
-          <div style={{ marginBottom: 16 }}>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              maxLength={8}
-              placeholder="••••••••"
-              autoFocus
-              style={{
-                width: '100%', padding: '16px', borderRadius: 16,
-                textAlign: 'center', fontSize: 24, letterSpacing: '0.6em',
-                background: error ? 'rgba(255,68,102,0.05)' : 'rgba(166,255,63,0.055)',
-                border: `1px solid ${error ? 'rgba(255,68,102,0.4)' : 'rgba(166,255,63,0.22)'}`,
-                color: '#a6ff3f', outline: 'none', boxSizing: 'border-box',
-                caretColor: '#a6ff3f',
-                boxShadow: error ? '0 0 16px rgba(255,68,102,0.1)' : 'none',
-                transition: 'all 0.2s',
-              }}
-            />
-            {error && <p style={{ color: '#ff4466', fontSize: 10, letterSpacing: '0.15em', textAlign: 'center', marginTop: 8, fontWeight: 800 }}>{error}</p>}
-          </div>
-
-          <button type="submit" disabled={loading || password.length === 0} style={{
-            width: '100%', padding: '14px', borderRadius: 16, border: 'none',
-            fontSize: 12, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase',
-            cursor: password.length === 0 || loading ? 'not-allowed' : 'pointer',
-            background: password.length === 0 || loading
-              ? 'rgba(255,255,255,0.04)'
-              : 'linear-gradient(135deg, rgba(166,255,63,0.22), rgba(166,255,63,0.12))',
-            borderWidth: 1, borderStyle: 'solid',
-            borderColor: password.length === 0 || loading ? 'rgba(255,255,255,0.08)' : 'rgba(166,255,63,0.45)',
-            color: password.length === 0 || loading ? 'rgba(226,255,204,0.3)' : '#a6ff3f',
-            boxShadow: password.length > 0 && !loading ? '0 0 24px rgba(166,255,63,0.18)' : 'none',
-            transition: 'all 0.2s',
-          }}>
-            {loading ? 'AUTHENTICATING…' : 'AUTHENTICATE'}
-          </button>
+    <AuthShell eyebrow="BOOTSTRAP ACCESS" title="Authorized access" subtitle="Temporary access-code mode. Add Clerk keys to enable Google, Discord, and email auth.">
+      <form onSubmit={submit} style={{ width: '100%', display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {(['signin', 'signup'] as const).map(option => (
+            <button key={option} type="button" onClick={() => setMode(option)} style={tabStyle(mode === option)}>{option === 'signin' ? 'Sign In' : 'Sign Up'}</button>
+          ))}
         </div>
+        {mode === 'signup' && <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" autoComplete="name" style={inputStyle} />}
+        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="approved@email.com" autoComplete="email" autoFocus style={inputStyle} />
+        <input type="password" value={code} onChange={e => setCode(e.target.value)} placeholder="Invite / access code" autoComplete="one-time-code" style={inputStyle} />
+        {error && <p style={{ color: '#ff4466', fontSize: 12, textAlign: 'center', fontWeight: 800 }}>{error}</p>}
+        <button type="submit" disabled={disabled} style={primaryButton(disabled)}>{loading ? 'Verifying…' : 'Enter Intelligence'}</button>
       </form>
-    </div>
+      <GuestButton />
+    </AuthShell>
   )
 }
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '15px 16px', borderRadius: 16, fontSize: 15,
+  background: 'rgba(166,255,63,0.055)', border: '1px solid rgba(166,255,63,0.22)',
+  color: '#eaffd6', outline: 'none', boxSizing: 'border-box', caretColor: '#a6ff3f',
+}
+
+function tabStyle(active: boolean): React.CSSProperties {
+  return {
+    padding: '12px 10px', borderRadius: 15, cursor: 'pointer',
+    border: `1px solid ${active ? 'rgba(166,255,63,0.48)' : 'rgba(255,255,255,0.08)'}`,
+    background: active ? 'rgba(166,255,63,0.13)' : 'rgba(255,255,255,0.035)',
+    color: active ? '#a6ff3f' : 'rgba(226,255,204,0.55)', fontWeight: 900, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
+  }
+}
+
+function primaryButton(disabled: boolean): React.CSSProperties {
+  return {
+    width: '100%', padding: '15px', borderRadius: 17, fontSize: 12, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(166,255,63,0.26), rgba(166,255,63,0.13))',
+    border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(166,255,63,0.48)'}`,
+    color: disabled ? 'rgba(226,255,204,0.3)' : '#a6ff3f', boxShadow: !disabled ? '0 0 26px rgba(166,255,63,0.18)' : 'none',
+  }
+}
+
+function guestButton(disabled: boolean): React.CSSProperties {
+  return {
+    width: '100%', padding: '14px 15px', borderRadius: 17, fontSize: 12, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(255,255,255,0.075), rgba(166,255,63,0.08))',
+    border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(166,255,63,0.30)'}`,
+    color: disabled ? 'rgba(226,255,204,0.3)' : '#f7fff0',
+    boxShadow: !disabled ? 'inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
+  }
+}
+
+const clerkAppearance = {
+  variables: {
+    colorPrimary: '#a6ff3f',
+    colorBackground: '#050805',
+    colorInputBackground: 'rgba(166,255,63,0.055)',
+    colorInputText: '#f7fff0',
+    colorText: '#f7fff0',
+    colorTextSecondary: 'rgba(226,255,204,0.62)',
+    borderRadius: '16px',
+  },
+  elements: {
+    card: { background: 'transparent', boxShadow: 'none', border: 'none', width: '100%' },
+    headerTitle: { display: 'none' },
+    headerSubtitle: { display: 'none' },
+    socialButtonsBlockButton: { borderColor: 'rgba(166,255,63,0.22)', color: '#f7fff0' },
+    formButtonPrimary: { color: '#051005', fontWeight: 900 },
+    footerActionLink: { color: '#a6ff3f' },
+  },
+} as const

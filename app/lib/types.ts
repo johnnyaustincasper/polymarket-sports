@@ -68,9 +68,16 @@ export interface InjuryReport {
 
 export interface PlayerMinutes {
   name: string
+  position?: string
+  jersey?: string
   minutes: number          // minutes played last game (-1 = DNP)
   fatigueFlag: 'high' | 'moderate' | 'normal' | 'dnp'  // high=36+, moderate=28-35, normal<28
   isStarter: boolean
+  rotationRole: 'starter' | 'sixth' | 'second_unit' | 'deep_bench' | 'dnp'
+  projectedStarter: boolean
+  projectedMinutes: string // e.g. "34-38", "22-28"
+  rotationNote: string     // concise expected rotation read
+  warning?: string
   restingStarter: boolean  // starter with 0 min / DNP but no injury listed — likely load mgmt
   criticalFatigue: boolean // back-to-back AND 35+ min last game
 }

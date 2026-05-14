@@ -297,12 +297,58 @@ export async function fetchFatigueReport(
       const criticalFatigue = isBackToBack && minutes >= 35
 
       const name = athlete.athlete?.shortName || athlete.athlete?.displayName || 'Unknown'
+      const position = athlete.athlete?.position?.abbreviation || athlete.athlete?.position?.displayName || '?'
+      const jersey = athlete.athlete?.jersey || '?'
+      const rotationRole: PlayerMinutes['rotationRole'] = minutes < 0
+        ? 'dnp'
+        : isStarter
+          ? 'starter'
+          : minutes >= 26
+            ? 'sixth'
+            : minutes >= 14
+              ? 'second_unit'
+              : 'deep_bench'
+      const projectedStarter = isStarter || (!didNotPlay && minutes >= 30)
+      const projectedMinutes = minutes < 0
+        ? '0'
+        : minutes >= 36
+          ? '34-40'
+          : minutes >= 30
+            ? '30-36'
+            : minutes >= 24
+              ? '22-30'
+              : minutes >= 14
+                ? '12-22'
+                : 'spot'
+      const warning = criticalFatigue
+        ? 'B2B + heavy load last game'
+        : fatigueFlag === 'high'
+          ? 'Heavy minutes last game'
+          : restingStarter
+            ? 'Possible rest/load management'
+            : undefined
+      const rotationNote = rotationRole === 'starter'
+        ? `Projected starter · ${projectedMinutes} min`
+        : rotationRole === 'sixth'
+          ? `First bench / closer candidate · ${projectedMinutes} min`
+          : rotationRole === 'second_unit'
+            ? `Second-unit rotation · ${projectedMinutes} min`
+            : rotationRole === 'deep_bench'
+              ? `Fringe rotation · ${projectedMinutes}`
+              : 'DNP last game'
 
       players.push({
         name,
+        position,
+        jersey,
         minutes,
         fatigueFlag,
         isStarter,
+        rotationRole,
+        projectedStarter,
+        projectedMinutes,
+        rotationNote,
+        warning,
         restingStarter,
         criticalFatigue,
       })
@@ -315,8 +361,8 @@ export async function fetchFatigueReport(
       return b.minutes - a.minutes
     })
 
-    // Top 8 rotation players
-    const topPlayers = players.slice(0, 8)
+    // Top 10 gives the full expected NBA rotation: starters + primary bench.
+    const topPlayers = players.slice(0, 10)
 
     const hasFatigueRisk = topPlayers.some(p => p.criticalFatigue)
     const hasRestingStarter = topPlayers.some(p => p.restingStarter)
@@ -330,6 +376,9 @@ export async function fetchFatigueReport(
       summary = `🔥 Fatigue risk: ${fatigued.join(', ')} (B2B, 35+ min)`
     } else if (isBackToBack) {
       summary = '⚡ Back-to-back — monitor for load management'
+    } else if (topPlayers.some(p => p.fatigueFlag === 'high')) {
+      const heavy = topPlayers.filter(p => p.fatigueFlag === 'high').map(p => p.name).slice(0, 3)
+      summary = `⏱️ Heavy last-game load: ${heavy.join(', ')}`
     }
 
     return {

@@ -351,11 +351,9 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const requestedSport = (searchParams.get('sport') || 'nba').toLowerCase() as SportKey
     const sport: SportKey = requestedSport in SPORTS ? requestedSport : 'nba'
-    const toCST = (d: Date) => {
-      const cst = new Date(d.toLocaleString('en-US', { timeZone: 'America/Chicago' }))
-      return cst.toISOString().slice(0, 10).replace(/-/g, '')
-    }
+    const toCST = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
     const dateParam = searchParams.get('date') || toCST(new Date())
+    const displayDate = searchParams.get('displayDate') || (dateParam.includes('-') ? dateParam.split('-')[1] : dateParam)
 
     const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/${SPORTS[sport].leaguePath}/scoreboard?dates=${dateParam}`
     const [espnRes, polyFetch] = await Promise.all([
@@ -364,7 +362,7 @@ export async function GET(req: Request) {
     ])
     if (!espnRes.ok) return NextResponse.json([])
     const espnData = await espnRes.json()
-    const events = espnData?.events || []
+    const events = (espnData?.events || []).filter((event: any) => toCST(new Date(event.date)) === displayDate)
     if (!events.length) return NextResponse.json([])
     const sourceHealth = {
       espn: { ok: true, events: events.length, date: dateParam },
