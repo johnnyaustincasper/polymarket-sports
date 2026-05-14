@@ -1686,8 +1686,8 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
         {sport === 'nba' && intel && (
           <div style={{ borderRadius: 15, padding: 10, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, marginBottom: 12, opacity: 0, animation: 'dominoFadeIn 920ms cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
-              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Expected Starting 5 · Injury Report</div>
-              <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>live ESPN + projection</div>
+              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Projected Rotation · Last Game Minutes</div>
+              <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>starters + minutes + alerts</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {[
@@ -1698,81 +1698,60 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
                 const starters = pool.filter(p => p.projectedStarter || p.isStarter).slice(0, 5)
                 const projected = (starters.length >= 5 ? starters : pool.filter(p => p.rotationRole === 'starter' || p.minutes >= 24).slice(0, 5))
                 const minuteLeaders = pool.filter(p => p.minutes >= 0 || p.fatigueFlag === 'dnp').slice(0, 8)
-                const shownInjuries = injuries.slice(0, 5)
+                const seen = new Set<string>()
+                const rotationPlayers = [...projected, ...minuteLeaders].filter(p => {
+                  const key = p.name.toLowerCase().replace(/[^a-z]/g, '')
+                  if (seen.has(key)) return false
+                  seen.add(key)
+                  return true
+                }).slice(0, 8)
+                const shownInjuries = injuries.slice(0, 4)
+                const cleanName = (x: string) => x.toLowerCase().replace(/[^a-z]/g, '')
                 return (
-                  <div key={`kalshi-lineup-${team.abbr}`} style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 6 }}>
+                  <div key={`kalshi-rotation-${team.abbr}`} style={{ minWidth: 0, borderRadius: 12, padding: 8, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 7 }}>
                       <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950 }}>{team.abbr} <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800 }}>({side})</span></span>
                       <span style={{ color: team.fatigue?.hasFatigueRisk ? C.red : team.fatigue?.isBackToBack ? C.gold : C.textSecondary, fontSize: 8, fontWeight: 900 }}>{team.fatigue?.summary || `${team.restDays}d rest`}</span>
                     </div>
-                    <div style={{ borderRadius: 11, padding: 7, background: 'rgba(166,255,63,0.035)', border: `1px solid ${C.border}`, marginBottom: 7 }}>
-                      <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 5 }}>Expected starting 5</div>
-                      <div style={{ display: 'grid', gap: 4 }}>
-                        {projected.length ? projected.map((p, i) => {
+                    {rotationPlayers.length ? (
+                      <div style={{ display: 'grid', gap: 5 }}>
+                        {rotationPlayers.map((player, i) => {
                           const injured = shownInjuries.find(ip => {
-                            const clean = (x: string) => x.toLowerCase().replace(/[^a-z]/g, '')
-                            const a = clean(ip.name), b = clean(p.name)
+                            const a = cleanName(ip.name), b = cleanName(player.name)
                             return a === b || a.includes(b) || b.includes(a)
                           })
                           const out = injured && /out|doubtful/i.test(injured.status)
                           const q = injured && !out
+                          const isDnp = player.minutes < 0 || player.fatigueFlag === 'dnp'
+                          const barColor = isDnp ? C.textSecondary : player.minutes >= 36 ? C.red : player.minutes >= 28 ? C.gold : C.green
+                          const barWidth = isDnp ? 0 : Math.min(100, (player.minutes / 42) * 100)
+                          const role = player.rotationRole === 'starter' || player.isStarter ? 'START' : player.rotationRole === 'sixth' ? '6TH' : player.rotationRole === 'second_unit' ? 'BENCH' : player.rotationRole === 'deep_bench' ? 'DEEP' : 'ROT'
                           return (
-                            <div key={`${team.abbr}-starter-${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-                              <span style={{ color: out ? 'rgba(255,68,102,0.62)' : p.warning ? C.gold : C.textPrimary, fontSize: 8, fontWeight: 850, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: out ? 'line-through' : 'none' }}>{p.name}</span>
-                              <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, width: 20, flexShrink: 0, textAlign: 'center' }}>{p.position || '?'}</span>
-                              {out && <span style={{ background: C.red, color: '#fff', borderRadius: 4, padding: '1px 4px', fontSize: 7, fontWeight: 950 }}>OUT</span>}
-                              {q && <span style={{ background: '#c8960c', color: '#fff', borderRadius: 4, padding: '1px 4px', fontSize: 7, fontWeight: 950 }}>Q</span>}
+                            <div key={`${team.abbr}-rot-${player.name}-${i}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 24px 34px 46px 28px auto', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                              <span style={{ color: out ? 'rgba(255,68,102,0.62)' : player.warning ? C.gold : player.isStarter ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: player.isStarter ? 900 : 750, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: out ? 'line-through' : 'none' }}>{player.name}</span>
+                              <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'center' }}>{player.position || '?'}</span>
+                              <span style={{ color: player.isStarter ? C.green : C.textSecondary, fontSize: 6, fontWeight: 950, textAlign: 'center' }}>{role}</span>
+                              <span style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+                                <span style={{ display: 'block', width: `${barWidth}%`, height: '100%', borderRadius: 999, background: barColor }} />
+                              </span>
+                              <span style={{ color: barColor, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{isDnp ? 'DNP' : `${player.minutes}m`}</span>
+                              {out ? <span style={{ background: C.red, color: '#fff', borderRadius: 4, padding: '1px 4px', fontSize: 7, fontWeight: 950 }}>OUT</span> : q ? <span style={{ background: '#c8960c', color: '#fff', borderRadius: 4, padding: '1px 4px', fontSize: 7, fontWeight: 950 }}>Q</span> : <span />}
                             </div>
                           )
-                        }) : <div style={{ color: C.textSecondary, fontSize: 8 }}>Projected starters unavailable.</div>}
+                        })}
                       </div>
-                    </div>
-                    <div style={{ borderRadius: 11, padding: 7, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, marginBottom: 7 }}>
-                      <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 5 }}>Last game minutes</div>
-                      {minuteLeaders.length ? (
-                        <div style={{ display: 'grid', gap: 4 }}>
-                          {minuteLeaders.map((p, i) => {
-                            const isDnp = p.minutes < 0 || p.fatigueFlag === 'dnp'
-                            const barColor = isDnp ? C.textSecondary : p.minutes >= 36 ? C.red : p.minutes >= 28 ? C.gold : C.green
-                            const barWidth = isDnp ? 0 : Math.min(100, (p.minutes / 42) * 100)
-                            const role = p.rotationRole === 'starter' || p.isStarter ? 'START' : p.rotationRole === 'sixth' ? '6TH' : p.rotationRole === 'second_unit' ? 'BENCH' : p.rotationRole === 'deep_bench' ? 'DEEP' : 'DNP'
-                            return (
-                              <div key={`${team.abbr}-mins-${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-                                <span style={{ color: p.warning ? C.gold : p.isStarter ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: p.isStarter ? 900 : 750, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                                <span style={{ color: p.isStarter ? C.green : C.textSecondary, fontSize: 6, fontWeight: 950, width: 26, flexShrink: 0, textAlign: 'center' }}>{role}</span>
-                                <div style={{ flex: 1, maxWidth: 50, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
-                                  <div style={{ width: `${barWidth}%`, height: '100%', borderRadius: 999, background: barColor }} />
-                                </div>
-                                <span style={{ color: barColor, fontSize: 8, fontWeight: 950, width: 28, flexShrink: 0, textAlign: 'right' }}>{isDnp ? 'DNP' : `${p.minutes}m`}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      ) : <div style={{ color: C.textSecondary, fontSize: 8 }}>Last-game minutes unavailable.</div>}
-                    </div>
-                    <div style={{ borderRadius: 11, padding: 7, background: shownInjuries.length ? 'rgba(255,68,102,0.045)' : 'rgba(166,255,63,0.025)', border: `1px solid ${shownInjuries.length ? 'rgba(255,68,102,0.20)' : C.border}` }}>
-                      <div style={{ color: shownInjuries.length ? C.red : C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 5 }}>Injury list</div>
-                      {shownInjuries.length ? (
-                        <div style={{ display: 'grid', gap: 4 }}>
-                          {shownInjuries.map((p, i) => {
-                            const out = /out|doubtful/i.test(p.status)
-                            const statusColor = out ? C.red : /questionable|gtd|day/i.test(p.status) ? C.gold : C.textSecondary
-                            return (
-                              <div key={`${team.abbr}-inj-${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-                                <span style={{ color: C.textPrimary, fontSize: 8, fontWeight: 850, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                                <span style={{ color: statusColor, fontSize: 7, fontWeight: 950, flexShrink: 0, textTransform: 'uppercase' }}>{p.status}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      ) : <div style={{ color: C.textSecondary, fontSize: 8 }}>No listed injuries from ESPN.</div>}
-                      {notes && !/none/i.test(notes) && <div style={{ color: C.textSecondary, fontSize: 8, lineHeight: 1.35, marginTop: 5 }}>{notes}</div>}
-                    </div>
+                    ) : <div style={{ color: C.textSecondary, fontSize: 8 }}>Rotation/minutes unavailable.</div>}
+                    {(shownInjuries.length > 0 || (notes && !/none/i.test(notes))) && (
+                      <div style={{ marginTop: 7, paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
+                        {shownInjuries.length > 0 && <div style={{ color: C.red, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>Alerts: {shownInjuries.map(p => `${p.name} ${p.status}`).join(' · ')}</div>}
+                        {notes && !/none/i.test(notes) && <div style={{ color: C.textSecondary, fontSize: 8, lineHeight: 1.35 }}>{notes}</div>}
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </div>
-            <div style={{ color: C.textSecondary, fontSize: 8, lineHeight: 1.35, marginTop: 8 }}>Official starting lineups usually lock near tip. Until then, expected 5 uses ESPN boxscore/rotation signals and recent heavy-minute starters.</div>
+            <div style={{ color: C.textSecondary, fontSize: 8, lineHeight: 1.35, marginTop: 8 }}>START is projected until official lineups lock near tip. Minutes are from each player’s last game.</div>
           </div>
         )}
 
