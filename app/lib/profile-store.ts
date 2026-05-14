@@ -172,7 +172,15 @@ function setCookieProfile(res: NextResponse, profile: AccountProfile) {
 }
 
 export function clearProfileCookie(res: NextResponse) {
-  res.cookies.set(PROFILE_COOKIE, '', { maxAge: 0, path: '/' })
+  res.cookies.set(PROFILE_COOKIE, '', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    expires: new Date(0),
+    maxAge: 0,
+    path: '/',
+  })
+  res.cookies.set(PROFILE_COOKIE, '', { expires: new Date(0), maxAge: 0, path: '/' })
 }
 
 export async function getAccountProfile(session: SessionIdentity, req: NextRequest) {

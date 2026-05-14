@@ -30,8 +30,12 @@ function LogoutButton({ isMobile }: { isMobile: boolean }) {
 
   async function logout() {
     setLoggingOut(true)
-    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null)
-    await signOut(() => { window.location.href = '/login' }).catch(() => { window.location.href = '/login' })
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include', cache: 'no-store' }).catch(() => null)
+    document.cookie = 'ai_session=; Max-Age=0; path=/'
+    document.cookie = 'ai_profile=; Max-Age=0; path=/'
+    document.cookie = 'session=; Max-Age=0; path=/'
+    await signOut().catch(() => null)
+    window.location.replace('/login')
   }
 
   return <button onClick={logout} disabled={loggingOut} style={{ width: '100%', borderRadius: isMobile ? 13 : 16, border: '1px solid rgba(255,63,95,0.32)', background: 'rgba(255,63,95,0.08)', color: C.red, padding: isMobile ? '11px' : '14px', fontSize: 12, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: loggingOut ? 'wait' : 'pointer', marginBottom: isMobile ? 2 : 0 }}>{loggingOut ? 'Logging out…' : 'Logout'}</button>
