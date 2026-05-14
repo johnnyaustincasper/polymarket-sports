@@ -1591,6 +1591,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
   const [expandedContractKey, setExpandedContractKey] = useState<string>('')
   const [cardRef, nearViewport] = useNearViewport<HTMLDivElement>('900px')
   const [loadRequested, setLoadRequested] = useState(false)
+  const isMobile = useIsMobile()
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const shouldLoadIntelAndProps = nearViewport || loadRequested
   const requestCardLoad = useCallback(() => setLoadRequested(true), [])
@@ -1689,7 +1690,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
               <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Projected Rotation · Last Game Minutes</div>
               <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>starters + minutes + alerts</div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 9 : 10 }}>
               {[
                 { side: 'Away', team: intel.away, injuries: intel.injuryImpact.awayPlayers || [], notes: intel.injuryImpact.awayNotes },
                 { side: 'Home', team: intel.home, injuries: intel.injuryImpact.homePlayers || [], notes: intel.injuryImpact.homeNotes },
@@ -1727,7 +1728,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
                           const barWidth = isDnp ? 0 : Math.min(100, (player.minutes / 42) * 100)
                           const role = player.rotationRole === 'starter' || player.isStarter ? 'START' : player.rotationRole === 'sixth' ? '6TH' : player.rotationRole === 'second_unit' ? 'BENCH' : player.rotationRole === 'deep_bench' ? 'DEEP' : 'ROT'
                           return (
-                            <div key={`${team.abbr}-rot-${player.name}-${i}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 24px 34px 46px 28px auto', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                            <div key={`${team.abbr}-rot-${player.name}-${i}`} style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(118px,1fr) 22px 36px 56px 32px auto' : 'minmax(0,1fr) 24px 34px 46px 28px auto', alignItems: 'center', gap: isMobile ? 4 : 5, minWidth: 0 }}>
                               <span style={{ color: out ? 'rgba(255,68,102,0.62)' : player.warning ? C.gold : player.isStarter ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: player.isStarter ? 900 : 750, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: out ? 'line-through' : 'none' }}>{player.name}</span>
                               <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'center' }}>{player.position || '?'}</span>
                               <span style={{ color: player.isStarter ? C.green : C.textSecondary, fontSize: 6, fontWeight: 950, textAlign: 'center' }}>{role}</span>
