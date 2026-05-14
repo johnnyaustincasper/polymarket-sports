@@ -151,6 +151,63 @@ interface FootballIntelData {
   warnings: string[]
 }
 
+type JsonCacheEntry<T = any> = { expiresAt: number; data: T }
+const jsonCache = new Map<string, JsonCacheEntry>()
+const jsonInflight = new Map<string, Promise<any>>()
+
+function cacheKey(path: string, params: Record<string, string | number | undefined | null> = {}) {
+  const qs = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') qs.set(key, String(value))
+  })
+  const query = qs.toString()
+  return query ? `${path}?${query}` : path
+}
+
+function fetchJsonCached<T>(url: string, ttlMs = 30_000, timeoutMs = 0): Promise<T> {
+  const now = Date.now()
+  const cached = jsonCache.get(url)
+  if (cached && cached.expiresAt > now) return Promise.resolve(cached.data as T)
+
+  const existing = jsonInflight.get(url)
+  if (existing) return existing as Promise<T>
+
+  const controller = timeoutMs > 0 ? new AbortController() : null
+  const timeout = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
+  const request = fetch(url, { cache: 'no-store', signal: controller?.signal })
+    .then(async r => {
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error((data as any)?.error || `request failed (${r.status})`)
+      jsonCache.set(url, { expiresAt: Date.now() + ttlMs, data })
+      return data as T
+    })
+    .finally(() => {
+      if (timeout) clearTimeout(timeout)
+      jsonInflight.delete(url)
+    })
+  jsonInflight.set(url, request)
+  return request
+}
+
+function formatAge(seconds: number) {
+  return seconds < 60 ? `${seconds}s ago` : `${Math.floor(seconds / 60)}m ago`
+}
+
+function UpdatedAgeLabel({ updatedAt, prefix = 'Updated', empty = null }: { updatedAt: Date | null; prefix?: string; empty?: React.ReactNode }) {
+  const [seconds, setSeconds] = useState(0)
+
+  useEffect(() => {
+    if (!updatedAt) return
+    const update = () => setSeconds(Math.max(0, Math.floor((Date.now() - updatedAt.getTime()) / 1000)))
+    update()
+    const iv = setInterval(update, 1000)
+    return () => clearInterval(iv)
+  }, [updatedAt])
+
+  if (!updatedAt) return <>{empty}</>
+  return <>{prefix}{prefix ? ' ' : ''}{formatAge(seconds)}</>
+}
+
 // ─── UFC accent ───────────────────────────────────────────────────────────────
 const UFC_RED = '#a6ff3f'
 const MLB_ORANGE = '#a6ff3f'
@@ -872,10 +929,12 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
   const [propsLoading, setPropsLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`/api/team-intel?home=${home}&away=${away}`)
-      .then(r => r.json())
-      .then(d => { setIntel(d); setLoading(false) })
-      .catch(() => setLoading(false))
+    let cancelled = false
+    fetchJsonCached<TeamIntelData>(cacheKey('/api/team-intel', { home, away }), 60_000)
+      .then(d => { if (!cancelled) setIntel(d) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [home, away])
 
   useEffect(() => {
@@ -888,11 +947,13 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
   }, [gameId])
 
   useEffect(() => {
+    let cancelled = false
     setPropsLoading(true)
-    fetch(`/api/props?home=${home}&away=${away}&sport=${sport}&ts=${Date.now()}`, { cache: 'no-store' })
-      .then(r => r.json())
-      .then(d => { setProps(d); setPropsLoading(false) })
-      .catch(() => setPropsLoading(false))
+    fetchJsonCached<PropsPanelData>(cacheKey('/api/props', { home, away, sport }), 30_000)
+      .then(d => { if (!cancelled) setProps(d) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setPropsLoading(false) })
+    return () => { cancelled = true }
   }, [home, away, sport])
 
   const formDots = (games: ('W' | 'L')[]) => {
@@ -1249,7 +1310,8 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                                   {p.headshot && <img src={p.headshot} alt={p.player} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.border}` }} />}
                                   <div>
                                     <p style={{ color: C.textPrimary, fontSize: 12, fontWeight: 800, lineHeight: 1 }}>{p.player}</p>
-                                    <p style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.position} · last {p.gamesPlayed || logs.length} games{lastGameMinutes ? ` · ${lastGameMinutes}` : ''}</p>
+                                    <p style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.position} · last {p.gamesPlayed || logs.length} games</p>
+                                    {lastGameMinutes && <p style={{ color: C.green, fontSize: 8, fontWeight: 950, marginTop: 3, letterSpacing: '0.04em' }}>⏱ {lastGameMinutes}</p>}
                                   </div>
                                 </div>
                                 {best && (
@@ -1280,7 +1342,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                                     const hit = best ? val >= best.line : false
                                     const gameMinutes = Number(g?.stats?.minutes)
                                     const minuteText = Number.isFinite(gameMinutes) && gameMinutes > 0 ? ` · ${Math.round(gameMinutes)} min` : ''
-                                    return <div key={`${g.eventId}-${idx}`} title={`${g.opponent || ''} ${val}${minuteText}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.13)' : 'rgba(255,255,255,0.04)', border: `1px solid ${hit ? 'rgba(166,255,63,0.28)' : 'rgba(255,255,255,0.06)'}`, color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}>{val}</div>
+                                    return <div key={`${g.eventId}-${idx}`} title={`${g.opponent || ''} ${val}${minuteText}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.13)' : 'rgba(255,255,255,0.04)', border: `1px solid ${hit ? 'rgba(166,255,63,0.28)' : 'rgba(255,255,255,0.06)'}`, color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}><div>{val}</div>{Number.isFinite(gameMinutes) && gameMinutes > 0 && <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, marginTop: 1 }}>{Math.round(gameMinutes)}m</div>}</div>
                                   })}
                                 </div>
                               )}
@@ -1587,8 +1649,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
       return
     }
     let cancelled = false
-    fetch(`/api/team-intel?home=${game.homeTeam.abbr}&away=${game.awayTeam.abbr}&ts=${Date.now()}`, { cache: 'no-store' })
-      .then(r => r.json())
+    fetchJsonCached<TeamIntelData>(cacheKey('/api/team-intel', { home: game.homeTeam.abbr, away: game.awayTeam.abbr }), 60_000)
       .then(d => { if (!cancelled) setIntel(d) })
       .catch(() => { if (!cancelled) setIntel(null) })
     return () => { cancelled = true }
@@ -1602,21 +1663,14 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
       return
     }
     let cancelled = false
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 45_000)
     setLoading(true)
     setError(null)
     setProps(null)
-    fetch(`/api/props?home=${game.homeTeam.abbr}&away=${game.awayTeam.abbr}&sport=${sport}&ts=${Date.now()}`, { signal: controller.signal, cache: 'no-store' })
-      .then(async r => {
-        const d = await r.json().catch(() => ({}))
-        if (!r.ok) throw new Error(d?.error || `props scan failed (${r.status})`)
-        return d
-      })
+    fetchJsonCached<PropsPanelData>(cacheKey('/api/props', { home: game.homeTeam.abbr, away: game.awayTeam.abbr, sport }), 30_000, 45_000)
       .then(d => { if (!cancelled) setProps(d) })
       .catch(e => { if (!cancelled) setError(e?.name === 'AbortError' ? 'scan timed out — retry in a few seconds' : e?.message || 'props unavailable') })
-      .finally(() => { clearTimeout(timeout); if (!cancelled) setLoading(false) })
-    return () => { cancelled = true; clearTimeout(timeout); controller.abort() }
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [game.homeTeam.abbr, game.awayTeam.abbr, game.id, sport, supportedKalshiSport])
 
   const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (p.last12 || []).length >= 4 && (p.recommendations || []).length) : []
@@ -1792,7 +1846,8 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
                     <div>
                       <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950 }}>{p.player}</div>
-                      <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.team} · {p.position || activeGroup.metric}{lastGameMinutes ? ` · ${lastGameMinutes}` : ''}</div>
+                      <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.team} · {p.position || activeGroup.metric}</div>
+                      {lastGameMinutes && <div style={{ color: C.green, fontSize: 8, fontWeight: 950, marginTop: 3, letterSpacing: '0.04em' }}>⏱ {lastGameMinutes}</div>}
                     </div>
                     <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{bets.length} lines</div>
                   </div>
@@ -1843,7 +1898,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
                             const hit = val != null && val >= expandedBet.line
                             const gameMinutes = Number(g?.stats?.minutes)
                             const minuteText = Number.isFinite(gameMinutes) && gameMinutes > 0 ? ` · ${Math.round(gameMinutes)} min` : ''
-                            return <div key={`${g.eventId || idx}-${idx}`} title={`${g.date || ''} ${g.opponent || ''}${minuteText}`} style={{ borderRadius: 5, padding: '3px 1px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.15)' : 'rgba(255,255,255,0.05)', color: hit ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900 }}>{val ?? '—'}</div>
+                            return <div key={`${g.eventId || idx}-${idx}`} title={`${g.date || ''} ${g.opponent || ''}${minuteText}`} style={{ borderRadius: 5, padding: '3px 1px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.15)' : 'rgba(255,255,255,0.05)', color: hit ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900 }}><div>{val ?? '—'}</div>{Number.isFinite(gameMinutes) && gameMinutes > 0 && <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, marginTop: 1 }}>{Math.round(gameMinutes)}m</div>}</div>
                           })}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 9 }}>
@@ -1971,10 +2026,11 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
 
   useEffect(() => {
     if (game.sport !== 'nfl') return
-    fetch(`/api/props?home=${game.homeTeam.abbr}&away=${game.awayTeam.abbr}&sport=nfl`)
-      .then(r => r.json())
-      .then(d => setProps(d))
-      .catch(() => setProps(null))
+    let cancelled = false
+    fetchJsonCached<PropsPanelData>(cacheKey('/api/props', { home: game.homeTeam.abbr, away: game.awayTeam.abbr, sport: 'nfl' }), 30_000)
+      .then(d => { if (!cancelled) setProps(d) })
+      .catch(() => { if (!cancelled) setProps(null) })
+    return () => { cancelled = true }
   }, [game])
 
   const items = [
@@ -3112,14 +3168,25 @@ function UFCSection() {
 }
 
 
-function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec, isMobile }: {
+function MarketCommandDeck({ sport, games, loading, lastUpdatedAt, isMobile }: {
   sport: SupportedSport | 'ufc'
   games: Game[]
   loading: boolean
-  lastUpdatedLabel: string | null
-  feedAgeSec: number
+  lastUpdatedAt: Date | null
   isMobile: boolean
 }) {
+  const [feedAgeSec, setFeedAgeSec] = useState(0)
+
+  useEffect(() => {
+    if (!lastUpdatedAt) {
+      setFeedAgeSec(0)
+      return
+    }
+    const update = () => setFeedAgeSec(Math.max(0, Math.floor((Date.now() - lastUpdatedAt.getTime()) / 1000)))
+    update()
+    const iv = setInterval(update, 1000)
+    return () => clearInterval(iv)
+  }, [lastUpdatedAt])
   // Mobile screen space is for decisions, not slate-count vanity stats.
   // Users can see/count the games themselves; keep the market deck desktop-only.
   if (sport === 'ufc' || isMobile) return null
@@ -3155,7 +3222,7 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedLabel, feedAgeSec
           <div style={{ minWidth: 0 }}>
             <div style={{ color: statusColor, fontSize: 10, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>{status}</div>
             <div style={{ color: C.textSecondary, fontSize: 11, marginTop: 3, whiteSpace: isMobile ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {loading ? 'Building the card slate and checking live executable prices.' : lastUpdatedLabel ? `Updated ${lastUpdatedLabel}` : 'Standing by for market data.'}
+              {loading ? 'Building the card slate and checking live executable prices.' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Standing by for market data." />}
               {(staleFeed || thinMatches > 0) && !loading ? ` · ${staleFeed ? 'refresh recommended' : `${thinMatches} thin match${thinMatches === 1 ? '' : 'es'}`}` : ''}
             </div>
           </div>
@@ -3243,7 +3310,7 @@ function ControlButton({ active, accent, children, onClick, minWidth = 0 }: {
   )
 }
 
-function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, onOpenTracker, onRefresh, loading, lastUpdatedLabel, isMobile, accountEnabled }: {
+function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, onOpenTracker, onRefresh, loading, lastUpdatedAt, isMobile, accountEnabled }: {
   sport: SupportedSport | 'ufc'
   setSport: (s: SupportedSport | 'ufc') => void
   days: DayOption[]
@@ -3253,7 +3320,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
   onOpenTracker: () => void
   onRefresh: () => void
   loading: boolean
-  lastUpdatedLabel: string | null
+  lastUpdatedAt: Date | null
   isMobile: boolean
   accountEnabled: boolean
 }) {
@@ -3289,7 +3356,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
             <div style={{ minWidth: 0 }}>
               <div style={{ color: activeAccent, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Athlete Intelligence</div>
               <div style={{ color: C.textPrimary, fontSize: 19, fontWeight: 950, letterSpacing: '-0.03em', lineHeight: 1.05 }}>{sportLabel} Slate</div>
-              <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{loading ? 'Syncing markets…' : lastUpdatedLabel ? `Updated ${lastUpdatedLabel}` : 'Kalshi + market intelligence'}</div>
+              <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{loading ? 'Syncing markets…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <button onClick={onOpenTracker} aria-label="Open bet tracker" style={{ position: 'relative', width: 38, height: 38, borderRadius: 13, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 15, cursor: 'pointer' }}>◫{pendingBets > 0 && <span style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: activeAccent, color: C.bg, fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pendingBets}</span>}</button>
@@ -3413,7 +3480,6 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [showTracker, setShowTracker] = useState(false)
   const [bets, setBets] = useState<BetLog[]>([])
   const [oddsDrift, setOddsDrift] = useState<Record<string, OddsDrift>>({})
-  const [secsSinceUpdate, setSecsSinceUpdate] = useState(0)
   const prevGamesRef = useRef<Map<string, Game>>(new Map())
   const [activeIntelGame, setActiveIntelGame] = useState<Game | null>(null)
   const [activeAnalysisGame, setActiveAnalysisGame] = useState<Game | null>(null)
@@ -3430,14 +3496,6 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
     setBets(updated)
     localStorage.setItem('poly-bets', JSON.stringify(updated))
   }
-
-  // Seconds-since-update counter
-  useEffect(() => {
-    if (!lastUpdated) return
-    setSecsSinceUpdate(0)
-    const iv = setInterval(() => setSecsSinceUpdate(s => s + 1), 1000)
-    return () => clearInterval(iv)
-  }, [lastUpdated])
 
   // Clear drift after 5 seconds
   useEffect(() => {
@@ -3535,12 +3593,6 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const logBet = (b: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) =>
     saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])
 
-  const lastUpdatedLabel = lastUpdated
-    ? secsSinceUpdate < 60
-      ? `${secsSinceUpdate}s ago`
-      : `${Math.floor(secsSinceUpdate / 60)}m ago`
-    : null
-
   return (
     <main style={{ minHeight: '100vh', background: C.bg, color: C.textPrimary, position: 'relative', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <style>{GLOBAL_STYLES}</style>
@@ -3562,12 +3614,12 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           onOpenTracker={() => setShowTracker(true)}
           onRefresh={() => { setLoading(true); fetchGames() }}
           loading={loading}
-          lastUpdatedLabel={lastUpdatedLabel}
+          lastUpdatedAt={lastUpdated}
           isMobile={isMobile}
           accountEnabled={true}
         />
 
-        <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedLabel={lastUpdatedLabel} feedAgeSec={lastUpdated ? secsSinceUpdate : 0} isMobile={isMobile} />
+        <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedAt={lastUpdated} isMobile={isMobile} />
 
         <MarketModeDock />
 

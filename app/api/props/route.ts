@@ -56,10 +56,37 @@ interface KalshiMarketScan {
 
 type KalshiRawScan = KalshiMarketScan & { fetchedAt: number }
 
-const KALSHI_RAW_TTL_MS = 45_000
+const KALSHI_RAW_TTL_MS = 120_000
+const ESPN_TEAM_PROPS_TTL_MS = 5 * 60_000
+const ESPN_PLAYER_GAMELOG_TTL_MS = 15 * 60_000
+const ESPN_GAMELOG_CONCURRENCY = 7
 const kalshiRawCache = new Map<Sport, KalshiRawScan>()
 const kalshiRawInflight = new Map<Sport, Promise<KalshiRawScan>>()
 const kalshiMarketByTickerCache = new Map<string, Promise<any | null>>()
+
+type TimedCache<T> = { value: T; fetchedAt: number }
+const teamPropsCache = new Map<string, TimedCache<PlayerPropLine[]>>()
+const teamPropsInflight = new Map<string, Promise<PlayerPropLine[]>>()
+const playerGameLogCache = new Map<string, TimedCache<GameLogEntry[]>>()
+const playerGameLogInflight = new Map<string, Promise<GameLogEntry[]>>()
+
+function getFreshCache<T>(cache: Map<string, TimedCache<T>>, key: string, ttlMs: number): T | null {
+  const cached = cache.get(key)
+  return cached && Date.now() - cached.fetchedAt < ttlMs ? cached.value : null
+}
+
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let nextIndex = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++
+      results[index] = await fn(items[index], index)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
 
 function kalshiSupportedEventPrefixes(sport: Sport): string[] {
   return sport === 'nba'
@@ -150,6 +177,10 @@ function avg(nums: number[]): number {
 function latestMinutes(logs: GameLogEntry[]): number | undefined {
   const minutes = Number(logs[0]?.stats?.minutes)
   return Number.isFinite(minutes) && minutes > 0 ? minutes : undefined
+}
+
+function withLastGameMinutes(player: PlayerPropLine): PlayerPropLine {
+  return player.lastGameMinutes ? player : { ...player, lastGameMinutes: latestMinutes(player.last12 || []) }
 }
 
 function pct(n: number): number {
@@ -740,7 +771,7 @@ function addMissingKalshiContracts(players: PlayerPropLine[], kalshiMarkets: any
       continue
     }
   }
-  return Array.from(byKey.values())
+  return Array.from(byKey.values()).map(withLastGameMinutes)
 }
 
 async function applyXaiPropIntel(players: PlayerPropLine[]): Promise<PlayerPropLine[]> {
@@ -793,6 +824,21 @@ function valuesForMetric(p: PlayerPropLine, metric: string): number[] {
   return []
 }
 
+type KalshiMatchCache = Map<string, Promise<KalshiMarketMatch | null>>
+
+function kalshiMatchCacheKey(player: string, rec: PropRecommendation, sport: Sport): string {
+  return `${sport}:${normalizeName(player)}:${rec.metric}:${rec.line}`
+}
+
+function cachedKalshiMatch(cache: KalshiMatchCache, player: string, rec: PropRecommendation, sport: Sport, markets: any[]): Promise<KalshiMarketMatch | null> {
+  const key = kalshiMatchCacheKey(player, rec, sport)
+  const cached = cache.get(key)
+  if (cached) return cached
+  const promise = findKalshiMatch(player, rec, sport, markets)
+  cache.set(key, promise)
+  return promise
+}
+
 function kalshiLinesForPlayerMetric(player: string, metric: string, sport: Sport, markets: any[]): number[] {
   const prefixes = metricPrefixes(metric, sport)
   if (!prefixes.length) return []
@@ -808,7 +854,7 @@ function kalshiLinesForPlayerMetric(player: string, metric: string, sport: Sport
   return Array.from(new Set(lines)).sort((a, b) => a - b)
 }
 
-async function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: any[]): Promise<PlayerPropLine[]> {
+async function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: any[], matchCache: KalshiMatchCache = new Map()): Promise<PlayerPropLine[]> {
   const gated = await Promise.all(players.map(async p => {
     const metrics = sport === 'nba'
       ? ['points', 'rebounds', 'assists', 'threes', 'steals', 'blocks']
@@ -820,28 +866,28 @@ async function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: an
         .filter(Boolean) as PropRecommendation[]
     })
     const sourceRecommendations = marketDrivenRecommendations.length ? marketDrivenRecommendations : p.recommendations
-    const withMatches = await Promise.all(sourceRecommendations.map(async r => ({ ...r, kalshi: await findKalshiMatch(p.player, r, sport, markets) })))
+    const withMatches = await Promise.all(sourceRecommendations.map(async r => ({ ...r, kalshi: await cachedKalshiMatch(matchCache, p.player, r, sport, markets) })))
     const recommendations = withMatches
       .filter(r => r.kalshi)
       .sort((a, b) => (b.valueScore - a.valueScore) || ((a.kalshi?.yesAsk || 99) - (b.kalshi?.yesAsk || 99)))
     const bestBet = recommendations[0] || null
-    return { ...p, recommendations, bestBet }
+    return withLastGameMinutes({ ...p, recommendations, bestBet })
   }))
   return gated.filter(p => p.bestBet) as PlayerPropLine[]
 }
 
-async function countExecutableRecommendations(rawPlayers: PlayerPropLine[], sport: Sport, markets: any[]): Promise<number> {
+async function countExecutableRecommendations(rawPlayers: PlayerPropLine[], sport: Sport, markets: any[], matchCache: KalshiMatchCache = new Map()): Promise<number> {
   const counts = await Promise.all(rawPlayers.map(async p => {
-    const matches = await Promise.all(p.recommendations.map(r => findKalshiMatch(p.player, r, sport, markets)))
+    const matches = await Promise.all(p.recommendations.map(r => cachedKalshiMatch(matchCache, p.player, r, sport, markets)))
     return matches.filter(Boolean).length
   }))
   return counts.reduce((sum, n) => sum + n, 0)
 }
 
-async function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: PlayerPropLine[], sport: Sport, scan: KalshiMarketScan): Promise<PropsMarketSummary> {
+async function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: PlayerPropLine[], sport: Sport, scan: KalshiMarketScan, matchCache: KalshiMatchCache = new Map()): Promise<PropsMarketSummary> {
   const playableMatched = gatedPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
   const candidateProps = rawPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
-  const executableMatched = await countExecutableRecommendations(rawPlayers, sport, scan.markets)
+  const executableMatched = await countExecutableRecommendations(rawPlayers, sport, scan.markets, matchCache)
   const priceRejected = Math.max(0, executableMatched - playableMatched)
   const status: PropsMarketSummary['status'] = scan.markets.length === 0
     ? 'no_markets'
@@ -974,10 +1020,28 @@ function parseGameLogs(data: any, sport: Sport): GameLogEntry[] {
 }
 
 async function fetchPlayerGameLogs(athleteId: string, sport: Sport): Promise<GameLogEntry[]> {
-  const leaguePath = sport === 'nba' ? 'basketball/nba' : sport === 'nfl' ? 'football/nfl' : 'baseball/mlb'
-  const season = sport === 'nfl' ? '2025' : '2026'
-  const data = await safeJson(`https://site.web.api.espn.com/apis/common/v3/sports/${leaguePath}/athletes/${athleteId}/gamelog?season=${season}`)
-  return parseGameLogs(data, sport)
+  const key = `${sport}:${athleteId}`
+  const cached = getFreshCache(playerGameLogCache, key, ESPN_PLAYER_GAMELOG_TTL_MS)
+  if (cached) return cached
+
+  const inflight = playerGameLogInflight.get(key)
+  if (inflight) return inflight
+
+  const promise = (async () => {
+    try {
+      const leaguePath = sport === 'nba' ? 'basketball/nba' : sport === 'nfl' ? 'football/nfl' : 'baseball/mlb'
+      const season = sport === 'nfl' ? '2025' : '2026'
+      const data = await safeJson(`https://site.web.api.espn.com/apis/common/v3/sports/${leaguePath}/athletes/${athleteId}/gamelog?season=${season}`)
+      const logs = parseGameLogs(data, sport)
+      playerGameLogCache.set(key, { value: logs, fetchedAt: Date.now() })
+      return logs
+    } finally {
+      playerGameLogInflight.delete(key)
+    }
+  })()
+
+  playerGameLogInflight.set(key, promise)
+  return promise
 }
 
 function flattenRoster(rawAthletes: any[], sport: Sport): any[] {
@@ -992,13 +1056,13 @@ function teamSlug(abbr: string, sport: Sport): string {
   return sport === 'nba' ? (ESPN_ABBR[upper] || upper.toLowerCase()) : sport === 'nfl' ? (NFL_ABBR[upper] || upper.toLowerCase()) : (MLB_ABBR[upper] || upper.toLowerCase())
 }
 
-async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLine[]> {
+async function fetchTeamPropsUncached(abbr: string, sport: Sport): Promise<PlayerPropLine[]> {
   const leaguePath = sport === 'nba' ? 'basketball/nba' : sport === 'nfl' ? 'football/nfl' : 'baseball/mlb'
   const rosterData = await safeJson(`https://site.api.espn.com/apis/site/v2/sports/${leaguePath}/teams/${teamSlug(abbr, sport)}/roster`)
   const rosterLimit = sport === 'nba' ? 24 : sport === 'nfl' ? 22 : 34
   const roster = flattenRoster(rosterData?.athletes || [], sport).slice(0, rosterLimit)
 
-  const results = await Promise.all(roster.map(async (player: any) => {
+  const results = await mapLimit(roster, ESPN_GAMELOG_CONCURRENCY, async (player: any) => {
     const logs = await fetchPlayerGameLogs(String(player.id), sport)
     if (logs.length < 4) return null
     const position = player.position?.abbreviation || '?'
@@ -1061,10 +1125,32 @@ async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLin
       recommendations,
       bestBet,
     } as PlayerPropLine
-  }))
+  })
 
   return (results.filter(Boolean) as PlayerPropLine[])
     .sort((a, b) => (b.bestBet?.confidence || 0) - (a.bestBet?.confidence || 0))
+}
+
+async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLine[]> {
+  const key = `${sport}:${abbr.toUpperCase()}`
+  const cached = getFreshCache(teamPropsCache, key, ESPN_TEAM_PROPS_TTL_MS)
+  if (cached) return cached
+
+  const inflight = teamPropsInflight.get(key)
+  if (inflight) return inflight
+
+  const promise = (async () => {
+    try {
+      const props = await fetchTeamPropsUncached(abbr, sport)
+      teamPropsCache.set(key, { value: props, fetchedAt: Date.now() })
+      return props
+    } finally {
+      teamPropsInflight.delete(key)
+    }
+  })()
+
+  teamPropsInflight.set(key, promise)
+  return promise
 }
 
 function parseSportParam(value: string | null): Sport {
@@ -1083,7 +1169,8 @@ export async function GET(req: NextRequest) {
   try {
     const [homeRaw, awayRaw, kalshiScan] = await Promise.all([fetchTeamProps(home, sport), fetchTeamProps(away, sport), fetchKalshiPropMarkets(sport, home, away)])
     const kalshiMarkets = kalshiScan.markets
-    const [gatedHome, gatedAway] = await Promise.all([gateToKalshi(homeRaw, sport, kalshiMarkets), gateToKalshi(awayRaw, sport, kalshiMarkets)])
+    const matchCache: KalshiMatchCache = new Map()
+    const [gatedHome, gatedAway] = await Promise.all([gateToKalshi(homeRaw, sport, kalshiMarkets, matchCache), gateToKalshi(awayRaw, sport, kalshiMarkets, matchCache)])
     const withMissing = addMissingKalshiContracts([...gatedAway, ...gatedHome], kalshiMarkets, sport, home, away)
     const withXai = await applyXaiPropIntel(withMissing)
     const statReady = withXai
@@ -1091,12 +1178,12 @@ export async function GET(req: NextRequest) {
       .map(p => {
         const recommendations = (p.recommendations || []).filter(r => r.games > 0 && r.kalshi)
         const bestBet = recommendations.includes(p.bestBet as PropRecommendation) ? p.bestBet : recommendations[0] || null
-        return { ...p, recommendations, bestBet }
+        return withLastGameMinutes({ ...p, recommendations, bestBet })
       })
       .filter(p => p.bestBet && p.recommendations.length)
     const homeProps = statReady.filter(p => p.team === home)
     const awayProps = statReady.filter(p => p.team === away)
-    const marketSummary = await summarizeMarkets([...homeRaw, ...awayRaw], [...homeProps, ...awayProps], sport, kalshiScan)
+    const marketSummary = await summarizeMarkets([...homeRaw, ...awayRaw], [...homeProps, ...awayProps], sport, kalshiScan, matchCache)
     return NextResponse.json({ home: homeProps, away: awayProps, homeTeam: home, awayTeam: away, sport, available: homeProps.length > 0 || awayProps.length > 0, marketSummary } satisfies PropsResponse)
   } catch (err) {
     console.error('Props error:', err)
