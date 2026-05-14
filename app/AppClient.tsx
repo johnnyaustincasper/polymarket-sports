@@ -1697,6 +1697,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
                 const pool = team.fatigue?.players || []
                 const starters = pool.filter(p => p.projectedStarter || p.isStarter).slice(0, 5)
                 const projected = (starters.length >= 5 ? starters : pool.filter(p => p.rotationRole === 'starter' || p.minutes >= 24).slice(0, 5))
+                const minuteLeaders = pool.filter(p => p.minutes >= 0 || p.fatigueFlag === 'dnp').slice(0, 8)
                 const shownInjuries = injuries.slice(0, 5)
                 return (
                   <div key={`kalshi-lineup-${team.abbr}`} style={{ minWidth: 0 }}>
@@ -1719,12 +1720,36 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
                             <div key={`${team.abbr}-starter-${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                               <span style={{ color: out ? 'rgba(255,68,102,0.62)' : p.warning ? C.gold : C.textPrimary, fontSize: 8, fontWeight: 850, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: out ? 'line-through' : 'none' }}>{p.name}</span>
                               <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, width: 20, flexShrink: 0, textAlign: 'center' }}>{p.position || '?'}</span>
+                              <span style={{ color: p.minutes >= 36 ? C.red : p.minutes >= 28 ? C.gold : C.textSecondary, fontSize: 7, fontWeight: 950, width: 28, flexShrink: 0, textAlign: 'right' }}>{p.minutes < 0 ? 'DNP' : `${p.minutes}m`}</span>
                               {out && <span style={{ background: C.red, color: '#fff', borderRadius: 4, padding: '1px 4px', fontSize: 7, fontWeight: 950 }}>OUT</span>}
                               {q && <span style={{ background: '#c8960c', color: '#fff', borderRadius: 4, padding: '1px 4px', fontSize: 7, fontWeight: 950 }}>Q</span>}
                             </div>
                           )
                         }) : <div style={{ color: C.textSecondary, fontSize: 8 }}>Projected starters unavailable.</div>}
                       </div>
+                    </div>
+                    <div style={{ borderRadius: 11, padding: 7, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, marginBottom: 7 }}>
+                      <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 5 }}>Last game minutes</div>
+                      {minuteLeaders.length ? (
+                        <div style={{ display: 'grid', gap: 4 }}>
+                          {minuteLeaders.map((p, i) => {
+                            const isDnp = p.minutes < 0 || p.fatigueFlag === 'dnp'
+                            const barColor = isDnp ? C.textSecondary : p.minutes >= 36 ? C.red : p.minutes >= 28 ? C.gold : C.green
+                            const barWidth = isDnp ? 0 : Math.min(100, (p.minutes / 42) * 100)
+                            const role = p.rotationRole === 'starter' || p.isStarter ? 'START' : p.rotationRole === 'sixth' ? '6TH' : p.rotationRole === 'second_unit' ? 'BENCH' : p.rotationRole === 'deep_bench' ? 'DEEP' : 'DNP'
+                            return (
+                              <div key={`${team.abbr}-mins-${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                                <span style={{ color: p.warning ? C.gold : p.isStarter ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: p.isStarter ? 900 : 750, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                                <span style={{ color: p.isStarter ? C.green : C.textSecondary, fontSize: 6, fontWeight: 950, width: 26, flexShrink: 0, textAlign: 'center' }}>{role}</span>
+                                <div style={{ flex: 1, maxWidth: 50, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+                                  <div style={{ width: `${barWidth}%`, height: '100%', borderRadius: 999, background: barColor }} />
+                                </div>
+                                <span style={{ color: barColor, fontSize: 8, fontWeight: 950, width: 28, flexShrink: 0, textAlign: 'right' }}>{isDnp ? 'DNP' : `${p.minutes}m`}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : <div style={{ color: C.textSecondary, fontSize: 8 }}>Last-game minutes unavailable.</div>}
                     </div>
                     <div style={{ borderRadius: 11, padding: 7, background: shownInjuries.length ? 'rgba(255,68,102,0.045)' : 'rgba(166,255,63,0.025)', border: `1px solid ${shownInjuries.length ? 'rgba(255,68,102,0.20)' : C.border}` }}>
                       <div style={{ color: shownInjuries.length ? C.red : C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 5 }}>Injury list</div>
