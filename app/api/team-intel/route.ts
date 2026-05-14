@@ -7,6 +7,7 @@ import {
   fetchFatigueReport,
 } from '@/app/lib/nba-api'
 import type { TeamIntel } from '@/app/lib/types'
+import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -307,13 +308,14 @@ Prioritize load management / fatigue / back-to-back factors if relevant. Be dire
 }
 
 export async function GET(req: NextRequest) {
+  const timing = startRouteTiming('/api/team-intel')
   try {
     const { searchParams } = req.nextUrl
     const home = searchParams.get('home')?.toUpperCase()
     const away = searchParams.get('away')?.toUpperCase()
 
     if (!home || !away) {
-      return NextResponse.json({ error: 'Missing home or away param' }, { status: 400 })
+      return finishRouteTiming(timing, NextResponse.json({ error: 'Missing home or away param' }, { status: 400 }))
     }
 
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
@@ -408,9 +410,9 @@ export async function GET(req: NextRequest) {
       altitudeNote,
     }
 
-    return NextResponse.json(intel)
+    return finishRouteTiming(timing, NextResponse.json(intel))
   } catch (err) {
     console.error('Team intel error:', err)
-    return NextResponse.json({ error: 'Failed to fetch team intel' }, { status: 500 })
+    return finishRouteTiming(timing, NextResponse.json({ error: 'Failed to fetch team intel' }, { status: 500 }))
   }
 }

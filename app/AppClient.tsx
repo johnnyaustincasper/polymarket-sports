@@ -1,8 +1,12 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import AccountMenu from './components/AccountMenu'
+import LoadingMarketCards from './components/LoadingMarketCards'
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
+
+const BetTracker = dynamic(() => import('./components/BetTracker'), { ssr: false })
 
 interface Team {
   name: string; abbr: string; record: string; score: string; logo: string; color: string
@@ -649,89 +653,6 @@ function AnalysisPanel({ game, onClose, onDone }: { game: Game; onClose: () => v
           })}
         </div>
       )}
-    </div>
-  )
-}
-
-// ─── Bet Tracker ──────────────────────────────────────────────────────────────
-function BetTracker({ bets, onUpdate, onClose }: {
-  bets: BetLog[]; onUpdate: (bets: BetLog[]) => void; onClose: () => void
-}) {
-  const setResult = (id: string, result: 'win' | 'loss') =>
-    onUpdate(bets.map(b => b.id === id ? { ...b, result } : b))
-  const remove = (id: string) => onUpdate(bets.filter(b => b.id !== id))
-
-  const pending = bets.filter(b => b.result === 'pending')
-  const settled = bets.filter(b => b.result !== 'pending')
-  const totalStaked = settled.reduce((s, b) => s + b.stake, 0)
-  const totalPnl = settled.reduce((s, b) => b.result === 'win' ? s + (b.stake / b.odds - b.stake) : s - b.stake, 0)
-
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(2,2,15,0.96)', backdropFilter: 'blur(24px)' }}>
-      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(166,255,63,0.015) 2px, rgba(166,255,63,0.015) 4px)' }} />
-      <div className="flex-1 overflow-y-auto max-w-lg w-full mx-auto px-5 py-8" style={{ position: 'relative', zIndex: 1 }}>
-        <button onClick={onClose} style={{ color: C.textSecondary, fontSize: 12, letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20 }}>← CLOSE</button>
-        <h3 style={{ color: C.cyan, fontWeight: 900, fontSize: 20, letterSpacing: '-0.02em', textShadow: `0 0 20px ${C.cyan}55` }}>◈ BET TRACKER</h3>
-
-        {settled.length > 0 && (
-          <div className="mt-4 mb-6 rounded-2xl p-4 grid grid-cols-3 text-center" style={{ background: 'rgba(166,255,63,0.04)', border: `1px solid ${C.border}` }}>
-            {[['BETS', settled.length, C.textPrimary], ['STAKED', `$${totalStaked.toFixed(0)}`, C.textPrimary], ['P&L', `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, totalPnl >= 0 ? C.green : C.red]].map(([label, val, color]) => (
-              <div key={String(label)}>
-                <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</p>
-                <p style={{ color: String(color), fontWeight: 800, fontSize: 20, marginTop: 2 }}>{val}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {pending.length > 0 && (
-          <>
-            <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10 }}>Pending</p>
-            {pending.map(b => (
-              <div key={b.id} className="rounded-2xl p-4 mb-2" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}` }}>
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p style={{ color: C.textPrimary, fontWeight: 700, fontSize: 13 }}>{b.betLabel}</p>
-                    <p style={{ color: C.textSecondary, fontSize: 11 }}>{b.matchup} · ${b.stake}</p>
-                  </div>
-                  <button onClick={() => remove(b.id)} style={{ color: C.textSecondary, fontSize: 12 }}>✕</button>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setResult(b.id, 'win')} className="flex-1 py-2 rounded-xl font-bold transition-all" style={{ background: 'rgba(166,255,63,0.1)', border: '1px solid rgba(166,255,63,0.3)', color: C.green, fontSize: 12 }}>WIN</button>
-                  <button onClick={() => setResult(b.id, 'loss')} className="flex-1 py-2 rounded-xl font-bold transition-all" style={{ background: 'rgba(255,68,102,0.1)', border: '1px solid rgba(255,68,102,0.3)', color: C.red, fontSize: 12 }}>LOSS</button>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {settled.length > 0 && (
-          <>
-            <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10, marginTop: 20 }}>Settled</p>
-            {settled.map(b => (
-              <div key={b.id} className="flex items-center justify-between py-3" style={{ borderBottom: `1px solid ${C.border}` }}>
-                <div>
-                  <p style={{ color: C.textPrimary, fontSize: 12, fontWeight: 600 }}>{b.betLabel}</p>
-                  <p style={{ color: C.textSecondary, fontSize: 10 }}>{b.matchup} · ${b.stake}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span style={{ fontSize: 12, fontWeight: 700, color: b.result === 'win' ? C.green : C.red }}>
-                    {b.result === 'win' ? `+$${(b.stake / b.odds - b.stake).toFixed(2)}` : `-$${b.stake}`}
-                  </span>
-                  <button onClick={() => remove(b.id)} style={{ color: C.textSecondary, fontSize: 10 }}>✕</button>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {bets.length === 0 && (
-          <div className="text-center py-16">
-            <p style={{ color: C.textSecondary, fontSize: 14 }}>No bets logged</p>
-            <p style={{ color: C.textSecondary, opacity: 0.5, fontSize: 11, marginTop: 6, letterSpacing: '0.05em' }}>Tap any odds chip to log a position</p>
-          </div>
-        )}
-      </div>
     </div>
   )
 }
@@ -1491,6 +1412,33 @@ function useIsMobile() {
   return isMobile
 }
 
+function useNearViewport<T extends HTMLElement>(rootMargin = '700px') {
+  const ref = useRef<T | null>(null)
+  const [nearViewport, setNearViewport] = useState(false)
+
+  useEffect(() => {
+    if (nearViewport) return
+    const node = ref.current
+    if (!node) return
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      setNearViewport(true)
+      return
+    }
+
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting || entry.intersectionRatio > 0)) {
+        setNearViewport(true)
+        observer.disconnect()
+      }
+    }, { rootMargin, threshold: 0.01 })
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [nearViewport, rootMargin])
+
+  return [ref, nearViewport] as const
+}
+
 function chunkArray<T>(arr: T[], size: number): T[][] {
   const result: T[][] = []
   for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size))
@@ -1641,19 +1589,24 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
   const [activePropTab, setActivePropTab] = useState<string>('points')
   const [selectedContracts, setSelectedContracts] = useState<Record<string, boolean>>({})
   const [expandedContractKey, setExpandedContractKey] = useState<string>('')
+  const [cardRef, nearViewport] = useNearViewport<HTMLDivElement>('900px')
+  const [loadRequested, setLoadRequested] = useState(false)
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
+  const shouldLoadIntelAndProps = nearViewport || loadRequested
+  const requestCardLoad = useCallback(() => setLoadRequested(true), [])
 
   useEffect(() => {
     if (sport !== 'nba') {
       setIntel(null)
       return
     }
+    if (!shouldLoadIntelAndProps) return
     let cancelled = false
     fetchJsonCached<TeamIntelData>(cacheKey('/api/team-intel', { home: game.homeTeam.abbr, away: game.awayTeam.abbr }), 60_000)
       .then(d => { if (!cancelled) setIntel(d) })
       .catch(() => { if (!cancelled) setIntel(null) })
     return () => { cancelled = true }
-  }, [game.homeTeam.abbr, game.awayTeam.abbr, sport])
+  }, [game.homeTeam.abbr, game.awayTeam.abbr, sport, shouldLoadIntelAndProps])
 
   useEffect(() => {
     if (!supportedKalshiSport) {
@@ -1662,6 +1615,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
       setError(null)
       return
     }
+    if (!shouldLoadIntelAndProps) return
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -1671,7 +1625,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
       .catch(e => { if (!cancelled) setError(e?.name === 'AbortError' ? 'scan timed out — retry in a few seconds' : e?.message || 'props unavailable') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [game.homeTeam.abbr, game.awayTeam.abbr, game.id, sport, supportedKalshiSport])
+  }, [game.homeTeam.abbr, game.awayTeam.abbr, game.id, sport, supportedKalshiSport, shouldLoadIntelAndProps])
 
   const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (p.last12 || []).length >= 4 && (p.recommendations || []).length) : []
   const allContracts = players.flatMap((p: any) => (p.recommendations || []).map((bet: any) => ({ player: p, bet })))
@@ -1711,7 +1665,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
   const playable = summary?.playableMatched ?? allContracts.length
 
   return (
-    <div style={{
+    <div ref={cardRef} onMouseEnter={requestCardLoad} onFocusCapture={requestCardLoad} onTouchStart={requestCardLoad} onClickCapture={requestCardLoad} style={{
       borderRadius: 22,
       padding: 1,
       background: playable > 0 ? 'linear-gradient(135deg, rgba(166,255,63,0.64), rgba(255,255,255,0.14), rgba(166,255,63,0.12))' : 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.06))',
@@ -3241,40 +3195,6 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedAt, isMobile }: {
     </section>
   )
 }
-
-function LoadingMarketCards({ cols = 3, count = 6 }: { cols?: number; count?: number }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: 16 }}>
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} style={{
-          height: 250, borderRadius: 24, padding: 1,
-          background: 'linear-gradient(135deg, rgba(166,255,63,0.36), rgba(255,255,255,0.10), rgba(166,255,63,0.08))',
-          boxShadow: '0 0 34px rgba(166,255,63,0.10), 0 14px 48px rgba(0,0,0,0.42)',
-          animation: `scanCardGlow ${1.15 + (i % 3) * 0.18}s ease-in-out infinite`,
-          overflow: 'hidden', position: 'relative',
-        }}>
-          <div style={{ position: 'absolute', inset: 1, borderRadius: 23, background: 'linear-gradient(145deg, rgba(10,16,7,0.96), rgba(3,5,0,0.96))' }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(166,255,63,0.95), transparent)', animation: `scanCardSweep ${1 + (i % 2) * 0.2}s linear infinite` }} />
-          <div style={{ position: 'relative', padding: 18, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                <div style={{ width: 86, height: 10, borderRadius: 999, background: 'rgba(166,255,63,0.22)' }} />
-                <div style={{ width: 36, height: 10, borderRadius: 999, background: 'rgba(255,255,255,0.08)' }} />
-              </div>
-              <div style={{ height: 24, borderRadius: 10, background: 'rgba(247,255,240,0.10)', marginBottom: 10, width: '76%' }} />
-              <div style={{ height: 14, borderRadius: 8, background: 'rgba(166,255,63,0.10)', width: '54%' }} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {[0, 1, 2].map(n => <div key={n} style={{ height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(166,255,63,0.10)' }} />)}
-            </div>
-            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase', textAlign: 'center' }}>Scanning card slate…</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 
 type DayOption = { label: string; value: string }
 

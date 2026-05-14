@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { ESPN_ABBR } from '@/app/lib/nba-api'
+import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
+import { getJsonCache, setJsonCache } from '@/app/lib/durable-cache'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -59,6 +61,8 @@ type KalshiRawScan = KalshiMarketScan & { fetchedAt: number }
 const KALSHI_RAW_TTL_MS = 120_000
 const ESPN_TEAM_PROPS_TTL_MS = 5 * 60_000
 const ESPN_PLAYER_GAMELOG_TTL_MS = 15 * 60_000
+const XAI_PROP_INTEL_TTL_MS = 10 * 60_000
+const XAI_PROP_INTEL_TIMEOUT_MS = 10_000
 const ESPN_GAMELOG_CONCURRENCY = 7
 const kalshiRawCache = new Map<Sport, KalshiRawScan>()
 const kalshiRawInflight = new Map<Sport, Promise<KalshiRawScan>>()
@@ -69,10 +73,27 @@ const teamPropsCache = new Map<string, TimedCache<PlayerPropLine[]>>()
 const teamPropsInflight = new Map<string, Promise<PlayerPropLine[]>>()
 const playerGameLogCache = new Map<string, TimedCache<GameLogEntry[]>>()
 const playerGameLogInflight = new Map<string, Promise<GameLogEntry[]>>()
+const xaiPropIntelCache = new Map<string, TimedCache<PlayerPropLine[]>>()
 
 function getFreshCache<T>(cache: Map<string, TimedCache<T>>, key: string, ttlMs: number): T | null {
   const cached = cache.get(key)
   return cached && Date.now() - cached.fetchedAt < ttlMs ? cached.value : null
+}
+
+function isTruthyParam(value: string | null): boolean {
+  return ['1', 'true', 'yes', 'on'].includes(String(value || '').toLowerCase())
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>(resolve => { timeout = setTimeout(() => resolve(fallback), timeoutMs) }),
+    ])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
@@ -395,6 +416,13 @@ async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
   const inflight = kalshiRawInflight.get(sport)
   if (inflight) return inflight
 
+  const durableKey = `kalshi:raw:${sport}`
+  const durableCached = await getJsonCache<KalshiRawScan>(durableKey)
+  if (durableCached && Date.now() - durableCached.fetchedAt < KALSHI_RAW_TTL_MS) {
+    kalshiRawCache.set(sport, durableCached)
+    return durableCached
+  }
+
   const promise = (async (): Promise<KalshiRawScan> => {
     try {
       const markets: any[] = []
@@ -432,10 +460,12 @@ async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
       }
       const scan = { markets, scanned: markets.length, pages, fetchedAt: Date.now() }
       kalshiRawCache.set(sport, scan)
+      await setJsonCache(durableKey, scan, KALSHI_RAW_TTL_MS)
       return scan
     } catch {
       const scan = { markets: [], scanned: 0, pages: 0, fetchedAt: Date.now() }
       kalshiRawCache.set(sport, scan)
+      await setJsonCache(durableKey, scan, Math.min(KALSHI_RAW_TTL_MS, 30_000))
       return scan
     } finally {
       kalshiRawInflight.delete(sport)
@@ -774,35 +804,61 @@ function addMissingKalshiContracts(players: PlayerPropLine[], kalshiMarkets: any
   return Array.from(byKey.values()).map(withLastGameMinutes)
 }
 
-async function applyXaiPropIntel(players: PlayerPropLine[]): Promise<PlayerPropLine[]> {
-  if (!process.env.XAI_API_KEY) return players
+function xaiPropIntelCacheKey(players: PlayerPropLine[]): string {
+  return players
+    .filter(p => p.bestBet?.kalshi)
+    .slice(0, 6)
+    .map(p => [
+      p.team,
+      normalizeName(p.player),
+      p.bestBet?.metric,
+      p.bestBet?.line,
+      p.bestBet?.kalshi?.legTicker,
+      p.bestBet?.kalshi?.yesAsk,
+      (p.last12 || []).slice(0, 3).map(g => g.eventId).join(','),
+    ].join(':'))
+    .join('|')
+}
+
+async function applyXaiPropIntel(players: PlayerPropLine[], enabled = false): Promise<PlayerPropLine[]> {
+  if (!enabled || !process.env.XAI_API_KEY) return players
   const targets = players.filter(p => p.bestBet?.kalshi).slice(0, 6)
   if (!targets.length) return players
-  const socialPairs = await Promise.all(targets.map(async p => ({ player: p.player, social: await searchPlayerSocial(p.player, p.team) })))
-  const socialByPlayer = new Map(socialPairs.map(s => [s.player, s.social]))
-  const compact = targets.map(p => ({
-    player: p.player, team: p.team, position: p.position, last12: p.last12.map(g => ({ date: g.date, opp: g.opponent, stats: g.stats })),
-    bet: p.bestBet, social: socialByPlayer.get(p.player) || [],
-  }))
-  try {
-    const client = new OpenAI({ apiKey: process.env.XAI_API_KEY, baseURL: process.env.XAI_BASE_URL || 'https://api.x.ai/v1' })
-    const response = await client.chat.completions.create({
-      model: XAI_MODEL,
-      temperature: 0.25,
-      max_tokens: 1400,
-      messages: [{ role: 'user', content: `You are a sharp Kalshi player-props analyst. Use the last-12 logs, Kalshi executable YES ask, and social/X snippets if relevant. Do not invent injuries or news. Return ONLY valid JSON array: [{"player":"","metric":"","line":0,"explanation":"one concise reason to bet or pass; include max YES price and current Kalshi ask","risk":"low|medium|high"}]. Data: ${JSON.stringify(compact)}` }],
-    })
-    const raw = response.choices?.[0]?.message?.content?.trim() || '[]'
-    const parsed = JSON.parse(raw.replace(/^```json\s*/i, '').replace(/```$/i, ''))
-    const byKey = new Map((Array.isArray(parsed) ? parsed : []).map((r: any) => [`${r.player}|${r.metric}|${r.line}`, r]))
-    return players.map(p => {
-      if (!p.bestBet) return p
-      const x = byKey.get(`${p.player}|${p.bestBet.metric}|${p.bestBet.line}`)
-      if (!x) return p
-      const bestBet = { ...p.bestBet, explanation: String(x.explanation || p.bestBet.explanation), risk: x.risk || p.bestBet.risk, xaiBacked: true, socialContext: socialByPlayer.get(p.player) || [] }
-      return { ...p, bestBet, recommendations: p.recommendations.map(r => r.metric === bestBet.metric && r.line === bestBet.line ? bestBet : r) }
-    })
-  } catch { return players }
+
+  const cacheKey = xaiPropIntelCacheKey(players)
+  const cached = getFreshCache(xaiPropIntelCache, cacheKey, XAI_PROP_INTEL_TTL_MS)
+  if (cached) return cached
+
+  const enriched = await withTimeout((async () => {
+    const socialPairs = await Promise.all(targets.map(async p => ({ player: p.player, social: await searchPlayerSocial(p.player, p.team) })))
+    const socialByPlayer = new Map(socialPairs.map(s => [s.player, s.social]))
+    const compact = targets.map(p => ({
+      player: p.player, team: p.team, position: p.position, last12: p.last12.map(g => ({ date: g.date, opp: g.opponent, stats: g.stats })),
+      bet: p.bestBet, social: socialByPlayer.get(p.player) || [],
+    }))
+    try {
+      const client = new OpenAI({ apiKey: process.env.XAI_API_KEY, baseURL: process.env.XAI_BASE_URL || 'https://api.x.ai/v1' })
+      const response = await client.chat.completions.create({
+        model: XAI_MODEL,
+        temperature: 0.25,
+        max_tokens: 1400,
+        messages: [{ role: 'user', content: `You are a sharp Kalshi player-props analyst. Use the last-12 logs, Kalshi executable YES ask, and social/X snippets if relevant. Do not invent injuries or news. Return ONLY valid JSON array: [{"player":"","metric":"","line":0,"explanation":"one concise reason to bet or pass; include max YES price and current Kalshi ask","risk":"low|medium|high"}]. Data: ${JSON.stringify(compact)}` }],
+      }, { timeout: XAI_PROP_INTEL_TIMEOUT_MS })
+      const raw = response.choices?.[0]?.message?.content?.trim() || '[]'
+      const parsed = JSON.parse(raw.replace(/^```json\s*/i, '').replace(/```$/i, ''))
+      const byKey = new Map((Array.isArray(parsed) ? parsed : []).map((r: any) => [`${r.player}|${r.metric}|${r.line}`, r]))
+      return players.map(p => {
+        if (!p.bestBet) return p
+        const x = byKey.get(`${p.player}|${p.bestBet.metric}|${p.bestBet.line}`)
+        if (!x) return p
+        const bestBet = { ...p.bestBet, explanation: String(x.explanation || p.bestBet.explanation), risk: x.risk || p.bestBet.risk, xaiBacked: true, socialContext: socialByPlayer.get(p.player) || [] }
+        return { ...p, bestBet, recommendations: p.recommendations.map(r => r.metric === bestBet.metric && r.line === bestBet.line ? bestBet : r) }
+      })
+    } catch { return players }
+  })(), XAI_PROP_INTEL_TIMEOUT_MS + 1000, players)
+
+  xaiPropIntelCache.set(cacheKey, { value: enriched, fetchedAt: Date.now() })
+  return enriched
 }
 
 function valuesForMetric(p: PlayerPropLine, metric: string): number[] {
@@ -1027,13 +1083,22 @@ async function fetchPlayerGameLogs(athleteId: string, sport: Sport): Promise<Gam
   const inflight = playerGameLogInflight.get(key)
   if (inflight) return inflight
 
+  const durableKey = `espn:gamelog:${key}`
+  const durableCached = await getJsonCache<TimedCache<GameLogEntry[]>>(durableKey)
+  if (durableCached && Date.now() - durableCached.fetchedAt < ESPN_PLAYER_GAMELOG_TTL_MS) {
+    playerGameLogCache.set(key, durableCached)
+    return durableCached.value
+  }
+
   const promise = (async () => {
     try {
       const leaguePath = sport === 'nba' ? 'basketball/nba' : sport === 'nfl' ? 'football/nfl' : 'baseball/mlb'
       const season = sport === 'nfl' ? '2025' : '2026'
       const data = await safeJson(`https://site.web.api.espn.com/apis/common/v3/sports/${leaguePath}/athletes/${athleteId}/gamelog?season=${season}`)
       const logs = parseGameLogs(data, sport)
-      playerGameLogCache.set(key, { value: logs, fetchedAt: Date.now() })
+      const entry = { value: logs, fetchedAt: Date.now() }
+      playerGameLogCache.set(key, entry)
+      await setJsonCache(durableKey, entry, ESPN_PLAYER_GAMELOG_TTL_MS)
       return logs
     } finally {
       playerGameLogInflight.delete(key)
@@ -1139,10 +1204,19 @@ async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLin
   const inflight = teamPropsInflight.get(key)
   if (inflight) return inflight
 
+  const durableKey = `espn:team-props:${key}`
+  const durableCached = await getJsonCache<TimedCache<PlayerPropLine[]>>(durableKey)
+  if (durableCached && Date.now() - durableCached.fetchedAt < ESPN_TEAM_PROPS_TTL_MS) {
+    teamPropsCache.set(key, durableCached)
+    return durableCached.value
+  }
+
   const promise = (async () => {
     try {
       const props = await fetchTeamPropsUncached(abbr, sport)
-      teamPropsCache.set(key, { value: props, fetchedAt: Date.now() })
+      const entry = { value: props, fetchedAt: Date.now() }
+      teamPropsCache.set(key, entry)
+      await setJsonCache(durableKey, entry, ESPN_TEAM_PROPS_TTL_MS)
       return props
     } finally {
       teamPropsInflight.delete(key)
@@ -1159,12 +1233,14 @@ function parseSportParam(value: string | null): Sport {
 }
 
 export async function GET(req: NextRequest) {
+  const timing = startRouteTiming('/api/props')
   const { searchParams } = req.nextUrl
   const home = searchParams.get('home')?.toUpperCase()
   const away = searchParams.get('away')?.toUpperCase()
   const sport = parseSportParam(searchParams.get('sport'))
+  const enrich = isTruthyParam(searchParams.get('xai')) || isTruthyParam(searchParams.get('enrich'))
 
-  if (!home || !away) return NextResponse.json({ error: 'Missing home or away param' }, { status: 400 })
+  if (!home || !away) return finishRouteTiming(timing, NextResponse.json({ error: 'Missing home or away param' }, { status: 400 }))
 
   try {
     const [homeRaw, awayRaw, kalshiScan] = await Promise.all([fetchTeamProps(home, sport), fetchTeamProps(away, sport), fetchKalshiPropMarkets(sport, home, away)])
@@ -1172,7 +1248,7 @@ export async function GET(req: NextRequest) {
     const matchCache: KalshiMatchCache = new Map()
     const [gatedHome, gatedAway] = await Promise.all([gateToKalshi(homeRaw, sport, kalshiMarkets, matchCache), gateToKalshi(awayRaw, sport, kalshiMarkets, matchCache)])
     const withMissing = addMissingKalshiContracts([...gatedAway, ...gatedHome], kalshiMarkets, sport, home, away)
-    const withXai = await applyXaiPropIntel(withMissing)
+    const withXai = await applyXaiPropIntel(withMissing, enrich)
     const statReady = withXai
       .filter(p => (p.last12 || []).length >= 4)
       .map(p => {
@@ -1184,9 +1260,9 @@ export async function GET(req: NextRequest) {
     const homeProps = statReady.filter(p => p.team === home)
     const awayProps = statReady.filter(p => p.team === away)
     const marketSummary = await summarizeMarkets([...homeRaw, ...awayRaw], [...homeProps, ...awayProps], sport, kalshiScan, matchCache)
-    return NextResponse.json({ home: homeProps, away: awayProps, homeTeam: home, awayTeam: away, sport, available: homeProps.length > 0 || awayProps.length > 0, marketSummary } satisfies PropsResponse)
+    return finishRouteTiming(timing, NextResponse.json({ home: homeProps, away: awayProps, homeTeam: home, awayTeam: away, sport, available: homeProps.length > 0 || awayProps.length > 0, marketSummary } satisfies PropsResponse))
   } catch (err) {
     console.error('Props error:', err)
-    return NextResponse.json({ error: 'Failed to fetch props' }, { status: 500 })
+    return finishRouteTiming(timing, NextResponse.json({ error: 'Failed to fetch props' }, { status: 500 }))
   }
 }
