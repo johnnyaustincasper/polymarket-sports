@@ -355,6 +355,14 @@ function buildMarketRecommendation(values: number[], line: number, metricLabel: 
   }
 }
 
+function shouldSurfaceKalshiRecommendation(rec: PropRecommendation, sport: Sport): boolean {
+  if (!rec.kalshi) return false
+  // NBA needs the full executable Kalshi board visible. The price edge is still
+  // shown in-card via ask/max, but hiding above-max asks made the slate look empty.
+  if (sport === 'nba') return true
+  return Number(rec.kalshi.yesAsk) <= Number(rec.maxYesPrice)
+}
+
 function findBestThreshold(values: number[], thresholds: number[], metricLabel: string): PropRecommendation | null {
   const candidates = (thresholds
     .map(line => buildThresholdRecommendation(values, line, metricLabel))
@@ -804,12 +812,13 @@ function addMissingKalshiContracts(players: PlayerPropLine[], kalshiMarkets: any
     if (existing) {
       const values = valuesForMetric(existing, rec.metric)
       const statRec = buildMarketRecommendation(values, rec.line, rec.metric, sport)
-      if (!statRec || !existing.last12?.length || Number(rec.kalshi?.yesAsk) > Number(statRec.maxYesPrice)) continue
+      if (!statRec || !existing.last12?.length) continue
       const enrichedRec: PropRecommendation = {
         ...statRec,
         kalshi: rec.kalshi,
         explanation: `${statRec.explanation} Kalshi ask ${rec.kalshi?.yesAsk ?? '—'}¢; max YES ${statRec.maxYesPrice}¢.`,
       }
+      if (!shouldSurfaceKalshiRecommendation(enrichedRec, sport)) continue
       if (!existing.recommendations.some(r => r.kalshi?.legTicker === enrichedRec.kalshi?.legTicker)) existing.recommendations.push(enrichedRec)
       existing.recommendations.sort((a, b) => metricAliases(a.metric)[0].localeCompare(metricAliases(b.metric)[0]) || a.line - b.line)
       existing.bestBet = existing.bestBet || enrichedRec
@@ -942,7 +951,7 @@ async function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: an
     const sourceRecommendations = marketDrivenRecommendations.length ? marketDrivenRecommendations : p.recommendations
     const withMatches = await Promise.all(sourceRecommendations.map(async r => ({ ...r, kalshi: await cachedKalshiMatch(matchCache, p.player, r, sport, markets) })))
     const recommendations = withMatches
-      .filter(r => r.kalshi && Number(r.kalshi.yesAsk) <= Number(r.maxYesPrice))
+      .filter(r => shouldSurfaceKalshiRecommendation(r, sport))
       .sort((a, b) => (b.valueScore - a.valueScore) || ((a.kalshi?.yesAsk || 99) - (b.kalshi?.yesAsk || 99)))
     const bestBet = recommendations[0] || null
     return withLastGameMinutes({ ...p, recommendations, bestBet })
@@ -969,16 +978,17 @@ async function countKalshiRecommendationMatches(rawPlayers: PlayerPropLine[], sp
 }
 
 async function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: PlayerPropLine[], sport: Sport, scan: KalshiMarketScan, matchCache: KalshiMatchCache = new Map()): Promise<PropsMarketSummary> {
-  const playableMatched = gatedPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
+  const surfacedMatched = gatedPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
   const candidateProps = rawPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
   const matchCounts = await countKalshiRecommendationMatches(rawPlayers, sport, scan.markets, matchCache)
   const executableMatched = matchCounts.executable
-  const priceRejected = Math.max(0, executableMatched - Math.max(playableMatched, matchCounts.playable))
+  const playableMatched = sport === 'nba' ? matchCounts.playable : surfacedMatched
+  const priceRejected = Math.max(0, executableMatched - playableMatched)
   const status: PropsMarketSummary['status'] = scan.markets.length === 0
     ? 'no_markets'
     : candidateProps === 0
       ? 'no_candidates'
-      : playableMatched > 0
+      : surfacedMatched > 0
         ? 'playable'
         : executableMatched > 0
           ? 'priced_out'
