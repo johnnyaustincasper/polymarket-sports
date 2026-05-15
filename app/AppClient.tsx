@@ -115,7 +115,7 @@ interface PropsMarketSummary {
   executableMatched?: number
   playableMatched: number
   priceRejected?: number
-  status?: 'no_markets' | 'no_candidates' | 'priced_out' | 'playable'
+  status?: 'no_markets' | 'no_candidates' | 'no_executable' | 'priced_out' | 'playable'
   statusLabel?: string
   pages: number
   stale: boolean
@@ -1922,14 +1922,14 @@ function GameMarketFallback({ game }: { game: Game }) {
   ].filter(Boolean) as Array<{ label: string; url: string | null; rows: Array<{ team: string; bet: string; price: number; hot: boolean }> }>
 
   if (!markets.length) {
-    return <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>No live player props or game markets found for this game yet.</p>
+    return <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>No executable Kalshi player props or game markets found for this game yet.</p>
   }
 
   return (
     <div style={{ display: 'grid', gap: 9 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
         <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Game markets live</div>
-        <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>player props unavailable</div>
+        <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>no executable player props</div>
       </div>
       {markets.map(market => (
         <a key={market.label} href={market.url || undefined} target="_blank" rel="noopener noreferrer" onClick={e => { if (!market.url) e.preventDefault() }} style={{ display: 'block', textDecoration: 'none', borderRadius: 14, padding: 11, background: 'rgba(166,255,63,0.045)', border: `1px solid ${market.url ? C.borderHot : C.border}`, cursor: market.url ? 'pointer' : 'default' }}>

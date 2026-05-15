@@ -44,7 +44,7 @@ interface PropsMarketSummary {
   executableMatched: number
   playableMatched: number
   priceRejected: number
-  status: 'no_markets' | 'no_candidates' | 'priced_out' | 'playable'
+  status: 'no_markets' | 'no_candidates' | 'no_executable' | 'priced_out' | 'playable'
   statusLabel: string
   pages: number
   stale: boolean
@@ -980,14 +980,18 @@ async function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: Play
       ? 'no_candidates'
       : playableMatched > 0
         ? 'playable'
-        : 'priced_out'
+        : executableMatched > 0
+          ? 'priced_out'
+          : 'no_executable'
   const statusLabel = status === 'playable'
     ? 'Playable props live'
     : status === 'priced_out'
-      ? 'Executable markets priced out'
-      : status === 'no_candidates'
-        ? 'No stat candidates passed model'
-        : 'No executable Kalshi markets'
+      ? 'Executable props priced out'
+      : status === 'no_executable'
+        ? 'No executable player props for this game'
+        : status === 'no_candidates'
+          ? 'No stat candidates passed model'
+          : 'No Kalshi player-prop markets'
   return {
     scanned: scan.scanned,
     gameMatched: scan.markets.length,
