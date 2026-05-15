@@ -1581,7 +1581,7 @@ function ExactKalshiBetButton({ player, bet, compact = false }: { player: string
   )
 }
 
-function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) {
+function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: SupportedSport; eager?: boolean }) {
   const [props, setProps] = useState<PropsPanelData | null>(null)
   const [intel, setIntel] = useState<TeamIntelData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -1593,7 +1593,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
   const [loadRequested, setLoadRequested] = useState(false)
   const isMobile = useIsMobile()
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
-  const shouldLoadIntelAndProps = nearViewport || loadRequested
+  const shouldLoadIntelAndProps = eager || nearViewport || loadRequested
   const requestCardLoad = useCallback(() => setLoadRequested(true), [])
 
   useEffect(() => {
@@ -3400,6 +3400,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [provider, setProvider] = useState<MarketProvider>('kalshi')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
+  const [feedError, setFeedError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showTracker, setShowTracker] = useState(false)
   const [bets, setBets] = useState<BetLog[]>([])
@@ -3441,9 +3442,11 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
     try {
       const loadDate = async (yyyymmdd: string): Promise<Game[]> => {
         const res = await fetch(`/api/markets?date=${espnRequestDateForChicagoDay(yyyymmdd)}&sport=${sport}&displayDate=${yyyymmdd}`)
-        const json = await res.json()
+        const json = await res.json().catch(() => null)
+        if (!res.ok) throw new Error(json?.error || `market feed failed (${res.status})`)
         return Array.isArray(json) ? json : []
       }
+      setFeedError(null)
       let resolvedDate = date
       let newGames: Game[] = await loadDate(date)
 
@@ -3487,8 +3490,9 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       setGames(newGames)
       if (Object.keys(newDrift).length > 0) setOddsDrift(newDrift)
       setLastUpdated(new Date())
-    } catch {
-      // silent
+    } catch (err) {
+      setFeedError(err instanceof Error ? err.message : 'market feed unavailable')
+      setGames([])
     } finally {
       setLoading(false)
     }
@@ -3530,10 +3534,10 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
         <AIAthleteHeader
           sport={sport}
-          setSport={(s) => { setSport(s); setSubtab('slate'); setProvider('kalshi'); setLoading(true) }}
+          setSport={(s) => { setSport(s); setSubtab('slate'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
           days={days}
           date={date}
-          setDate={setDate}
+          setDate={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}
           pendingBets={pendingBets}
           onOpenTracker={() => setShowTracker(true)}
           onRefresh={() => { setLoading(true); fetchGames() }}
@@ -3552,6 +3556,13 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
         {sport !== 'ufc' && (loading ? (
           <LoadingMarketCards cols={cols} count={6} />
+        ) : feedError ? (
+          <div style={{ textAlign: 'center', padding: '54px 18px', border: `1px solid ${C.border}`, borderRadius: 18, background: 'rgba(255,255,255,0.035)' }}>
+            <p style={{ color: C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Feed error</p>
+            <p style={{ color: C.textPrimary, fontSize: 15, fontWeight: 850, marginBottom: 8 }}>Market feed did not load.</p>
+            <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45, marginBottom: 14 }}>{feedError}</p>
+            <button onClick={() => { setLoading(true); fetchGames() }} style={{ borderRadius: 999, padding: '10px 14px', border: `1px solid ${C.borderHot}`, background: 'rgba(166,255,63,0.14)', color: C.green, fontSize: 11, fontWeight: 950, cursor: 'pointer' }}>Retry feed</button>
+          </div>
         ) : games.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0' }}>
             <p style={{ color: C.textSecondary, fontSize: 16 }}>No games scheduled</p>
@@ -3566,7 +3577,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 </div>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {live.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
+                    {live.map((g, i) => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} eager={i < cols} />)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3589,7 +3600,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Upcoming</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {upcoming.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
+                    {upcoming.map((g, i) => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} eager={live.length === 0 && i < cols} />)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3612,7 +3623,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Final</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {final.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
+                    {final.map((g, i) => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} eager={live.length === 0 && upcoming.length === 0 && i < cols} />)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
