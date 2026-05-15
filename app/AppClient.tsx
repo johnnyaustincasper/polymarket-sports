@@ -1886,9 +1886,67 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
             )}
           </div>
         ) : (
-          <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>No live Kalshi player-prop contracts found for this game yet.</p>
+          <GameMarketFallback game={game} />
         )}
       </div>
+    </div>
+  )
+}
+
+function GameMarketFallback({ game }: { game: Game }) {
+  const markets = [
+    game.hasWinnerOdds && {
+      label: 'Moneyline',
+      url: game.polyWinnerUrl,
+      rows: [
+        { team: game.awayTeam.abbr, bet: 'WIN', price: pct(game.awayWinOdds), hot: game.awayWinOdds >= 0.55 },
+        { team: game.homeTeam.abbr, bet: 'WIN', price: pct(game.homeWinOdds), hot: game.homeWinOdds >= 0.55 },
+      ],
+    },
+    game.hasSpreadOdds && {
+      label: 'Spread',
+      url: game.polySpreadUrl,
+      rows: [
+        { team: game.awayTeam.abbr, bet: game.spreadLine < 0 ? `+${-game.spreadLine}` : `${-game.spreadLine}`, price: pct(game.spreadLine < 0 ? game.spreadAwayOdds : game.spreadHomeOdds), hot: (game.spreadLine < 0 ? game.spreadAwayOdds : game.spreadHomeOdds) >= 0.55 },
+        { team: game.homeTeam.abbr, bet: game.spreadLine < 0 ? `${game.spreadLine}` : `+${game.spreadLine}`, price: pct(game.spreadLine < 0 ? game.spreadHomeOdds : game.spreadAwayOdds), hot: (game.spreadLine < 0 ? game.spreadHomeOdds : game.spreadAwayOdds) >= 0.55 },
+      ],
+    },
+    game.hasTotalOdds && {
+      label: 'Total',
+      url: game.polyTotalUrl,
+      rows: [
+        { team: 'OVER', bet: String(game.totalLine), price: pct(game.overOdds), hot: game.overOdds >= 0.55 },
+        { team: 'UNDER', bet: String(game.totalLine), price: pct(game.underOdds), hot: game.underOdds >= 0.55 },
+      ],
+    },
+  ].filter(Boolean) as Array<{ label: string; url: string | null; rows: Array<{ team: string; bet: string; price: number; hot: boolean }> }>
+
+  if (!markets.length) {
+    return <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>No live player props or game markets found for this game yet.</p>
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 9 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+        <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Game markets live</div>
+        <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>player props unavailable</div>
+      </div>
+      {markets.map(market => (
+        <a key={market.label} href={market.url || undefined} target="_blank" rel="noopener noreferrer" onClick={e => { if (!market.url) e.preventDefault() }} style={{ display: 'block', textDecoration: 'none', borderRadius: 14, padding: 11, background: 'rgba(166,255,63,0.045)', border: `1px solid ${market.url ? C.borderHot : C.border}`, cursor: market.url ? 'pointer' : 'default' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{market.label}</div>
+            <div style={{ color: market.url ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{market.url ? 'Open market' : 'No link'}</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
+            {market.rows.map(row => (
+              <div key={`${market.label}-${row.team}-${row.bet}`} style={{ borderRadius: 11, padding: '8px 9px', background: row.hot ? 'rgba(166,255,63,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${row.hot ? C.borderHot : C.border}` }}>
+                <div style={{ color: row.hot ? C.green : C.textPrimary, fontSize: 11, fontWeight: 950 }}>{row.team} {row.bet}</div>
+                <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, marginTop: 2 }}>{row.price}%</div>
+              </div>
+            ))}
+          </div>
+        </a>
+      ))}
     </div>
   )
 }
