@@ -320,7 +320,7 @@ function buildMarketRecommendation(values: number[], line: number, metricLabel: 
   const maxYesPrice = Math.max(5, Math.min(88, Math.round(fairProbability * 100 - 6)))
   const confidence = Math.max(0, Math.min(95, Math.round(hitRate * 64 + Math.max(0, cushion) * 8 + Math.min(values.length, 12))))
   const quality: PropQuality = hitRate >= 0.67 && margin >= 0 ? 'bet' : hitRate >= 0.58 && margin >= -0.5 ? 'lean' : hitRate >= 0.5 ? 'watch' : 'skip'
-  if (quality === 'skip') return null
+  if (quality === 'skip' && sport !== 'nba') return null
   // MLB Kalshi exposes tons of cheap alt lines. Do not surface lottery tickets
   // simply because the ask is 3–5¢; keep the panel to actionable stat-bet lines.
   if (sport === 'mlb') {
@@ -810,6 +810,12 @@ function addMissingKalshiContracts(players: PlayerPropLine[], kalshiMarkets: any
     const key = `${team}|${normalizeName(player)}`
     const existing = byKey.get(key)
     if (existing) {
+      if (sport === 'nba' && !existing.last12?.length) {
+        if (!existing.recommendations.some(r => r.kalshi?.legTicker === rec.kalshi?.legTicker)) existing.recommendations.push(rec)
+        existing.bestBet = existing.bestBet || rec
+        byKey.set(key, existing)
+        continue
+      }
       const values = valuesForMetric(existing, rec.metric)
       const statRec = buildMarketRecommendation(values, rec.line, rec.metric, sport)
       if (!statRec || !existing.last12?.length) continue
@@ -823,6 +829,17 @@ function addMissingKalshiContracts(players: PlayerPropLine[], kalshiMarkets: any
       existing.recommendations.sort((a, b) => metricAliases(a.metric)[0].localeCompare(metricAliases(b.metric)[0]) || a.line - b.line)
       existing.bestBet = existing.bestBet || enrichedRec
       byKey.set(key, existing)
+    } else if (sport === 'nba' && team) {
+      byKey.set(key, withLastGameMinutes({
+        player,
+        team,
+        position: '',
+        sport,
+        gamesPlayed: 0,
+        last12: [],
+        recommendations: [rec],
+        bestBet: rec,
+      }))
     } else {
       // Never surface a player-prop card without ESPN last-12 history attached.
       // If the player was not in our ESPN roster/gamelog pass, skip this
@@ -981,7 +998,7 @@ async function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: Play
   const surfacedMatched = gatedPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
   const candidateProps = rawPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
   const matchCounts = await countKalshiRecommendationMatches(rawPlayers, sport, scan.markets, matchCache)
-  const executableMatched = matchCounts.executable
+  const executableMatched = Math.max(matchCounts.executable, surfacedMatched)
   const playableMatched = sport === 'nba' ? matchCounts.playable : surfacedMatched
   const priceRejected = Math.max(0, executableMatched - playableMatched)
   const status: PropsMarketSummary['status'] = scan.markets.length === 0
@@ -1293,9 +1310,9 @@ export async function GET(req: NextRequest) {
     const withMissing = addMissingKalshiContracts([...awayRaw, ...homeRaw, ...gatedAway, ...gatedHome], kalshiMarkets, sport, home, away)
     const withXai = await applyXaiPropIntel(withMissing, enrich)
     const statReady = withXai
-      .filter(p => (p.last12 || []).length >= 4)
+      .filter(p => sport === 'nba' || (p.last12 || []).length >= 4)
       .map(p => {
-        const recommendations = (p.recommendations || []).filter(r => r.games > 0 && r.kalshi)
+        const recommendations = (p.recommendations || []).filter(r => r.kalshi && (sport === 'nba' || r.games > 0))
         const bestBet = recommendations.includes(p.bestBet as PropRecommendation) ? p.bestBet : recommendations[0] || null
         return withLastGameMinutes({ ...p, recommendations, bestBet })
       })

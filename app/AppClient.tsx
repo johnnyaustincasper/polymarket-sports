@@ -1628,7 +1628,7 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
     return () => { cancelled = true }
   }, [game.homeTeam.abbr, game.awayTeam.abbr, game.id, sport, supportedKalshiSport, shouldLoadIntelAndProps])
 
-  const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (p.last12 || []).length >= 4 && (p.recommendations || []).length) : []
+  const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (sport === 'nba' || (p.last12 || []).length >= 4) && (p.recommendations || []).length) : []
   const allContracts = players.flatMap((p: any) => (p.recommendations || []).map((bet: any) => ({ player: p, bet })))
   const categoryOrder = sport === 'nba'
     ? ['points', 'assists', 'rebounds', 'threes', 'steals', 'blocks', 'PTS+REB+AST']
