@@ -395,10 +395,20 @@ function metricPrefixes(metric: string, sport: Sport): string[] {
 }
 
 
+function sportPropMetrics(sport: Sport): string[] {
+  if (sport === 'nba') return ['points', 'rebounds', 'assists', 'threes', 'steals', 'blocks', 'PTS+REB+AST']
+  if (sport === 'mlb') return ['hits', 'home runs', 'total bases', 'strikeouts']
+  return ['passing yards', 'passing TDs', 'rushing yards', 'receiving yards', 'receptions']
+}
+
 function kalshiTeamCode(abbr: string, sport: Sport): string {
   const upper = abbr.toUpperCase()
   if (sport === 'nba') {
     const map: Record<string, string> = { NY: 'NYK', SA: 'SAS', GS: 'GSW', PHX: 'PHX', NO: 'NOP', BKN: 'BKN' }
+    return map[upper] || upper
+  }
+  if (sport === 'mlb') {
+    const map: Record<string, string> = { AZ: 'ARI', ARI: 'ARI', ATH: 'ATH', OAK: 'ATH', CWS: 'CHW', CHW: 'CHW', WSH: 'WSH', WAS: 'WSH', SD: 'SD', SF: 'SF', TB: 'TB' }
     return map[upper] || upper
   }
   return upper
@@ -719,10 +729,10 @@ function playerFromKalshiTitle(title: string): string | null {
   return name && /[a-z]/i.test(name) ? name : null
 }
 
-function teamFromKalshiTicker(ticker: string, home: string, away: string): string {
+function teamFromKalshiTicker(ticker: string, home: string, away: string, sport: Sport): string {
   const leg = String(ticker || '').split('-')[2] || ''
-  const h = kalshiTeamCode(home, 'nba')
-  const a = kalshiTeamCode(away, 'nba')
+  const h = kalshiTeamCode(home, sport)
+  const a = kalshiTeamCode(away, sport)
   if (leg.startsWith(h)) return home.toUpperCase()
   if (leg.startsWith(a)) return away.toUpperCase()
   return ''
@@ -778,13 +788,13 @@ function addMissingKalshiContracts(players: PlayerPropLine[], kalshiMarkets: any
     const rec = recommendationFromKalshiMarket(m, sport)
     const player = playerFromKalshiTitle(String(m.title || m.yes_sub_title || ''))
     if (!rec || !player) continue
-    const team = sport === 'nba' ? teamFromKalshiTicker(ticker, home, away) : ''
+    const team = teamFromKalshiTicker(ticker, home, away, sport)
     const key = `${team}|${normalizeName(player)}`
     const existing = byKey.get(key)
     if (existing) {
       const values = valuesForMetric(existing, rec.metric)
       const statRec = buildMarketRecommendation(values, rec.line, rec.metric)
-      if (!statRec || !existing.last12?.length) continue
+      if (!statRec || !existing.last12?.length || Number(rec.kalshi?.yesAsk) > Number(statRec.maxYesPrice)) continue
       const enrichedRec: PropRecommendation = {
         ...statRec,
         kalshi: rec.kalshi,
@@ -912,9 +922,7 @@ function kalshiLinesForPlayerMetric(player: string, metric: string, sport: Sport
 
 async function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: any[], matchCache: KalshiMatchCache = new Map()): Promise<PlayerPropLine[]> {
   const gated = await Promise.all(players.map(async p => {
-    const metrics = sport === 'nba'
-      ? ['points', 'rebounds', 'assists', 'threes', 'steals', 'blocks']
-      : Array.from(new Set(p.recommendations.map(r => r.metric)))
+    const metrics = sportPropMetrics(sport)
     const marketDrivenRecommendations = metrics.flatMap(metric => {
       const values = valuesForMetric(p, metric)
       return kalshiLinesForPlayerMetric(p.player, metric, sport, markets)
@@ -924,7 +932,7 @@ async function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: an
     const sourceRecommendations = marketDrivenRecommendations.length ? marketDrivenRecommendations : p.recommendations
     const withMatches = await Promise.all(sourceRecommendations.map(async r => ({ ...r, kalshi: await cachedKalshiMatch(matchCache, p.player, r, sport, markets) })))
     const recommendations = withMatches
-      .filter(r => r.kalshi)
+      .filter(r => r.kalshi && Number(r.kalshi.yesAsk) <= Number(r.maxYesPrice))
       .sort((a, b) => (b.valueScore - a.valueScore) || ((a.kalshi?.yesAsk || 99) - (b.kalshi?.yesAsk || 99)))
     const bestBet = recommendations[0] || null
     return withLastGameMinutes({ ...p, recommendations, bestBet })
@@ -932,19 +940,30 @@ async function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: an
   return gated.filter(p => p.bestBet) as PlayerPropLine[]
 }
 
-async function countExecutableRecommendations(rawPlayers: PlayerPropLine[], sport: Sport, markets: any[], matchCache: KalshiMatchCache = new Map()): Promise<number> {
+async function countKalshiRecommendationMatches(rawPlayers: PlayerPropLine[], sport: Sport, markets: any[], matchCache: KalshiMatchCache = new Map()): Promise<{ executable: number; playable: number }> {
   const counts = await Promise.all(rawPlayers.map(async p => {
-    const matches = await Promise.all(p.recommendations.map(r => cachedKalshiMatch(matchCache, p.player, r, sport, markets)))
-    return matches.filter(Boolean).length
+    const marketDrivenRecommendations = sportPropMetrics(sport).flatMap(metric => {
+      const values = valuesForMetric(p, metric)
+      return kalshiLinesForPlayerMetric(p.player, metric, sport, markets)
+        .map(line => buildMarketRecommendation(values, line, metric))
+        .filter(Boolean) as PropRecommendation[]
+    })
+    const sourceRecommendations = marketDrivenRecommendations.length ? marketDrivenRecommendations : p.recommendations
+    const matches = await Promise.all(sourceRecommendations.map(async r => ({ ...r, kalshi: await cachedKalshiMatch(matchCache, p.player, r, sport, markets) })))
+    return {
+      executable: matches.filter(r => r.kalshi).length,
+      playable: matches.filter(r => r.kalshi && Number(r.kalshi.yesAsk) <= Number(r.maxYesPrice)).length,
+    }
   }))
-  return counts.reduce((sum, n) => sum + n, 0)
+  return counts.reduce((sum, n) => ({ executable: sum.executable + n.executable, playable: sum.playable + n.playable }), { executable: 0, playable: 0 })
 }
 
 async function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: PlayerPropLine[], sport: Sport, scan: KalshiMarketScan, matchCache: KalshiMatchCache = new Map()): Promise<PropsMarketSummary> {
   const playableMatched = gatedPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
   const candidateProps = rawPlayers.reduce((sum, p) => sum + p.recommendations.length, 0)
-  const executableMatched = await countExecutableRecommendations(rawPlayers, sport, scan.markets, matchCache)
-  const priceRejected = Math.max(0, executableMatched - playableMatched)
+  const matchCounts = await countKalshiRecommendationMatches(rawPlayers, sport, scan.markets, matchCache)
+  const executableMatched = matchCounts.executable
+  const priceRejected = Math.max(0, executableMatched - Math.max(playableMatched, matchCounts.playable))
   const status: PropsMarketSummary['status'] = scan.markets.length === 0
     ? 'no_markets'
     : candidateProps === 0
@@ -1247,7 +1266,7 @@ export async function GET(req: NextRequest) {
     const kalshiMarkets = kalshiScan.markets
     const matchCache: KalshiMatchCache = new Map()
     const [gatedHome, gatedAway] = await Promise.all([gateToKalshi(homeRaw, sport, kalshiMarkets, matchCache), gateToKalshi(awayRaw, sport, kalshiMarkets, matchCache)])
-    const withMissing = addMissingKalshiContracts([...gatedAway, ...gatedHome], kalshiMarkets, sport, home, away)
+    const withMissing = addMissingKalshiContracts([...awayRaw, ...homeRaw, ...gatedAway, ...gatedHome], kalshiMarkets, sport, home, away)
     const withXai = await applyXaiPropIntel(withMissing, enrich)
     const statReady = withXai
       .filter(p => (p.last12 || []).length >= 4)
