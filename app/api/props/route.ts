@@ -308,7 +308,7 @@ function buildThresholdRecommendation(values: number[], line: number, metricLabe
   }
 }
 
-function buildMarketRecommendation(values: number[], line: number, metricLabel: string): PropRecommendation | null {
+function buildMarketRecommendation(values: number[], line: number, metricLabel: string, sport?: Sport): PropRecommendation | null {
   if (values.length < 4) return null
   const last12Avg = avg(values)
   const hits = values.filter(v => v >= line).length
@@ -320,6 +320,16 @@ function buildMarketRecommendation(values: number[], line: number, metricLabel: 
   const maxYesPrice = Math.max(5, Math.min(88, Math.round(fairProbability * 100 - 6)))
   const confidence = Math.max(0, Math.min(95, Math.round(hitRate * 64 + Math.max(0, cushion) * 8 + Math.min(values.length, 12))))
   const quality: PropQuality = hitRate >= 0.67 && margin >= 0 ? 'bet' : hitRate >= 0.58 && margin >= -0.5 ? 'lean' : hitRate >= 0.5 ? 'watch' : 'skip'
+  if (quality === 'skip') return null
+  // MLB Kalshi exposes tons of cheap alt lines. Do not surface lottery tickets
+  // simply because the ask is 3–5¢; keep the panel to actionable stat-bet lines.
+  if (sport === 'mlb') {
+    if (maxYesPrice < 12) return null
+    if (metricLabel === 'hits' && line > 2) return null
+    if (metricLabel === 'total bases' && line > 4) return null
+    if (metricLabel === 'strikeouts' && hitRate < 0.5) return null
+    if (metricLabel === 'home runs' && hitRate < 0.17) return null
+  }
   const risk: PropRecommendation['risk'] = volatility <= Math.max(3, last12Avg * 0.22) ? 'low' : volatility <= Math.max(6, last12Avg * 0.38) ? 'medium' : 'high'
   const valueScore = Math.round(hitRate * 55 + Math.max(-8, Math.min(12, cushion * 6)) - (risk === 'high' ? 8 : risk === 'medium' ? 3 : 0))
   const label = `${line}+ ${metricLabel}`
@@ -793,7 +803,7 @@ function addMissingKalshiContracts(players: PlayerPropLine[], kalshiMarkets: any
     const existing = byKey.get(key)
     if (existing) {
       const values = valuesForMetric(existing, rec.metric)
-      const statRec = buildMarketRecommendation(values, rec.line, rec.metric)
+      const statRec = buildMarketRecommendation(values, rec.line, rec.metric, sport)
       if (!statRec || !existing.last12?.length || Number(rec.kalshi?.yesAsk) > Number(statRec.maxYesPrice)) continue
       const enrichedRec: PropRecommendation = {
         ...statRec,
@@ -926,7 +936,7 @@ async function gateToKalshi(players: PlayerPropLine[], sport: Sport, markets: an
     const marketDrivenRecommendations = metrics.flatMap(metric => {
       const values = valuesForMetric(p, metric)
       return kalshiLinesForPlayerMetric(p.player, metric, sport, markets)
-        .map(line => buildMarketRecommendation(values, line, metric))
+        .map(line => buildMarketRecommendation(values, line, metric, sport))
         .filter(Boolean) as PropRecommendation[]
     })
     const sourceRecommendations = marketDrivenRecommendations.length ? marketDrivenRecommendations : p.recommendations
@@ -945,7 +955,7 @@ async function countKalshiRecommendationMatches(rawPlayers: PlayerPropLine[], sp
     const marketDrivenRecommendations = sportPropMetrics(sport).flatMap(metric => {
       const values = valuesForMetric(p, metric)
       return kalshiLinesForPlayerMetric(p.player, metric, sport, markets)
-        .map(line => buildMarketRecommendation(values, line, metric))
+        .map(line => buildMarketRecommendation(values, line, metric, sport))
         .filter(Boolean) as PropRecommendation[]
     })
     const sourceRecommendations = marketDrivenRecommendations.length ? marketDrivenRecommendations : p.recommendations
