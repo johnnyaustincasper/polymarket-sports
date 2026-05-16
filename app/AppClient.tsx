@@ -1687,17 +1687,9 @@ function GameMapSelector({ games, sport, selectedGameId, onSelect, isMobile }: {
             {liveCount > 0 && <span style={{ borderRadius: 999, padding: '5px 9px', border: '1px solid ' + C.cyan, color: C.cyan, background: 'rgba(168,240,255,0.08)', fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{liveCount} live</span>}
           </div>
         </div>
-        <div style={{ position: 'relative', zIndex: 1, height: isMobile ? 190 : 275, marginTop: 4 }}>
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.76 }}>
-            <path d="M8 21 C10 18 11 14 15 10 C19 12 22 12 26 10 C31 9 36 9 41 10 C46 9 52 9 58 10 C64 10 70 12 75 15 C81 17 87 20 92 25 C96 30 96 35 92 39 C94 42 92 46 87 47 C84 49 82 51 80 54 C82 58 86 62 88 67 C89 71 86 73 83 70 C80 66 78 61 74 58 C69 58 65 61 60 63 C54 66 48 68 42 67 C37 67 35 64 31 62 C27 59 23 57 19 57 C16 54 14 50 11 47 C9 42 9 37 7 33 C5 28 5 24 8 21 Z" fill="rgba(166,255,63,0.040)" stroke="rgba(166,255,63,0.28)" strokeWidth="0.85" />
-            <path d="M9 22 C11 23 12 25 11 28 C10 32 12 35 14 38 C16 41 16 44 14 47" fill="none" stroke="rgba(168,240,255,0.16)" strokeWidth="0.5" />
-            <path d="M26 56 C27 60 30 64 34 66 C37 68 40 73 39 78 C36 76 34 72 31 69 C28 66 25 64 22 64 C22 61 23 58 26 56 Z" fill="rgba(166,255,63,0.026)" stroke="rgba(166,255,63,0.15)" strokeWidth="0.45" />
-            <path d="M75 15 C77 18 80 19 84 20 C87 21 90 23 92 26 M78 17 C80 21 79 24 76 26 M82 28 C85 28 89 29 92 31" fill="none" stroke="rgba(168,240,255,0.15)" strokeWidth="0.42" />
-            <path d="M38 19 C42 17 45 18 47 21 C44 23 41 23 38 21 Z M49 20 C52 18 56 19 58 22 C55 24 52 24 49 22 Z M60 22 C63 21 66 22 68 25 C66 27 62 27 60 24 Z M70 26 C73 25 76 26 78 29 C75 31 72 31 70 29 Z" fill="rgba(3,5,0,0.55)" stroke="rgba(168,240,255,0.09)" strokeWidth="0.25" />
-            <path d="M18 38 C29 34 42 33 56 36 C69 38 81 40 90 45" fill="none" stroke="rgba(168,240,255,0.12)" strokeWidth="0.35" />
-            <path d="M21 51 C33 49 44 50 55 53 C64 55 73 54 82 58" fill="none" stroke="rgba(168,240,255,0.10)" strokeWidth="0.35" />
-            <path d="M18 14 L20 57 M34 10 L36 66 M51 10 L52 66 M68 12 L65 61 M84 20 L78 57" fill="none" stroke="rgba(255,255,255,0.035)" strokeWidth="0.25" />
-          </svg>
+        <div style={{ position: 'relative', zIndex: 1, height: isMobile ? 220 : 430, marginTop: 4, borderRadius: 18, overflow: 'hidden', background: 'rgba(0,0,0,0.34)' }}>
+          <img src="/maps/usa-stadium-map-bg.jpg" alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.90, filter: 'saturate(1.1) contrast(1.08) brightness(0.78)' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, transparent 42%, rgba(0,0,0,0.46) 100%), linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.28))', pointerEvents: 'none' }} />
           {plotted.map(({ game, point }, index) => {
             const live = game.status === 'in'
             const selected = selectedGameId === game.id
