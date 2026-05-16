@@ -307,6 +307,45 @@ const GLOBAL_STYLES = `
     0% { transform: translateX(-140%); }
     100% { transform: translateX(140%); }
   }
+  @keyframes loadBoardPulse {
+    0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 16px 44px rgba(0,0,0,0.42), 0 0 26px rgba(166,255,63,0.18); }
+    50% { transform: translateY(-3px) scale(1.012); box-shadow: 0 24px 64px rgba(0,0,0,0.54), 0 0 42px rgba(166,255,63,0.34); }
+  }
+  @keyframes loadBoardSweep {
+    0% { transform: translateX(-135%) rotate(12deg); opacity: 0; }
+    18% { opacity: 0.72; }
+    54% { opacity: 0.32; }
+    100% { transform: translateX(135%) rotate(12deg); opacity: 0; }
+  }
+  @keyframes loadBoardRing {
+    0%, 100% { transform: scale(1); opacity: 0.42; }
+    50% { transform: scale(1.18); opacity: 0.95; }
+  }
+  .load-board-card {
+    position: relative;
+    transform: translateZ(0);
+    animation: loadBoardPulse 2.2s ease-in-out infinite;
+    transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+  }
+  .load-board-card::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: 21px;
+    background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.04) 35%, rgba(166,255,63,0.26) 50%, rgba(168,240,255,0.16) 58%, transparent 76%);
+    animation: loadBoardSweep 2.6s ease-in-out infinite;
+    mix-blend-mode: screen;
+  }
+  .load-board-card:hover {
+    transform: translateY(-5px) scale(1.018);
+    filter: brightness(1.08) saturate(1.08);
+  }
+  .load-board-card:active {
+    transform: translateY(0) scale(0.988);
+    filter: brightness(0.98);
+  }
   @keyframes analysisCardBlink {
     0%, 8%, 100% { opacity: 1; transform: translate(0, 0) scale(1); filter: brightness(1.05) contrast(1.12) saturate(1.1); }
     10% { opacity: 0.12; transform: translate(-2px, 1px) scale(0.992); filter: brightness(2.4) contrast(1.9) saturate(0.35); }
@@ -1674,27 +1713,28 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
     const statusLabel = game.status === 'in' ? 'Live now' : game.status === 'post' ? 'Final' : 'Upcoming'
     const statusColor = game.status === 'in' ? C.cyan : game.status === 'post' ? C.textSecondary : C.green
     return (
-      <button onClick={requestCardLoad} style={{
+      <button className="load-board-card" onClick={requestCardLoad} style={{
         width: '100%',
         textAlign: 'left',
         borderRadius: 22,
         padding: 1,
         border: 'none',
-        background: 'linear-gradient(135deg, rgba(166,255,63,0.38), rgba(255,255,255,0.10), rgba(168,240,255,0.12))',
-        boxShadow: '0 14px 40px rgba(0,0,0,0.34)',
+        background: 'linear-gradient(135deg, rgba(166,255,63,0.76), rgba(255,255,255,0.16), rgba(168,240,255,0.30), rgba(166,255,63,0.32))',
         cursor: 'pointer',
         overflow: 'hidden',
       }}>
-        <div style={{ borderRadius: 21, padding: 16, minHeight: 156, background: 'linear-gradient(145deg, rgba(10,16,7,0.96), rgba(3,5,0,0.96))', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ position: 'relative', zIndex: 2, borderRadius: 21, padding: 16, minHeight: 168, background: 'radial-gradient(circle at 78% 18%, rgba(166,255,63,0.15), transparent 30%), linear-gradient(145deg, rgba(10,16,7,0.97), rgba(3,5,0,0.96))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 13, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', right: -26, top: -28, width: 96, height: 96, borderRadius: 999, border: '1px solid rgba(166,255,63,0.28)', boxShadow: '0 0 38px rgba(166,255,63,0.18)', animation: 'loadBoardRing 1.7s ease-in-out infinite' }} />
+          <div style={{ position: 'absolute', right: 18, bottom: 18, width: 8, height: 8, borderRadius: 999, background: C.green, boxShadow: '0 0 20px rgba(166,255,63,0.95)', animation: 'liveDotPulse 1.15s ease-in-out infinite' }} />
+          <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
             <div>
               <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi board</div>
-              <div style={{ color: C.textPrimary, fontSize: 17, fontWeight: 950, marginTop: 5 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
+              <div style={{ color: C.textPrimary, fontSize: 19, fontWeight: 950, marginTop: 5 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
               <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 800, marginTop: 4 }}>{game.gameTime || game.gameDate || 'Game slate'}</div>
             </div>
             <div style={{ color: statusColor, border: `1px solid ${statusColor === C.textSecondary ? C.border : statusColor}`, background: statusColor === C.textSecondary ? 'rgba(255,255,255,0.035)' : `${statusColor}18`, borderRadius: 999, padding: '5px 8px', fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{statusLabel}</div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+          <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
               {[game.awayTeam, game.homeTeam].map(team => (
                 <div key={team.abbr} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -1703,7 +1743,7 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
                 </div>
               ))}
             </div>
-            <span style={{ borderRadius: 999, padding: '9px 12px', background: 'rgba(166,255,63,0.14)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Load board</span>
+            <span style={{ borderRadius: 999, padding: '10px 13px', background: 'linear-gradient(135deg, rgba(166,255,63,0.24), rgba(168,240,255,0.10))', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', boxShadow: '0 0 22px rgba(166,255,63,0.18)' }}>Load board</span>
           </div>
         </div>
       </button>
