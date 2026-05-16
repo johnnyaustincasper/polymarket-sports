@@ -369,28 +369,16 @@ const GLOBAL_STYLES = `
     50% { transform: translateY(-2px) scale(1.006); box-shadow: 0 20px 54px rgba(0,0,0,0.52), 0 0 24px rgba(166,255,63,0.26); filter: brightness(1.04); }
   }
   @keyframes loadBoardSweep {
-    0% { --load-board-angle: 0deg; opacity: 0.7; filter: drop-shadow(0 0 5px rgba(166,255,63,0.32)); }
-    12.5%, 37.5%, 62.5%, 87.5% { opacity: 1; filter: drop-shadow(0 0 12px rgba(166,255,63,0.78)); }
-    25%, 50%, 75% { opacity: 0.78; filter: drop-shadow(0 0 7px rgba(166,255,63,0.44)); }
-    100% { --load-board-angle: 360deg; opacity: 0.7; filter: drop-shadow(0 0 5px rgba(166,255,63,0.32)); }
+    0% { --load-board-angle: 0deg; }
+    100% { --load-board-angle: 360deg; }
   }
   .load-board-card {
     --load-board-angle: 0deg;
     position: relative;
     transform: translateZ(0);
-    animation: loadBoardPulse 2.2s ease-in-out infinite;
+    background: conic-gradient(from var(--load-board-angle), rgba(166,255,63,0.18) 0deg, rgba(166,255,63,0.95) 24deg, rgba(168,240,255,0.52) 40deg, rgba(166,255,63,0.22) 66deg, rgba(166,255,63,0.10) 124deg, rgba(166,255,63,0.18) 360deg) !important;
+    animation: loadBoardPulse 2.2s ease-in-out infinite, loadBoardSweep 2.45s linear infinite;
     transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
-  }
-  .load-board-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    border-radius: inherit;
-    background: conic-gradient(from var(--load-board-angle), rgba(166,255,63,0.18) 0deg, rgba(166,255,63,0.95) 26deg, rgba(168,240,255,0.52) 42deg, rgba(166,255,63,0.22) 66deg, rgba(166,255,63,0.10) 124deg, rgba(166,255,63,0.18) 360deg);
-    mix-blend-mode: screen;
-    animation: loadBoardSweep 2.45s linear infinite;
   }
   .load-board-card:hover {
     transform: translateY(-5px) scale(1.018);
