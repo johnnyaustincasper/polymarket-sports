@@ -1470,6 +1470,40 @@ function LiveScoreDisplay({ game }: { game: Game }) {
   )
 }
 
+function LiveScoreStrip({ game, compact = false }: { game: Game; compact?: boolean }) {
+  if (game.status !== 'in') return null
+  const awayScore = game.awayTeam.score || '0'
+  const homeScore = game.homeTeam.score || '0'
+  const awayLeading = Number(awayScore) > Number(homeScore)
+  const homeLeading = Number(homeScore) > Number(awayScore)
+  return (
+    <div style={{
+      position: 'relative',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: compact ? 5 : 8,
+      borderRadius: compact ? 9 : 12,
+      padding: compact ? '5px 6px' : '8px 10px',
+      background: 'rgba(255,63,95,0.10)',
+      border: '1px solid rgba(255,63,95,0.34)',
+      boxShadow: '0 0 18px rgba(255,63,95,0.08)',
+      minWidth: 0,
+    }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: C.red, fontSize: compact ? 7 : 9, fontWeight: 950, letterSpacing: compact ? '0.08em' : '0.12em', textTransform: 'uppercase', flexShrink: 0 }}>
+        <span style={{ width: compact ? 5 : 6, height: compact ? 5 : 6, borderRadius: 999, background: C.red, boxShadow: `0 0 10px ${C.red}`, animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />
+        Live
+      </span>
+      <span style={{ color: C.textSecondary, fontSize: compact ? 7 : 9, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{game.gameTime}</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? 4 : 7, color: C.textPrimary, fontSize: compact ? 9 : 12, fontWeight: 950, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+        <span style={{ color: awayLeading ? '#fff' : C.textSecondary }}>{game.awayTeam.abbr} {awayScore}</span>
+        <span style={{ color: 'rgba(255,255,255,0.28)' }}>-</span>
+        <span style={{ color: homeLeading ? '#fff' : C.textSecondary }}>{game.homeTeam.abbr} {homeScore}</span>
+      </span>
+    </div>
+  )
+}
+
 // ─── useColCount / chunkArray / RowGroup ─────────────────────────────────────
 function useColCount() {
   const [cols, setCols] = useState(1)
@@ -1841,14 +1875,18 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
             <div>
               <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi</div>
               <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 19, fontWeight: 950, marginTop: 4, lineHeight: 1.05 }}>{game.awayTeam.abbr}<br />@ {game.homeTeam.abbr}</div>
-              <div style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 800, marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{game.gameTime || game.gameDate || 'Game slate'}</div>
+              {game.status === 'in' ? (
+                <div style={{ marginTop: 6 }}><LiveScoreStrip game={game} compact /></div>
+              ) : (
+                <div style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 800, marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{game.gameTime || game.gameDate || 'Game slate'}</div>
+              )}
             </div>
           </div>
           <div style={{ position: 'relative', display: 'flex', gap: isMobile ? 7 : 8, alignItems: 'center', minWidth: 0 }}>
               {[game.awayTeam, game.homeTeam].map(team => (
                 <div key={team.abbr} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 3 : 6, minWidth: 0 }}>
                   {team.logo && <img src={team.logo} alt="" style={{ width: isMobile ? 18 : 22, height: isMobile ? 18 : 22, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
-                  <span style={{ color: C.textPrimary, fontSize: isMobile ? 8 : 11, fontWeight: 950 }}>{team.abbr}</span>
+                  <span style={{ color: C.textPrimary, fontSize: isMobile ? 8 : 11, fontWeight: 950 }}>{team.abbr}{game.status === 'in' && team.score ? ` ${team.score}` : ''}</span>
                 </div>
               ))}
           </div>
@@ -1872,6 +1910,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           <div>
             <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi Player Props</div>
             <div style={{ color: C.textPrimary, fontSize: 15, fontWeight: 950, marginTop: 4 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
+            {game.status === 'in' && <div style={{ marginTop: 8, maxWidth: isMobile ? 260 : 360 }}><LiveScoreStrip game={game} /></div>}
           </div>
           <button
             onClick={collapseCard}
@@ -4055,6 +4094,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [loadedKalshiGameIds, setLoadedKalshiGameIds] = useState<Record<string, boolean>>({})
   const cols = useColCount()
   const isMobile = useIsMobile()
+  const hasLiveGames = games.some(g => g.status === 'in')
 
   useEffect(() => {
     const stored = localStorage.getItem('poly-bets')
@@ -4149,9 +4189,9 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   useEffect(() => {
     setLoading(true)
     fetchGames()
-    const iv = setInterval(fetchGames, 60000)
+    const iv = setInterval(fetchGames, hasLiveGames ? 15000 : 60000)
     return () => clearInterval(iv)
-  }, [fetchGames])
+  }, [fetchGames, hasLiveGames])
 
   const days = Array.from({ length: 5 }, (_, i) => {
     const value = addChicagoDays(today, i - 2)
