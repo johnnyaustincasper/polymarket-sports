@@ -364,10 +364,10 @@ const GLOBAL_STYLES = `
     50% { transform: translateY(-2px) scale(1.006); box-shadow: 0 20px 54px rgba(0,0,0,0.52), 0 0 24px rgba(166,255,63,0.26); filter: brightness(1.04); }
   }
   @keyframes loadBoardSweep {
-    0% { transform: rotate(0deg); opacity: 0.68; filter: drop-shadow(0 0 4px rgba(166,255,63,0.36)); }
-    12.5%, 37.5%, 62.5%, 87.5% { opacity: 1; filter: drop-shadow(0 0 12px rgba(166,255,63,0.82)) drop-shadow(0 0 22px rgba(168,240,255,0.34)); }
-    25%, 50%, 75% { opacity: 0.78; filter: drop-shadow(0 0 7px rgba(166,255,63,0.46)); }
-    100% { transform: rotate(360deg); opacity: 0.68; filter: drop-shadow(0 0 4px rgba(166,255,63,0.36)); }
+    0% { transform: rotate(0deg); opacity: 0.62; filter: drop-shadow(0 0 5px rgba(166,255,63,0.38)); }
+    12.5%, 37.5%, 62.5%, 87.5% { opacity: 1; filter: drop-shadow(0 0 13px rgba(166,255,63,0.86)) drop-shadow(0 0 24px rgba(168,240,255,0.34)); }
+    25%, 50%, 75% { opacity: 0.72; filter: drop-shadow(0 0 8px rgba(166,255,63,0.48)); }
+    100% { transform: rotate(360deg); opacity: 0.62; filter: drop-shadow(0 0 5px rgba(166,255,63,0.38)); }
   }
   @keyframes loadBoardEdgeFlash {
     0%, 100% { opacity: 0.28; filter: brightness(1); }
@@ -382,17 +382,13 @@ const GLOBAL_STYLES = `
   .load-board-card::before {
     content: '';
     position: absolute;
-    inset: 0;
+    inset: -65%;
     z-index: 1;
     pointer-events: none;
-    border-radius: inherit;
-    padding: 2px;
-    background: conic-gradient(from 0deg, transparent 0deg, transparent 48deg, rgba(166,255,63,0.98) 76deg, rgba(168,240,255,0.66) 88deg, rgba(166,255,63,0.92) 100deg, transparent 128deg, transparent 360deg);
+    border-radius: 999px;
+    background: conic-gradient(from 0deg, transparent 0deg, transparent 58deg, rgba(166,255,63,0.92) 82deg, rgba(168,240,255,0.42) 96deg, transparent 124deg, transparent 360deg);
     animation: loadBoardSweep 2.7s linear infinite;
     mix-blend-mode: screen;
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
   }
   .load-board-card::after {
     content: '';
@@ -401,11 +397,8 @@ const GLOBAL_STYLES = `
     z-index: 1;
     pointer-events: none;
     border-radius: inherit;
-    background:
-      linear-gradient(90deg, rgba(166,255,63,0.72) 0 16px, transparent 16px calc(100% - 16px), rgba(166,255,63,0.72) calc(100% - 16px)) top / 100% 1px no-repeat,
-      linear-gradient(90deg, rgba(166,255,63,0.72) 0 16px, transparent 16px calc(100% - 16px), rgba(166,255,63,0.72) calc(100% - 16px)) bottom / 100% 1px no-repeat,
-      linear-gradient(180deg, rgba(166,255,63,0.72) 0 16px, transparent 16px calc(100% - 16px), rgba(166,255,63,0.72) calc(100% - 16px)) left / 1px 100% no-repeat,
-      linear-gradient(180deg, rgba(166,255,63,0.72) 0 16px, transparent 16px calc(100% - 16px), rgba(166,255,63,0.72) calc(100% - 16px)) right / 1px 100% no-repeat;
+    border: 1px solid rgba(166,255,63,0.42);
+    box-shadow: inset 0 0 0 1px rgba(168,240,255,0.05), 0 0 18px rgba(166,255,63,0.18);
     animation: loadBoardEdgeFlash 1.8s ease-in-out infinite;
   }
   .load-board-card:hover {
