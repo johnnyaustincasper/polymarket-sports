@@ -2267,22 +2267,18 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
 }
 
 function MlbSlateParlayBuilder({ games, isMobile, autoRun = false }: { games: Game[]; isMobile: boolean; autoRun?: boolean }) {
-  const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tickets, setTickets] = useState<ParlayTicket[]>([])
-  const [safeCount, setSafeCount] = useState(0)
   const [scannedCount, setScannedCount] = useState(0)
   const autoRunKeyRef = useRef<string | null>(null)
   const slateGames = games.filter(g => g.status !== 'post')
   const slateKey = slateGames.map(g => g.id).join('|')
 
   useEffect(() => {
-    setOpen(false)
     setLoading(false)
     setError(null)
     setTickets([])
-    setSafeCount(0)
     setScannedCount(0)
   }, [slateKey])
 
@@ -2297,11 +2293,9 @@ function MlbSlateParlayBuilder({ games, isMobile, autoRun = false }: { games: Ga
 
   const scanSlate = async () => {
     if (!slateGames.length || loading) return
-    setOpen(true)
     setLoading(true)
     setError(null)
     setTickets([])
-    setSafeCount(0)
     setScannedCount(0)
     try {
       const found: ParlayItem[] = []
@@ -2319,7 +2313,6 @@ function MlbSlateParlayBuilder({ games, isMobile, autoRun = false }: { games: Ga
       const matchupByGame = new Map(matchupEntries)
       const enriched = found.map(item => ({ ...item, matchup: scoreMlbBatterMatchup(item, item.game ? matchupByGame.get(item.game.id) : undefined) }))
       const safePool = buildSafeParlayPool(enriched)
-      setSafeCount(safePool.length)
       setTickets(buildParlaySuggestions(safePool))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'MLB slate scan failed')
@@ -2337,37 +2330,21 @@ function MlbSlateParlayBuilder({ games, isMobile, autoRun = false }: { games: Ga
   if (!slateGames.length) return null
 
   return (
-    <div style={{ borderRadius: 18, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.54), rgba(168,240,255,0.18), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.38)' }}>
-      <div style={{ borderRadius: 17, padding: isMobile ? 12 : 15, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-          <div>
-            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Ticket Builder</div>
-            <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, marginTop: 3 }}>Build 2-8 leg MLB slips</div>
-            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4 }}>Scans every game for executable 9/12+ Kalshi legs, then grades the opposing starter before building tickets.</div>
-          </div>
-          <button onClick={scanSlate} disabled={loading} style={{ flexShrink: 0, borderRadius: 999, padding: isMobile ? '9px 11px' : '10px 14px', border: `1px solid ${C.borderHot}`, background: loading ? 'rgba(255,255,255,0.05)' : 'rgba(166,255,63,0.14)', color: loading ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'default' : 'pointer' }}>
-            {loading ? 'Scanning' : open ? 'Rescan' : 'Build'}
-          </button>
+    <>
+      {loading ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Scanning {scannedCount}/{slateGames.length} games...</div>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, opacity: 0, animation: 'dominoFadeIn 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${i * 140}ms` }}>
+              <div style={{ height: 11, width: i === 0 ? '62%' : i === 1 ? '48%' : '56%', borderRadius: 999, background: 'rgba(247,255,240,0.12)', marginBottom: 8 }} />
+              <div style={{ height: 9, width: i === 0 ? '84%' : i === 1 ? '70%' : '78%', borderRadius: 999, background: 'rgba(166,255,63,0.12)' }} />
+            </div>
+          ))}
         </div>
-
-        {open && (
-          <div style={{ marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
-            {loading ? (
-              <div style={{ display: 'grid', gap: 8 }}>
-                <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Scanning {scannedCount}/{slateGames.length} games...</div>
-                {[0, 1, 2].map(i => (
-                  <div key={i} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, opacity: 0, animation: 'dominoFadeIn 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${i * 140}ms` }}>
-                    <div style={{ height: 11, width: i === 0 ? '62%' : i === 1 ? '48%' : '56%', borderRadius: 999, background: 'rgba(247,255,240,0.12)', marginBottom: 8 }} />
-                    <div style={{ height: 9, width: i === 0 ? '84%' : i === 1 ? '70%' : '78%', borderRadius: 999, background: 'rgba(166,255,63,0.12)' }} />
-                  </div>
-                ))}
-              </div>
-            ) : error ? (
-              <div style={{ color: C.gold, fontSize: 11 }}>Slate scan unavailable: {error}</div>
-            ) : tickets.length ? (
-              <div style={{ display: 'grid', gap: 9 }}>
-                <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>{safeCount} qualifying legs found across {slateGames.length} MLB games, ranked by hitter form + pitcher matchup.</div>
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
+      ) : error ? (
+        <div style={{ color: C.gold, fontSize: 11 }}>Slate scan unavailable: {error}</div>
+      ) : tickets.length ? (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
                   {tickets.map((ticket, idx) => {
                     const avgAsk = Math.round(ticket.items.reduce((sum, x) => sum + Number(x.bet.kalshi?.yesAsk || 0), 0) / ticket.items.length)
                     return (
@@ -2397,15 +2374,11 @@ function MlbSlateParlayBuilder({ games, isMobile, autoRun = false }: { games: Ga
                       </div>
                     )
                   })}
-                </div>
-              </div>
-            ) : (
-              <div style={{ color: C.textSecondary, fontSize: 11 }}>No 9/12+ executable Kalshi MLB legs found across this slate yet.</div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+        </div>
+      ) : (
+        <div style={{ color: C.textSecondary, fontSize: 11 }}>No 9/12+ executable Kalshi MLB legs found across this slate yet.</div>
+      )}
+    </>
   )
 }
 
