@@ -2266,7 +2266,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   )
 }
 
-function MlbSlateParlayBuilder({ games, isMobile, autoRun = false }: { games: Game[]; isMobile: boolean; autoRun?: boolean }) {
+function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { sport: SupportedSport; games: Game[]; isMobile: boolean; autoRun?: boolean }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tickets, setTickets] = useState<ParlayTicket[]>([])
@@ -2302,20 +2302,21 @@ function MlbSlateParlayBuilder({ games, isMobile, autoRun = false }: { games: Ga
       for (let i = 0; i < slateGames.length; i += 4) {
         const batch = slateGames.slice(i, i + 4)
         const results = await Promise.all(batch.map(async game => {
-          const data = await fetchJsonCached<PropsPanelData>(cacheKey('/api/props', { home: game.homeTeam.abbr, away: game.awayTeam.abbr, sport: 'mlb' }), 30_000, 45_000)
+          const data = await fetchJsonCached<PropsPanelData>(cacheKey('/api/props', { home: game.homeTeam.abbr, away: game.awayTeam.abbr, sport }), 30_000, 45_000)
           const players = [...(data.away || []), ...(data.home || [])].filter((p: any) => (p.recommendations || []).length)
           return players.flatMap((player: any) => (player.recommendations || []).map((bet: any) => ({ game, player, bet })))
         }))
         found.push(...results.flat())
         setScannedCount(prev => prev + batch.length)
       }
-      const matchupEntries = await Promise.all(slateGames.map(async game => [game.id, await fetchMlbGameMatchup(game)] as const))
-      const matchupByGame = new Map(matchupEntries)
-      const enriched = found.map(item => ({ ...item, matchup: scoreMlbBatterMatchup(item, item.game ? matchupByGame.get(item.game.id) : undefined) }))
+      const matchupByGame = sport === 'mlb'
+        ? new Map(await Promise.all(slateGames.map(async game => [game.id, await fetchMlbGameMatchup(game)] as const)))
+        : new Map<string, MlbGameMatchup | undefined>()
+      const enriched = found.map(item => ({ ...item, matchup: sport === 'mlb' ? scoreMlbBatterMatchup(item, item.game ? matchupByGame.get(item.game.id) : undefined) : undefined }))
       const safePool = buildSafeParlayPool(enriched)
       setTickets(buildParlaySuggestions(safePool))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'MLB slate scan failed')
+      setError(err instanceof Error ? err.message : `${sport.toUpperCase()} slate scan failed`)
     } finally {
       setLoading(false)
     }
@@ -2376,7 +2377,7 @@ function MlbSlateParlayBuilder({ games, isMobile, autoRun = false }: { games: Ga
                   })}
         </div>
       ) : (
-        <div style={{ color: C.textSecondary, fontSize: 11 }}>No 9/12+ executable Kalshi MLB legs found across this slate yet.</div>
+        <div style={{ color: C.textSecondary, fontSize: 11 }}>No 9/12+ executable Kalshi {sport.toUpperCase()} legs found across this slate yet.</div>
       )}
     </>
   )
@@ -4009,7 +4010,7 @@ function ControlButton({ active, accent, children, onClick, minWidth = 0 }: {
 
 type SportSubtab = 'slate' | 'legBuilder' | 'playerSignals'
 
-function MlbSubtabBar({ active, onChange, isMobile }: { active: SportSubtab; onChange: (tab: SportSubtab) => void; isMobile: boolean }) {
+function SportSubtabBar({ active, onChange, isMobile }: { active: SportSubtab; onChange: (tab: SportSubtab) => void; isMobile: boolean }) {
   const tabs: { value: SportSubtab; label: string }[] = [
     { value: 'slate', label: 'Slate' },
     { value: 'legBuilder', label: 'Leg Builder' },
@@ -4374,11 +4375,11 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
         <MarketModeDock />
 
-        {sport === 'mlb' && provider === 'kalshi' && (
-          <MlbSubtabBar active={subtab} onChange={setSubtab} isMobile={isMobile} />
+        {sport !== 'ufc' && provider === 'kalshi' && (
+          <SportSubtabBar active={subtab} onChange={setSubtab} isMobile={isMobile} />
         )}
 
-        {!loading && sport !== 'ufc' && (sport !== 'mlb' || subtab !== 'slate') && (
+        {!loading && sport !== 'ufc' && subtab !== 'slate' && (
           <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr',
@@ -4386,21 +4387,15 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
             marginBottom: isMobile ? 14 : 18,
             alignItems: 'start',
           }}>
-            {sport === 'mlb' ? (
-              <>
-                {subtab === 'playerSignals' && <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} autoRun />}
-                {subtab === 'legBuilder' && provider === 'kalshi' && <MlbSlateParlayBuilder games={games} isMobile={isMobile} autoRun />}
-              </>
-            ) : (
-              <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} />
-            )}
+            {subtab === 'playerSignals' && <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} autoRun />}
+            {subtab === 'legBuilder' && provider === 'kalshi' && <SportSlateParlayBuilder sport={sport as SupportedSport} games={games} isMobile={isMobile} autoRun />}
           </div>
         )}
 
 
         {sport === 'ufc' && <KalshiUFCSection />}
 
-        {sport !== 'ufc' && (sport !== 'mlb' || subtab === 'slate') && (loading ? (
+        {sport !== 'ufc' && subtab === 'slate' && (loading ? (
           <LoadingMarketCards cols={cols} count={6} />
         ) : feedError ? (
           <div style={{ textAlign: 'center', padding: '54px 18px', border: `1px solid ${C.border}`, borderRadius: 18, background: 'rgba(255,255,255,0.035)' }}>
