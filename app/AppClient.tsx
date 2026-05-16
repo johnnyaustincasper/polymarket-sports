@@ -126,6 +126,42 @@ interface PropsPanelData {
   available: boolean
   marketSummary?: PropsMarketSummary
 }
+interface ModelSignal {
+  id: string
+  sport: SupportedSport
+  gameId: string
+  matchup: string
+  gameTime: string
+  player: string
+  team: string
+  metric: string
+  label: string
+  tier: 'A' | 'B' | 'WATCH' | 'KILL'
+  projectedHitPct: number
+  fairPrice: number
+  ask: number
+  maxBuy: number
+  edge: number
+  confidence: number
+  hits: number
+  games: number
+  avg: number
+  risk: string
+  liquidity: number
+  ticker: string
+  url: string
+  reasons: string[]
+  flags: string[]
+  createdAt: string
+}
+interface SignalsPanelData {
+  sport: SupportedSport
+  generatedAt: string
+  gamesScanned: number
+  contractsScored: number
+  signals: ModelSignal[]
+  summary: { a: number; b: number; watch: number; avgEdge: number; bestEdge: number }
+}
 
 type KalshiBetLike = {
   label?: string
@@ -2245,6 +2281,118 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
   )
 }
 
+function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: SupportedSport | 'ufc'; games: Game[]; loading: boolean; isMobile: boolean }) {
+  const [data, setData] = useState<SignalsPanelData | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const supported = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
+  const activeGames = games.filter(g => g.status !== 'post')
+  const slateKey = [sport, ...activeGames.map(g => g.id)].join('|')
+
+  useEffect(() => {
+    setData(null)
+    setError(null)
+    setScanning(false)
+  }, [slateKey])
+
+  const runSignals = async (force = false) => {
+    if (!supported || !activeGames.length) return
+    setScanning(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sport, games: activeGames, force }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(json?.error || 'signal scan failed')
+      setData(json)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'signal scan unavailable')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  if (!supported || loading || !activeGames.length) return null
+
+  const tierColor = (tier: ModelSignal['tier']) => tier === 'A' ? C.green : tier === 'B' ? C.cyan : C.gold
+  const topSignals = data?.signals || []
+
+  return (
+    <section style={{ marginBottom: isMobile ? 12 : 18, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.36)' }}>
+      <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 12 : 15, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Signal Model</div>
+            <div style={{ color: C.textPrimary, fontSize: isMobile ? 16 : 18, fontWeight: 950, marginTop: 3 }}>Real calls from executable Kalshi props</div>
+            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4 }}>Scores fair price vs live ask, recent hit rate, confidence, liquidity, and risk. This is model edge, not a guarantee.</div>
+          </div>
+          <button onClick={() => runSignals(Boolean(data))} disabled={scanning} style={{ width: isMobile ? '100%' : 'auto', flexShrink: 0, borderRadius: 999, padding: '10px 14px', border: '1px solid ' + C.borderHot, background: scanning ? 'rgba(255,255,255,0.05)' : 'rgba(166,255,63,0.14)', color: scanning ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: scanning ? 'default' : 'pointer' }}>
+            {scanning ? 'Scoring slate' : data ? 'Rescore' : 'Generate signals'}
+          </button>
+        </div>
+
+        {error && <div style={{ marginTop: 10, color: C.gold, fontSize: 11 }}>Signals unavailable: {error}</div>}
+
+        {data && (
+          <div style={{ marginTop: 13, display: 'grid', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 7 }}>
+              {[
+                ['A', data.summary.a, C.green],
+                ['B', data.summary.b, C.cyan],
+                ['Watch', data.summary.watch, C.gold],
+                ['Scored', data.contractsScored, C.textPrimary],
+                ['Best edge', String(data.summary.bestEdge) + 'c', C.green],
+              ].map(([label, value, color]) => (
+                <div key={String(label)} style={{ borderRadius: 11, padding: '8px 7px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', minWidth: 0 }}>
+                  <div style={{ color: String(color), fontSize: 14, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
+                  <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {topSignals.length ? (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
+                {topSignals.slice(0, 8).map(signal => (
+                  <a key={signal.id} href={signal.url || undefined} target="_blank" rel="noopener noreferrer" onClick={e => { if (!signal.url) e.preventDefault() }} style={{ textDecoration: 'none', borderRadius: 14, padding: 11, background: 'rgba(0,0,0,0.24)', border: '1px solid ' + (signal.tier === 'A' ? C.borderHot : C.border), display: 'block' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ color: tierColor(signal.tier), fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{signal.tier} Signal · {signal.matchup}</div>
+                        <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{signal.player}</div>
+                        <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{signal.label}</div>
+                      </div>
+                      <div style={{ color: tierColor(signal.tier), fontSize: 11, fontWeight: 950, textAlign: 'right', flexShrink: 0 }}>+{signal.edge}c<br /><span style={{ color: C.textSecondary, fontSize: 8 }}>{signal.ask}c ask</span></div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 5, marginTop: 9 }}>
+                      {[
+                        ['Hit', String(signal.hits) + '/' + String(signal.games)],
+                        ['Fair', String(signal.fairPrice) + 'c'],
+                        ['Conf', String(signal.confidence)],
+                        ['Liq', String(signal.liquidity)],
+                      ].map(([label, value]) => (
+                        <div key={label} style={{ borderRadius: 8, padding: '5px 4px', background: 'rgba(255,255,255,0.035)', textAlign: 'center' }}>
+                          <div style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950 }}>{value}</div>
+                          <div style={{ color: C.textSecondary, fontSize: 6, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{label}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.42, marginTop: 8 }}>{signal.reasons[0]}</div>
+                    {signal.flags.length > 0 && <div style={{ color: C.gold, fontSize: 8, fontWeight: 900, marginTop: 6 }}>{signal.flags.slice(0, 2).join(' · ')}</div>}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: C.textSecondary, fontSize: 11 }}>No A/B/Watch calls passed the current model gate on this slate.</div>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 function GameMarketFallback({ game }: { game: Game }) {
   const markets = [
     game.hasWinnerOdds && {
@@ -3976,6 +4124,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedAt={lastUpdated} isMobile={isMobile} />
 
         <MarketModeDock />
+
+        <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} />
 
 
         {sport === 'ufc' && <KalshiUFCSection />}
