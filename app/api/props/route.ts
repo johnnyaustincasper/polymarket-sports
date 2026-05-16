@@ -1010,10 +1010,10 @@ async function summarizeMarkets(rawPlayers: PlayerPropLine[], gatedPlayers: Play
     : status === 'priced_out'
       ? 'Executable props priced out'
       : status === 'no_executable'
-        ? 'No executable player props for this game'
+        ? 'Kalshi has not listed player props for this game yet'
         : status === 'no_candidates'
           ? 'No stat candidates passed model'
-          : 'No Kalshi player-prop markets'
+          : 'Kalshi player props are not listed yet'
   return {
     scanned: scan.scanned,
     gameMatched: scan.markets.length,
