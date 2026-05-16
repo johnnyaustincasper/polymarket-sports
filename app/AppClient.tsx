@@ -2299,6 +2299,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
   const [data, setData] = useState<SignalsPanelData | null>(null)
   const [performance, setPerformance] = useState<SignalPerformanceData | null>(null)
   const [scanning, setScanning] = useState(false)
+  const [settling, setSettling] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const supported = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const activeGames = games.filter(g => g.status !== 'post')
@@ -2345,6 +2346,26 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
     }
   }
 
+  const settleSignals = async () => {
+    if (!supported) return
+    setSettling(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sport, action: 'settle', limit: 50 }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(json?.error || 'settlement failed')
+      await loadPerformance()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'settlement unavailable')
+    } finally {
+      setSettling(false)
+    }
+  }
+
   if (!supported || loading || !activeGames.length) return null
 
   const tierColor = (tier: ModelSignal['tier']) => tier === 'A' ? C.green : tier === 'B' ? C.cyan : C.gold
@@ -2372,7 +2393,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
               <div style={{ borderRadius: 13, padding: 10, background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
                   <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Signal Ledger</div>
-                  <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{performance.pending} pending · {performance.graded} graded</div>
+                  <button onClick={settleSignals} disabled={settling || performance.pending === 0} style={{ border: 'none', background: 'transparent', color: settling ? C.textSecondary : C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: settling || performance.pending === 0 ? 'default' : 'pointer' }}>{settling ? 'Settling...' : `${performance.pending} pending · settle`}</button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
                   {[
@@ -2388,7 +2409,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
                     </div>
                   ))}
                 </div>
-                <div style={{ color: C.textSecondary, fontSize: 8, lineHeight: 1.35, marginTop: 8 }}>Ledger entries are saved when signals are generated. Auto-grading is the next settlement layer, so new calls start as pending.</div>
+                <div style={{ color: C.textSecondary, fontSize: 8, lineHeight: 1.35, marginTop: 8 }}>Ledger entries are saved when signals are generated. Settlement grades pending calls once the matching player game log appears after final.</div>
               </div>
             )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 7 }}>

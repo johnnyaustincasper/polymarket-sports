@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getJsonCache, getJsonList, prependJsonList, setJsonCache } from '@/app/lib/durable-cache'
+import { getJsonCache, getJsonList, prependJsonList, setJsonCache, setJsonList } from '@/app/lib/durable-cache'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
 
 export const dynamic = 'force-dynamic'
@@ -82,6 +82,14 @@ type SignalPerformanceResponse = {
   aSignals: number
   bSignals: number
   watchSignals: number
+  ledger: SignalLedgerEntry[]
+}
+
+type SettlementResponse = {
+  sport: Sport
+  checked: number
+  graded: number
+  remainingPending: number
   ledger: SignalLedgerEntry[]
 }
 
@@ -243,6 +251,47 @@ function performanceFromLedger(ledger: SignalLedgerEntry[]): SignalPerformanceRe
   }
 }
 
+function statValueForMetric(_player: any, gameLog: any, metric: string): number | null {
+  const stats = gameLog?.stats || {}
+  const key = metric.toLowerCase()
+  const num = (v: unknown) => {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : null
+  }
+  if (key === 'points') return num(stats.points ?? stats.pts)
+  if (key === 'rebounds') return num(stats.rebounds ?? stats.reb)
+  if (key === 'assists') return num(stats.assists ?? stats.ast)
+  if (key === 'threes') return num(stats.threes ?? stats.threePointersMade ?? stats['3pt'])
+  if (key === 'steals') return num(stats.steals ?? stats.stl)
+  if (key === 'blocks') return num(stats.blocks ?? stats.blk)
+  if (key === 'pts+reb+ast') {
+    const pts = num(stats.points ?? stats.pts) || 0
+    const reb = num(stats.rebounds ?? stats.reb) || 0
+    const ast = num(stats.assists ?? stats.ast) || 0
+    return pts + reb + ast
+  }
+  if (key === 'hits') return num(stats.hits ?? stats.hit)
+  if (key === 'home runs') return num(stats.homeRuns ?? stats.hr)
+  if (key === 'total bases') return num(stats.totalBases ?? stats.tb)
+  if (key === 'strikeouts') return num(stats.strikeouts ?? stats.so ?? stats.k)
+  if (key === 'passing yards') return num(stats.passingYards)
+  if (key === 'passing tds') return num(stats.passingTouchdowns ?? stats.passingTDs)
+  if (key === 'rushing yards') return num(stats.rushingYards)
+  if (key === 'receiving yards') return num(stats.receivingYards)
+  if (key === 'receptions') return num(stats.receptions)
+  return null
+}
+
+function lineFromLabel(label: string): number {
+  return toNum(label.match(/([0-9]+(?:\.[0-9]+)?)/)?.[1] || 0)
+}
+
+function roiForResult(entry: SignalLedgerEntry, hit: boolean): number | null {
+  const ask = toNum(entry.ask)
+  if (ask <= 0 || ask >= 100) return null
+  return hit ? Math.round(((100 - ask) / ask) * 100) : -100
+}
+
 export async function GET(req: NextRequest) {
   const timing = startRouteTiming('/api/signals')
   try {
@@ -256,11 +305,50 @@ export async function GET(req: NextRequest) {
   }
 }
 
+async function settleLedger(req: NextRequest, sport: Sport, limit: number): Promise<SettlementResponse> {
+  const ledger = await getJsonList<SignalLedgerEntry>('signals:ledger:' + sport, Math.max(limit, 500))
+  const pending = ledger.filter(row => row.status === 'pending').slice(0, limit)
+  const origin = req.nextUrl.origin
+  const cookieHeader = req.headers.get('cookie') || ''
+  const propsCache = new Map<string, any>()
+  let graded = 0
+
+  for (const entry of pending) {
+    const [awayRaw, homeRaw] = entry.matchup.split('@').map(part => part.trim())
+    if (!awayRaw || !homeRaw) continue
+    const key = awayRaw + '@' + homeRaw
+    let data = propsCache.get(key)
+    if (!data) {
+      data = await fetchProps(origin, sport, { id: entry.gameId, awayTeam: { abbr: awayRaw }, homeTeam: { abbr: homeRaw } }, cookieHeader)
+      propsCache.set(key, data)
+    }
+    const players = [...(data?.away || []), ...(data?.home || [])]
+    const player = players.find((p: any) => String(p.player || '').toLowerCase() === entry.player.toLowerCase())
+    const gameLog = (player?.last12 || []).find((g: any) => String(g.eventId || '') === String(entry.gameId))
+    if (!gameLog) continue
+    const value = statValueForMetric(player, gameLog, entry.metric)
+    if (value == null) continue
+    const hit = value >= lineFromLabel(entry.label)
+    entry.status = 'graded'
+    entry.result = hit ? 'hit' : 'miss'
+    entry.roiPct = roiForResult(entry, hit)
+    entry.flags = [...(entry.flags || []).filter(flag => !flag.startsWith('Settled:')), 'Settled: ' + value + ' vs ' + entry.label]
+    graded += 1
+  }
+
+  await setJsonList('signals:ledger:' + sport, ledger, 1000, 60 * 24 * 60 * 60_000)
+  return { sport, checked: pending.length, graded, remainingPending: ledger.filter(row => row.status === 'pending').length, ledger: ledger.slice(0, 50) }
+}
+
 export async function POST(req: NextRequest) {
   const timing = startRouteTiming('/api/signals')
   try {
     const body = await req.json().catch(() => ({}))
     const sport = parseSport(body.sport)
+    if (body.action === 'settle') {
+      const limit = Math.max(1, Math.min(100, Number(body.limit || 50)))
+      return finishRouteTiming(timing, NextResponse.json(await settleLedger(req, sport, limit)))
+    }
     const games = Array.isArray(body.games) ? body.games as SignalGame[] : []
     const activeGames = games.filter(g => g?.homeTeam?.abbr && g?.awayTeam?.abbr && g.status !== 'post').slice(0, sport === 'mlb' ? 15 : 8)
     const cacheKey = `signals:latest:${sport}:${activeGames.map(g => g.id).join('|')}`

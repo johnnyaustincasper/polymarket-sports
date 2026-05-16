@@ -110,3 +110,18 @@ export async function prependJsonList<T>(key: string, values: T[], maxItems = 50
     // Memory list is enough for local/dev or when durable storage is temporarily down.
   }
 }
+
+export async function setJsonList<T>(key: string, values: T[], maxItems = 500, ttlMs = 30 * 24 * 60 * 60_000): Promise<void> {
+  const fullKey = cacheKey(key)
+  const next = values.slice(0, maxItems)
+  memoryLists.set(fullKey, { value: next, expiresAt: Date.now() + ttlMs })
+  setMemory(fullKey, next, 30_000)
+
+  try {
+    await redisCommand(['DEL', fullKey])
+    if (next.length) await redisCommand(['RPUSH', fullKey, ...next.map(value => JSON.stringify(value))])
+    await redisCommand(['PEXPIRE', fullKey, Math.max(1, Math.floor(ttlMs))])
+  } catch {
+    // Memory list is enough for local/dev or when durable storage is temporarily down.
+  }
+}
