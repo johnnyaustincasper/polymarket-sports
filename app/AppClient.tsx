@@ -2346,7 +2346,15 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
         {open && (
           <div style={{ marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
             {loading ? (
-              <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Scanning {scannedCount}/{slateGames.length} games...</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Scanning {scannedCount}/{slateGames.length} games...</div>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, opacity: 0, animation: 'dominoFadeIn 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${i * 140}ms` }}>
+                    <div style={{ height: 11, width: i === 0 ? '62%' : i === 1 ? '48%' : '56%', borderRadius: 999, background: 'rgba(247,255,240,0.12)', marginBottom: 8 }} />
+                    <div style={{ height: 9, width: i === 0 ? '84%' : i === 1 ? '70%' : '78%', borderRadius: 999, background: 'rgba(166,255,63,0.12)' }} />
+                  </div>
+                ))}
+              </div>
             ) : error ? (
               <div style={{ color: C.gold, fontSize: 11 }}>Slate scan unavailable: {error}</div>
             ) : tickets.length ? (
@@ -2356,7 +2364,7 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
                   {tickets.map((ticket, idx) => {
                     const avgAsk = Math.round(ticket.items.reduce((sum, x) => sum + Number(x.bet.kalshi?.yesAsk || 0), 0) / ticket.items.length)
                     return (
-                      <div key={`mlb-slate-ticket-${ticket.size}-${idx}`} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.24)', border: `1px solid ${C.border}` }}>
+                      <div key={`mlb-slate-ticket-${ticket.size}-${idx}`} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.24)', border: `1px solid ${C.border}`, opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(idx * 150, 900)}ms` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 7 }}>
                           <div>
                             <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{ticket.size}-leg slate ticket</div>
@@ -2370,7 +2378,10 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ color: C.textPrimary, fontSize: 9, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.game?.awayTeam.abbr}@{item.game?.homeTeam.abbr} · {item.player.player}</div>
                                 <div style={{ color: C.textSecondary, fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.bet.label}</div>
-                                {item.matchup && <div style={{ color: item.matchup.grade === 'green' ? C.green : item.matchup.grade === 'neutral' ? C.gold : C.red, fontSize: 7, fontWeight: 900, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Matchup {item.matchup.score}/100 · {item.matchup.note}</div>}
+                                {item.matchup && <div style={{ marginTop: 4, borderRadius: 8, padding: '5px 6px', background: item.matchup.grade === 'green' ? 'rgba(166,255,63,0.10)' : item.matchup.grade === 'neutral' ? 'rgba(255,215,0,0.09)' : 'rgba(255,68,102,0.08)', border: `1px solid ${item.matchup.grade === 'green' ? 'rgba(166,255,63,0.26)' : item.matchup.grade === 'neutral' ? 'rgba(255,215,0,0.22)' : 'rgba(255,68,102,0.20)'}`, color: item.matchup.grade === 'green' ? C.green : item.matchup.grade === 'neutral' ? C.gold : C.red, fontSize: 9, fontWeight: 900, lineHeight: 1.25 }}>
+                                  Matchup {item.matchup.score}/100
+                                  <span style={{ color: C.textSecondary, fontWeight: 800 }}> · {item.matchup.note}</span>
+                                </div>}
                               </div>
                               <div style={{ color: C.green, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{item.bet.hits}/{item.bet.games}<br />{item.bet.kalshi?.yesAsk ?? '—'}c</div>
                             </div>
@@ -2483,6 +2494,17 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
 
         {error && <div style={{ marginTop: 10, color: C.gold, fontSize: 11 }}>Signals unavailable: {error}</div>}
 
+        {scanning && (
+          <div style={{ marginTop: 13, display: 'grid', gap: 8 }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, opacity: 0, animation: 'dominoFadeIn 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${i * 140}ms` }}>
+                <div style={{ height: 11, width: i === 0 ? '58%' : i === 1 ? '46%' : '66%', borderRadius: 999, background: 'rgba(247,255,240,0.12)', marginBottom: 8 }} />
+                <div style={{ height: 9, width: i === 0 ? '82%' : i === 1 ? '74%' : '64%', borderRadius: 999, background: 'rgba(166,255,63,0.12)' }} />
+              </div>
+            ))}
+          </div>
+        )}
+
         {data && (
           <div style={{ marginTop: 13, display: 'grid', gap: 12 }}>
             {performance && (
@@ -2525,8 +2547,8 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
 
             {topSignals.length ? (
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
-                {topSignals.slice(0, 8).map(signal => (
-                  <a key={signal.id} href={signal.url || undefined} target="_blank" rel="noopener noreferrer" onClick={e => { if (!signal.url) e.preventDefault() }} style={{ textDecoration: 'none', borderRadius: 14, padding: 11, background: 'rgba(0,0,0,0.24)', border: '1px solid ' + (signal.tier === 'A' ? C.borderHot : C.border), display: 'block' }}>
+                {topSignals.slice(0, 8).map((signal, signalIdx) => (
+                  <a key={signal.id} href={signal.url || undefined} target="_blank" rel="noopener noreferrer" onClick={e => { if (!signal.url) e.preventDefault() }} style={{ textDecoration: 'none', borderRadius: 14, padding: 11, background: 'rgba(0,0,0,0.24)', border: '1px solid ' + (signal.tier === 'A' ? C.borderHot : C.border), display: 'block', opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 120, 840)}ms` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ color: tierColor(signal.tier), fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{signal.tier} Signal · {signal.matchup}</div>
