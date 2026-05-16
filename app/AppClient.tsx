@@ -3921,9 +3921,9 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
   const [sportsOpen, setSportsOpen] = useState(false)
   const sports: { value: SupportedSport | 'ufc'; label: string }[] = [
     { value: 'nba', label: 'NBA' },
-    { value: 'nfl', label: 'NFL' },
     { value: 'mlb', label: 'MLB' },
     { value: 'ufc', label: 'UFC' },
+    { value: 'nfl', label: 'NFL' },
   ]
   const sportLabel = sport === 'ncaaf' || sport === 'ncaab' ? 'NCAA' : sport.toUpperCase()
   const switchSport = (s: SupportedSport | 'ufc') => { setSport(s); if (isMobile) setSportsOpen(false) }
