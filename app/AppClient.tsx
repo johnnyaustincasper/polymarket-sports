@@ -363,15 +363,13 @@ const GLOBAL_STYLES = `
     0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 14px 38px rgba(0,0,0,0.42), 0 0 12px rgba(166,255,63,0.16); filter: brightness(1); }
     50% { transform: translateY(-2px) scale(1.006); box-shadow: 0 20px 54px rgba(0,0,0,0.52), 0 0 24px rgba(166,255,63,0.26); filter: brightness(1.04); }
   }
-  @keyframes loadBoardSweep {
-    0% { transform: rotate(0deg); opacity: 0.64; filter: brightness(1) drop-shadow(0 0 5px rgba(166,255,63,0.38)); }
-    12.5%, 37.5%, 62.5%, 87.5% { opacity: 1; filter: brightness(1.35) drop-shadow(0 0 13px rgba(166,255,63,0.86)) drop-shadow(0 0 24px rgba(168,240,255,0.34)); }
-    25%, 50%, 75% { opacity: 0.72; filter: brightness(1.08) drop-shadow(0 0 8px rgba(166,255,63,0.48)); }
-    100% { transform: rotate(360deg); opacity: 0.64; filter: brightness(1) drop-shadow(0 0 5px rgba(166,255,63,0.38)); }
-  }
   @keyframes loadBoardEdgeFlash {
-    0%, 100% { opacity: 0.28; filter: brightness(1); }
-    50% { opacity: 0.82; filter: brightness(1.28); }
+    0%, 100% { opacity: 0.42; box-shadow: inset 0 0 0 1px rgba(166,255,63,0.34), 0 0 12px rgba(166,255,63,0.14); }
+    50% { opacity: 0.86; box-shadow: inset 0 0 0 1px rgba(166,255,63,0.72), 0 0 24px rgba(166,255,63,0.28), 0 0 42px rgba(168,240,255,0.12); }
+  }
+  @keyframes loadBoardCornerGlow {
+    0%, 100% { opacity: 0.22; filter: blur(0px) brightness(1); }
+    50% { opacity: 0.62; filter: blur(0.5px) brightness(1.24); }
   }
   .load-board-card {
     position: relative;
@@ -386,25 +384,23 @@ const GLOBAL_STYLES = `
     z-index: 1;
     pointer-events: none;
     border-radius: inherit;
-    padding: 1px;
-    background: conic-gradient(from 0deg, transparent 0deg, transparent 52deg, rgba(166,255,63,0.95) 78deg, rgba(168,240,255,0.48) 94deg, transparent 126deg, transparent 360deg);
-    animation: loadBoardSweep 2.7s linear infinite;
-    mix-blend-mode: screen;
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    mask-composite: exclude;
+    border: 1px solid rgba(166,255,63,0.44);
+    animation: loadBoardEdgeFlash 2.1s ease-in-out infinite;
   }
   .load-board-card::after {
     content: '';
     position: absolute;
-    inset: 1px;
+    inset: 0;
     z-index: 1;
     pointer-events: none;
     border-radius: inherit;
-    border: 1px solid rgba(166,255,63,0.42);
-    box-shadow: inset 0 0 0 1px rgba(168,240,255,0.05), 0 0 18px rgba(166,255,63,0.18);
-    animation: loadBoardEdgeFlash 1.8s ease-in-out infinite;
+    background:
+      radial-gradient(circle at 0 0, rgba(166,255,63,0.42), transparent 28%),
+      radial-gradient(circle at 100% 0, rgba(168,240,255,0.22), transparent 28%),
+      radial-gradient(circle at 100% 100%, rgba(166,255,63,0.34), transparent 28%),
+      radial-gradient(circle at 0 100%, rgba(168,240,255,0.18), transparent 28%);
+    mix-blend-mode: screen;
+    animation: loadBoardCornerGlow 2.1s ease-in-out infinite;
   }
   .load-board-card:hover {
     transform: translateY(-5px) scale(1.018);
