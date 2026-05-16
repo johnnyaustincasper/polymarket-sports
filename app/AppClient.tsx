@@ -146,6 +146,8 @@ type KalshiBetLike = {
     yesAskSize?: number
   } | null
 }
+type ParlayItem = { game?: Game; player: any; bet: any }
+type ParlayTicket = { size: number; items: ParlayItem[] }
 
 interface FootballIntelData {
   prepScore: number
@@ -1577,6 +1579,44 @@ function buildPropEdgeRead(player: any, bet: any, intel?: TeamIntelData | null) 
   return parts
 }
 
+function parlayContractKey(item: ParlayItem) {
+  const gameKey = item.game ? `${item.game.awayTeam.abbr}@${item.game.homeTeam.abbr}` : ''
+  return `${gameKey}|${item.player.team}|${item.player.player}|${item.bet.metric}|${item.bet.line}|${item.bet.kalshi?.legTicker || item.bet.kalshi?.ticker || ''}`
+}
+
+function buildSafeParlayPool(items: ParlayItem[]) {
+  return items
+    .filter(item => Number(item.bet.games || 0) >= 12 && Number(item.bet.hits || 0) >= 9 && (item.bet.kalshi?.legTicker || item.bet.kalshi?.ticker) && Number(item.bet.kalshi?.yesAskSize || 0) > 0)
+    .sort((a, b) => {
+      const hitDiff = Number(b.bet.hits || 0) - Number(a.bet.hits || 0)
+      if (hitDiff) return hitDiff
+      const gameDiff = String(a.game?.id || '').localeCompare(String(b.game?.id || ''))
+      if (gameDiff) return gameDiff
+      return Number(a.bet.kalshi?.yesAsk || 99) - Number(b.bet.kalshi?.yesAsk || 99)
+    })
+}
+
+function buildParlayFromPool(safeParlayPool: ParlayItem[], targetSize: number, offset: number) {
+  const picked: ParlayItem[] = []
+  const usedPlayers = new Set<string>()
+  for (let i = 0; i < safeParlayPool.length && picked.length < targetSize; i++) {
+    const item = safeParlayPool[(i + offset) % safeParlayPool.length]
+    const key = String(item.player.player || '').toLowerCase()
+    if (!key || usedPlayers.has(key)) continue
+    usedPlayers.add(key)
+    picked.push(item)
+  }
+  return picked.length >= Math.min(targetSize, safeParlayPool.length) ? picked : []
+}
+
+function buildParlaySuggestions(safeParlayPool: ParlayItem[]) {
+  return [2, 3, 4, 6, 8]
+    .filter(size => safeParlayPool.length >= size)
+    .map((size, i) => ({ size, items: buildParlayFromPool(safeParlayPool, size, i * 2) }))
+    .filter(ticket => ticket.items.length >= 2)
+    .slice(0, 5)
+}
+
 function ExactKalshiBetButton({ player, bet, compact = false }: { player: string; bet: KalshiBetLike; compact?: boolean }) {
   const [open, setOpen] = useState(false)
   const kalshi = bet.kalshi
@@ -1734,33 +1774,15 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   }, new Map()).values()) : []
   const contractKey = (p: any, bet: any) => `${p.team}|${p.player}|${bet.metric}|${bet.line}|${bet.kalshi?.legTicker || bet.kalshi?.ticker || ''}`
   const selectedItems = allContracts.filter((x: any) => selectedContracts[contractKey(x.player, x.bet)])
-  const safeParlayPool = allContracts
-    .filter((x: any) => Number(x.bet.games || 0) >= 12 && Number(x.bet.hits || 0) >= 9 && (x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker) && Number(x.bet.kalshi?.yesAskSize || 0) > 0)
-    .sort((a: any, b: any) => (Number(b.bet.hits || 0) - Number(a.bet.hits || 0)) || (Number(a.bet.kalshi?.yesAsk || 99) - Number(b.bet.kalshi?.yesAsk || 99)))
-  const buildParlay = (targetSize: number, offset: number) => {
-    const picked: any[] = []
-    const usedPlayers = new Set<string>()
-    for (let i = 0; i < safeParlayPool.length && picked.length < targetSize; i++) {
-      const item = safeParlayPool[(i + offset) % safeParlayPool.length]
-      const key = String(item.player.player || '').toLowerCase()
-      if (!key || usedPlayers.has(key)) continue
-      usedPlayers.add(key)
-      picked.push(item)
-    }
-    return picked.length >= Math.min(targetSize, safeParlayPool.length) ? picked : []
-  }
-  const parlaySuggestions = [2, 3, 4, 6, 8]
-    .filter(size => safeParlayPool.length >= size)
-    .map((size, i) => ({ size, items: buildParlay(size, i * 2) }))
-    .filter(ticket => ticket.items.length >= 2)
-    .slice(0, 5)
-  const selectParlayItems = (items: any[]) => {
+  const safeParlayPool = buildSafeParlayPool(allContracts.map((x: any) => ({ player: x.player, bet: x.bet })))
+  const parlaySuggestions = buildParlaySuggestions(safeParlayPool)
+  const selectParlayItems = (items: ParlayItem[]) => {
     const next: Record<string, boolean> = {}
-    items.forEach((x: any) => { next[contractKey(x.player, x.bet)] = true })
+    items.forEach(x => { next[contractKey(x.player, x.bet)] = true })
     setSelectedContracts(next)
   }
-  const copyParlayItems = async (items: any[]) => {
-    const text = items.map((x: any, i: number) => `${i + 1}. ${x.player.player} — ${x.bet.label} — hit ${x.bet.hits}/${x.bet.games} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`).join('\n')
+  const copyParlayItems = async (items: ParlayItem[]) => {
+    const text = items.map((x, i) => `${i + 1}. ${x.player.player} — ${x.bet.label} — hit ${x.bet.hits}/${x.bet.games} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`).join('\n')
     try { await navigator.clipboard?.writeText(text) } catch {}
   }
   const copySelected = async () => {
@@ -2098,6 +2120,125 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           </div>
         ) : (
           <GameMarketFallback game={game} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [tickets, setTickets] = useState<ParlayTicket[]>([])
+  const [safeCount, setSafeCount] = useState(0)
+  const [scannedCount, setScannedCount] = useState(0)
+  const slateGames = games.filter(g => g.status !== 'post')
+  const slateKey = slateGames.map(g => g.id).join('|')
+
+  useEffect(() => {
+    setOpen(false)
+    setLoading(false)
+    setError(null)
+    setTickets([])
+    setSafeCount(0)
+    setScannedCount(0)
+  }, [slateKey])
+
+  const copyTicket = async (items: ParlayItem[]) => {
+    const text = items.map((x, i) => {
+      const matchup = x.game ? `${x.game.awayTeam.abbr}@${x.game.homeTeam.abbr}` : ''
+      return `${i + 1}. ${matchup} — ${x.player.player} — ${x.bet.label} — hit ${x.bet.hits}/${x.bet.games} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`
+    }).join('\n')
+    try { await navigator.clipboard?.writeText(text) } catch {}
+  }
+
+  const scanSlate = async () => {
+    if (!slateGames.length) return
+    setOpen(true)
+    setLoading(true)
+    setError(null)
+    setTickets([])
+    setSafeCount(0)
+    setScannedCount(0)
+    try {
+      const found: ParlayItem[] = []
+      for (let i = 0; i < slateGames.length; i += 4) {
+        const batch = slateGames.slice(i, i + 4)
+        const results = await Promise.all(batch.map(async game => {
+          const data = await fetchJsonCached<PropsPanelData>(cacheKey('/api/props', { home: game.homeTeam.abbr, away: game.awayTeam.abbr, sport: 'mlb' }), 30_000, 45_000)
+          const players = [...(data.away || []), ...(data.home || [])].filter((p: any) => (p.recommendations || []).length)
+          return players.flatMap((player: any) => (player.recommendations || []).map((bet: any) => ({ game, player, bet })))
+        }))
+        found.push(...results.flat())
+        setScannedCount(prev => prev + batch.length)
+      }
+      const safePool = buildSafeParlayPool(found)
+      setSafeCount(safePool.length)
+      setTickets(buildParlaySuggestions(safePool))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'MLB slate scan failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!slateGames.length) return null
+
+  return (
+    <div style={{ borderRadius: 18, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.54), rgba(168,240,255,0.18), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.38)' }}>
+      <div style={{ borderRadius: 17, padding: isMobile ? 12 : 15, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+          <div>
+            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>MLB Slate Parlay Builder</div>
+            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4 }}>Scans every MLB game for executable Kalshi props that hit 9/12+.</div>
+          </div>
+          <button onClick={scanSlate} disabled={loading} style={{ flexShrink: 0, borderRadius: 999, padding: isMobile ? '9px 11px' : '10px 14px', border: `1px solid ${C.borderHot}`, background: loading ? 'rgba(255,255,255,0.05)' : 'rgba(166,255,63,0.14)', color: loading ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'default' : 'pointer' }}>
+            {loading ? 'Scanning' : open ? 'Rescan' : 'Build'}
+          </button>
+        </div>
+
+        {open && (
+          <div style={{ marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+            {loading ? (
+              <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Scanning {scannedCount}/{slateGames.length} games...</div>
+            ) : error ? (
+              <div style={{ color: C.gold, fontSize: 11 }}>Slate scan unavailable: {error}</div>
+            ) : tickets.length ? (
+              <div style={{ display: 'grid', gap: 9 }}>
+                <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>{safeCount} qualifying legs found across {slateGames.length} MLB games.</div>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
+                  {tickets.map((ticket, idx) => {
+                    const avgAsk = Math.round(ticket.items.reduce((sum, x) => sum + Number(x.bet.kalshi?.yesAsk || 0), 0) / ticket.items.length)
+                    return (
+                      <div key={`mlb-slate-ticket-${ticket.size}-${idx}`} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.24)', border: `1px solid ${C.border}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 7 }}>
+                          <div>
+                            <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{ticket.size}-leg slate ticket</div>
+                            <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>avg ask {avgAsk}c · all hit 9/12+</div>
+                          </div>
+                          <button onClick={() => copyTicket(ticket.items)} style={{ borderRadius: 999, padding: '6px 9px', border: `1px solid ${C.borderHot}`, background: 'rgba(166,255,63,0.14)', color: C.green, fontSize: 8, fontWeight: 950, cursor: 'pointer' }}>Copy</button>
+                        </div>
+                        <div style={{ display: 'grid', gap: 5 }}>
+                          {ticket.items.map(item => (
+                            <div key={parlayContractKey(item)} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center' }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ color: C.textPrimary, fontSize: 9, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.game?.awayTeam.abbr}@{item.game?.homeTeam.abbr} · {item.player.player}</div>
+                                <div style={{ color: C.textSecondary, fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.bet.label}</div>
+                              </div>
+                              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{item.bet.hits}/{item.bet.games}<br />{item.bet.kalshi?.yesAsk ?? '—'}c</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div style={{ color: C.textSecondary, fontSize: 11 }}>No 9/12+ executable Kalshi MLB legs found across this slate yet.</div>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -3854,6 +3995,9 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+            {provider === 'kalshi' && sport === 'mlb' && (
+              <MlbSlateParlayBuilder games={games} isMobile={isMobile} />
+            )}
             {live.length > 0 && (
               <section>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
