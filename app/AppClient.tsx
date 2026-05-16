@@ -294,6 +294,11 @@ const SURFACE = {
 
 // ─── Global CSS keyframes ──────────────────────────────────────────────────────
 const GLOBAL_STYLES = `
+  @property --load-board-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+  }
   @keyframes liveBorderPulse {
     0%, 100% {
       box-shadow: 0 0 24px rgba(166,255,63,0.25), 0 4px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
@@ -363,15 +368,14 @@ const GLOBAL_STYLES = `
     0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 14px 38px rgba(0,0,0,0.42), 0 0 12px rgba(166,255,63,0.16); filter: brightness(1); }
     50% { transform: translateY(-2px) scale(1.006); box-shadow: 0 20px 54px rgba(0,0,0,0.52), 0 0 24px rgba(166,255,63,0.26); filter: brightness(1.04); }
   }
-  @keyframes loadBoardEdgeFlash {
-    0%, 100% { opacity: 0.42; box-shadow: inset 0 0 0 1px rgba(166,255,63,0.34), 0 0 12px rgba(166,255,63,0.14); }
-    50% { opacity: 0.86; box-shadow: inset 0 0 0 1px rgba(166,255,63,0.72), 0 0 24px rgba(166,255,63,0.28), 0 0 42px rgba(168,240,255,0.12); }
-  }
-  @keyframes loadBoardCornerGlow {
-    0%, 100% { opacity: 0.22; filter: blur(0px) brightness(1); }
-    50% { opacity: 0.62; filter: blur(0.5px) brightness(1.24); }
+  @keyframes loadBoardSweep {
+    0% { --load-board-angle: 0deg; opacity: 0.7; filter: drop-shadow(0 0 5px rgba(166,255,63,0.32)); }
+    12.5%, 37.5%, 62.5%, 87.5% { opacity: 1; filter: drop-shadow(0 0 12px rgba(166,255,63,0.78)); }
+    25%, 50%, 75% { opacity: 0.78; filter: drop-shadow(0 0 7px rgba(166,255,63,0.44)); }
+    100% { --load-board-angle: 360deg; opacity: 0.7; filter: drop-shadow(0 0 5px rgba(166,255,63,0.32)); }
   }
   .load-board-card {
+    --load-board-angle: 0deg;
     position: relative;
     transform: translateZ(0);
     animation: loadBoardPulse 2.2s ease-in-out infinite;
@@ -384,23 +388,9 @@ const GLOBAL_STYLES = `
     z-index: 1;
     pointer-events: none;
     border-radius: inherit;
-    border: 1px solid rgba(166,255,63,0.44);
-    animation: loadBoardEdgeFlash 2.1s ease-in-out infinite;
-  }
-  .load-board-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    border-radius: inherit;
-    background:
-      radial-gradient(circle at 0 0, rgba(166,255,63,0.42), transparent 28%),
-      radial-gradient(circle at 100% 0, rgba(168,240,255,0.22), transparent 28%),
-      radial-gradient(circle at 100% 100%, rgba(166,255,63,0.34), transparent 28%),
-      radial-gradient(circle at 0 100%, rgba(168,240,255,0.18), transparent 28%);
+    background: conic-gradient(from var(--load-board-angle), rgba(166,255,63,0.18) 0deg, rgba(166,255,63,0.95) 26deg, rgba(168,240,255,0.52) 42deg, rgba(166,255,63,0.22) 66deg, rgba(166,255,63,0.10) 124deg, rgba(166,255,63,0.18) 360deg);
     mix-blend-mode: screen;
-    animation: loadBoardCornerGlow 2.1s ease-in-out infinite;
+    animation: loadBoardSweep 2.45s linear infinite;
   }
   .load-board-card:hover {
     transform: translateY(-5px) scale(1.018);
