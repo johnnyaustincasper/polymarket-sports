@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getJsonCache, setJsonCache } from '@/app/lib/durable-cache'
+import { getJsonCache, getJsonList, prependJsonList, setJsonCache } from '@/app/lib/durable-cache'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
 
 export const dynamic = 'force-dynamic'
@@ -61,6 +61,30 @@ type SignalsResponse = {
   }
 }
 
+type SignalLedgerEntry = ModelSignal & {
+  ledgerId: string
+  status: 'pending' | 'graded'
+  result: 'hit' | 'miss' | null
+  roiPct: number | null
+  wouldBuy: boolean
+  recordedAt: string
+}
+
+type SignalPerformanceResponse = {
+  generatedAt: string
+  total: number
+  pending: number
+  graded: number
+  wins: number
+  losses: number
+  winRate: number | null
+  avgEdge: number
+  aSignals: number
+  bSignals: number
+  watchSignals: number
+  ledger: SignalLedgerEntry[]
+}
+
 function parseSport(value: unknown): Sport {
   const sport = String(value || 'nba').toLowerCase()
   return sport === 'mlb' || sport === 'nfl' ? sport : 'nba'
@@ -73,6 +97,10 @@ function toNum(value: unknown): number {
 
 function cleanId(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 160)
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10).replace(/-/g, '')
 }
 
 function riskPenalty(risk: string): number {
@@ -182,6 +210,52 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
   return { contracts, signals }
 }
 
+function toLedgerEntries(signals: ModelSignal[], generatedAt: string): SignalLedgerEntry[] {
+  return signals.map(signal => ({
+    ...signal,
+    ledgerId: cleanId(signal.id + '-' + generatedAt),
+    status: 'pending',
+    result: null,
+    roiPct: null,
+    wouldBuy: (signal.tier === 'A' || signal.tier === 'B') && signal.ask > 0 && signal.ask <= signal.maxBuy,
+    recordedAt: generatedAt,
+  }))
+}
+
+function performanceFromLedger(ledger: SignalLedgerEntry[]): SignalPerformanceResponse {
+  const graded = ledger.filter(row => row.status === 'graded')
+  const wins = graded.filter(row => row.result === 'hit').length
+  const losses = graded.filter(row => row.result === 'miss').length
+  const edges = ledger.map(row => row.edge).filter(Number.isFinite)
+  return {
+    generatedAt: new Date().toISOString(),
+    total: ledger.length,
+    pending: ledger.filter(row => row.status === 'pending').length,
+    graded: graded.length,
+    wins,
+    losses,
+    winRate: graded.length ? Math.round((wins / graded.length) * 100) : null,
+    avgEdge: edges.length ? Math.round(edges.reduce((sum, n) => sum + n, 0) / edges.length) : 0,
+    aSignals: ledger.filter(row => row.tier === 'A').length,
+    bSignals: ledger.filter(row => row.tier === 'B').length,
+    watchSignals: ledger.filter(row => row.tier === 'WATCH').length,
+    ledger: ledger.slice(0, 50),
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const timing = startRouteTiming('/api/signals')
+  try {
+    const sport = parseSport(req.nextUrl.searchParams.get('sport'))
+    const limit = Math.max(25, Math.min(500, Number(req.nextUrl.searchParams.get('limit') || 200)))
+    const ledger = await getJsonList<SignalLedgerEntry>('signals:ledger:' + sport, limit)
+    return finishRouteTiming(timing, NextResponse.json(performanceFromLedger(ledger)))
+  } catch (err) {
+    console.error('Signals ledger error:', err)
+    return finishRouteTiming(timing, NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to load signal ledger' }, { status: 500 }))
+  }
+}
+
 export async function POST(req: NextRequest) {
   const timing = startRouteTiming('/api/signals')
   try {
@@ -245,6 +319,9 @@ export async function POST(req: NextRequest) {
 
     await setJsonCache(cacheKey, response, 5 * 60_000)
     await setJsonCache(`signals:last:${sport}`, response, 24 * 60 * 60_000)
+    const ledgerEntries = toLedgerEntries(signals, generatedAt)
+    await prependJsonList('signals:ledger:' + sport, ledgerEntries, 1000, 60 * 24 * 60 * 60_000)
+    await prependJsonList('signals:ledger:' + sport + ':' + todayKey(), ledgerEntries, 1000, 60 * 24 * 60 * 60_000)
 
     return finishRouteTiming(timing, NextResponse.json(response))
   } catch (err) {

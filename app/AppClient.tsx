@@ -162,6 +162,20 @@ interface SignalsPanelData {
   signals: ModelSignal[]
   summary: { a: number; b: number; watch: number; avgEdge: number; bestEdge: number }
 }
+interface SignalPerformanceData {
+  generatedAt: string
+  total: number
+  pending: number
+  graded: number
+  wins: number
+  losses: number
+  winRate: number | null
+  avgEdge: number
+  aSignals: number
+  bSignals: number
+  watchSignals: number
+  ledger: Array<ModelSignal & { ledgerId: string; status: 'pending' | 'graded'; result: 'hit' | 'miss' | null; wouldBuy: boolean; recordedAt: string }>
+}
 
 type KalshiBetLike = {
   label?: string
@@ -2283,6 +2297,7 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
 
 function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: SupportedSport | 'ufc'; games: Game[]; loading: boolean; isMobile: boolean }) {
   const [data, setData] = useState<SignalsPanelData | null>(null)
+  const [performance, setPerformance] = useState<SignalPerformanceData | null>(null)
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const supported = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
@@ -2294,6 +2309,20 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
     setError(null)
     setScanning(false)
   }, [slateKey])
+
+  const loadPerformance = async () => {
+    if (!supported) return
+    try {
+      const res = await fetch('/api/signals?sport=' + sport + '&limit=200', { cache: 'no-store' })
+      const json = await res.json().catch(() => null)
+      if (res.ok) setPerformance(json)
+    } catch {}
+  }
+
+  useEffect(() => {
+    setPerformance(null)
+    loadPerformance()
+  }, [sport])
 
   const runSignals = async (force = false) => {
     if (!supported || !activeGames.length) return
@@ -2308,6 +2337,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
       const json = await res.json().catch(() => null)
       if (!res.ok) throw new Error(json?.error || 'signal scan failed')
       setData(json)
+      loadPerformance()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'signal scan unavailable')
     } finally {
@@ -2338,6 +2368,29 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
 
         {data && (
           <div style={{ marginTop: 13, display: 'grid', gap: 12 }}>
+            {performance && (
+              <div style={{ borderRadius: 13, padding: 10, background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
+                  <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Signal Ledger</div>
+                  <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{performance.pending} pending · {performance.graded} graded</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
+                  {[
+                    ['Logged', performance.total],
+                    ['A', performance.aSignals],
+                    ['B', performance.bSignals],
+                    ['Win %', performance.winRate == null ? 'TBD' : String(performance.winRate) + '%'],
+                    ['Avg edge', String(performance.avgEdge) + 'c'],
+                  ].map(([label, value]) => (
+                    <div key={String(label)} style={{ borderRadius: 9, padding: '6px 4px', background: 'rgba(0,0,0,0.18)', textAlign: 'center' }}>
+                      <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
+                      <div style={{ color: C.textSecondary, fontSize: 6, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ color: C.textSecondary, fontSize: 8, lineHeight: 1.35, marginTop: 8 }}>Ledger entries are saved when signals are generated. Auto-grading is the next settlement layer, so new calls start as pending.</div>
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 7 }}>
               {[
                 ['A', data.summary.a, C.green],
