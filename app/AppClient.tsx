@@ -3581,10 +3581,12 @@ function groupUfcMarkets(markets: KalshiUFCMarket[]) {
 
 function KalshiUFCSection() {
   const cols = useColCount()
+  const isMobile = useIsMobile()
   const [data, setData] = useState<{ available: boolean; scanned: number; fights: KalshiUFCFight[]; scannedBySeries?: Record<string, number> } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+  const [loadedFightIds, setLoadedFightIds] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -3612,8 +3614,39 @@ function KalshiUFCSection() {
       {fights.map(fight => {
         const totalSize = fight.markets.reduce((sum, m) => sum + (m.yesAskSize || 0), 0)
         const groups = groupUfcMarkets(fight.markets)
+        const loaded = Boolean(loadedFightIds[fight.id])
+        if (!loaded) {
+          return (
+            <button key={fight.id} className="load-board-card" onClick={() => setLoadedFightIds(prev => ({ ...prev, [fight.id]: true }))} style={{
+              width: '100%',
+              textAlign: 'left',
+              borderRadius: isMobile ? 16 : 22,
+              padding: 1,
+              border: 'none',
+              background: 'linear-gradient(135deg, rgba(166,255,63,0.56), rgba(255,255,255,0.10), rgba(168,240,255,0.18), rgba(166,255,63,0.22))',
+              cursor: 'pointer',
+              overflow: 'hidden',
+            }}>
+              <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 112 : 150, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(166,255,63,0.055), transparent 34%, rgba(168,240,255,0.035) 68%, transparent)', pointerEvents: 'none' }} />
+                <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi UFC</div>
+                    <div style={{ color: C.textPrimary, fontSize: isMobile ? 14 : 18, fontWeight: 950, marginTop: 4, lineHeight: 1.08, overflow: 'hidden', textOverflow: 'ellipsis' }}>{fight.fighterA}<br />vs {fight.fighterB}</div>
+                    <div style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 800, marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fight.dateLabel || fight.eventKey}</div>
+                  </div>
+                  <span style={{ flexShrink: 0, borderRadius: 999, padding: '3px 7px', background: 'rgba(166,255,63,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 8, fontWeight: 950 }}>{fight.markets.length}</span>
+                </div>
+                <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', minWidth: 0 }}>
+                  <span style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Load board</span>
+                  <span style={{ color: C.green, fontSize: isMobile ? 8 : 10, fontWeight: 950 }}>{Math.round(totalSize).toLocaleString()} size</span>
+                </div>
+              </div>
+            </button>
+          )
+        }
         return (
-          <div key={fight.id} style={{ borderRadius: 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(255,255,255,0.10), rgba(166,255,63,0.08))', boxShadow: '0 14px 42px rgba(0,0,0,0.42)', overflow: 'hidden' }}>
+          <div key={fight.id} style={{ gridColumn: '1 / -1', borderRadius: 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(255,255,255,0.10), rgba(166,255,63,0.08))', boxShadow: '0 14px 42px rgba(0,0,0,0.42)', overflow: 'hidden' }}>
             <div style={{ borderRadius: 21, padding: 14, background: SURFACE.panel, minHeight: 190 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
                 <div style={{ minWidth: 0 }}>
@@ -3621,7 +3654,10 @@ function KalshiUFCSection() {
                   <div style={{ color: C.textPrimary, fontSize: 14, fontWeight: 950, marginTop: 4, lineHeight: 1.15 }}>{fight.fighterA} vs {fight.fighterB}</div>
                   <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 3 }}>{fight.dateLabel || fight.eventKey}</div>
                 </div>
-                <span style={{ borderRadius: 999, padding: '3px 7px', background: 'rgba(166,255,63,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 8, fontWeight: 950 }}>{Math.round(totalSize).toLocaleString()} size</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <span style={{ borderRadius: 999, padding: '3px 7px', background: 'rgba(166,255,63,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 8, fontWeight: 950 }}>{Math.round(totalSize).toLocaleString()} size</span>
+                  <button onClick={() => setLoadedFightIds(prev => { const next = { ...prev }; delete next[fight.id]; return next })} style={{ borderRadius: 999, padding: '7px 10px', border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.045)', color: C.textPrimary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>Minimize</button>
+                </div>
               </div>
 
               <div style={{ display: 'grid', gap: 8 }}>
