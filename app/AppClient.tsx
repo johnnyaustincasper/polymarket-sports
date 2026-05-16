@@ -364,10 +364,10 @@ const GLOBAL_STYLES = `
     50% { transform: translateY(-2px) scale(1.006); box-shadow: 0 20px 54px rgba(0,0,0,0.52), 0 0 24px rgba(166,255,63,0.26); filter: brightness(1.04); }
   }
   @keyframes loadBoardSweep {
-    0% { transform: rotate(0deg); opacity: 0.62; filter: drop-shadow(0 0 5px rgba(166,255,63,0.38)); }
-    12.5%, 37.5%, 62.5%, 87.5% { opacity: 1; filter: drop-shadow(0 0 13px rgba(166,255,63,0.86)) drop-shadow(0 0 24px rgba(168,240,255,0.34)); }
-    25%, 50%, 75% { opacity: 0.72; filter: drop-shadow(0 0 8px rgba(166,255,63,0.48)); }
-    100% { transform: rotate(360deg); opacity: 0.62; filter: drop-shadow(0 0 5px rgba(166,255,63,0.38)); }
+    0% { transform: rotate(0deg); opacity: 0.64; filter: brightness(1) drop-shadow(0 0 5px rgba(166,255,63,0.38)); }
+    12.5%, 37.5%, 62.5%, 87.5% { opacity: 1; filter: brightness(1.35) drop-shadow(0 0 13px rgba(166,255,63,0.86)) drop-shadow(0 0 24px rgba(168,240,255,0.34)); }
+    25%, 50%, 75% { opacity: 0.72; filter: brightness(1.08) drop-shadow(0 0 8px rgba(166,255,63,0.48)); }
+    100% { transform: rotate(360deg); opacity: 0.64; filter: brightness(1) drop-shadow(0 0 5px rgba(166,255,63,0.38)); }
   }
   @keyframes loadBoardEdgeFlash {
     0%, 100% { opacity: 0.28; filter: brightness(1); }
@@ -382,13 +382,18 @@ const GLOBAL_STYLES = `
   .load-board-card::before {
     content: '';
     position: absolute;
-    inset: -65%;
+    inset: 0;
     z-index: 1;
     pointer-events: none;
-    border-radius: 999px;
-    background: conic-gradient(from 0deg, transparent 0deg, transparent 58deg, rgba(166,255,63,0.92) 82deg, rgba(168,240,255,0.42) 96deg, transparent 124deg, transparent 360deg);
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(from 0deg, transparent 0deg, transparent 52deg, rgba(166,255,63,0.95) 78deg, rgba(168,240,255,0.48) 94deg, transparent 126deg, transparent 360deg);
     animation: loadBoardSweep 2.7s linear infinite;
     mix-blend-mode: screen;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
   }
   .load-board-card::after {
     content: '';
