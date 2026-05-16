@@ -1731,9 +1731,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested }:
         cursor: 'pointer',
         overflow: 'hidden',
       }}>
-        <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 112 : 150, background: 'radial-gradient(circle at 78% 18%, rgba(166,255,63,0.15), transparent 30%), linear-gradient(145deg, rgba(10,16,7,0.97), rgba(3,5,0,0.96))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', right: isMobile ? -36 : -26, top: isMobile ? -34 : -28, width: isMobile ? 78 : 96, height: isMobile ? 78 : 96, borderRadius: 999, border: '1px solid rgba(166,255,63,0.28)', boxShadow: '0 0 38px rgba(166,255,63,0.18)', animation: 'loadBoardRing 1.7s ease-in-out infinite' }} />
-          <div style={{ position: 'absolute', right: isMobile ? 9 : 18, bottom: isMobile ? 9 : 18, width: 7, height: 7, borderRadius: 999, background: C.green, boxShadow: '0 0 20px rgba(166,255,63,0.95)', animation: 'liveDotPulse 1.15s ease-in-out infinite' }} />
+        <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 112 : 150, background: 'radial-gradient(circle at 50% 52%, rgba(166,255,63,0.18), transparent 42%), linear-gradient(145deg, rgba(10,16,7,0.97), rgba(3,5,0,0.96))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', left: '50%', top: '50%', width: isMobile ? 42 : 58, height: isMobile ? 42 : 58, transform: 'translate(-50%, -50%)', borderRadius: 999, background: 'rgba(166,255,63,0.12)', boxShadow: '0 0 42px rgba(166,255,63,0.34)', animation: 'liveDotPulse 1.35s ease-in-out infinite' }} />
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
             <div>
               <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi</div>
