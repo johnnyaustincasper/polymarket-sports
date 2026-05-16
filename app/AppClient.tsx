@@ -1674,20 +1674,20 @@ function GameMapSelector({ games, sport, selectedGameId, onSelect, isMobile }: {
   const accent = sportAccent(sport)
   const liveCount = games.filter(g => g.status === 'in').length
   return (
-    <section style={{ marginBottom: 22, borderRadius: 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.42), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 58px rgba(0,0,0,0.38)', overflow: 'hidden' }}>
-      <div style={{ position: 'relative', borderRadius: 21, minHeight: isMobile ? 260 : 360, padding: isMobile ? 12 : 16, background: 'radial-gradient(circle at 22% 18%, rgba(168,240,255,0.10), transparent 26%), radial-gradient(circle at 76% 26%, rgba(166,255,63,0.10), transparent 24%), linear-gradient(145deg, rgba(5,12,10,0.98), rgba(2,5,3,0.96))', overflow: 'hidden' }}>
+    <section style={{ marginBottom: isMobile ? 14 : 22, borderRadius: 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.42), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 58px rgba(0,0,0,0.38)', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', borderRadius: 21, padding: isMobile ? 10 : 16, background: 'radial-gradient(circle at 22% 18%, rgba(168,240,255,0.10), transparent 26%), radial-gradient(circle at 76% 26%, rgba(166,255,63,0.10), transparent 24%), linear-gradient(145deg, rgba(5,12,10,0.98), rgba(2,5,3,0.96))', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(166,255,63,0.08), transparent)', animation: 'mapSweep 5.8s ease-in-out infinite', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
           <div>
             <div style={{ color: accent, fontSize: 10, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Selection Map</div>
-            <div style={{ color: C.textPrimary, fontSize: isMobile ? 20 : 26, fontWeight: 950, letterSpacing: '-0.04em', marginTop: 3 }}>{sport.toUpperCase()} Stadium Board</div>
+            <div style={{ color: C.textPrimary, fontSize: isMobile ? 18 : 26, fontWeight: 950, letterSpacing: '-0.04em', marginTop: 3 }}>{sport.toUpperCase()} Stadium Board</div>
           </div>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <span style={{ borderRadius: 999, padding: '5px 9px', border: '1px solid ' + C.border, color: C.textSecondary, background: 'rgba(255,255,255,0.035)', fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{games.length} games</span>
             {liveCount > 0 && <span style={{ borderRadius: 999, padding: '5px 9px', border: '1px solid ' + C.cyan, color: C.cyan, background: 'rgba(168,240,255,0.08)', fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{liveCount} live</span>}
           </div>
         </div>
-        <div style={{ position: 'relative', zIndex: 1, height: isMobile ? 220 : 430, marginTop: 4, borderRadius: 18, overflow: 'hidden', background: '#000' }}>
+        <div style={{ position: 'relative', zIndex: 1, height: isMobile ? 168 : 430, marginTop: 4, borderRadius: 18, overflow: 'hidden', background: '#000' }}>
           <img src="/maps/usa-stadium-map-bg.jpg" alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.22, filter: 'saturate(0.9) contrast(1.08) brightness(0.42)' }} />
           <img src="/maps/usa-neon-outline-map.jpg" alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: 0.94, filter: 'saturate(1.25) contrast(1.1) brightness(1.05)' }} />
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, transparent 48%, rgba(0,0,0,0.38) 100%), linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.18))', pointerEvents: 'none' }} />
@@ -3672,6 +3672,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [activeAnalysisGame, setActiveAnalysisGame] = useState<Game | null>(null)
   const [analysisLoadingGameId, setAnalysisLoadingGameId] = useState<string | null>(null)
   const [selectedMapGameId, setSelectedMapGameId] = useState<string | null>(null)
+  const [slateView, setSlateView] = useState<'list' | 'map'>('list')
   const cols = useColCount()
   const isMobile = useIsMobile()
 
@@ -3703,6 +3704,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
   useEffect(() => {
     setSelectedMapGameId(null)
+    setSlateView('list')
   }, [sport, date])
 
   const fetchGames = useCallback(async () => {
@@ -3785,6 +3787,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const upcoming = games.filter(g => g.status === 'pre')
   const final = games.filter(g => g.status === 'post')
   const pendingBets = bets.filter(b => b.result === 'pending').length
+  const activeAccent = sportAccent(sport)
+  const canUseMapView = provider === 'kalshi' && (sport === 'nba' || sport === 'mlb')
   const logBet = (b: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) =>
     saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])
   const selectMappedGame = (game: Game) => {
@@ -3840,7 +3844,15 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            {provider === 'kalshi' && (sport === 'nba' || sport === 'mlb') && (
+            {canUseMapView && (
+              <div style={{ display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', marginBottom: -18 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, width: isMobile ? '100%' : 220, padding: 4, borderRadius: 999, border: '1px solid ' + C.border, background: 'rgba(255,255,255,0.035)' }}>
+                  <button onClick={() => { setSlateView('list'); setSelectedMapGameId(null) }} style={{ borderRadius: 999, border: '1px solid ' + (slateView === 'list' ? activeAccent : 'transparent'), background: slateView === 'list' ? activeAccent + '1f' : 'transparent', color: slateView === 'list' ? activeAccent : C.textSecondary, padding: '9px 10px', fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: 'pointer' }}>List</button>
+                  <button onClick={() => setSlateView('map')} style={{ borderRadius: 999, border: '1px solid ' + (slateView === 'map' ? activeAccent : 'transparent'), background: slateView === 'map' ? activeAccent + '1f' : 'transparent', color: slateView === 'map' ? activeAccent : C.textSecondary, padding: '9px 10px', fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: 'pointer' }}>Map</button>
+                </div>
+              </div>
+            )}
+            {canUseMapView && slateView === 'map' && (
               <GameMapSelector games={games} sport={sport as SupportedSport} selectedGameId={selectedMapGameId} onSelect={selectMappedGame} isMobile={isMobile} />
             )}
             {live.length > 0 && (
