@@ -1737,7 +1737,7 @@ function GameMapSelector({ games, sport, selectedGameId, onSelect, isMobile }: {
   )
 }
 
-function KalshiGameCard({ game, sport, autoLoad = false }: { game: Game; sport: SupportedSport; autoLoad?: boolean }) {
+function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested }: { game: Game; sport: SupportedSport; autoLoad?: boolean; onBoardLoadRequested?: (gameId: string) => void }) {
   const [props, setProps] = useState<PropsPanelData | null>(null)
   const [intel, setIntel] = useState<TeamIntelData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -1749,11 +1749,17 @@ function KalshiGameCard({ game, sport, autoLoad = false }: { game: Game; sport: 
   const isMobile = useIsMobile()
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const shouldLoadIntelAndProps = loadRequested
-  const requestCardLoad = useCallback(() => setLoadRequested(true), [])
+  const requestCardLoad = useCallback(() => {
+    setLoadRequested(true)
+    onBoardLoadRequested?.(game.id)
+  }, [game.id, onBoardLoadRequested])
 
   useEffect(() => {
-    if (autoLoad) setLoadRequested(true)
-  }, [autoLoad])
+    if (autoLoad) {
+      setLoadRequested(true)
+      onBoardLoadRequested?.(game.id)
+    }
+  }, [autoLoad, game.id, onBoardLoadRequested])
 
   useEffect(() => {
     if (sport !== 'nba') {
@@ -1829,40 +1835,34 @@ function KalshiGameCard({ game, sport, autoLoad = false }: { game: Game; sport: 
   const scanActive = loading || (loadRequested && !props && !error)
 
   if (!loadRequested) {
-    const statusLabel = game.status === 'in' ? 'Live now' : game.status === 'post' ? 'Final' : 'Upcoming'
-    const statusColor = game.status === 'in' ? C.cyan : game.status === 'post' ? C.textSecondary : C.green
     return (
       <button className="load-board-card" onClick={requestCardLoad} style={{
         width: '100%',
         textAlign: 'left',
-        borderRadius: 22,
+        borderRadius: isMobile ? 16 : 22,
         padding: 1,
         border: 'none',
         background: 'linear-gradient(135deg, rgba(166,255,63,0.76), rgba(255,255,255,0.16), rgba(168,240,255,0.30), rgba(166,255,63,0.32))',
         cursor: 'pointer',
         overflow: 'hidden',
       }}>
-        <div style={{ position: 'relative', zIndex: 2, borderRadius: 21, padding: 16, minHeight: 168, background: 'radial-gradient(circle at 78% 18%, rgba(166,255,63,0.15), transparent 30%), linear-gradient(145deg, rgba(10,16,7,0.97), rgba(3,5,0,0.96))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 13, overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', right: -26, top: -28, width: 96, height: 96, borderRadius: 999, border: '1px solid rgba(166,255,63,0.28)', boxShadow: '0 0 38px rgba(166,255,63,0.18)', animation: 'loadBoardRing 1.7s ease-in-out infinite' }} />
-          <div style={{ position: 'absolute', right: 18, bottom: 18, width: 8, height: 8, borderRadius: 999, background: C.green, boxShadow: '0 0 20px rgba(166,255,63,0.95)', animation: 'liveDotPulse 1.15s ease-in-out infinite' }} />
+        <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 112 : 150, background: 'radial-gradient(circle at 78% 18%, rgba(166,255,63,0.15), transparent 30%), linear-gradient(145deg, rgba(10,16,7,0.97), rgba(3,5,0,0.96))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', right: isMobile ? -36 : -26, top: isMobile ? -34 : -28, width: isMobile ? 78 : 96, height: isMobile ? 78 : 96, borderRadius: 999, border: '1px solid rgba(166,255,63,0.28)', boxShadow: '0 0 38px rgba(166,255,63,0.18)', animation: 'loadBoardRing 1.7s ease-in-out infinite' }} />
+          <div style={{ position: 'absolute', right: isMobile ? 9 : 18, bottom: isMobile ? 9 : 18, width: 7, height: 7, borderRadius: 999, background: C.green, boxShadow: '0 0 20px rgba(166,255,63,0.95)', animation: 'liveDotPulse 1.15s ease-in-out infinite' }} />
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
             <div>
-              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi board</div>
-              <div style={{ color: C.textPrimary, fontSize: 19, fontWeight: 950, marginTop: 5 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
-              <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 800, marginTop: 4 }}>{game.gameTime || game.gameDate || 'Game slate'}</div>
+              <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi</div>
+              <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 19, fontWeight: 950, marginTop: 4, lineHeight: 1.05 }}>{game.awayTeam.abbr}<br />@ {game.homeTeam.abbr}</div>
+              <div style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 800, marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{game.gameTime || game.gameDate || 'Game slate'}</div>
             </div>
-            <div style={{ color: statusColor, border: `1px solid ${statusColor === C.textSecondary ? C.border : statusColor}`, background: statusColor === C.textSecondary ? 'rgba(255,255,255,0.035)' : `${statusColor}18`, borderRadius: 999, padding: '5px 8px', fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{statusLabel}</div>
           </div>
-          <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+          <div style={{ position: 'relative', display: 'flex', gap: isMobile ? 7 : 8, alignItems: 'center', minWidth: 0 }}>
               {[game.awayTeam, game.homeTeam].map(team => (
-                <div key={team.abbr} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                  {team.logo && <img src={team.logo} alt="" style={{ width: 22, height: 22, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
-                  <span style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950 }}>{team.abbr}</span>
+                <div key={team.abbr} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 3 : 6, minWidth: 0 }}>
+                  {team.logo && <img src={team.logo} alt="" style={{ width: isMobile ? 18 : 22, height: isMobile ? 18 : 22, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
+                  <span style={{ color: C.textPrimary, fontSize: isMobile ? 8 : 11, fontWeight: 950 }}>{team.abbr}</span>
                 </div>
               ))}
-            </div>
-            <span style={{ borderRadius: 999, padding: '10px 13px', background: 'linear-gradient(135deg, rgba(166,255,63,0.24), rgba(168,240,255,0.10))', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', boxShadow: '0 0 22px rgba(166,255,63,0.18)' }}>Load board</span>
           </div>
         </div>
       </button>
@@ -3673,6 +3673,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [analysisLoadingGameId, setAnalysisLoadingGameId] = useState<string | null>(null)
   const [selectedMapGameId, setSelectedMapGameId] = useState<string | null>(null)
   const [slateView, setSlateView] = useState<'list' | 'map'>('list')
+  const [loadedKalshiGameIds, setLoadedKalshiGameIds] = useState<Record<string, boolean>>({})
   const cols = useColCount()
   const isMobile = useIsMobile()
 
@@ -3705,6 +3706,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   useEffect(() => {
     setSelectedMapGameId(null)
     setSlateView('list')
+    setLoadedKalshiGameIds({})
   }, [sport, date])
 
   const fetchGames = useCallback(async () => {
@@ -3789,10 +3791,15 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const pendingBets = bets.filter(b => b.result === 'pending').length
   const activeAccent = sportAccent(sport)
   const canUseMapView = provider === 'kalshi' && (sport === 'nba' || sport === 'mlb')
+  const kalshiGridColumns = isMobile ? 'repeat(3, minmax(0, 1fr))' : `repeat(${cols}, 1fr)`
+  const markKalshiGameLoaded = useCallback((gameId: string) => {
+    setLoadedKalshiGameIds(prev => prev[gameId] ? prev : { ...prev, [gameId]: true })
+  }, [])
   const logBet = (b: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) =>
     saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])
   const selectMappedGame = (game: Game) => {
     setSelectedMapGameId(game.id)
+    markKalshiGameLoaded(game.id)
     setTimeout(() => document.getElementById('game-board-' + game.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 70)
   }
 
@@ -3862,8 +3869,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                   <span style={{ color: C.cyan, fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase' }}>Live Now</span>
                 </div>
                 {provider === 'kalshi' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {live.map(g => <div key={g.id} id={'game-board-' + g.id}><KalshiGameCard game={g} sport={sport as SupportedSport} autoLoad={selectedMapGameId === g.id} /></div>)}
+                  <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
+                    {live.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} autoLoad={selectedMapGameId === g.id} onBoardLoadRequested={markKalshiGameLoaded} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3885,8 +3892,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
               <section>
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Upcoming</p>
                 {provider === 'kalshi' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {upcoming.map(g => <div key={g.id} id={'game-board-' + g.id}><KalshiGameCard game={g} sport={sport as SupportedSport} autoLoad={selectedMapGameId === g.id} /></div>)}
+                  <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
+                    {upcoming.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} autoLoad={selectedMapGameId === g.id} onBoardLoadRequested={markKalshiGameLoaded} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3908,8 +3915,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
               <section>
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Final</p>
                 {provider === 'kalshi' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {final.map(g => <div key={g.id} id={'game-board-' + g.id}><KalshiGameCard game={g} sport={sport as SupportedSport} autoLoad={selectedMapGameId === g.id} /></div>)}
+                  <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
+                    {final.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} autoLoad={selectedMapGameId === g.id} onBoardLoadRequested={markKalshiGameLoaded} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
