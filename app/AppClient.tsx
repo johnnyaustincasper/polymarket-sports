@@ -4350,8 +4350,6 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           accountEnabled={true}
         />
 
-        <MarketCommandDeck sport={sport} games={games} loading={loading} lastUpdatedAt={lastUpdated} isMobile={isMobile} />
-
         <MarketModeDock />
 
         {!loading && sport !== 'ufc' && (
