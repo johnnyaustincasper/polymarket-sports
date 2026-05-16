@@ -1636,7 +1636,7 @@ function ExactKalshiBetButton({ player, bet, compact = false }: { player: string
   )
 }
 
-function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested }: { game: Game; sport: SupportedSport; autoLoad?: boolean; onBoardLoadRequested?: (gameId: string) => void }) {
+function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, onBoardCollapse }: { game: Game; sport: SupportedSport; autoLoad?: boolean; onBoardLoadRequested?: (gameId: string) => void; onBoardCollapse?: (gameId: string) => void }) {
   const [props, setProps] = useState<PropsPanelData | null>(null)
   const [intel, setIntel] = useState<TeamIntelData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -1652,6 +1652,17 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested }:
     setLoadRequested(true)
     onBoardLoadRequested?.(game.id)
   }, [game.id, onBoardLoadRequested])
+  const collapseCard = useCallback(() => {
+    setLoadRequested(false)
+    setLoading(false)
+    setProps(null)
+    setIntel(null)
+    setError(null)
+    setActivePropTab('all')
+    setSelectedContracts({})
+    setExpandedContractKey('')
+    onBoardCollapse?.(game.id)
+  }, [game.id, onBoardCollapse])
 
   useEffect(() => {
     if (autoLoad) {
@@ -1784,6 +1795,26 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested }:
             <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi Player Props</div>
             <div style={{ color: C.textPrimary, fontSize: 15, fontWeight: 950, marginTop: 4 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
           </div>
+          <button
+            onClick={collapseCard}
+            aria-label="Collapse game board"
+            style={{
+              flexShrink: 0,
+              borderRadius: 999,
+              padding: '8px 11px',
+              border: `1px solid ${C.border}`,
+              background: 'rgba(255,255,255,0.045)',
+              color: C.textPrimary,
+              fontSize: 10,
+              fontWeight: 950,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+            }}
+          >
+            Collapse
+          </button>
         </div>
 
 
@@ -3688,6 +3719,14 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const markKalshiGameLoaded = useCallback((gameId: string) => {
     setLoadedKalshiGameIds(prev => prev[gameId] ? prev : { ...prev, [gameId]: true })
   }, [])
+  const markKalshiGameCollapsed = useCallback((gameId: string) => {
+    setLoadedKalshiGameIds(prev => {
+      if (!prev[gameId]) return prev
+      const next = { ...prev }
+      delete next[gameId]
+      return next
+    })
+  }, [])
   const logBet = (b: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) =>
     saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])
   return (
@@ -3746,7 +3785,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 </div>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
-                    {live.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} /></div>)}
+                    {live.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3769,7 +3808,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Upcoming</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
-                    {upcoming.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} /></div>)}
+                    {upcoming.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3792,7 +3831,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Final</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
-                    {final.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} /></div>)}
+                    {final.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
