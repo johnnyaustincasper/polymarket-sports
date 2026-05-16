@@ -2254,8 +2254,9 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
       <div style={{ borderRadius: 17, padding: isMobile ? 12 : 15, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
           <div>
-            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>MLB Slate Parlay Builder</div>
-            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4 }}>Scans every MLB game for executable Kalshi props that hit 9/12+.</div>
+            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Ticket Builder</div>
+            <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, marginTop: 3 }}>Build 2-8 leg MLB slips</div>
+            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4 }}>Scans every game for executable 9/12+ Kalshi legs, then groups them into clean tickets.</div>
           </div>
           <button onClick={scanSlate} disabled={loading} style={{ flexShrink: 0, borderRadius: 999, padding: isMobile ? '9px 11px' : '10px 14px', border: `1px solid ${C.borderHot}`, background: loading ? 'rgba(255,255,255,0.05)' : 'rgba(166,255,63,0.14)', color: loading ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'default' : 'pointer' }}>
             {loading ? 'Scanning' : open ? 'Rescan' : 'Build'}
@@ -2386,16 +2387,16 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
   const topSignals = data?.signals || []
 
   return (
-    <section style={{ marginBottom: isMobile ? 12 : 18, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.36)' }}>
+    <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.36)' }}>
       <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 12 : 15, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row' }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Signal Model</div>
-            <div style={{ color: C.textPrimary, fontSize: isMobile ? 16 : 18, fontWeight: 950, marginTop: 3 }}>Real calls from executable Kalshi props</div>
-            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4 }}>Scores fair price vs live ask, recent hit rate, confidence, liquidity, and risk. This is model edge, not a guarantee.</div>
+            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Single-leg signals</div>
+            <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, marginTop: 3 }}>Find the best individual calls</div>
+            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4 }}>Ranks executable props by fair price, ask, hit rate, confidence, liquidity, and risk.</div>
           </div>
           <button onClick={() => runSignals(Boolean(data))} disabled={scanning} style={{ width: isMobile ? '100%' : 'auto', flexShrink: 0, borderRadius: 999, padding: '10px 14px', border: '1px solid ' + C.borderHot, background: scanning ? 'rgba(255,255,255,0.05)' : 'rgba(166,255,63,0.14)', color: scanning ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: scanning ? 'default' : 'pointer' }}>
-            {scanning ? 'Scoring slate' : data ? 'Rescore' : 'Generate signals'}
+            {scanning ? 'Scoring' : data ? 'Rescore' : 'Run model'}
           </button>
         </div>
 
@@ -4250,7 +4251,18 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
         <MarketModeDock />
 
-        <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} />
+        {!loading && sport !== 'ufc' && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: !isMobile && provider === 'kalshi' && sport === 'mlb' ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+            gap: isMobile ? 10 : 12,
+            marginBottom: isMobile ? 14 : 18,
+            alignItems: 'start',
+          }}>
+            <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} />
+            {provider === 'kalshi' && sport === 'mlb' && <MlbSlateParlayBuilder games={games} isMobile={isMobile} />}
+          </div>
+        )}
 
 
         {sport === 'ufc' && <KalshiUFCSection />}
@@ -4270,9 +4282,6 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            {provider === 'kalshi' && sport === 'mlb' && (
-              <MlbSlateParlayBuilder games={games} isMobile={isMobile} />
-            )}
             {live.length > 0 && (
               <section>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
