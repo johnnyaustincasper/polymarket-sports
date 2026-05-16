@@ -2266,13 +2266,14 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   )
 }
 
-function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: boolean }) {
+function MlbSlateParlayBuilder({ games, isMobile, autoRun = false }: { games: Game[]; isMobile: boolean; autoRun?: boolean }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tickets, setTickets] = useState<ParlayTicket[]>([])
   const [safeCount, setSafeCount] = useState(0)
   const [scannedCount, setScannedCount] = useState(0)
+  const autoRunKeyRef = useRef<string | null>(null)
   const slateGames = games.filter(g => g.status !== 'post')
   const slateKey = slateGames.map(g => g.id).join('|')
 
@@ -2295,7 +2296,7 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
   }
 
   const scanSlate = async () => {
-    if (!slateGames.length) return
+    if (!slateGames.length || loading) return
     setOpen(true)
     setLoading(true)
     setError(null)
@@ -2326,6 +2327,12 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!autoRun || !slateGames.length || autoRunKeyRef.current === slateKey) return
+    autoRunKeyRef.current = slateKey
+    scanSlate()
+  }, [autoRun, slateKey, slateGames.length])
 
   if (!slateGames.length) return null
 
@@ -2402,12 +2409,13 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
   )
 }
 
-function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: SupportedSport | 'ufc'; games: Game[]; loading: boolean; isMobile: boolean }) {
+function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }: { sport: SupportedSport | 'ufc'; games: Game[]; loading: boolean; isMobile: boolean; autoRun?: boolean }) {
   const [data, setData] = useState<SignalsPanelData | null>(null)
   const [performance, setPerformance] = useState<SignalPerformanceData | null>(null)
   const [scanning, setScanning] = useState(false)
   const [settling, setSettling] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const autoRunKeyRef = useRef<string | null>(null)
   const supported = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const activeGames = games.filter(g => g.status !== 'post')
   const slateKey = [sport, ...activeGames.map(g => g.id)].join('|')
@@ -2433,7 +2441,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
   }, [sport])
 
   const runSignals = async (force = false) => {
-    if (!supported || !activeGames.length) return
+    if (!supported || !activeGames.length || scanning) return
     setScanning(true)
     setError(null)
     try {
@@ -2452,6 +2460,12 @@ function SignalsModelPanel({ sport, games, loading, isMobile }: { sport: Support
       setScanning(false)
     }
   }
+
+  useEffect(() => {
+    if (!autoRun || loading || !supported || !activeGames.length || autoRunKeyRef.current === slateKey) return
+    autoRunKeyRef.current = slateKey
+    runSignals(false)
+  }, [autoRun, loading, supported, activeGames.length, slateKey])
 
   const settleSignals = async () => {
     if (!supported) return
@@ -4401,8 +4415,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           }}>
             {sport === 'mlb' ? (
               <>
-                {subtab === 'playerSignals' && <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} />}
-                {subtab === 'legBuilder' && provider === 'kalshi' && <MlbSlateParlayBuilder games={games} isMobile={isMobile} />}
+                {subtab === 'playerSignals' && <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} autoRun />}
+                {subtab === 'legBuilder' && provider === 'kalshi' && <MlbSlateParlayBuilder games={games} isMobile={isMobile} autoRun />}
               </>
             ) : (
               <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} />
