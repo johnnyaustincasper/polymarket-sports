@@ -308,18 +308,18 @@ const GLOBAL_STYLES = `
     100% { transform: translateX(140%); }
   }
   @keyframes loadBoardPulse {
-    0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 16px 44px rgba(0,0,0,0.42), 0 0 26px rgba(166,255,63,0.18); }
-    50% { transform: translateY(-3px) scale(1.012); box-shadow: 0 24px 64px rgba(0,0,0,0.54), 0 0 42px rgba(166,255,63,0.34); }
+    0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 14px 38px rgba(0,0,0,0.42), 0 0 12px rgba(166,255,63,0.16); filter: brightness(1); }
+    50% { transform: translateY(-2px) scale(1.006); box-shadow: 0 20px 54px rgba(0,0,0,0.52), 0 0 24px rgba(166,255,63,0.26); filter: brightness(1.04); }
   }
   @keyframes loadBoardSweep {
-    0% { transform: translateX(-135%) rotate(12deg); opacity: 0; }
-    18% { opacity: 0.72; }
-    54% { opacity: 0.32; }
-    100% { transform: translateX(135%) rotate(12deg); opacity: 0; }
+    0% { transform: translateX(-120%); opacity: 0; }
+    16% { opacity: 0.92; }
+    44% { opacity: 0.36; }
+    100% { transform: translateX(120%); opacity: 0; }
   }
-  @keyframes loadBoardRing {
-    0%, 100% { transform: scale(1); opacity: 0.42; }
-    50% { transform: scale(1.18); opacity: 0.95; }
+  @keyframes loadBoardEdgeFlash {
+    0%, 100% { opacity: 0.28; filter: brightness(1); }
+    50% { opacity: 0.82; filter: brightness(1.28); }
   }
   .load-board-card {
     position: relative;
@@ -334,9 +334,23 @@ const GLOBAL_STYLES = `
     z-index: 1;
     pointer-events: none;
     border-radius: 21px;
-    background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.04) 35%, rgba(166,255,63,0.26) 50%, rgba(168,240,255,0.16) 58%, transparent 76%);
-    animation: loadBoardSweep 2.6s ease-in-out infinite;
+    background: linear-gradient(90deg, transparent 0%, rgba(166,255,63,0.08) 43%, rgba(166,255,63,0.42) 50%, rgba(168,240,255,0.18) 56%, transparent 70%);
+    animation: loadBoardSweep 2.35s ease-in-out infinite;
     mix-blend-mode: screen;
+  }
+  .load-board-card::after {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: 21px;
+    background:
+      linear-gradient(90deg, rgba(166,255,63,0.72) 0 16px, transparent 16px calc(100% - 16px), rgba(166,255,63,0.72) calc(100% - 16px)) top / 100% 1px no-repeat,
+      linear-gradient(90deg, rgba(166,255,63,0.72) 0 16px, transparent 16px calc(100% - 16px), rgba(166,255,63,0.72) calc(100% - 16px)) bottom / 100% 1px no-repeat,
+      linear-gradient(180deg, rgba(166,255,63,0.72) 0 16px, transparent 16px calc(100% - 16px), rgba(166,255,63,0.72) calc(100% - 16px)) left / 1px 100% no-repeat,
+      linear-gradient(180deg, rgba(166,255,63,0.72) 0 16px, transparent 16px calc(100% - 16px), rgba(166,255,63,0.72) calc(100% - 16px)) right / 1px 100% no-repeat;
+    animation: loadBoardEdgeFlash 1.8s ease-in-out infinite;
   }
   .load-board-card:hover {
     transform: translateY(-5px) scale(1.018);
@@ -1727,12 +1741,13 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested }:
         borderRadius: isMobile ? 16 : 22,
         padding: 1,
         border: 'none',
-        background: 'linear-gradient(135deg, rgba(166,255,63,0.76), rgba(255,255,255,0.16), rgba(168,240,255,0.30), rgba(166,255,63,0.32))',
+        background: 'linear-gradient(135deg, rgba(166,255,63,0.56), rgba(255,255,255,0.10), rgba(168,240,255,0.18), rgba(166,255,63,0.22))',
         cursor: 'pointer',
         overflow: 'hidden',
       }}>
-        <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 112 : 150, background: 'radial-gradient(circle at 50% 52%, rgba(166,255,63,0.18), transparent 42%), linear-gradient(145deg, rgba(10,16,7,0.97), rgba(3,5,0,0.96))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', left: '50%', top: '50%', width: isMobile ? 42 : 58, height: isMobile ? 42 : 58, transform: 'translate(-50%, -50%)', borderRadius: 999, background: 'rgba(166,255,63,0.12)', boxShadow: '0 0 42px rgba(166,255,63,0.34)', animation: 'liveDotPulse 1.35s ease-in-out infinite' }} />
+        <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 112 : 150, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'linear-gradient(90deg, transparent, rgba(166,255,63,0.84), rgba(168,240,255,0.26), transparent)', animation: 'scanCardSweep 1.55s linear infinite', opacity: 0.72 }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(166,255,63,0.055), transparent 34%, rgba(168,240,255,0.035) 68%, transparent)', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
             <div>
               <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi</div>
