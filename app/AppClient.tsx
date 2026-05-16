@@ -346,6 +346,15 @@ const GLOBAL_STYLES = `
     transform: translateY(0) scale(0.988);
     filter: brightness(0.98);
   }
+  @keyframes mapBlipPulse {
+    0%, 100% { transform: scale(1); opacity: 0.75; }
+    50% { transform: scale(1.82); opacity: 0.12; }
+  }
+  @keyframes mapSweep {
+    0% { transform: translateX(-130%); opacity: 0; }
+    18% { opacity: 0.58; }
+    100% { transform: translateX(130%); opacity: 0; }
+  }
   @keyframes analysisCardBlink {
     0%, 8%, 100% { opacity: 1; transform: translate(0, 0) scale(1); filter: brightness(1.05) contrast(1.12) saturate(1.1); }
     10% { opacity: 0.12; transform: translate(-2px, 1px) scale(0.992); filter: brightness(2.4) contrast(1.9) saturate(0.35); }
@@ -1622,7 +1631,116 @@ function ExactKalshiBetButton({ player, bet, compact = false }: { player: string
   )
 }
 
-function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) {
+const STADIUM_COORDS: Record<string, { lat: number; lon: number; city: string }> = {
+  ATL: { lat: 33.7573, lon: -84.3963, city: 'Atlanta' }, BAL: { lat: 39.2840, lon: -76.6217, city: 'Baltimore' }, BOS: { lat: 42.3467, lon: -71.0972, city: 'Boston' },
+  BKN: { lat: 40.6826, lon: -73.9754, city: 'Brooklyn' }, CHA: { lat: 35.2251, lon: -80.8392, city: 'Charlotte' }, CHC: { lat: 41.9484, lon: -87.6553, city: 'Chicago' },
+  CHW: { lat: 41.8300, lon: -87.6339, city: 'Chicago' }, CWS: { lat: 41.8300, lon: -87.6339, city: 'Chicago' }, CHI: { lat: 41.8807, lon: -87.6742, city: 'Chicago' },
+  CIN: { lat: 39.0979, lon: -84.5082, city: 'Cincinnati' }, CLE: { lat: 41.4958, lon: -81.6853, city: 'Cleveland' }, COL: { lat: 39.7487, lon: -104.9959, city: 'Denver' },
+  DAL: { lat: 32.7905, lon: -96.8104, city: 'Dallas' }, DEN: { lat: 39.7487, lon: -105.0077, city: 'Denver' }, DET: { lat: 42.3390, lon: -83.0485, city: 'Detroit' },
+  GS: { lat: 37.7680, lon: -122.3877, city: 'San Francisco' }, GSW: { lat: 37.7680, lon: -122.3877, city: 'San Francisco' }, HOU: { lat: 29.7508, lon: -95.3621, city: 'Houston' },
+  IND: { lat: 39.7639, lon: -86.1555, city: 'Indianapolis' }, KC: { lat: 39.0517, lon: -94.4803, city: 'Kansas City' }, KCR: { lat: 39.0517, lon: -94.4803, city: 'Kansas City' },
+  LAA: { lat: 33.8003, lon: -117.8827, city: 'Anaheim' }, LAD: { lat: 34.0739, lon: -118.2400, city: 'Los Angeles' }, LAC: { lat: 34.0430, lon: -118.2673, city: 'Los Angeles' },
+  LAL: { lat: 34.0430, lon: -118.2673, city: 'Los Angeles' }, MEM: { lat: 35.1383, lon: -90.0506, city: 'Memphis' }, MIA: { lat: 25.7781, lon: -80.2197, city: 'Miami' },
+  MIL: { lat: 43.0280, lon: -87.9712, city: 'Milwaukee' }, MIN: { lat: 44.9795, lon: -93.2761, city: 'Minneapolis' }, NY: { lat: 40.7505, lon: -73.9934, city: 'New York' },
+  NYK: { lat: 40.7505, lon: -73.9934, city: 'New York' }, NYM: { lat: 40.7571, lon: -73.8458, city: 'Queens' }, NYY: { lat: 40.8296, lon: -73.9262, city: 'Bronx' },
+  NO: { lat: 29.9490, lon: -90.0821, city: 'New Orleans' }, NOP: { lat: 29.9490, lon: -90.0821, city: 'New Orleans' }, OKC: { lat: 35.4634, lon: -97.5151, city: 'Oklahoma City' },
+  ORL: { lat: 28.5392, lon: -81.3839, city: 'Orlando' }, PHI: { lat: 39.9058, lon: -75.1665, city: 'Philadelphia' }, PHX: { lat: 33.4457, lon: -112.0712, city: 'Phoenix' },
+  PIT: { lat: 40.4469, lon: -80.0057, city: 'Pittsburgh' }, POR: { lat: 45.5316, lon: -122.6668, city: 'Portland' }, SAC: { lat: 38.5802, lon: -121.4997, city: 'Sacramento' },
+  SA: { lat: 29.4270, lon: -98.4375, city: 'San Antonio' }, SAS: { lat: 29.4270, lon: -98.4375, city: 'San Antonio' }, SD: { lat: 32.7073, lon: -117.1566, city: 'San Diego' },
+  SDP: { lat: 32.7073, lon: -117.1566, city: 'San Diego' }, SEA: { lat: 47.5914, lon: -122.3325, city: 'Seattle' }, SF: { lat: 37.7786, lon: -122.3893, city: 'San Francisco' },
+  SFG: { lat: 37.7786, lon: -122.3893, city: 'San Francisco' }, STL: { lat: 38.6226, lon: -90.1928, city: 'St. Louis' }, TB: { lat: 27.7682, lon: -82.6534, city: 'St. Petersburg' },
+  TBR: { lat: 27.7682, lon: -82.6534, city: 'St. Petersburg' }, TEX: { lat: 32.7473, lon: -97.0842, city: 'Arlington' }, TOR: { lat: 43.6414, lon: -79.3894, city: 'Toronto' },
+  UTAH: { lat: 40.7683, lon: -111.9011, city: 'Salt Lake City' }, UTA: { lat: 40.7683, lon: -111.9011, city: 'Salt Lake City' }, WAS: { lat: 38.8730, lon: -77.0074, city: 'Washington' },
+  WSH: { lat: 38.8730, lon: -77.0074, city: 'Washington' },
+}
+
+function stadiumPoint(game: Game): { x: number; y: number; city: string } | null {
+  const c = STADIUM_COORDS[game.homeTeam.abbr] || STADIUM_COORDS[game.homeTeam.abbr.toUpperCase()]
+  if (!c) return null
+  const x = ((c.lon + 125) / 59) * 100
+  const y = ((50 - c.lat) / 26) * 100
+  return { x: Math.max(3, Math.min(97, x)), y: Math.max(5, Math.min(95, y)), city: c.city }
+}
+
+function GameMapSelector({ games, sport, selectedGameId, onSelect, isMobile }: {
+  games: Game[]
+  sport: SupportedSport
+  selectedGameId: string | null
+  onSelect: (game: Game) => void
+  isMobile: boolean
+}) {
+  const plotted = games.map(game => ({ game, point: stadiumPoint(game) })).filter((x): x is { game: Game; point: { x: number; y: number; city: string } } => Boolean(x.point))
+  if (!plotted.length) return null
+  const accent = sportAccent(sport)
+  const liveCount = games.filter(g => g.status === 'in').length
+  return (
+    <section style={{ marginBottom: 22, borderRadius: 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.42), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 58px rgba(0,0,0,0.38)', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', borderRadius: 21, minHeight: isMobile ? 260 : 360, padding: isMobile ? 12 : 16, background: 'radial-gradient(circle at 22% 18%, rgba(168,240,255,0.10), transparent 26%), radial-gradient(circle at 76% 26%, rgba(166,255,63,0.10), transparent 24%), linear-gradient(145deg, rgba(5,12,10,0.98), rgba(2,5,3,0.96))', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(166,255,63,0.08), transparent)', animation: 'mapSweep 5.8s ease-in-out infinite', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
+          <div>
+            <div style={{ color: accent, fontSize: 10, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Selection Map</div>
+            <div style={{ color: C.textPrimary, fontSize: isMobile ? 20 : 26, fontWeight: 950, letterSpacing: '-0.04em', marginTop: 3 }}>{sport.toUpperCase()} Stadium Board</div>
+          </div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <span style={{ borderRadius: 999, padding: '5px 9px', border: '1px solid ' + C.border, color: C.textSecondary, background: 'rgba(255,255,255,0.035)', fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{games.length} games</span>
+            {liveCount > 0 && <span style={{ borderRadius: 999, padding: '5px 9px', border: '1px solid ' + C.cyan, color: C.cyan, background: 'rgba(168,240,255,0.08)', fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{liveCount} live</span>}
+          </div>
+        </div>
+        <div style={{ position: 'relative', zIndex: 1, height: isMobile ? 190 : 275, marginTop: 4 }}>
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.72 }}>
+            <path d="M10 34 L18 22 L31 15 L47 16 L63 18 L76 25 L89 33 L93 47 L85 59 L73 66 L61 78 L44 79 L31 72 L20 62 L12 50 Z" fill="rgba(166,255,63,0.030)" stroke="rgba(166,255,63,0.18)" strokeWidth="0.7" />
+            <path d="M18 39 L31 34 L45 34 L60 38 L75 39 L86 47" fill="none" stroke="rgba(168,240,255,0.11)" strokeWidth="0.35" />
+            <path d="M25 61 L41 56 L56 58 L70 54 L83 58" fill="none" stroke="rgba(168,240,255,0.10)" strokeWidth="0.35" />
+            <path d="M47 17 L48 77 M30 18 L34 73 M65 20 L62 76" fill="none" stroke="rgba(255,255,255,0.035)" strokeWidth="0.28" />
+          </svg>
+          {plotted.map(({ game, point }, index) => {
+            const live = game.status === 'in'
+            const selected = selectedGameId === game.id
+            const color = live ? C.cyan : game.status === 'post' ? 'rgba(219,255,191,0.45)' : accent
+            return (
+              <button key={game.id} onClick={() => onSelect(game)} title={game.awayTeam.abbr + ' @ ' + game.homeTeam.abbr + ' · ' + point.city} style={{
+                position: 'absolute',
+                left: point.x + '%',
+                top: point.y + '%',
+                transform: 'translate(-50%, -50%)',
+                width: selected ? 34 : 28,
+                height: selected ? 34 : 28,
+                borderRadius: 999,
+                border: '1px solid ' + (selected ? C.textPrimary : color),
+                background: 'rgba(3,5,0,0.90)',
+                color,
+                boxShadow: '0 0 ' + (selected ? 34 : 22) + 'px ' + (live ? 'rgba(168,240,255,0.44)' : 'rgba(166,255,63,0.30)'),
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 8,
+                fontWeight: 950,
+                zIndex: selected ? 8 : 3 + index,
+              }}>
+                <span style={{ position: 'absolute', inset: -7, borderRadius: 999, background: color, opacity: 0.16, animation: live || selected ? 'mapBlipPulse 1.45s ease-in-out infinite' : 'mapBlipPulse 2.4s ease-in-out infinite' }} />
+                <span style={{ position: 'relative' }}>{game.homeTeam.abbr}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="no-scrollbar" style={{ position: 'relative', zIndex: 2, display: 'flex', gap: 8, overflowX: 'auto', paddingTop: 10 }}>
+          {plotted.map(({ game, point }) => {
+            const selected = selectedGameId === game.id
+            return (
+              <button key={'map-chip-' + game.id} onClick={() => onSelect(game)} style={{ flex: '0 0 auto', borderRadius: 999, padding: '7px 10px', border: '1px solid ' + (selected ? accent : C.border), background: selected ? accent + '1f' : 'rgba(255,255,255,0.035)', color: selected ? accent : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                {game.awayTeam.abbr}@{game.homeTeam.abbr} · {point.city}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function KalshiGameCard({ game, sport, autoLoad = false }: { game: Game; sport: SupportedSport; autoLoad?: boolean }) {
   const [props, setProps] = useState<PropsPanelData | null>(null)
   const [intel, setIntel] = useState<TeamIntelData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -1635,6 +1753,10 @@ function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) 
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const shouldLoadIntelAndProps = loadRequested
   const requestCardLoad = useCallback(() => setLoadRequested(true), [])
+
+  useEffect(() => {
+    if (autoLoad) setLoadRequested(true)
+  }, [autoLoad])
 
   useEffect(() => {
     if (sport !== 'nba') {
@@ -3552,6 +3674,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [activeIntelGame, setActiveIntelGame] = useState<Game | null>(null)
   const [activeAnalysisGame, setActiveAnalysisGame] = useState<Game | null>(null)
   const [analysisLoadingGameId, setAnalysisLoadingGameId] = useState<string | null>(null)
+  const [selectedMapGameId, setSelectedMapGameId] = useState<string | null>(null)
   const cols = useColCount()
   const isMobile = useIsMobile()
 
@@ -3580,6 +3703,10 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       setTimeout(() => document.getElementById('active-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50)
     }
   }, [activeIntelGame, activeAnalysisGame])
+
+  useEffect(() => {
+    setSelectedMapGameId(null)
+  }, [sport, date])
 
   const fetchGames = useCallback(async () => {
     try {
@@ -3663,6 +3790,10 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const pendingBets = bets.filter(b => b.result === 'pending').length
   const logBet = (b: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) =>
     saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])
+  const selectMappedGame = (game: Game) => {
+    setSelectedMapGameId(game.id)
+    setTimeout(() => document.getElementById('game-board-' + game.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 70)
+  }
 
   return (
     <main style={{ minHeight: '100vh', background: C.bg, color: C.textPrimary, position: 'relative', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -3712,6 +3843,9 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+            {provider === 'kalshi' && (sport === 'nba' || sport === 'mlb') && (
+              <GameMapSelector games={games} sport={sport as SupportedSport} selectedGameId={selectedMapGameId} onSelect={selectMappedGame} isMobile={isMobile} />
+            )}
             {live.length > 0 && (
               <section>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -3720,7 +3854,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 </div>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {live.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
+                    {live.map(g => <div key={g.id} id={'game-board-' + g.id}><KalshiGameCard game={g} sport={sport as SupportedSport} autoLoad={selectedMapGameId === g.id} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3743,7 +3877,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Upcoming</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {upcoming.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
+                    {upcoming.map(g => <div key={g.id} id={'game-board-' + g.id}><KalshiGameCard game={g} sport={sport as SupportedSport} autoLoad={selectedMapGameId === g.id} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3766,7 +3900,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Final</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {final.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
+                    {final.map(g => <div key={g.id} id={'game-board-' + g.id}><KalshiGameCard game={g} sport={sport as SupportedSport} autoLoad={selectedMapGameId === g.id} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
