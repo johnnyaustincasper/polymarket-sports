@@ -4020,6 +4020,41 @@ function ControlButton({ active, accent, children, onClick, minWidth = 0 }: {
   )
 }
 
+type SportSubtab = 'slate' | 'legBuilder' | 'playerSignals'
+
+function MlbSubtabBar({ active, onChange, isMobile }: { active: SportSubtab; onChange: (tab: SportSubtab) => void; isMobile: boolean }) {
+  const tabs: { value: SportSubtab; label: string }[] = [
+    { value: 'slate', label: 'Slate' },
+    { value: 'legBuilder', label: 'Leg Builder' },
+    { value: 'playerSignals', label: 'Player Signals' },
+  ]
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: isMobile ? 8 : 10, marginBottom: isMobile ? 14 : 18 }}>
+      {tabs.map(tab => {
+        const selected = active === tab.value
+        return (
+          <button key={tab.value} onClick={() => onChange(tab.value)} style={{
+            minHeight: isMobile ? 46 : 50,
+            borderRadius: 16,
+            padding: isMobile ? '9px 8px' : '11px 14px',
+            border: `1px solid ${selected ? C.borderHot : C.border}`,
+            background: selected ? 'linear-gradient(145deg, rgba(166,255,63,0.18), rgba(6,12,3,0.98))' : 'rgba(255,255,255,0.035)',
+            color: selected ? C.green : C.textSecondary,
+            boxShadow: selected ? '0 0 26px rgba(166,255,63,0.16), inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+            fontSize: isMobile ? 10 : 11,
+            fontWeight: 950,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            whiteSpace: 'normal',
+            lineHeight: 1.1,
+          }}>{tab.label}</button>
+        )
+      })}
+    </div>
+  )
+}
+
 function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, onOpenTracker, onRefresh, loading, lastUpdatedAt, isMobile, accountEnabled }: {
   sport: SupportedSport | 'ufc'
   setSport: (s: SupportedSport | 'ufc') => void
@@ -4182,7 +4217,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const today = chicagoYmd()
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
-  const [subtab, setSubtab] = useState<'slate' | 'trends'>('slate')
+  const [subtab, setSubtab] = useState<SportSubtab>('slate')
   const [provider, setProvider] = useState<MarketProvider>('kalshi')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
@@ -4352,23 +4387,33 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
         <MarketModeDock />
 
-        {!loading && sport !== 'ufc' && (
+        {sport === 'mlb' && provider === 'kalshi' && (
+          <MlbSubtabBar active={subtab} onChange={setSubtab} isMobile={isMobile} />
+        )}
+
+        {!loading && sport !== 'ufc' && (sport !== 'mlb' || subtab !== 'slate') && (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: !isMobile && provider === 'kalshi' && sport === 'mlb' ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+            gridTemplateColumns: '1fr',
             gap: isMobile ? 10 : 12,
             marginBottom: isMobile ? 14 : 18,
             alignItems: 'start',
           }}>
-            <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} />
-            {provider === 'kalshi' && sport === 'mlb' && <MlbSlateParlayBuilder games={games} isMobile={isMobile} />}
+            {sport === 'mlb' ? (
+              <>
+                {subtab === 'playerSignals' && <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} />}
+                {subtab === 'legBuilder' && provider === 'kalshi' && <MlbSlateParlayBuilder games={games} isMobile={isMobile} />}
+              </>
+            ) : (
+              <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} />
+            )}
           </div>
         )}
 
 
         {sport === 'ufc' && <KalshiUFCSection />}
 
-        {sport !== 'ufc' && (loading ? (
+        {sport !== 'ufc' && (sport !== 'mlb' || subtab === 'slate') && (loading ? (
           <LoadingMarketCards cols={cols} count={6} />
         ) : feedError ? (
           <div style={{ textAlign: 'center', padding: '54px 18px', border: `1px solid ${C.border}`, borderRadius: 18, background: 'rgba(255,255,255,0.035)' }}>
