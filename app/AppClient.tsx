@@ -1583,19 +1583,18 @@ function ExactKalshiBetButton({ player, bet, compact = false }: { player: string
   )
 }
 
-function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: SupportedSport; eager?: boolean }) {
+function KalshiGameCard({ game, sport }: { game: Game; sport: SupportedSport }) {
   const [props, setProps] = useState<PropsPanelData | null>(null)
   const [intel, setIntel] = useState<TeamIntelData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activePropTab, setActivePropTab] = useState<string>('all')
   const [selectedContracts, setSelectedContracts] = useState<Record<string, boolean>>({})
   const [expandedContractKey, setExpandedContractKey] = useState<string>('')
-  const [cardRef, nearViewport] = useNearViewport<HTMLDivElement>('900px')
   const [loadRequested, setLoadRequested] = useState(false)
   const isMobile = useIsMobile()
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
-  const shouldLoadIntelAndProps = eager || nearViewport || loadRequested
+  const shouldLoadIntelAndProps = loadRequested
   const requestCardLoad = useCallback(() => setLoadRequested(true), [])
 
   useEffect(() => {
@@ -1669,13 +1668,54 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
     if (first) window.open(first, '_blank', 'noopener,noreferrer')
   }
   const hasVisibleContracts = allContracts.length > 0
+  const scanActive = loading || (loadRequested && !props && !error)
+
+  if (!loadRequested) {
+    const statusLabel = game.status === 'in' ? 'Live now' : game.status === 'post' ? 'Final' : 'Upcoming'
+    const statusColor = game.status === 'in' ? C.cyan : game.status === 'post' ? C.textSecondary : C.green
+    return (
+      <button onClick={requestCardLoad} style={{
+        width: '100%',
+        textAlign: 'left',
+        borderRadius: 22,
+        padding: 1,
+        border: 'none',
+        background: 'linear-gradient(135deg, rgba(166,255,63,0.38), rgba(255,255,255,0.10), rgba(168,240,255,0.12))',
+        boxShadow: '0 14px 40px rgba(0,0,0,0.34)',
+        cursor: 'pointer',
+        overflow: 'hidden',
+      }}>
+        <div style={{ borderRadius: 21, padding: 16, minHeight: 156, background: 'linear-gradient(145deg, rgba(10,16,7,0.96), rgba(3,5,0,0.96))', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi board</div>
+              <div style={{ color: C.textPrimary, fontSize: 17, fontWeight: 950, marginTop: 5 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
+              <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 800, marginTop: 4 }}>{game.gameTime || game.gameDate || 'Game slate'}</div>
+            </div>
+            <div style={{ color: statusColor, border: `1px solid ${statusColor === C.textSecondary ? C.border : statusColor}`, background: statusColor === C.textSecondary ? 'rgba(255,255,255,0.035)' : `${statusColor}18`, borderRadius: 999, padding: '5px 8px', fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{statusLabel}</div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+              {[game.awayTeam, game.homeTeam].map(team => (
+                <div key={team.abbr} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  {team.logo && <img src={team.logo} alt="" style={{ width: 22, height: 22, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
+                  <span style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950 }}>{team.abbr}</span>
+                </div>
+              ))}
+            </div>
+            <span style={{ borderRadius: 999, padding: '9px 12px', background: 'rgba(166,255,63,0.14)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Load board</span>
+          </div>
+        </div>
+      </button>
+    )
+  }
 
   return (
-    <div ref={cardRef} onMouseEnter={requestCardLoad} onFocusCapture={requestCardLoad} onTouchStart={requestCardLoad} onClickCapture={requestCardLoad} style={{
+    <div style={{
       borderRadius: 22,
       padding: 1,
       background: hasVisibleContracts ? 'linear-gradient(135deg, rgba(166,255,63,0.64), rgba(255,255,255,0.14), rgba(166,255,63,0.12))' : 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.06))',
-      boxShadow: loading ? '0 0 34px rgba(166,255,63,0.18), 0 18px 58px rgba(0,0,0,0.58)' : hasVisibleContracts ? '0 0 30px rgba(166,255,63,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)',
+      boxShadow: scanActive ? '0 0 34px rgba(166,255,63,0.18), 0 18px 58px rgba(0,0,0,0.58)' : hasVisibleContracts ? '0 0 30px rgba(166,255,63,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)',
       position: 'relative',
       overflow: 'hidden',
     }}>
@@ -1775,7 +1815,7 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
 
         {!supportedKalshiSport ? (
           <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>Kalshi player prop cards are not wired for {sport.toUpperCase()} yet. Use Polymarket for this sport while we add that feed.</p>
-        ) : loading ? (
+        ) : scanActive ? (
           <div style={{ display: 'grid', gap: 9 }}>
             {[0, 1, 2].map(i => (
               <div key={i} style={{ borderRadius: 15, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.58), rgba(255,255,255,0.10), rgba(166,255,63,0.14))', boxShadow: '0 0 24px rgba(166,255,63,0.13)', animation: `scanCardGlow ${1.02 + i * 0.14}s ease-in-out infinite`, overflow: 'hidden' }}>
@@ -3640,7 +3680,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 </div>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {live.map((g, i) => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} eager={i < cols} />)}
+                    {live.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3663,7 +3703,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Upcoming</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {upcoming.map((g, i) => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} eager={live.length === 0 && i < cols} />)}
+                    {upcoming.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3686,7 +3726,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Final</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16 }}>
-                    {final.map((g, i) => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} eager={live.length === 0 && upcoming.length === 0 && i < cols} />)}
+                    {final.map(g => <KalshiGameCard key={g.id} game={g} sport={sport as SupportedSport} />)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
