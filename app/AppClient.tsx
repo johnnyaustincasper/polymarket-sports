@@ -1645,6 +1645,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const [selectedContracts, setSelectedContracts] = useState<Record<string, boolean>>({})
   const [expandedContractKey, setExpandedContractKey] = useState<string>('')
   const [loadRequested, setLoadRequested] = useState(false)
+  const [showParlayBuilder, setShowParlayBuilder] = useState(false)
   const isMobile = useIsMobile()
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const shouldLoadIntelAndProps = loadRequested
@@ -1661,6 +1662,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     setActivePropTab('all')
     setSelectedContracts({})
     setExpandedContractKey('')
+    setShowParlayBuilder(false)
     onBoardCollapse?.(game.id)
   }, [game.id, onBoardCollapse])
 
@@ -1732,6 +1734,35 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   }, new Map()).values()) : []
   const contractKey = (p: any, bet: any) => `${p.team}|${p.player}|${bet.metric}|${bet.line}|${bet.kalshi?.legTicker || bet.kalshi?.ticker || ''}`
   const selectedItems = allContracts.filter((x: any) => selectedContracts[contractKey(x.player, x.bet)])
+  const safeParlayPool = allContracts
+    .filter((x: any) => Number(x.bet.games || 0) >= 12 && Number(x.bet.hits || 0) >= 9 && (x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker) && Number(x.bet.kalshi?.yesAskSize || 0) > 0)
+    .sort((a: any, b: any) => (Number(b.bet.hits || 0) - Number(a.bet.hits || 0)) || (Number(a.bet.kalshi?.yesAsk || 99) - Number(b.bet.kalshi?.yesAsk || 99)))
+  const buildParlay = (targetSize: number, offset: number) => {
+    const picked: any[] = []
+    const usedPlayers = new Set<string>()
+    for (let i = 0; i < safeParlayPool.length && picked.length < targetSize; i++) {
+      const item = safeParlayPool[(i + offset) % safeParlayPool.length]
+      const key = String(item.player.player || '').toLowerCase()
+      if (!key || usedPlayers.has(key)) continue
+      usedPlayers.add(key)
+      picked.push(item)
+    }
+    return picked.length >= Math.min(targetSize, safeParlayPool.length) ? picked : []
+  }
+  const parlaySuggestions = [2, 3, 4, 6, 8]
+    .filter(size => safeParlayPool.length >= size)
+    .map((size, i) => ({ size, items: buildParlay(size, i * 2) }))
+    .filter(ticket => ticket.items.length >= 2)
+    .slice(0, 5)
+  const selectParlayItems = (items: any[]) => {
+    const next: Record<string, boolean> = {}
+    items.forEach((x: any) => { next[contractKey(x.player, x.bet)] = true })
+    setSelectedContracts(next)
+  }
+  const copyParlayItems = async (items: any[]) => {
+    const text = items.map((x: any, i: number) => `${i + 1}. ${x.player.player} — ${x.bet.label} — hit ${x.bet.hits}/${x.bet.games} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`).join('\n')
+    try { await navigator.clipboard?.writeText(text) } catch {}
+  }
   const copySelected = async () => {
     const text = selectedItems.map((x: any, i: number) => `${i + 1}. ${x.player.player} — ${x.bet.label} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`).join('\n')
     try { await navigator.clipboard?.writeText(text) } catch {}
@@ -1797,7 +1828,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           </div>
           <button
             onClick={collapseCard}
-            aria-label="Collapse game board"
+            aria-label="Minimize game board"
             style={{
               flexShrink: 0,
               borderRadius: 999,
@@ -1813,7 +1844,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
             }}
           >
-            Collapse
+            Minimize
           </button>
         </div>
 
@@ -1891,14 +1922,21 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
         )}
 
         {!loading && categoryGroups.length > 0 && (
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', overflow: 'visible', paddingBottom: 8, marginBottom: 10 }}>
-            {categoryGroups.map(group => {
-              const active = group.metric === currentTab
-              const label = formatPropMetricShort(group.metric)
-              return <button key={group.metric} title={formatPropMetricLabel(group.metric)} onClick={() => setActivePropTab(group.metric)} style={{ flex: '0 0 auto', borderRadius: 999, padding: '7px 10px', border: `1px solid ${active ? C.borderHot : C.border}`, background: active ? 'rgba(166,255,63,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                {label} · {group.items.length}
+          <div style={{ display: 'grid', gap: 9, paddingBottom: 8, marginBottom: 10 }}>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', overflow: 'visible' }}>
+              {categoryGroups.map(group => {
+                const active = group.metric === currentTab
+                const label = formatPropMetricShort(group.metric)
+                return <button key={group.metric} title={formatPropMetricLabel(group.metric)} onClick={() => setActivePropTab(group.metric)} style={{ flex: '0 0 auto', borderRadius: 999, padding: '7px 10px', border: `1px solid ${active ? C.borderHot : C.border}`, background: active ? 'rgba(166,255,63,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                  {label} · {group.items.length}
+                </button>
+              })}
+            </div>
+            {safeParlayPool.length >= 2 && (
+              <button onClick={() => setShowParlayBuilder(v => !v)} style={{ width: '100%', borderRadius: 14, padding: '10px 12px', border: `1px solid ${showParlayBuilder ? C.borderHot : 'rgba(168,240,255,0.26)'}`, background: showParlayBuilder ? 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(168,240,255,0.08))' : 'rgba(168,240,255,0.055)', color: showParlayBuilder ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                {showParlayBuilder ? 'Hide parlay builder' : `Build 2-8 leg parlays · ${safeParlayPool.length} safe props`}
               </button>
-            })}
+            )}
           </div>
         )}
 
@@ -1926,6 +1964,45 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           <p style={{ color: C.gold, fontSize: 11 }}>Kalshi scan unavailable: {error}</p>
         ) : activeGroup ? (
           <div style={{ display: 'grid', gap: 10 }}>
+            {showParlayBuilder && parlaySuggestions.length > 0 && (
+              <div style={{ borderRadius: 16, padding: 12, background: 'linear-gradient(135deg, rgba(166,255,63,0.10), rgba(168,240,255,0.045))', border: `1px solid ${C.borderHot}`, boxShadow: '0 14px 42px rgba(0,0,0,0.34)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 9 }}>
+                  <div>
+                    <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>9/12+ Parlay Builder</div>
+                    <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 3 }}>Exact Kalshi contracts only. One line per player per ticket.</div>
+                  </div>
+                  <button onClick={() => setShowParlayBuilder(false)} style={{ border: 'none', background: 'transparent', color: C.textSecondary, fontSize: 10, fontWeight: 900, cursor: 'pointer' }}>Hide</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
+                  {parlaySuggestions.map((ticket, idx) => {
+                    const avgAsk = Math.round(ticket.items.reduce((sum: number, x: any) => sum + Number(x.bet.kalshi?.yesAsk || 0), 0) / ticket.items.length)
+                    return (
+                      <div key={`parlay-${ticket.size}-${idx}`} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 7 }}>
+                          <div>
+                            <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{ticket.size}-leg solid ticket</div>
+                            <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>avg ask {avgAsk}¢ · all hit 9/12+</div>
+                          </div>
+                          <button onClick={() => selectParlayItems(ticket.items)} style={{ borderRadius: 999, padding: '6px 9px', border: `1px solid ${C.borderHot}`, background: 'rgba(166,255,63,0.14)', color: C.green, fontSize: 8, fontWeight: 950, cursor: 'pointer' }}>Select</button>
+                        </div>
+                        <div style={{ display: 'grid', gap: 5 }}>
+                          {ticket.items.map((x: any) => (
+                            <div key={contractKey(x.player, x.bet)} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center' }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ color: C.textPrimary, fontSize: 9, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.player.player}</div>
+                                <div style={{ color: C.textSecondary, fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.bet.label}</div>
+                              </div>
+                              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{x.bet.hits}/{x.bet.games}<br />{x.bet.kalshi?.yesAsk ?? '—'}¢</div>
+                            </div>
+                          ))}
+                        </div>
+                        <button onClick={() => copyParlayItems(ticket.items)} style={{ width: '100%', marginTop: 8, borderRadius: 10, padding: '8px 9px', border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.04)', color: C.textPrimary, fontSize: 9, fontWeight: 950, cursor: 'pointer' }}>Copy ticket</button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}`, paddingBottom: 5 }}>
               <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{formatPropMetricLabel(activeGroup.metric)}</div>
               <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{activeGroup.items.length} contracts · {activePlayerGroups.length} players</div>
