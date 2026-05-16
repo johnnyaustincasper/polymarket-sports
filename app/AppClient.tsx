@@ -1197,9 +1197,9 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                     ['Kalshi scanned', props.marketSummary.scanned],
                     ['Game markets', props.marketSummary.gameMatched],
                     ['Executable asks', props.marketSummary.executableMatched ?? props.marketSummary.gameMatched],
-                    ['Playable', props.marketSummary.playableMatched],
+                    ['Value-priced', props.marketSummary.playableMatched],
                   ].map(([label, value]) => (
-                    <span key={label} style={{ background: 'rgba(166,255,63,0.055)', border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 8px', color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    <span key={label} style={{ background: 'rgba(166,255,63,0.055)', border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 8px', color: label === 'Value-priced' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                       {label}: <span style={{ color: C.textPrimary }}>{value}</span>
                     </span>
                   ))}
@@ -1449,6 +1449,7 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 function formatPropMetricShort(metric: string): string {
   const key = String(metric || '')
   const map: Record<string, string> = {
+    all: 'ALL',
     points: 'PTS', rebounds: 'REB', assists: 'AST', threes: '3PT', steals: 'STL', blocks: 'BLK',
     'PTS+REB+AST': 'PRA', 'passing yards': 'PYD', 'passing TDs': 'PTD', 'rushing yards': 'RYD', 'receiving yards': 'REC YD', receptions: 'REC',
     hits: 'HIT', 'home runs': 'HR', 'total bases': 'TB', strikeouts: 'K',
@@ -1459,6 +1460,7 @@ function formatPropMetricShort(metric: string): string {
 function formatPropMetricLabel(metric: string): string {
   const key = String(metric || '')
   const map: Record<string, string> = {
+    all: 'all executable props',
     threes: '3-pointers', 'passing TDs': 'passing touchdowns', 'PTS+REB+AST': 'points + rebounds + assists',
   }
   return map[key] || key
@@ -1586,7 +1588,7 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
   const [intel, setIntel] = useState<TeamIntelData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activePropTab, setActivePropTab] = useState<string>('points')
+  const [activePropTab, setActivePropTab] = useState<string>('all')
   const [selectedContracts, setSelectedContracts] = useState<Record<string, boolean>>({})
   const [expandedContractKey, setExpandedContractKey] = useState<string>('')
   const [cardRef, nearViewport] = useNearViewport<HTMLDivElement>('900px')
@@ -1628,7 +1630,8 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
     return () => { cancelled = true }
   }, [game.homeTeam.abbr, game.awayTeam.abbr, game.id, sport, supportedKalshiSport, shouldLoadIntelAndProps])
 
-  const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (sport === 'nba' || (p.last12 || []).length >= 4) && (p.recommendations || []).length) : []
+  const fullBoardSport = sport === 'nba' || sport === 'mlb'
+  const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (fullBoardSport || (p.last12 || []).length >= 4) && (p.recommendations || []).length) : []
   const allContracts = players.flatMap((p: any) => (p.recommendations || []).map((bet: any) => ({ player: p, bet })))
   const categoryOrder = sport === 'nba'
     ? ['points', 'assists', 'rebounds', 'threes', 'steals', 'blocks', 'PTS+REB+AST']
@@ -1637,9 +1640,12 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
       : sport === 'mlb'
         ? ['hits', 'home runs', 'total bases', 'strikeouts']
         : ['points', 'rebounds', 'assists']
-  const categoryGroups = categoryOrder
+  const metricGroups = categoryOrder
     .map(metric => ({ metric, items: allContracts.filter((x: any) => x.bet.metric === metric).sort((a: any, b: any) => (b.bet.hitRate - a.bet.hitRate) || ((a.bet.kalshi?.yesAsk || 99) - (b.bet.kalshi?.yesAsk || 99))) }))
     .filter(g => g.items.length)
+  const categoryGroups = fullBoardSport && allContracts.length
+    ? [{ metric: 'all', items: [...allContracts].sort((a: any, b: any) => String(a.player.team).localeCompare(String(b.player.team)) || String(a.player.player).localeCompare(String(b.player.player)) || categoryOrder.indexOf(a.bet.metric) - categoryOrder.indexOf(b.bet.metric) || a.bet.line - b.bet.line) }, ...metricGroups]
+    : metricGroups
   const availableTabs = categoryGroups.map(g => g.metric)
   const currentTab = availableTabs.includes(activePropTab) ? activePropTab : (availableTabs[0] || 'points')
   const activeGroup = categoryGroups.find(g => g.metric === currentTab)
@@ -1647,7 +1653,7 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
     const playerName = item.player.player
     const existing = map.get(playerName) || { player: item.player, bets: [] }
     existing.bets.push(item.bet)
-    existing.bets.sort((a: any, b: any) => a.line - b.line)
+    existing.bets.sort((a: any, b: any) => categoryOrder.indexOf(a.metric) - categoryOrder.indexOf(b.metric) || a.line - b.line)
     map.set(playerName, existing)
     return map
   }, new Map()).values()) : []
@@ -1662,15 +1668,14 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
     const first = selectedItems[0]?.bet?.kalshi?.url
     if (first) window.open(first, '_blank', 'noopener,noreferrer')
   }
-  const summary = props?.marketSummary
-  const playable = summary?.playableMatched ?? allContracts.length
+  const hasVisibleContracts = allContracts.length > 0
 
   return (
     <div ref={cardRef} onMouseEnter={requestCardLoad} onFocusCapture={requestCardLoad} onTouchStart={requestCardLoad} onClickCapture={requestCardLoad} style={{
       borderRadius: 22,
       padding: 1,
-      background: playable > 0 ? 'linear-gradient(135deg, rgba(166,255,63,0.64), rgba(255,255,255,0.14), rgba(166,255,63,0.12))' : 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.06))',
-      boxShadow: loading ? '0 0 34px rgba(166,255,63,0.18), 0 18px 58px rgba(0,0,0,0.58)' : playable > 0 ? '0 0 30px rgba(166,255,63,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)',
+      background: hasVisibleContracts ? 'linear-gradient(135deg, rgba(166,255,63,0.64), rgba(255,255,255,0.14), rgba(166,255,63,0.12))' : 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.06))',
+      boxShadow: loading ? '0 0 34px rgba(166,255,63,0.18), 0 18px 58px rgba(0,0,0,0.58)' : hasVisibleContracts ? '0 0 30px rgba(166,255,63,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)',
       position: 'relative',
       overflow: 'hidden',
     }}>
@@ -1804,7 +1809,7 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
                     <div>
                       <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950 }}>{p.player}</div>
-                      <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.team} · {p.position || activeGroup.metric}</div>
+                      <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.team} · {p.position || (activeGroup.metric === 'all' ? 'props' : activeGroup.metric)}</div>
                       {lastGameMinutes && <div style={{ color: C.green, fontSize: 8, fontWeight: 950, marginTop: 3, letterSpacing: '0.04em' }}>⏱ {lastGameMinutes}</div>}
                     </div>
                     <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{bets.length} lines</div>
@@ -1817,7 +1822,7 @@ function KalshiGameCard({ game, sport, eager = false }: { game: Game; sport: Sup
                       const safeHit = Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 9
                       return (
                         <button key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ borderRadius: 999, padding: '7px 9px', border: `1px solid ${open || safeHit ? C.borderHot : selected ? 'rgba(166,255,63,0.45)' : C.border}`, background: open ? 'rgba(166,255,63,0.18)' : safeHit ? 'rgba(166,255,63,0.13)' : selected ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || safeHit ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', animation: safeHit ? 'safePropThrob 1.25s ease-in-out infinite' : undefined, willChange: safeHit ? 'transform, box-shadow' : undefined }}>
-                          {bet.line}+ {formatPropMetricShort(activeGroup.metric)} · {bet.kalshi?.yesAsk ?? '—'}¢{safeHit ? ` · ${bet.hits}/${bet.games}` : ''}
+                          {bet.line}+ {formatPropMetricShort(activeGroup.metric === 'all' ? bet.metric : activeGroup.metric)} · {bet.kalshi?.yesAsk ?? '—'}¢{safeHit ? ` · ${bet.hits}/${bet.games}` : ''}
                         </button>
                       )
                     })}
@@ -2103,8 +2108,8 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
 
         {props?.marketSummary && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-            {[['Kalshi scanned', props.marketSummary.scanned], ['Game markets', props.marketSummary.gameMatched], ['Executable asks', props.marketSummary.executableMatched ?? props.marketSummary.gameMatched], ['Playable', props.marketSummary.playableMatched]].map(([label, value]) => (
-              <span key={label} style={{ background: 'rgba(166,255,63,0.055)', border: '1px solid rgba(166,255,63,0.16)', borderRadius: 999, padding: '4px 9px', color: label === 'Playable' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}: <span style={{ color: C.textPrimary }}>{value}</span></span>
+            {[['Kalshi scanned', props.marketSummary.scanned], ['Game markets', props.marketSummary.gameMatched], ['Executable asks', props.marketSummary.executableMatched ?? props.marketSummary.gameMatched], ['Value-priced', props.marketSummary.playableMatched]].map(([label, value]) => (
+              <span key={label} style={{ background: 'rgba(166,255,63,0.055)', border: '1px solid rgba(166,255,63,0.16)', borderRadius: 999, padding: '4px 9px', color: label === 'Value-priced' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}: <span style={{ color: C.textPrimary }}>{value}</span></span>
             ))}
           </div>
         )}
