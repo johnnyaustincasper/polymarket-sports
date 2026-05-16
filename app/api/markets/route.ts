@@ -78,6 +78,40 @@ interface PolyOdds {
   polyError: string | null; sourceStatus: 'matched' | 'unmatched' | 'no_events' | 'poly_error'
 }
 
+function pitcherStat(probable: any, names: string[]) {
+  const stats = Array.isArray(probable?.statistics) ? probable.statistics : (probable?.statistics?.splits?.categories || [])
+  for (const name of names) {
+    const found = stats.find((x: any) => String(x.name || '').toLowerCase() === name.toLowerCase() || String(x.abbreviation || '').toLowerCase() === name.toLowerCase())
+    const n = Number(found?.value ?? found?.displayValue)
+    if (Number.isFinite(n)) return n
+  }
+  return null
+}
+
+function normalizeMlbPitcher(probable: any) {
+  const athlete = probable?.athlete
+  if (!athlete?.displayName) return null
+  const era = pitcherStat(probable, ['ERA'])
+  const whip = pitcherStat(probable, ['WHIP'])
+  const hits = pitcherStat(probable, ['hits', 'H'])
+  const innings = Number(pitcherStat(probable, ['fullInnings', 'IP']) || 0) + Number(pitcherStat(probable, ['partInnings']) || 0) / 3
+  const hitsPerInning = hits != null && innings > 0 ? hits / innings : null
+  const difficultyRaw =
+    (era == null ? 50 : Math.max(0, Math.min(100, (era / 6) * 45))) +
+    (whip == null ? 25 : Math.max(0, Math.min(45, (whip / 1.7) * 35))) +
+    (hitsPerInning == null ? 10 : Math.max(0, Math.min(20, hitsPerInning * 16)))
+  const difficulty = Math.max(0, Math.min(100, Math.round(difficultyRaw)))
+  return {
+    name: athlete.displayName,
+    throws: athlete.throws?.abbreviation || athlete.throws?.type,
+    era: era == null ? undefined : Number(era.toFixed ? era.toFixed(2) : era),
+    whip: whip == null ? undefined : Number(whip.toFixed ? whip.toFixed(2) : whip),
+    hitsPerInning: hitsPerInning == null ? undefined : Number(hitsPerInning.toFixed(2)),
+    difficulty,
+    label: difficulty >= 72 ? 'pitcher target' : difficulty >= 52 ? 'playable pitcher' : 'tough starter',
+  }
+}
+
 interface PolyEventsFetch {
   events: any[]
   fetchedAt: string
@@ -406,6 +440,10 @@ export async function GET(req: Request) {
 
       const homeRank = home?.curatedRank?.current || null
       const awayRank = away?.curatedRank?.current || null
+      const mlbMatchup = sport === 'mlb' ? {
+        awayPitcher: normalizeMlbPitcher(away?.probables?.[0]),
+        homePitcher: normalizeMlbPitcher(home?.probables?.[0]),
+      } : undefined
 
       return {
         id: event.id,
@@ -433,6 +471,7 @@ export async function GET(req: Request) {
         },
         gameTime,
         gameDate: event.date,
+        mlbMatchup,
         venue: (() => {
           const v = comp?.venue
           if (!v) return null

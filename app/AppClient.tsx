@@ -32,6 +32,7 @@ interface Game {
   usedGammaFallback?: boolean
   polyError?: string | null
   sourceStatus?: 'matched' | 'unmatched' | 'no_events' | 'poly_error'
+  mlbMatchup?: MlbGameMatchup
 }
 interface OddsDrift {
   spreadDelta: number | null
@@ -196,7 +197,10 @@ type KalshiBetLike = {
     yesAskSize?: number
   } | null
 }
-type ParlayItem = { game?: Game; player: any; bet: any }
+type MlbPitcherMatchup = { name: string; throws?: string; era?: number; whip?: number; hitsPerInning?: number; homeRunsPerInning?: number; difficulty: number; label: string }
+type MlbGameMatchup = { awayPitcher?: MlbPitcherMatchup | null; homePitcher?: MlbPitcherMatchup | null }
+type MlbBatterMatchup = { score: number; grade: 'green' | 'neutral' | 'avoid'; pitcher?: MlbPitcherMatchup | null; note: string }
+type ParlayItem = { game?: Game; player: any; bet: any; matchup?: MlbBatterMatchup }
 type ParlayTicket = { size: number; items: ParlayItem[] }
 
 interface FootballIntelData {
@@ -1644,10 +1648,82 @@ function parlayContractKey(item: ParlayItem) {
   return `${gameKey}|${item.player.team}|${item.player.player}|${item.bet.metric}|${item.bet.line}|${item.bet.kalshi?.legTicker || item.bet.kalshi?.ticker || ''}`
 }
 
+function pitcherStat(probable: any, names: string[]) {
+  const cats = probable?.statistics?.splits?.categories || probable?.statistics || []
+  for (const name of names) {
+    const found = cats.find((x: any) => String(x.name || '').toLowerCase() === name.toLowerCase() || String(x.abbreviation || '').toLowerCase() === name.toLowerCase())
+    const n = Number(found?.value ?? found?.displayValue)
+    if (Number.isFinite(n)) return n
+  }
+  return null
+}
+
+function normalizePitcher(probable: any): MlbPitcherMatchup | null {
+  const athlete = probable?.athlete
+  if (!athlete?.displayName) return null
+  const innings = Number(pitcherStat(probable, ['fullInnings', 'IP']) || 0) + Number(pitcherStat(probable, ['partInnings']) || 0) / 3
+  const hits = pitcherStat(probable, ['hits', 'H']) ?? 0
+  const homeRuns = pitcherStat(probable, ['homeRuns', 'HR']) ?? 0
+  const era = pitcherStat(probable, ['ERA'])
+  const whip = pitcherStat(probable, ['WHIP'])
+  const hitsPerInning = innings > 0 ? hits / innings : null
+  const homeRunsPerInning = innings > 0 ? homeRuns / innings : null
+  const difficultyRaw =
+    (era == null ? 50 : Math.max(0, Math.min(100, (era / 6) * 45))) +
+    (whip == null ? 25 : Math.max(0, Math.min(45, (whip / 1.7) * 35))) +
+    (hitsPerInning == null ? 10 : Math.max(0, Math.min(20, hitsPerInning * 16)))
+  const difficulty = Math.max(0, Math.min(100, Math.round(difficultyRaw)))
+  const label = difficulty >= 72 ? 'pitcher target' : difficulty >= 52 ? 'playable pitcher' : 'tough starter'
+  return {
+    name: athlete.displayName,
+    throws: athlete.throws?.abbreviation || athlete.throws?.type,
+    era: era == null ? undefined : Number(era.toFixed ? era.toFixed(2) : era),
+    whip: whip == null ? undefined : Number(whip.toFixed ? whip.toFixed(2) : whip),
+    hitsPerInning: hitsPerInning == null ? undefined : Number(hitsPerInning.toFixed(2)),
+    homeRunsPerInning: homeRunsPerInning == null ? undefined : Number(homeRunsPerInning.toFixed(2)),
+    difficulty,
+    label,
+  }
+}
+
+async function fetchMlbGameMatchup(game: Game): Promise<MlbGameMatchup> {
+  if (game.mlbMatchup) return game.mlbMatchup
+  const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=' + game.id, { cache: 'no-store' })
+  if (!res.ok) return {}
+  const data = await res.json().catch(() => null)
+  const competitors = data?.header?.competitions?.[0]?.competitors || []
+  const away = competitors.find((c: any) => c.homeAway === 'away')
+  const home = competitors.find((c: any) => c.homeAway === 'home')
+  return {
+    awayPitcher: normalizePitcher(away?.probables?.[0]),
+    homePitcher: normalizePitcher(home?.probables?.[0]),
+  }
+}
+
+function scoreMlbBatterMatchup(item: ParlayItem, matchup?: MlbGameMatchup): MlbBatterMatchup | undefined {
+  const game = item.game
+  if (!game || !matchup) return undefined
+  const playerTeam = String(item.player?.team || '').toUpperCase()
+  const away = String(game.awayTeam.abbr || '').toUpperCase()
+  const home = String(game.homeTeam.abbr || '').toUpperCase()
+  const opposingPitcher = playerTeam === away ? matchup.homePitcher : playerTeam === home ? matchup.awayPitcher : undefined
+  if (!opposingPitcher) return undefined
+  const hits = Number(item.bet?.hits || 0)
+  const games = Number(item.bet?.games || 0)
+  const hitRate = games > 0 ? hits / games : 0
+  const avg = Number(item.bet?.avg ?? item.bet?.last12Avg ?? 0)
+  const score = Math.max(0, Math.min(100, Math.round(hitRate * 52 + Math.min(20, avg * 8) + opposingPitcher.difficulty * 0.32)))
+  const grade = score >= 76 ? 'green' : score >= 63 ? 'neutral' : 'avoid'
+  const note = opposingPitcher.label + ': ' + opposingPitcher.name + (opposingPitcher.throws ? ' (' + opposingPitcher.throws + ')' : '') + (opposingPitcher.era != null ? ' · ' + opposingPitcher.era + ' ERA' : '') + (opposingPitcher.whip != null ? ' · ' + opposingPitcher.whip + ' WHIP' : '')
+  return { score, grade, pitcher: opposingPitcher, note }
+}
+
 function buildSafeParlayPool(items: ParlayItem[]) {
   return items
     .filter(item => Number(item.bet.games || 0) >= 12 && Number(item.bet.hits || 0) >= 9 && (item.bet.kalshi?.legTicker || item.bet.kalshi?.ticker) && Number(item.bet.kalshi?.yesAskSize || 0) > 0)
     .sort((a, b) => {
+      const matchupDiff = Number(b.matchup?.score || 0) - Number(a.matchup?.score || 0)
+      if (matchupDiff) return matchupDiff
       const hitDiff = Number(b.bet.hits || 0) - Number(a.bet.hits || 0)
       if (hitDiff) return hitDiff
       const gameDiff = String(a.game?.id || '').localeCompare(String(b.game?.id || ''))
@@ -2212,7 +2288,8 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
   const copyTicket = async (items: ParlayItem[]) => {
     const text = items.map((x, i) => {
       const matchup = x.game ? `${x.game.awayTeam.abbr}@${x.game.homeTeam.abbr}` : ''
-      return `${i + 1}. ${matchup} — ${x.player.player} — ${x.bet.label} — hit ${x.bet.hits}/${x.bet.games} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`
+      const pitcher = x.matchup ? ` — matchup ${x.matchup.score}/100 vs ${x.matchup.pitcher?.name || 'starter'}` : ''
+      return `${i + 1}. ${matchup} — ${x.player.player} — ${x.bet.label} — hit ${x.bet.hits}/${x.bet.games}${pitcher} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`
     }).join('\n')
     try { await navigator.clipboard?.writeText(text) } catch {}
   }
@@ -2237,7 +2314,10 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
         found.push(...results.flat())
         setScannedCount(prev => prev + batch.length)
       }
-      const safePool = buildSafeParlayPool(found)
+      const matchupEntries = await Promise.all(slateGames.map(async game => [game.id, await fetchMlbGameMatchup(game)] as const))
+      const matchupByGame = new Map(matchupEntries)
+      const enriched = found.map(item => ({ ...item, matchup: scoreMlbBatterMatchup(item, item.game ? matchupByGame.get(item.game.id) : undefined) }))
+      const safePool = buildSafeParlayPool(enriched)
       setSafeCount(safePool.length)
       setTickets(buildParlaySuggestions(safePool))
     } catch (err) {
@@ -2256,7 +2336,7 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
           <div>
             <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Ticket Builder</div>
             <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, marginTop: 3 }}>Build 2-8 leg MLB slips</div>
-            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4 }}>Scans every game for executable 9/12+ Kalshi legs, then groups them into clean tickets.</div>
+            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4 }}>Scans every game for executable 9/12+ Kalshi legs, then grades the opposing starter before building tickets.</div>
           </div>
           <button onClick={scanSlate} disabled={loading} style={{ flexShrink: 0, borderRadius: 999, padding: isMobile ? '9px 11px' : '10px 14px', border: `1px solid ${C.borderHot}`, background: loading ? 'rgba(255,255,255,0.05)' : 'rgba(166,255,63,0.14)', color: loading ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'default' : 'pointer' }}>
             {loading ? 'Scanning' : open ? 'Rescan' : 'Build'}
@@ -2271,7 +2351,7 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
               <div style={{ color: C.gold, fontSize: 11 }}>Slate scan unavailable: {error}</div>
             ) : tickets.length ? (
               <div style={{ display: 'grid', gap: 9 }}>
-                <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>{safeCount} qualifying legs found across {slateGames.length} MLB games.</div>
+                <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>{safeCount} qualifying legs found across {slateGames.length} MLB games, ranked by hitter form + pitcher matchup.</div>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
                   {tickets.map((ticket, idx) => {
                     const avgAsk = Math.round(ticket.items.reduce((sum, x) => sum + Number(x.bet.kalshi?.yesAsk || 0), 0) / ticket.items.length)
@@ -2290,6 +2370,7 @@ function MlbSlateParlayBuilder({ games, isMobile }: { games: Game[]; isMobile: b
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ color: C.textPrimary, fontSize: 9, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.game?.awayTeam.abbr}@{item.game?.homeTeam.abbr} · {item.player.player}</div>
                                 <div style={{ color: C.textSecondary, fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.bet.label}</div>
+                                {item.matchup && <div style={{ color: item.matchup.grade === 'green' ? C.green : item.matchup.grade === 'neutral' ? C.gold : C.red, fontSize: 7, fontWeight: 900, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Matchup {item.matchup.score}/100 · {item.matchup.note}</div>}
                               </div>
                               <div style={{ color: C.green, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{item.bet.hits}/{item.bet.games}<br />{item.bet.kalshi?.yesAsk ?? '—'}c</div>
                             </div>
