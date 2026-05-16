@@ -1657,8 +1657,8 @@ const STADIUM_COORDS: Record<string, { lat: number; lon: number; city: string }>
 function stadiumPoint(game: Game): { x: number; y: number; city: string } | null {
   const c = STADIUM_COORDS[game.homeTeam.abbr] || STADIUM_COORDS[game.homeTeam.abbr.toUpperCase()]
   if (!c) return null
-  const x = ((c.lon + 125) / 59) * 100
-  const y = ((50 - c.lat) / 26) * 100
+  const x = 7 + ((c.lon + 125) / 58.5) * 86
+  const y = 9 + ((49.5 - c.lat) / 25) * 78
   return { x: Math.max(3, Math.min(97, x)), y: Math.max(5, Math.min(95, y)), city: c.city }
 }
 
@@ -1687,9 +1687,10 @@ function GameMapSelector({ games, sport, selectedGameId, onSelect, isMobile }: {
             {liveCount > 0 && <span style={{ borderRadius: 999, padding: '5px 9px', border: '1px solid ' + C.cyan, color: C.cyan, background: 'rgba(168,240,255,0.08)', fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{liveCount} live</span>}
           </div>
         </div>
-        <div style={{ position: 'relative', zIndex: 1, height: isMobile ? 220 : 430, marginTop: 4, borderRadius: 18, overflow: 'hidden', background: 'rgba(0,0,0,0.34)' }}>
-          <img src="/maps/usa-stadium-map-bg.jpg" alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.90, filter: 'saturate(1.1) contrast(1.08) brightness(0.78)' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, transparent 42%, rgba(0,0,0,0.46) 100%), linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.28))', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', zIndex: 1, height: isMobile ? 220 : 430, marginTop: 4, borderRadius: 18, overflow: 'hidden', background: '#000' }}>
+          <img src="/maps/usa-stadium-map-bg.jpg" alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.22, filter: 'saturate(0.9) contrast(1.08) brightness(0.42)' }} />
+          <img src="/maps/usa-neon-outline-map.jpg" alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: 0.94, filter: 'saturate(1.25) contrast(1.1) brightness(1.05)' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, transparent 48%, rgba(0,0,0,0.38) 100%), linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.18))', pointerEvents: 'none' }} />
           {plotted.map(({ game, point }, index) => {
             const live = game.status === 'in'
             const selected = selectedGameId === game.id
