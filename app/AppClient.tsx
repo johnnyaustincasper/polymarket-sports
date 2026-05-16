@@ -364,10 +364,9 @@ const GLOBAL_STYLES = `
     50% { transform: translateY(-2px) scale(1.006); box-shadow: 0 20px 54px rgba(0,0,0,0.52), 0 0 24px rgba(166,255,63,0.26); filter: brightness(1.04); }
   }
   @keyframes loadBoardSweep {
-    0% { transform: translateX(-120%); opacity: 0; }
-    16% { opacity: 0.92; }
-    44% { opacity: 0.36; }
-    100% { transform: translateX(120%); opacity: 0; }
+    0% { transform: rotate(0deg); opacity: 0.58; }
+    50% { opacity: 1; }
+    100% { transform: rotate(360deg); opacity: 0.58; }
   }
   @keyframes loadBoardEdgeFlash {
     0%, 100% { opacity: 0.28; filter: brightness(1); }
@@ -382,12 +381,12 @@ const GLOBAL_STYLES = `
   .load-board-card::before {
     content: '';
     position: absolute;
-    inset: 1px;
+    inset: -65%;
     z-index: 1;
     pointer-events: none;
-    border-radius: 21px;
-    background: linear-gradient(90deg, transparent 0%, rgba(166,255,63,0.08) 43%, rgba(166,255,63,0.42) 50%, rgba(168,240,255,0.18) 56%, transparent 70%);
-    animation: loadBoardSweep 2.35s ease-in-out infinite;
+    border-radius: 999px;
+    background: conic-gradient(from 0deg, transparent 0deg, transparent 58deg, rgba(166,255,63,0.92) 82deg, rgba(168,240,255,0.42) 96deg, transparent 124deg, transparent 360deg);
+    animation: loadBoardSweep 2.7s linear infinite;
     mix-blend-mode: screen;
   }
   .load-board-card::after {
@@ -1860,7 +1859,6 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
         overflow: 'hidden',
       }}>
         <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 112 : 150, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'linear-gradient(90deg, transparent, rgba(166,255,63,0.84), rgba(168,240,255,0.26), transparent)', animation: 'scanCardSweep 1.55s linear infinite', opacity: 0.72 }} />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(166,255,63,0.055), transparent 34%, rgba(168,240,255,0.035) 68%, transparent)', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
             <div>
