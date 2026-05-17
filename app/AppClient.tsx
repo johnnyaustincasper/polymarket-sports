@@ -1996,8 +1996,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
             position: 'relative',
             zIndex: 2,
             borderRadius: isMobile ? 15 : 21,
-            padding: isMobile ? '14px 13px' : '20px 18px',
-            minHeight: isMobile ? 118 : 144,
+            padding: isMobile ? '11px 10px' : '16px 14px',
+            minHeight: isMobile ? 118 : 140,
             background: feedLive ? 'linear-gradient(145deg, rgba(20,5,9,0.98), rgba(4,4,2,0.97))' : 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))',
             border: '1px solid rgba(255,255,255,0.08)',
             display: 'grid',
@@ -2005,18 +2005,23 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
             overflow: 'hidden',
           }}>
             <div style={{ position: 'absolute', inset: 0, background: feedLive ? 'radial-gradient(circle at 18% 50%, rgba(255,63,95,0.13), transparent 34%), radial-gradient(circle at 82% 50%, rgba(255,255,255,0.06), transparent 36%)' : 'radial-gradient(circle at 18% 50%, rgba(166,255,63,0.10), transparent 34%), radial-gradient(circle at 82% 50%, rgba(255,255,255,0.05), transparent 36%)', pointerEvents: 'none' }} />
-            <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: isMobile ? 9 : 16 }}>
+            <div style={{ position: 'relative', display: 'grid', gap: isMobile ? 7 : 9, minWidth: 0 }}>
               {[
                 { team: game.awayTeam, score: awayScore, leading: awayLeading },
                 { team: game.homeTeam, score: homeScore, leading: homeLeading },
-              ].map(({ team, score, leading }, idx) => (
-                <div key={'score-button-' + team.abbr} style={{ display: 'flex', alignItems: 'center', justifyContent: idx === 0 ? 'flex-start' : 'flex-end', gap: isMobile ? 7 : 10, minWidth: 0 }}>
-                  {idx === 0 && team.logo && <img src={team.logo} alt="" style={{ width: isMobile ? 34 : 44, height: isMobile ? 34 : 44, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)', boxShadow: '0 0 16px rgba(255,255,255,0.08)' }} />}
-                  <span style={{ color: leading ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 18 : 24, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
-                  <span style={{ color: leading ? C.textPrimary : (feedLive ? C.red : C.green), fontSize: isMobile ? 34 : 46, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: leading ? '0 0 24px rgba(255,255,255,0.20)' : 'none' }}>{score}</span>
-                  {idx === 1 && team.logo && <img src={team.logo} alt="" style={{ width: isMobile ? 34 : 44, height: isMobile ? 34 : 44, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)', boxShadow: '0 0 16px rgba(255,255,255,0.08)' }} />}
+              ].map(({ team, score, leading }) => {
+                const winner = game.status === 'post' && leading
+                const scoreColor = winner ? C.green : game.status === 'post' ? C.textSecondary : leading ? C.textPrimary : C.textSecondary
+                return (
+                <div key={'score-button-' + team.abbr} style={{ display: 'grid', gridTemplateColumns: `${isMobile ? 30 : 38}px minmax(0,1fr) auto`, alignItems: 'center', gap: isMobile ? 7 : 10, minWidth: 0 }}>
+                  {team.logo
+                    ? <img src={team.logo} alt="" style={{ width: isMobile ? 30 : 38, height: isMobile ? 30 : 38, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)', boxShadow: winner ? '0 0 18px rgba(166,255,63,0.20)' : '0 0 14px rgba(255,255,255,0.07)' }} />
+                    : <span style={{ width: isMobile ? 30 : 38, height: isMobile ? 30 : 38, borderRadius: 999, background: 'rgba(255,255,255,0.06)' }} />
+                  }
+                  <span style={{ color: winner ? C.green : leading ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 17 : 22, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
+                  <span style={{ color: scoreColor, fontSize: isMobile ? 32 : 44, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: winner ? '0 0 22px rgba(166,255,63,0.25)' : leading ? '0 0 20px rgba(255,255,255,0.16)' : 'none' }}>{score}</span>
                 </div>
-              )).reduce((acc, item, idx) => idx === 0 ? [item, <span key="divider" style={{ color: feedLive ? C.red : C.green, fontSize: isMobile ? 18 : 24, fontWeight: 950, opacity: 0.72 }}>-</span>] : [...acc, item], [] as React.ReactNode[])}
+              )})}
             </div>
           </div>
         </button>
