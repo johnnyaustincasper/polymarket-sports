@@ -1762,7 +1762,21 @@ function scoreMlbBatterMatchup(item: ParlayItem, matchup?: MlbGameMatchup): MlbB
 
 function buildSafeParlayPool(items: ParlayItem[]) {
   return items
-    .filter(item => Number(item.bet.games || 0) >= 12 && Number(item.bet.hits || 0) >= 9 && (item.bet.kalshi?.legTicker || item.bet.kalshi?.ticker) && Number(item.bet.kalshi?.yesAskSize || 0) > 0)
+    .filter(item => {
+      const ask = Number(item.bet.kalshi?.yesAsk || 0)
+      const max = Number(item.bet.maxYesPrice || 0)
+      const broadAltLine = item.bet.metric === 'hits + runs + RBIs' && Number(item.bet.line || 0) <= 1
+      const quality = String(item.bet.quality || '')
+      return Number(item.bet.games || 0) >= 12
+        && Number(item.bet.hits || 0) >= 9
+        && !broadAltLine
+        && ['bet', 'lean'].includes(quality)
+        && ask > 0
+        && max > 0
+        && ask <= max
+        && (item.bet.kalshi?.legTicker || item.bet.kalshi?.ticker)
+        && Number(item.bet.kalshi?.yesAskSize || 0) > 0
+    })
     .sort((a, b) => {
       const matchupDiff = Number(b.matchup?.score || 0) - Number(a.matchup?.score || 0)
       if (matchupDiff) return matchupDiff
@@ -2296,7 +2310,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
             </div>
             {safeParlayPool.length >= 2 && (
               <button onClick={() => setShowParlayBuilder(v => !v)} style={{ width: '100%', borderRadius: 14, padding: '10px 12px', border: `1px solid ${showParlayBuilder ? C.borderHot : 'rgba(168,240,255,0.26)'}`, background: showParlayBuilder ? 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(168,240,255,0.08))' : 'rgba(168,240,255,0.055)', color: showParlayBuilder ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                {showParlayBuilder ? 'Hide parlay builder' : `Build 2-8 leg parlays · ${safeParlayPool.length} safe props`}
+                {showParlayBuilder ? 'Hide parlay builder' : `Build 2-8 leg parlays · ${safeParlayPool.length} screened props`}
               </button>
             )}
           </div>
@@ -2342,8 +2356,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                       <div key={`parlay-${ticket.size}-${idx}`} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 7 }}>
                           <div>
-                            <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{ticket.size}-leg solid ticket</div>
-                            <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>avg ask {avgAsk}¢ · all hit 9/12+</div>
+                            <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{ticket.size}-leg screened ticket</div>
+                            <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>avg ask {avgAsk}¢ · priced under model max</div>
                           </div>
                           <button onClick={() => selectParlayItems(ticket.items)} style={{ borderRadius: 999, padding: '6px 9px', border: `1px solid ${C.borderHot}`, background: 'rgba(166,255,63,0.14)', color: C.green, fontSize: 8, fontWeight: 950, cursor: 'pointer' }}>Select</button>
                         </div>
@@ -2553,7 +2567,7 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 7 }}>
                           <div>
                             <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{ticket.size}-leg slate ticket</div>
-                            <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>avg ask {avgAsk}c · all hit 9/12+</div>
+                            <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>avg ask {avgAsk}c · screened value legs</div>
                           </div>
                           <button onClick={() => copyTicket(ticket.items)} style={{ borderRadius: 999, padding: '6px 9px', border: `1px solid ${C.borderHot}`, background: 'rgba(166,255,63,0.14)', color: C.green, fontSize: 8, fontWeight: 950, cursor: 'pointer' }}>Copy</button>
                         </div>
@@ -2577,7 +2591,7 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
                   })}
         </div>
       ) : (
-        <div style={{ color: C.textSecondary, fontSize: 11 }}>No 9/12+ executable Kalshi {sport.toUpperCase()} legs found across this slate yet.</div>
+        <div style={{ color: C.textSecondary, fontSize: 11 }}>No screened Kalshi {sport.toUpperCase()} legs found across this slate yet.</div>
       )}
     </>
   )
