@@ -1964,15 +1964,15 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                   <span style={{ color: statusTone, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{statusLabel}</span>
                   <span style={{ color: C.textSecondary, fontSize: isMobile ? 7 : 9, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{game.gameTime || game.gameDate || 'Game slate'}</span>
                 </div>
-                <div style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 15, fontWeight: 950, fontVariantNumeric: 'tabular-nums', lineHeight: 1.05 }}>
-                  {hasScore ? (
+                {hasScore && (
+                  <div style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 15, fontWeight: 950, fontVariantNumeric: 'tabular-nums', lineHeight: 1.05 }}>
                     <>
                       <span style={{ color: awayLeading ? C.textPrimary : C.textSecondary }}>{game.awayTeam.abbr} {awayScore}</span>
                       <span style={{ color: 'rgba(255,255,255,0.28)' }}> - </span>
                       <span style={{ color: homeLeading ? C.textPrimary : C.textSecondary }}>{game.homeTeam.abbr} {homeScore}</span>
                     </>
-                  ) : 'Score pending'}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
