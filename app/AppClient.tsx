@@ -73,6 +73,33 @@ interface LineupsData {
   homePitcher?: StarterPlayer | null; awayPitcher?: StarterPlayer | null
   homeSource?: string; awaySource?: string; homeSourceGame?: string; awaySourceGame?: string
 }
+interface LiveGameData {
+  available?: boolean
+  status?: string
+  statusLabel?: string
+  inning?: string | number
+  inningHalf?: string
+  period?: string | number
+  clock?: string
+  awayScore?: string | number
+  homeScore?: string | number
+  score?: { away?: string | number; home?: string | number }
+  updatedAt?: string
+  generatedAt?: string
+  plays?: any[]
+  feed?: any[]
+  liveFeed?: any[]
+  events?: any[]
+  boxScore?: any
+  boxscore?: any
+  players?: any[]
+  stats?: any
+  lineups?: { home?: any[]; away?: any[] }
+  teams?: { away?: any; home?: any }
+  situation?: any
+  playerStatsByName?: Record<string, any>
+  playerStatsById?: Record<string, any>
+}
 interface PredictionData {
   homeWinPct: number; awayWinPct: number; confidence: number
   recommendation: 'home' | 'away' | 'pass'; recommendedTeam: string | null
@@ -1648,6 +1675,81 @@ function getPropStatValue(player: any, game: any, metric: string): number | null
   return null
 }
 
+function normalizePlayerName(name: string) {
+  return String(name || '').toLowerCase().replace(/jr\.?|sr\.?|ii|iii|iv/g, '').replace(/[^a-z]/g, '')
+}
+
+function compactText(value: any): string {
+  if (value == null) return ''
+  if (typeof value === 'string' || typeof value === 'number') return String(value)
+  if (typeof value === 'object') return String(value.description || value.text || value.displayValue || value.shortDisplayName || value.name || '')
+  return ''
+}
+
+function arrayFromUnknown(value: any): any[] {
+  if (!value) return []
+  if (Array.isArray(value)) return value
+  if (typeof value === 'object') return Object.values(value).flatMap(v => Array.isArray(v) ? v : [v])
+  return []
+}
+
+function getLiveFeedItems(live: LiveGameData | null): any[] {
+  return arrayFromUnknown(live?.plays || live?.feed || live?.liveFeed || live?.events).slice(0, 12)
+}
+
+function getLiveBoxRows(live: LiveGameData | null, side?: 'away' | 'home'): any[] {
+  const box = live?.boxScore || live?.boxscore || live?.stats
+  const keyedPlayers = live?.playerStatsByName ? Object.values(live.playerStatsByName) : []
+  if (!box) return [...arrayFromUnknown(live?.players), ...keyedPlayers]
+  const sideRows = side ? box?.[side] || box?.teams?.[side] || box?.[side + 'Team']?.players : null
+  return [...arrayFromUnknown(sideRows || box?.players || box?.athletes || box), ...keyedPlayers]
+}
+
+function findLivePlayerRow(live: LiveGameData | null, playerName: string): any | null {
+  const target = normalizePlayerName(playerName)
+  if (!target) return null
+  const rows = [...getLiveBoxRows(live, 'away'), ...getLiveBoxRows(live, 'home'), ...arrayFromUnknown(live?.players)]
+  return rows.find(row => {
+    const name = row?.name || row?.player || row?.displayName || row?.athlete?.displayName || row?.athlete?.name || row?.person?.fullName
+    const normalized = normalizePlayerName(name)
+    return normalized && (normalized === target || normalized.includes(target) || target.includes(normalized))
+  }) || null
+}
+
+function readStatNumber(source: any, keys: string[]): number | null {
+  const pools = [source?.stats, source?.statistics, source?.totals, source]
+  for (const pool of pools) {
+    if (!pool) continue
+    for (const key of keys) {
+      const raw = pool[key] ?? pool[key.toUpperCase()] ?? pool[key.toLowerCase()]
+      const value = typeof raw === 'object' ? raw?.value ?? raw?.displayValue : raw
+      const num = Number(value)
+      if (Number.isFinite(num)) return num
+    }
+  }
+  return null
+}
+
+function getLiveMlbPropProgress(live: LiveGameData | null, player: any, bet: any): { value: number; line: number; hit: boolean; label: string } | null {
+  const row = findLivePlayerRow(live, player?.player || player?.name)
+  if (!row) return null
+  const key = String(bet?.metric || '').toLowerCase()
+  const value = key.includes('hits + runs') || key.includes('hrr')
+    ? (readStatNumber(row, ['hits', 'hit', 'h', 'H']) || 0) + (readStatNumber(row, ['runs', 'r', 'R']) || 0) + (readStatNumber(row, ['RBIs', 'rbi', 'RBI']) || 0)
+    : key.includes('home run') || key === 'hr' || key.includes('homer')
+    ? readStatNumber(row, ['homeRuns', 'hr', 'HR'])
+    : key.includes('total base')
+      ? readStatNumber(row, ['totalBases', 'tb', 'TB'])
+      : key.includes('strikeout') || key.includes('ks')
+        ? readStatNumber(row, ['strikeouts', 'pitcherStrikeouts', 'so', 'SO', 'k'])
+        : key.includes('hit') && !key.includes('rate')
+          ? readStatNumber(row, ['hits', 'hit', 'h', 'H'])
+          : null
+  const line = Number(bet?.line)
+  if (value == null || !Number.isFinite(line)) return null
+  return { value, line, hit: value >= line, label: `${value}/${line}+ ${formatPropMetricShort(bet.metric)}` }
+}
+
 function buildPropEdgeRead(player: any, bet: any, intel?: TeamIntelData | null) {
   const logs = (player?.last12 || []).slice(0, 12)
   const values = logs.map((g: any) => getPropStatValue(player, g, bet.metric)).filter((v: any) => v != null) as number[]
@@ -1880,6 +1982,11 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const [showParlayBuilder, setShowParlayBuilder] = useState(false)
   const [lineups, setLineups] = useState<LineupsData | null>(null)
   const [lineupsLoading, setLineupsLoading] = useState(false)
+  const [liveGame, setLiveGame] = useState<LiveGameData | null>(null)
+  const [liveLoading, setLiveLoading] = useState(false)
+  const [liveError, setLiveError] = useState<string | null>(null)
+  const [liveUpdatedAt, setLiveUpdatedAt] = useState<Date | null>(null)
+  const [activeLiveTab, setActiveLiveTab] = useState<'feed' | 'box' | 'lineups'>('feed')
   const isMobile = useIsMobile()
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const shouldLoadIntelAndProps = loadRequested
@@ -1898,6 +2005,10 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     setExpandedContractKey('')
     setShowParlayBuilder(false)
     setLineups(null)
+    setLiveGame(null)
+    setLiveError(null)
+    setLiveUpdatedAt(null)
+    setActiveLiveTab('feed')
     onBoardCollapse?.(game.id)
   }, [game.id, onBoardCollapse])
 
@@ -1955,6 +2066,48 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [game.homeTeam.abbr, game.awayTeam.abbr, game.id, sport, supportedKalshiSport, shouldLoadIntelAndProps])
+
+  useEffect(() => {
+    if (!shouldLoadIntelAndProps) {
+      setLiveGame(null)
+      setLiveLoading(false)
+      setLiveError(null)
+      setLiveUpdatedAt(null)
+      return
+    }
+    let cancelled = false
+    const fetchLive = async (showSpinner = false) => {
+      if (showSpinner) setLiveLoading(true)
+      const params = new URLSearchParams({
+        eventId: game.id,
+        sport,
+        away: game.awayTeam.abbr,
+        home: game.homeTeam.abbr,
+        date: game.gameDate || '',
+      })
+      try {
+        const res = await fetch('/api/game-live?' + params.toString(), { cache: 'no-store' })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data?.error || 'live feed unavailable')
+        if (!cancelled) {
+          setLiveGame(data)
+          setLiveError(null)
+          setLiveUpdatedAt(new Date(data?.updatedAt || data?.generatedAt || Date.now()))
+        }
+      } catch (e: any) {
+        if (!cancelled) setLiveError(e?.message || 'live feed unavailable')
+      } finally {
+        if (!cancelled) setLiveLoading(false)
+      }
+    }
+    fetchLive(true)
+    const intervalMs = game.status === 'in' ? 15_000 : 60_000
+    const iv = setInterval(() => fetchLive(false), intervalMs)
+    return () => {
+      cancelled = true
+      clearInterval(iv)
+    }
+  }, [game.awayTeam.abbr, game.homeTeam.abbr, game.gameDate, game.id, game.status, sport, shouldLoadIntelAndProps])
 
   const fullBoardSport = sport === 'nba' || sport === 'mlb'
   const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (fullBoardSport || (p.last12 || []).length >= 4) && (p.recommendations || []).length) : []
@@ -2224,6 +2377,18 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           )}
         </div>
 
+        {(game.status === 'in' || liveGame || liveError) && (
+          <LiveGameDrawer
+            game={game}
+            live={liveGame}
+            loading={liveLoading}
+            error={liveError}
+            updatedAt={liveUpdatedAt}
+            activeTab={activeLiveTab}
+            onTabChange={setActiveLiveTab}
+            lineups={lineups}
+          />
+        )}
 
         {sport === 'nba' && intel && (
           <div style={{ borderRadius: 15, padding: 10, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, marginBottom: 12, opacity: 0, animation: 'dominoFadeIn 920ms cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
@@ -2402,9 +2567,10 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                       const open = key === expandedContractKey
                       const selected = !!selectedContracts[key]
                       const safeHit = Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 9
+                      const liveProgress = sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, bet) : null
                       return (
                         <button key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ borderRadius: 999, padding: '7px 9px', border: `1px solid ${open || safeHit ? C.borderHot : selected ? 'rgba(166,255,63,0.45)' : C.border}`, background: open ? 'rgba(166,255,63,0.18)' : safeHit ? 'rgba(166,255,63,0.13)' : selected ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || safeHit ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', animation: safeHit ? 'safePropThrob 1.25s ease-in-out infinite' : undefined, willChange: safeHit ? 'transform, box-shadow' : undefined }}>
-                          {bet.line}+ {formatPropMetricShort(activeGroup.metric === 'all' ? bet.metric : activeGroup.metric)} · {bet.kalshi?.yesAsk ?? '—'}¢{safeHit ? ` · ${bet.hits}/${bet.games}` : ''}
+                          {bet.line}+ {formatPropMetricShort(activeGroup.metric === 'all' ? bet.metric : activeGroup.metric)} · {bet.kalshi?.yesAsk ?? '—'}¢{safeHit ? ` · ${bet.hits}/${bet.games}` : ''}{liveProgress ? ' · LIVE ' + liveProgress.label : ''}
                         </button>
                       )
                     })}
@@ -2412,6 +2578,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                   {expandedBet && (() => {
                     const key = contractKey(p, expandedBet)
                     const selected = !!selectedContracts[key]
+                    const liveProgress = sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, expandedBet) : null
                     return (
                       <div style={{ marginTop: 10, borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.24)', border: `1px solid ${selected ? C.borderHot : C.border}` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -2421,6 +2588,11 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                           </div>
                           <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, textAlign: 'right' }}>{expandedBet.hits}/{expandedBet.games}<br />hit</div>
                         </div>
+                        {liveProgress && (
+                          <div style={{ marginTop: 8, borderRadius: 11, padding: '8px 9px', background: liveProgress.hit ? 'rgba(166,255,63,0.13)' : 'rgba(255,215,0,0.075)', border: '1px solid ' + (liveProgress.hit ? C.borderHot : 'rgba(255,215,0,0.24)'), color: liveProgress.hit ? C.green : C.gold, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                            Live progress: {liveProgress.label}{liveProgress.hit ? ' · clearing' : ' · tracking'}
+                          </div>
+                        )}
                         {(() => {
                           const safeHit = Number(expandedBet.games || 0) >= 12 && Number(expandedBet.hits || 0) >= 9
                           const reads = buildPropEdgeRead(p, expandedBet, intel)
@@ -2849,6 +3021,98 @@ function formatLastGameMinutes(player: any): string | null {
   const minutes = Number(player?.lastGameMinutes ?? player?.last12?.[0]?.stats?.minutes)
   if (!Number.isFinite(minutes) || minutes <= 0) return null
   return `${Math.round(minutes)} min last game`
+}
+
+function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTabChange, lineups }: {
+  game: Game
+  live: LiveGameData | null
+  loading: boolean
+  error: string | null
+  updatedAt: Date | null
+  activeTab: 'feed' | 'box' | 'lineups'
+  onTabChange: (tab: 'feed' | 'box' | 'lineups') => void
+  lineups: LineupsData | null
+}) {
+  const feed = getLiveFeedItems(live)
+  const awayRows = getLiveBoxRows(live, 'away').slice(0, 9)
+  const homeRows = getLiveBoxRows(live, 'home').slice(0, 9)
+  const awayScore = live?.score?.away ?? live?.awayScore ?? game.awayTeam.score
+  const homeScore = live?.score?.home ?? live?.homeScore ?? game.homeTeam.score
+  const progress = [live?.inningHalf, live?.inning ? 'Inning ' + live.inning : '', live?.period ? 'Period ' + live.period : '', live?.clock].filter(Boolean).join(' · ')
+  const tabs: Array<{ key: 'feed' | 'box' | 'lineups'; label: string }> = [{ key: 'feed', label: 'Live feed' }, { key: 'box', label: 'Box score' }, { key: 'lineups', label: 'Lineups' }]
+  const renderBoxRow = (row: any, idx: number) => {
+    const name = compactText(row?.name || row?.player || row?.displayName || row?.athlete)
+    const stats = row?.stats || row?.statistics || row?.totals || row || {}
+    const statText = ['hits', 'h', 'homeRuns', 'hr', 'totalBases', 'tb', 'strikeouts', 'so'].map(key => {
+      const raw = stats[key] ?? stats[key.toUpperCase()]
+      const value = typeof raw === 'object' ? raw?.displayValue ?? raw?.value : raw
+      return value == null ? '' : formatPropMetricShort(key) + ' ' + value
+    }).filter(Boolean).slice(0, 4).join(' · ')
+    return (
+      <div key={(name || 'row') + '-' + idx} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 8, padding: '6px 0', borderTop: idx ? '1px solid rgba(255,255,255,0.055)' : 'none' }}>
+        <span style={{ color: name ? C.textPrimary : C.textSecondary, fontSize: 10, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Player'}</span>
+        <span style={{ color: statText ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, textAlign: 'right' }}>{statText || '-'}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ borderRadius: 16, padding: 12, background: 'linear-gradient(145deg, rgba(255,63,95,0.075), rgba(166,255,63,0.035))', border: '1px solid rgba(255,255,255,0.12)', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 6, height: 6, borderRadius: 999, background: game.status === 'in' ? C.red : C.green, boxShadow: '0 0 10px ' + (game.status === 'in' ? C.red : C.green), animation: game.status === 'in' ? 'liveDotPulse 1.2s ease-in-out infinite' : undefined }} />
+            <span style={{ color: game.status === 'in' ? C.red : C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Game live</span>
+          </div>
+          <div style={{ color: C.textPrimary, fontSize: 18, fontWeight: 950, marginTop: 3 }}>{game.awayTeam.abbr} {awayScore || '-'} · {game.homeTeam.abbr} {homeScore || '-'}</div>
+          <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{progress || live?.statusLabel || live?.status || 'Live details pending'} · <UpdatedAgeLabel updatedAt={updatedAt} prefix="refreshed" empty={loading ? 'refreshing' : 'not refreshed'} /></div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {tabs.map(tab => {
+            const active = activeTab === tab.key
+            return <button key={tab.key} onClick={() => onTabChange(tab.key)} style={{ borderRadius: 999, padding: '7px 9px', border: '1px solid ' + (active ? C.borderHot : C.border), background: active ? 'rgba(166,255,63,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>{tab.label}</button>
+          })}
+        </div>
+      </div>
+
+      {error ? (
+        <div style={{ color: C.gold, fontSize: 10, lineHeight: 1.45 }}>Live drawer waiting on /api/game-live: {error}</div>
+      ) : activeTab === 'feed' ? (
+        <div style={{ display: 'grid', gap: 6 }}>
+          {(feed.length ? feed : [{ text: loading ? 'Refreshing live feed...' : 'No live events returned yet.' }]).map((item, idx) => (
+            <div key={'feed-' + idx} style={{ borderRadius: 10, padding: '8px 9px', background: 'rgba(0,0,0,0.18)', border: '1px solid ' + C.border }}>
+              <div style={{ color: idx === 0 && feed.length ? C.green : C.textPrimary, fontSize: 10, fontWeight: 850, lineHeight: 1.35 }}>{compactText(item) || compactText(item?.play) || compactText(item?.event) || 'Live event'}</div>
+              {(item?.period || item?.inning || item?.clock) && <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 3 }}>{[item.inning, item.period, item.clock].filter(Boolean).join(' · ')}</div>}
+            </div>
+          ))}
+        </div>
+      ) : activeTab === 'box' ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
+          {[{ label: game.awayTeam.abbr, rows: awayRows }, { label: game.homeTeam.abbr, rows: homeRows }].map(section => (
+            <div key={section.label} style={{ minWidth: 0, borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.18)', border: '1px solid ' + C.border }}>
+              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>{section.label}</div>
+              {(section.rows.length ? section.rows : [{ name: loading ? 'Loading box score' : 'Box score pending' }]).map(renderBoxRow)}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
+          {[{ label: game.awayTeam.abbr, rows: arrayFromUnknown(live?.lineups?.away).length ? arrayFromUnknown(live?.lineups?.away) : (lineups?.away || []) }, { label: game.homeTeam.abbr, rows: arrayFromUnknown(live?.lineups?.home).length ? arrayFromUnknown(live?.lineups?.home) : (lineups?.home || []) }].map(section => (
+            <div key={section.label} style={{ minWidth: 0, borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.18)', border: '1px solid ' + C.border }}>
+              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>{section.label}</div>
+              {(section.rows.length ? section.rows.slice(0, 9) : [{ name: 'Lineup pending' }]).map((row: any, idx: number) => (
+                <div key={section.label + '-lineup-' + idx} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) auto', gap: 6, padding: '4px 0', borderTop: idx ? '1px solid rgba(255,255,255,0.055)' : 'none' }}>
+                  <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{idx + 1}</span>
+                  <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{compactText(row?.name || row?.player || row?.athlete) || 'Player'}</span>
+                  <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{row?.position || row?.pos || ''}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function RowGroup({ games, cols, activeGame, panel, analysisLoadingGameId, onAnalysisDone, onLogBet, drift, onOpenIntel, onOpenAnalysis, bankroll }: {
