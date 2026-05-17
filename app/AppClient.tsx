@@ -62,8 +62,10 @@ interface HomeAwaySplit {
   homeWins: number; homeLosses: number; awayWins: number; awayLosses: number
 }
 interface StarterPlayer {
+  id?: string
   name: string; position: string; jersey: string; starter: boolean
   hitRatio?: string; rbi?: string; avg?: string; era?: string; whip?: string; strikeouts?: string
+  form7?: string; form20?: string
 }
 interface LineupsData {
   home: StarterPlayer[]; away: StarterPlayer[]
@@ -2146,13 +2148,15 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                     <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {side.pitcher?.era ? `ERA ${side.pitcher.era}` : side.fallbackPitcher?.era != null ? `ERA ${side.fallbackPitcher.era}` : 'ERA --'}{side.pitcher?.strikeouts ? ` · K ${side.pitcher.strikeouts}` : ''}
                     </div>
+                    {side.pitcher?.form7 && <div style={{ color: C.green, fontSize: 7, fontWeight: 900, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>L7 {side.pitcher.form7}</div>}
+                    {side.pitcher?.form20 && <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 850, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>L20 {side.pitcher.form20}</div>}
                     <div style={{ display: 'grid', gap: 3 }}>
                       {(side.players.length ? side.players.slice(0, 9) : [{ name: 'Lineup pending', position: '' } as StarterPlayer]).map((p, i) => (
-                        <div key={side.label + '-' + p.name + '-' + i} style={{ display: 'grid', gridTemplateColumns: '14px minmax(0,1fr) 26px 48px', gap: 4, alignItems: 'center' }}>
+                        <div key={side.label + '-' + p.name + '-' + i} style={{ display: 'grid', gridTemplateColumns: '14px minmax(0,1fr) 26px 88px', gap: 4, alignItems: 'center' }}>
                           <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right' }}>{side.players.length ? i + 1 : '-'}</span>
                           <span style={{ color: side.players.length ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                           <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right' }}>{p.position || ''}</span>
-                          <span style={{ color: p.hitRatio ? C.green : C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right', whiteSpace: 'nowrap' }}>{p.hitRatio ? `${p.hitRatio} · RBI ${p.rbi || '0'}` : ''}</span>
+                          <span style={{ color: p.form7 ? C.green : p.hitRatio ? C.green : C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.form7 ? `L7 ${p.form7}` : p.hitRatio ? `${p.hitRatio} · RBI ${p.rbi || '0'}` : ''}</span>
                         </div>
                       ))}
                     </div>
