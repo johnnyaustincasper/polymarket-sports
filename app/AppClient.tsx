@@ -1475,7 +1475,9 @@ function LiveScoreDisplay({ game }: { game: Game }) {
 }
 
 function LiveScoreStrip({ game, compact = false }: { game: Game; compact?: boolean }) {
-  if (game.status !== 'in') return null
+  const hasActualScore = game.status !== 'pre' && (game.awayTeam.score !== '' || game.homeTeam.score !== '')
+  if (!hasActualScore) return null
+  const isLive = game.status === 'in'
   const awayScore = game.awayTeam.score || '0'
   const homeScore = game.homeTeam.score || '0'
   const awayLeading = Number(awayScore) > Number(homeScore)
@@ -1489,14 +1491,14 @@ function LiveScoreStrip({ game, compact = false }: { game: Game; compact?: boole
       gap: compact ? 5 : 8,
       borderRadius: compact ? 9 : 12,
       padding: compact ? '5px 6px' : '8px 10px',
-      background: 'rgba(255,63,95,0.10)',
-      border: '1px solid rgba(255,63,95,0.34)',
-      boxShadow: '0 0 18px rgba(255,63,95,0.08)',
+      background: isLive ? 'rgba(255,63,95,0.10)' : 'rgba(166,255,63,0.10)',
+      border: isLive ? '1px solid rgba(255,63,95,0.34)' : '1px solid rgba(166,255,63,0.32)',
+      boxShadow: isLive ? '0 0 18px rgba(255,63,95,0.08)' : '0 0 18px rgba(166,255,63,0.08)',
       minWidth: 0,
     }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: C.red, fontSize: compact ? 7 : 9, fontWeight: 950, letterSpacing: compact ? '0.08em' : '0.12em', textTransform: 'uppercase', flexShrink: 0 }}>
-        <span style={{ width: compact ? 5 : 6, height: compact ? 5 : 6, borderRadius: 999, background: C.red, boxShadow: `0 0 10px ${C.red}`, animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />
-        Live
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: isLive ? C.red : C.green, fontSize: compact ? 7 : 9, fontWeight: 950, letterSpacing: compact ? '0.08em' : '0.12em', textTransform: 'uppercase', flexShrink: 0 }}>
+        <span style={{ width: compact ? 5 : 6, height: compact ? 5 : 6, borderRadius: 999, background: isLive ? C.red : C.green, boxShadow: `0 0 10px ${isLive ? C.red : C.green}`, animation: isLive ? 'liveDotPulse 1.2s ease-in-out infinite' : 'none' }} />
+        {isLive ? 'Live' : 'Score'}
       </span>
       <span style={{ color: C.textSecondary, fontSize: compact ? 7 : 9, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{game.gameTime}</span>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? 4 : 7, color: C.textPrimary, fontSize: compact ? 9 : 12, fontWeight: 950, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
@@ -2010,7 +2012,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           <div>
             <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi Player Props</div>
             <div style={{ color: C.textPrimary, fontSize: 15, fontWeight: 950, marginTop: 4 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
-            {game.status === 'in' && <div style={{ marginTop: 8, maxWidth: isMobile ? 260 : 360 }}><LiveScoreStrip game={game} /></div>}
+            <div style={{ marginTop: 8, maxWidth: isMobile ? 260 : 360 }}><LiveScoreStrip game={game} /></div>
           </div>
           <button
             onClick={collapseCard}
@@ -4280,7 +4282,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const fetchGames = useCallback(async () => {
     try {
       const loadDate = async (yyyymmdd: string): Promise<Game[]> => {
-        const res = await fetch(`/api/markets?date=${espnRequestDateForChicagoDay(yyyymmdd)}&sport=${sport}&displayDate=${yyyymmdd}`)
+        const res = await fetch(`/api/markets?date=${espnRequestDateForChicagoDay(yyyymmdd)}&sport=${sport}&displayDate=${yyyymmdd}&t=${Date.now()}`, { cache: 'no-store' })
         const json = await res.json().catch(() => null)
         if (!res.ok) throw new Error(json?.error || `market feed failed (${res.status})`)
         return Array.isArray(json) ? json : []
