@@ -2310,9 +2310,10 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           Minimize
         </button>
 
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(190px, 0.58fr) minmax(0, 1.42fr)', gap: 10, alignItems: 'stretch', marginBottom: 12 }}>
-          <div style={{ borderRadius: 18, padding: isMobile ? 14 : 12, background: feedLive ? 'linear-gradient(145deg, rgba(20,5,9,0.98), rgba(4,4,2,0.97))' : 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.34)' : 'rgba(166,255,63,0.30)'), display: 'grid', gap: isMobile ? 10 : 8, alignContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(166,255,63,0.08)' }}>
-            {[
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, alignItems: 'stretch', marginBottom: 12 }}>
+          <div style={{ borderRadius: 18, padding: isMobile ? 12 : 13, background: feedLive ? 'linear-gradient(145deg, rgba(20,5,9,0.98), rgba(4,4,2,0.97))' : 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.34)' : 'rgba(166,255,63,0.30)'), display: 'grid', gap: isMobile ? 10 : 12, alignContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(166,255,63,0.08)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? 8 : 12 }}>
+              {[
               { team: game.awayTeam, score: awayScore, leading: awayLeading },
               { team: game.homeTeam, score: homeScore, leading: homeLeading },
             ].map(({ team, score, leading }) => {
@@ -2326,6 +2327,23 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                 </div>
               )
             })}
+            </div>
+            {(game.status === 'in' || liveGame || liveError) && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7 }}>
+                {[
+                  { key: 'feed' as const, label: 'Live Feed' },
+                  { key: 'box' as const, label: 'Box Score' },
+                  { key: 'lineups' as const, label: 'Lineups' },
+                ].map(tab => {
+                  const active = activeLiveTab === tab.key
+                  return (
+                    <button key={tab.key} onClick={() => setActiveLiveTab(tab.key)} style={{ borderRadius: 12, minHeight: 36, padding: '8px 6px', border: '1px solid ' + (active ? C.borderHot : C.border), background: active ? 'rgba(166,255,63,0.16)' : 'rgba(255,255,255,0.04)', color: active ? C.green : C.textPrimary, fontSize: isMobile ? 8 : 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
           {sport === 'mlb' && (
             <div style={{ borderRadius: 18, padding: isMobile ? 10 : 12, background: 'linear-gradient(145deg, rgba(166,255,63,0.070), rgba(255,255,255,0.026))', border: `1px solid ${C.borderHot}`, minWidth: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
@@ -3067,7 +3085,7 @@ function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTa
           <div style={{ color: C.textPrimary, fontSize: 18, fontWeight: 950, marginTop: 3 }}>{game.awayTeam.abbr} {awayScore || '-'} · {game.homeTeam.abbr} {homeScore || '-'}</div>
           <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{progress || live?.statusLabel || live?.status || 'Live details pending'} · <UpdatedAgeLabel updatedAt={updatedAt} prefix="refreshed" empty={loading ? 'refreshing' : 'not refreshed'} /></div>
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'none', gap: 6, flexWrap: 'wrap' }}>
           {tabs.map(tab => {
             const active = activeTab === tab.key
             return <button key={tab.key} onClick={() => onTabChange(tab.key)} style={{ borderRadius: 999, padding: '7px 9px', border: '1px solid ' + (active ? C.borderHot : C.border), background: active ? 'rgba(166,255,63,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>{tab.label}</button>
