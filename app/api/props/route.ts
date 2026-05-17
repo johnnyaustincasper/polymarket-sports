@@ -61,6 +61,7 @@ type KalshiRawScan = KalshiMarketScan & { fetchedAt: number }
 const KALSHI_RAW_TTL_MS = 120_000
 const ESPN_TEAM_PROPS_TTL_MS = 5 * 60_000
 const ESPN_PLAYER_GAMELOG_TTL_MS = 15 * 60_000
+const ESPN_INJURY_TTL_MS = 2 * 60_000
 const XAI_PROP_INTEL_TTL_MS = 10 * 60_000
 const XAI_PROP_INTEL_TIMEOUT_MS = 10_000
 const ESPN_GAMELOG_CONCURRENCY = 7
@@ -74,6 +75,7 @@ const teamPropsInflight = new Map<string, Promise<PlayerPropLine[]>>()
 const playerGameLogCache = new Map<string, TimedCache<GameLogEntry[]>>()
 const playerGameLogInflight = new Map<string, Promise<GameLogEntry[]>>()
 const xaiPropIntelCache = new Map<string, TimedCache<PlayerPropLine[]>>()
+const injuryReportCache = new Map<string, TimedCache<PlayerInjuryReport[]>>()
 
 function isFullBoardSport(sport: Sport): boolean {
   return sport === 'nba' || sport === 'mlb'
@@ -157,6 +159,17 @@ export interface PlayerPropLine {
   lastGameMinutes?: number
   recommendations: PropRecommendation[]
   bestBet: PropRecommendation | null
+  injuryStatus?: string
+  injuryDetail?: string
+}
+
+interface PlayerInjuryReport {
+  name: string
+  team: string
+  position: string
+  status: string
+  detail: string
+  updatedAt?: string
 }
 
 export interface PropsResponse {
@@ -177,6 +190,17 @@ const NFL_ABBR: Record<string, string> = {
 
 const MLB_ABBR: Record<string, string> = {
   ARI: 'ari', AZ: 'ari', ATL: 'atl', BAL: 'bal', BOS: 'bos', CHC: 'chc', CHW: 'chw', CWS: 'chw', CIN: 'cin', CLE: 'cle', COL: 'col', DET: 'det', HOU: 'hou', KC: 'kc', KCR: 'kc', LAA: 'laa', LAD: 'lad', MIA: 'mia', MIL: 'mil', MIN: 'min', NYM: 'nym', NYY: 'nyy', ATH: 'ath', OAK: 'ath', PHI: 'phi', PIT: 'pit', SD: 'sd', SDP: 'sd', SEA: 'sea', SF: 'sf', SFG: 'sf', STL: 'stl', TB: 'tb', TBR: 'tb', TEX: 'tex', TOR: 'tor', WSH: 'wsh', WAS: 'wsh',
+}
+
+const MLB_TEAM_NAMES: Record<string, string> = {
+  ARI: 'Arizona Diamondbacks', AZ: 'Arizona Diamondbacks', ATL: 'Atlanta Braves', BAL: 'Baltimore Orioles', BOS: 'Boston Red Sox',
+  CHC: 'Chicago Cubs', CHW: 'Chicago White Sox', CWS: 'Chicago White Sox', CIN: 'Cincinnati Reds', CLE: 'Cleveland Guardians',
+  COL: 'Colorado Rockies', DET: 'Detroit Tigers', HOU: 'Houston Astros', KC: 'Kansas City Royals', KCR: 'Kansas City Royals',
+  LAA: 'Los Angeles Angels', LAD: 'Los Angeles Dodgers', MIA: 'Miami Marlins', MIL: 'Milwaukee Brewers', MIN: 'Minnesota Twins',
+  NYM: 'New York Mets', NYY: 'New York Yankees', ATH: 'Athletics', OAK: 'Athletics', PHI: 'Philadelphia Phillies',
+  PIT: 'Pittsburgh Pirates', SD: 'San Diego Padres', SDP: 'San Diego Padres', SEA: 'Seattle Mariners',
+  SF: 'San Francisco Giants', SFG: 'San Francisco Giants', STL: 'St. Louis Cardinals', TB: 'Tampa Bay Rays',
+  TBR: 'Tampa Bay Rays', TEX: 'Texas Rangers', TOR: 'Toronto Blue Jays', WSH: 'Washington Nationals', WAS: 'Washington Nationals',
 }
 
 function toNum(v: unknown): number {
@@ -564,6 +588,68 @@ function textHaystack(m: any): string {
 
 function normalizeName(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function playerNameMatches(a: string, b: string): boolean {
+  const left = normalizeName(a)
+  const right = normalizeName(b)
+  return Boolean(left && right && (left === right || left.includes(right) || right.includes(left)))
+}
+
+function injuryEndpointForSport(sport: Sport): string | null {
+  if (sport === 'mlb') return 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/injuries'
+  if (sport === 'nba') return 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries'
+  if (sport === 'nfl') return 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries'
+  return null
+}
+
+function teamDisplayName(abbr: string, sport: Sport): string | null {
+  if (sport === 'mlb') return MLB_TEAM_NAMES[abbr.toUpperCase()] || null
+  return null
+}
+
+async function fetchSportInjuries(sport: Sport, teamAbbrs: string[]): Promise<Map<string, PlayerInjuryReport>> {
+  const endpoint = injuryEndpointForSport(sport)
+  if (!endpoint) return new Map()
+  const key = `${sport}:injuries`
+  let reports: PlayerInjuryReport[] | null = getFreshCache(injuryReportCache, key, ESPN_INJURY_TTL_MS)
+  if (!reports) {
+    try {
+      const data = await safeJson(endpoint)
+      reports = (data?.injuries || []).flatMap((team: any) => {
+        const teamName = String(team.displayName || '')
+        return (team.injuries || []).map((inj: any) => ({
+          name: inj.athlete?.displayName || 'Unknown',
+          team: teamName,
+          position: inj.athlete?.position?.abbreviation || '?',
+          status: inj.status || 'Unknown',
+          detail: inj.shortComment || String(inj.longComment || '').slice(0, 160),
+          updatedAt: inj.date,
+        }))
+      }).filter((p: PlayerInjuryReport) => p.name !== 'Unknown')
+      injuryReportCache.set(key, { value: reports || [], fetchedAt: Date.now() })
+    } catch {
+      reports = []
+    }
+  }
+
+  const targetTeamNames = new Set(teamAbbrs.map(abbr => teamDisplayName(abbr, sport)).filter(Boolean) as string[])
+  const byPlayer = new Map<string, PlayerInjuryReport>()
+  for (const report of reports || []) {
+    if (targetTeamNames.size && !targetTeamNames.has(report.team)) continue
+    byPlayer.set(normalizeName(report.name), report)
+  }
+  return byPlayer
+}
+
+function applyInjuryFilter(players: PlayerPropLine[], injuries: Map<string, PlayerInjuryReport>): PlayerPropLine[] {
+  if (!injuries.size) return players
+  return players
+    .map(player => {
+      const injury = Array.from(injuries.values()).find(report => playerNameMatches(player.player, report.name))
+      return injury ? { ...player, injuryStatus: injury.status, injuryDetail: injury.detail } : player
+    })
+    .filter(player => !player.injuryStatus)
 }
 
 function metricAliases(metric: string): string[] {
@@ -1298,13 +1384,18 @@ export async function GET(req: NextRequest) {
   if (!home || !away) return finishRouteTiming(timing, NextResponse.json({ error: 'Missing home or away param' }, { status: 400 }))
 
   try {
-    const [homeRaw, awayRaw, kalshiScan] = await Promise.all([fetchTeamProps(home, sport), fetchTeamProps(away, sport), fetchKalshiPropMarkets(sport, home, away)])
+    const [homeRaw, awayRaw, kalshiScan, injuryMap] = await Promise.all([
+      fetchTeamProps(home, sport),
+      fetchTeamProps(away, sport),
+      fetchKalshiPropMarkets(sport, home, away),
+      sport === 'mlb' ? fetchSportInjuries(sport, [home, away]) : Promise.resolve(new Map<string, PlayerInjuryReport>()),
+    ])
     const kalshiMarkets = kalshiScan.markets
     const matchCache: KalshiMatchCache = new Map()
     const [gatedHome, gatedAway] = await Promise.all([gateToKalshi(homeRaw, sport, kalshiMarkets, matchCache), gateToKalshi(awayRaw, sport, kalshiMarkets, matchCache)])
     const withMissing = addMissingKalshiContracts([...awayRaw, ...homeRaw, ...gatedAway, ...gatedHome], kalshiMarkets, sport, home, away)
     const withXai = await applyXaiPropIntel(withMissing, enrich)
-    const statReady = withXai
+    const statReady = applyInjuryFilter(withXai, injuryMap)
       .filter(p => isFullBoardSport(sport) || (p.last12 || []).length >= 4)
       .map(p => {
         const recommendations = (p.recommendations || []).filter(r => r.kalshi && (isFullBoardSport(sport) || r.games > 0))
