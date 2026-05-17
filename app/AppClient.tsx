@@ -1980,6 +1980,49 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const statusLabel = feedLive ? 'Live feed' : hasScore ? 'ESPN score' : 'Starts'
 
   if (!loadRequested) {
+    if (hasScore) {
+      return (
+        <button className="load-board-card" onClick={requestCardLoad} style={{
+          width: '100%',
+          textAlign: 'left',
+          borderRadius: isMobile ? 16 : 22,
+          padding: 1,
+          border: 'none',
+          background: feedLive ? 'linear-gradient(135deg, rgba(255,63,95,0.70), rgba(255,255,255,0.12), rgba(255,63,95,0.26))' : 'linear-gradient(135deg, rgba(166,255,63,0.62), rgba(255,255,255,0.12), rgba(166,255,63,0.24))',
+          cursor: 'pointer',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'relative',
+            zIndex: 2,
+            borderRadius: isMobile ? 15 : 21,
+            padding: isMobile ? '14px 13px' : '20px 18px',
+            minHeight: isMobile ? 118 : 144,
+            background: feedLive ? 'linear-gradient(145deg, rgba(20,5,9,0.98), rgba(4,4,2,0.97))' : 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))',
+            border: '1px solid rgba(255,255,255,0.08)',
+            display: 'grid',
+            alignItems: 'center',
+            overflow: 'hidden',
+          }}>
+            <div style={{ position: 'absolute', inset: 0, background: feedLive ? 'radial-gradient(circle at 18% 50%, rgba(255,63,95,0.13), transparent 34%), radial-gradient(circle at 82% 50%, rgba(255,255,255,0.06), transparent 36%)' : 'radial-gradient(circle at 18% 50%, rgba(166,255,63,0.10), transparent 34%), radial-gradient(circle at 82% 50%, rgba(255,255,255,0.05), transparent 36%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: isMobile ? 9 : 16 }}>
+              {[
+                { team: game.awayTeam, score: awayScore, leading: awayLeading },
+                { team: game.homeTeam, score: homeScore, leading: homeLeading },
+              ].map(({ team, score, leading }, idx) => (
+                <div key={'score-button-' + team.abbr} style={{ display: 'flex', alignItems: 'center', justifyContent: idx === 0 ? 'flex-start' : 'flex-end', gap: isMobile ? 7 : 10, minWidth: 0 }}>
+                  {idx === 0 && team.logo && <img src={team.logo} alt="" style={{ width: isMobile ? 34 : 44, height: isMobile ? 34 : 44, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)', boxShadow: '0 0 16px rgba(255,255,255,0.08)' }} />}
+                  <span style={{ color: leading ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 18 : 24, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
+                  <span style={{ color: leading ? C.textPrimary : (feedLive ? C.red : C.green), fontSize: isMobile ? 34 : 46, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: leading ? '0 0 24px rgba(255,255,255,0.20)' : 'none' }}>{score}</span>
+                  {idx === 1 && team.logo && <img src={team.logo} alt="" style={{ width: isMobile ? 34 : 44, height: isMobile ? 34 : 44, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)', boxShadow: '0 0 16px rgba(255,255,255,0.08)' }} />}
+                </div>
+              )).reduce((acc, item, idx) => idx === 0 ? [item, <span key="divider" style={{ color: feedLive ? C.red : C.green, fontSize: isMobile ? 18 : 24, fontWeight: 950, opacity: 0.72 }}>-</span>] : [...acc, item], [] as React.ReactNode[])}
+            </div>
+          </div>
+        </button>
+      )
+    }
+
     return (
       <button className="load-board-card" onClick={requestCardLoad} style={{
         width: '100%',
@@ -1997,7 +2040,6 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
             <div style={{ minWidth: 0 }}>
               <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi</div>
               <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 19, fontWeight: 950, marginTop: 4, lineHeight: 1.05 }}>{game.awayTeam.abbr}<br />@ {game.homeTeam.abbr}</div>
-              <InlineGameScore game={game} compact={isMobile} />
               <div style={{ marginTop: 7, display: 'grid', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                   {feedLive && <span style={{ width: 5, height: 5, borderRadius: 999, background: C.red, boxShadow: '0 0 10px ' + C.red, animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />}
