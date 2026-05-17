@@ -1956,27 +1956,31 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
       }}>
         <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 132 : 158, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(166,255,63,0.055), transparent 34%, rgba(168,240,255,0.035) 68%, transparent)', pointerEvents: 'none' }} />
-          <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-            <div>
+          <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: hasScore ? '1fr auto' : '1fr', gap: 10, alignItems: 'start' }}>
+            <div style={{ minWidth: 0 }}>
               <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi</div>
               <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 19, fontWeight: 950, marginTop: 4, lineHeight: 1.05 }}>{game.awayTeam.abbr}<br />@ {game.homeTeam.abbr}</div>
-              <div style={{ marginTop: 7, display: 'grid', gap: 6, borderRadius: 11, padding: isMobile ? '7px 8px' : '8px 9px', background: feedLive ? 'rgba(255,63,95,0.12)' : hasScore ? 'rgba(166,255,63,0.10)' : 'rgba(255,215,0,0.08)', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.34)' : hasScore ? 'rgba(166,255,63,0.30)' : 'rgba(255,215,0,0.22)') }}>
+              <div style={{ marginTop: 7, display: 'grid', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                   {feedLive && <span style={{ width: 5, height: 5, borderRadius: 999, background: C.red, boxShadow: '0 0 10px ' + C.red, animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />}
                   <span style={{ color: statusTone, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{statusLabel}</span>
                   <span style={{ color: C.textSecondary, fontSize: isMobile ? 7 : 9, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{game.gameTime || game.gameDate || 'Game slate'}</span>
                 </div>
-                {hasScore && (
-                  <div style={{ color: C.textPrimary, fontSize: isMobile ? 13 : 16, fontWeight: 950, fontVariantNumeric: 'tabular-nums', lineHeight: 1.05 }}>
-                    <>
-                      <span style={{ color: awayLeading ? C.textPrimary : C.textSecondary }}>{game.awayTeam.abbr} {awayScore}</span>
-                      <span style={{ color: 'rgba(255,255,255,0.28)' }}> - </span>
-                      <span style={{ color: homeLeading ? C.textPrimary : C.textSecondary }}>{game.homeTeam.abbr} {homeScore}</span>
-                    </>
-                  </div>
-                )}
               </div>
             </div>
+            {hasScore && (
+              <div style={{ minWidth: isMobile ? 66 : 78, borderRadius: 13, padding: isMobile ? '8px 9px' : '10px 11px', background: feedLive ? 'rgba(255,63,95,0.14)' : 'rgba(166,255,63,0.12)', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.38)' : 'rgba(166,255,63,0.34)'), boxShadow: feedLive ? '0 0 18px rgba(255,63,95,0.10)' : '0 0 18px rgba(166,255,63,0.10)' }}>
+                {[
+                  { team: game.awayTeam, score: awayScore, leading: awayLeading },
+                  { team: game.homeTeam, score: homeScore, leading: homeLeading },
+                ].map(({ team, score, leading }) => (
+                  <div key={'score-' + team.abbr} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'baseline', marginTop: team.abbr === game.homeTeam.abbr ? 4 : 0 }}>
+                    <span style={{ color: leading ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 9 : 10, fontWeight: 950 }}>{team.abbr}</span>
+                    <span style={{ color: leading ? C.textPrimary : C.green, fontSize: isMobile ? 24 : 28, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums' }}>{score}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div style={{ position: 'relative', display: 'flex', gap: isMobile ? 7 : 8, alignItems: 'center', minWidth: 0 }}>
               {[game.awayTeam, game.homeTeam].map(team => (
