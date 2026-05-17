@@ -2182,20 +2182,21 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                         {side.key === 'away' && <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>ERA</span>}
                         <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950, textAlign: side.key === 'home' ? 'right' : 'left' }}>{side.pitcher?.era || side.fallbackPitcher?.era || '--'}</span>
                         {side.key === 'home' && <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>ERA</span>}
-                        {side.key === 'away' && <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>L7</span>}
+                        {side.key === 'away' && <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>Last 7</span>}
                         <span style={{ color: C.green, fontSize: 8, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: side.key === 'home' ? 'right' : 'left' }}>{side.pitcher?.form7 || '--'}</span>
-                        {side.key === 'home' && <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>L7</span>}
+                        {side.key === 'home' && <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>Last 7</span>}
                       </div>
                     </div>
                     <div style={{ borderRadius: 14, padding: 9, background: 'rgba(0,0,0,0.24)', border: `1px solid ${C.border}` }}>
-                      <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6, textAlign: side.key === 'home' ? 'right' : 'left' }}>{side.team.abbr} Lineup</div>
+                      <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 2, textAlign: side.key === 'home' ? 'right' : 'left' }}>{side.team.abbr} Lineup</div>
+                      <div style={{ color: C.green, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, textAlign: side.key === 'home' ? 'right' : 'left' }}>Last 7 games</div>
                       <div style={{ display: 'grid', gap: 4 }}>
                         {(side.players.length ? side.players.slice(0, 9) : [{ name: 'Lineup pending', position: '' } as StarterPlayer]).map((p, i) => (
                           <div key={side.team.abbr + '-' + p.name + '-' + i} style={{ display: 'grid', gridTemplateColumns: side.key === 'home' ? 'minmax(0,1fr) 18px' : '18px minmax(0,1fr)', gap: 5, alignItems: 'start', minHeight: 30, borderTop: i ? '1px solid rgba(255,255,255,0.045)' : 'none', paddingTop: i ? 4 : 0 }}>
                             {side.key === 'away' && <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, textAlign: 'right' }}>{side.players.length ? i + 1 : '-'}</span>}
                             <div style={{ minWidth: 0, textAlign: side.key === 'home' ? 'right' : 'left' }}>
                               <div style={{ color: side.players.length ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 10 : 11, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                              <div style={{ color: p.form7 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.position || '--'}{p.form7 ? ` · ${p.form7}` : ''}</div>
+                              <div style={{ color: p.form7 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.position || '--'}{p.form7 ? ` · Last 7: ${p.form7}` : ''}</div>
                             </div>
                             {side.key === 'home' && <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, textAlign: 'left' }}>{side.players.length ? i + 1 : '-'}</span>}
                           </div>
