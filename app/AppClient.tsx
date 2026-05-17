@@ -4422,7 +4422,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
         <AIAthleteHeader
           sport={sport}
-          setSport={(s) => { setSport(s); setSubtab('slate'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
+          setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
           days={days}
           date={date}
           setDate={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}
