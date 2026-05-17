@@ -4267,7 +4267,7 @@ function espnRequestDateForChicagoDay(yyyymmdd: string): string {
 export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const today = chicagoYmd()
   const [date, setDate] = useState(today)
-  const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
+  const [sport, setSport] = useState<SupportedSport | 'ufc'>('mlb')
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
   const [provider, setProvider] = useState<MarketProvider>('kalshi')
   const [games, setGames] = useState<Game[]>([])
