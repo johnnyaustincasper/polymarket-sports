@@ -445,7 +445,14 @@ function kalshiTeamCode(abbr: string, sport: Sport): string {
     return map[upper] || upper
   }
   if (sport === 'mlb') {
-    const map: Record<string, string> = { AZ: 'ARI', ARI: 'ARI', ATH: 'ATH', OAK: 'ATH', CWS: 'CHW', CHW: 'CHW', WSH: 'WSH', WAS: 'WSH', SD: 'SD', SF: 'SF', TB: 'TB' }
+    const map: Record<string, string> = {
+      AZ: 'ARI', ARI: 'ARI',
+      ATH: 'ATH', OAK: 'ATH',
+      // ESPN labels the White Sox as CHW; Kalshi MLB player-prop tickers use CWS.
+      CWS: 'CWS', CHW: 'CWS',
+      WSH: 'WSH', WAS: 'WSH',
+      SD: 'SD', SF: 'SF', TB: 'TB',
+    }
     return map[upper] || upper
   }
   return upper
