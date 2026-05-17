@@ -1932,13 +1932,15 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   }
   const hasVisibleContracts = allContracts.length > 0
   const scanActive = loading || (loadRequested && !props && !error)
-  const hasScore = game.status === 'in' || game.status === 'post'
+  const hasEspnScore = game.awayTeam.score !== '' || game.homeTeam.score !== ''
+  const hasScore = game.status === 'in' || game.status === 'post' || hasEspnScore
   const awayScore = game.awayTeam.score || (hasScore ? '0' : '')
   const homeScore = game.homeTeam.score || (hasScore ? '0' : '')
   const awayLeading = Number(awayScore) > Number(homeScore)
   const homeLeading = Number(homeScore) > Number(awayScore)
-  const statusTone = game.status === 'in' ? C.red : game.status === 'post' ? C.textSecondary : C.gold
-  const statusLabel = game.status === 'in' ? 'Live' : game.status === 'post' ? 'Final' : 'Upcoming'
+  const feedLive = game.status === 'in'
+  const statusTone = feedLive ? C.red : game.status === 'post' || hasEspnScore ? C.green : C.gold
+  const statusLabel = feedLive ? 'Live feed' : game.status === 'post' || hasEspnScore ? 'ESPN score' : 'Starts'
 
   if (!loadRequested) {
     return (
@@ -1952,20 +1954,20 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
         cursor: 'pointer',
         overflow: 'hidden',
       }}>
-        <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 112 : 150, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
+        <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 132 : 158, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(166,255,63,0.055), transparent 34%, rgba(168,240,255,0.035) 68%, transparent)', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
             <div>
               <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi</div>
               <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 19, fontWeight: 950, marginTop: 4, lineHeight: 1.05 }}>{game.awayTeam.abbr}<br />@ {game.homeTeam.abbr}</div>
-              <div style={{ marginTop: 6, display: 'grid', gap: 5 }}>
+              <div style={{ marginTop: 7, display: 'grid', gap: 6, borderRadius: 11, padding: isMobile ? '7px 8px' : '8px 9px', background: feedLive ? 'rgba(255,63,95,0.12)' : hasScore ? 'rgba(166,255,63,0.10)' : 'rgba(255,215,0,0.08)', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.34)' : hasScore ? 'rgba(166,255,63,0.30)' : 'rgba(255,215,0,0.22)') }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-                  {game.status === 'in' && <span style={{ width: 5, height: 5, borderRadius: 999, background: C.red, boxShadow: '0 0 10px ' + C.red, animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />}
+                  {feedLive && <span style={{ width: 5, height: 5, borderRadius: 999, background: C.red, boxShadow: '0 0 10px ' + C.red, animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />}
                   <span style={{ color: statusTone, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{statusLabel}</span>
                   <span style={{ color: C.textSecondary, fontSize: isMobile ? 7 : 9, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{game.gameTime || game.gameDate || 'Game slate'}</span>
                 </div>
                 {hasScore && (
-                  <div style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 15, fontWeight: 950, fontVariantNumeric: 'tabular-nums', lineHeight: 1.05 }}>
+                  <div style={{ color: C.textPrimary, fontSize: isMobile ? 13 : 16, fontWeight: 950, fontVariantNumeric: 'tabular-nums', lineHeight: 1.05 }}>
                     <>
                       <span style={{ color: awayLeading ? C.textPrimary : C.textSecondary }}>{game.awayTeam.abbr} {awayScore}</span>
                       <span style={{ color: 'rgba(255,255,255,0.28)' }}> - </span>
