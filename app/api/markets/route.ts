@@ -20,6 +20,12 @@ const SPORTS: Record<SportKey, {
   mlb:   { leaguePath: 'baseball/mlb', label: 'MLB', eventWords: ['mlb', 'baseball', 'major league baseball'], polyTags: ['mlb', 'baseball'] },
 }
 
+const NO_STORE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  Pragma: 'no-cache',
+  Expires: '0',
+}
+
 // ESPN abbreviation/name → Polymarket-friendly terms. Keep team nicknames first.
 const PRO_TEAM_KEYWORDS: Record<string, string[]> = {
   // MLB: include ESPN abbreviations plus common aliases so baseball does not collide with NBA/NFL city-only matches.
@@ -394,10 +400,10 @@ export async function GET(req: Request) {
       fetch(espnUrl, { cache: 'no-store' }),
       fetchPolyEvents(sport),
     ])
-    if (!espnRes.ok) return NextResponse.json([])
+    if (!espnRes.ok) return NextResponse.json([], { headers: NO_STORE_HEADERS })
     const espnData = await espnRes.json()
     const events = (espnData?.events || []).filter((event: any) => toCST(new Date(event.date)) === displayDate)
-    if (!events.length) return NextResponse.json([])
+    if (!events.length) return NextResponse.json([], { headers: NO_STORE_HEADERS })
     const sourceHealth = {
       espn: { ok: true, events: events.length, date: dateParam },
       polymarket: { ok: polyFetch.fetchOk, events: polyFetch.events.length, tags: SPORTS[sport].polyTags, error: polyFetch.error },
@@ -492,9 +498,9 @@ export async function GET(req: Request) {
     }))
 
     games.sort((a: any, b: any) => new Date(a.gameDate).getTime() - new Date(b.gameDate).getTime())
-    return NextResponse.json(games)
+    return NextResponse.json(games, { headers: NO_STORE_HEADERS })
   } catch (err) {
     console.error(err)
-    return NextResponse.json([], { status: 500 })
+    return NextResponse.json([], { status: 500, headers: NO_STORE_HEADERS })
   }
 }
