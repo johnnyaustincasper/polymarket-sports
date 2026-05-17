@@ -2120,8 +2120,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     }}>
       <div style={{ borderRadius: 21, padding: 16, background: SURFACE.panel, minHeight: 220, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)', position: 'relative', overflow: 'hidden' }}>
 
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(180px, 0.62fr) minmax(0, 1.38fr) auto', gap: 10, alignItems: 'stretch', marginBottom: 12 }}>
-          <div style={{ borderRadius: 15, padding: 10, background: feedLive ? 'linear-gradient(145deg, rgba(20,5,9,0.98), rgba(4,4,2,0.97))' : 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.30)' : 'rgba(166,255,63,0.24)'), display: 'grid', gap: 7, alignContent: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(190px, 0.58fr) minmax(0, 1.42fr) auto', gap: 10, alignItems: 'stretch', marginBottom: 12 }}>
+          <div style={{ borderRadius: 18, padding: isMobile ? 14 : 12, background: feedLive ? 'linear-gradient(145deg, rgba(20,5,9,0.98), rgba(4,4,2,0.97))' : 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.34)' : 'rgba(166,255,63,0.30)'), display: 'grid', gap: isMobile ? 10 : 8, alignContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(166,255,63,0.08)' }}>
             {[
               { team: game.awayTeam, score: awayScore, leading: awayLeading },
               { team: game.homeTeam, score: homeScore, leading: homeLeading },
@@ -2129,30 +2129,31 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               const winner = game.status === 'post' && leading
               const scoreColor = winner ? C.green : game.status === 'post' ? C.textSecondary : leading ? C.textPrimary : C.textSecondary
               return (
-                <div key={'expanded-score-' + team.abbr} style={{ display: 'grid', gridTemplateColumns: '32px minmax(0,1fr) auto', gap: 8, alignItems: 'center', minWidth: 0 }}>
-                  {team.logo ? <img src={team.logo} alt="" style={{ width: 32, height: 32, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} /> : <span />}
-                  <span style={{ color: winner ? C.green : leading ? C.textPrimary : C.textSecondary, fontSize: 17, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
-                  <span style={{ color: scoreColor, fontSize: 34, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: winner ? '0 0 20px rgba(166,255,63,0.24)' : 'none' }}>{hasScore ? score : '-'}</span>
+                <div key={'expanded-score-' + team.abbr} style={{ display: 'grid', gridTemplateColumns: `${isMobile ? 40 : 32}px minmax(0,1fr) auto`, gap: 10, alignItems: 'center', minWidth: 0 }}>
+                  {team.logo ? <img src={team.logo} alt="" style={{ width: isMobile ? 40 : 32, height: isMobile ? 40 : 32, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} /> : <span />}
+                  <span style={{ color: winner ? C.green : leading ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 21 : 17, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
+                  <span style={{ color: scoreColor, fontSize: isMobile ? 44 : 34, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: winner ? '0 0 20px rgba(166,255,63,0.24)' : 'none' }}>{hasScore ? score : '-'}</span>
                 </div>
               )
             })}
           </div>
           {sport === 'mlb' && (
-            <div style={{ borderRadius: 15, padding: 10, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
-                <span style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Pitcher Matchup</span>
+            <div style={{ borderRadius: 18, padding: 12, background: 'linear-gradient(145deg, rgba(166,255,63,0.070), rgba(255,255,255,0.026))', border: `1px solid ${C.borderHot}`, minWidth: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 10 }}>
+                <span style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Game Intel</span>
                 <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>{lineupsLoading ? 'loading' : lineups?.available ? 'ESPN' : 'pending'}</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8, marginBottom: 10 }}>
+              <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Starting Pitchers</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
                 {lineupSides.map(side => (
-                  <div key={'pitcher-' + side.team.abbr} style={{ minWidth: 0, borderRadius: 12, padding: 9, background: 'rgba(0,0,0,0.20)', border: `1px solid ${C.border}` }}>
+                  <div key={'pitcher-' + side.team.abbr} style={{ minWidth: 0, borderRadius: 14, padding: 10, background: 'rgba(0,0,0,0.26)', border: `1px solid ${C.border}` }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, minWidth: 0 }}>
                       {side.team.logo && <img src={side.team.logo} alt="" style={{ width: 20, height: 20, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
                       <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950 }}>{side.team.abbr}</span>
                       <span style={{ color: C.gold, fontSize: 8, fontWeight: 950 }}>SP</span>
                     </div>
-                    <div style={{ color: C.gold, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{side.pitcher?.name || side.fallbackPitcher?.name || 'Starter TBA'}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 8px', marginTop: 6, alignItems: 'baseline' }}>
+                    <div style={{ color: C.gold, fontSize: isMobile ? 12 : 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{side.pitcher?.name || side.fallbackPitcher?.name || 'Starter TBA'}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 8px', marginTop: 7, alignItems: 'baseline' }}>
                       <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>ERA</span>
                       <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950 }}>{side.pitcher?.era || side.fallbackPitcher?.era || '--'}</span>
                       <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>L7</span>
@@ -2163,6 +2164,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                   </div>
                 ))}
               </div>
+              <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Batting Order</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
                 {lineupSides.map(side => (
                   <button
@@ -2173,8 +2175,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                       border: `1px solid ${activeLineupSide === side.key ? C.borderHot : C.border}`,
                       background: activeLineupSide === side.key ? 'rgba(166,255,63,0.15)' : 'rgba(255,255,255,0.035)',
                       color: activeLineupSide === side.key ? C.green : C.textSecondary,
-                      padding: '7px 8px',
-                      fontSize: 10,
+                      padding: '9px 8px',
+                      fontSize: 11,
                       fontWeight: 950,
                       cursor: 'pointer',
                     }}
@@ -2183,20 +2185,20 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                   </button>
                 ))}
               </div>
-              <div style={{ borderRadius: 12, padding: 8, background: 'rgba(0,0,0,0.18)', border: `1px solid ${C.border}` }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) 34px 80px 44px', gap: 6, marginBottom: 5, alignItems: 'center' }}>
+              <div style={{ borderRadius: 14, padding: 10, background: 'rgba(0,0,0,0.24)', border: `1px solid ${C.border}` }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '18px minmax(0,1fr) 32px 94px' : '18px minmax(0,1fr) 34px 94px 44px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
                   {['#', 'Batter', 'Pos', 'Last 7', 'RBI'].map(label => (
-                    <span key={label} style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: label === 'Batter' ? 'left' : 'right' }}>{label}</span>
+                    (!isMobile || label !== 'RBI') && <span key={label} style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: label === 'Batter' ? 'left' : 'right' }}>{label}</span>
                   ))}
                 </div>
                 <div style={{ display: 'grid', gap: 4 }}>
                   {(activeLineup.players.length ? activeLineup.players.slice(0, 9) : [{ name: 'Lineup pending', position: '' } as StarterPlayer]).map((p, i) => (
-                    <div key={activeLineup.team.abbr + '-' + p.name + '-' + i} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) 34px 80px 44px', gap: 6, alignItems: 'center', minHeight: 24 }}>
-                      <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, textAlign: 'right' }}>{activeLineup.players.length ? i + 1 : '-'}</span>
-                      <span style={{ color: activeLineup.players.length ? C.textPrimary : C.textSecondary, fontSize: 10, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                      <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, textAlign: 'right' }}>{p.position || '--'}</span>
-                      <span style={{ color: p.form7 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.form7 || '--'}</span>
-                      <span style={{ color: p.rbi ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{p.rbi || '--'}</span>
+                    <div key={activeLineup.team.abbr + '-' + p.name + '-' + i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '18px minmax(0,1fr) 32px 94px' : '18px minmax(0,1fr) 34px 94px 44px', gap: 6, alignItems: 'center', minHeight: isMobile ? 30 : 24, borderTop: i ? '1px solid rgba(255,255,255,0.045)' : 'none', paddingTop: i ? 4 : 0 }}>
+                      <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, textAlign: 'right' }}>{activeLineup.players.length ? i + 1 : '-'}</span>
+                      <span style={{ color: activeLineup.players.length ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 12 : 10, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                      <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, textAlign: 'right' }}>{p.position || '--'}</span>
+                      <span style={{ color: p.form7 ? C.green : C.textSecondary, fontSize: 9, fontWeight: 950, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.form7 || '--'}</span>
+                      {!isMobile && <span style={{ color: p.rbi ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{p.rbi || '--'}</span>}
                     </div>
                   ))}
                 </div>
