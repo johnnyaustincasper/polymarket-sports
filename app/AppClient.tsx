@@ -4283,10 +4283,9 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       let resolvedDate = date
       let newGames: Game[] = await loadDate(date)
 
-      // Kalshi is actionable-market first. If today's ESPN slate is empty or already final,
-      // jump forward to the next active slate so we don't show stale/no-market final cards
-      // while Kalshi is already listing tomorrow's player props.
-      if (provider === 'kalshi' && sport !== 'ufc' && (newGames.length === 0 || newGames.every(g => g.status === 'post'))) {
+      // Only jump forward when ESPN has no games for the selected day. If games
+      // are final, keep them on screen so the slate buttons still show scores.
+      if (provider === 'kalshi' && sport !== 'ufc' && newGames.length === 0) {
         for (let i = 1; i <= 3; i++) {
           const candidateDate = addChicagoDays(date, i)
           const candidateGames = await loadDate(candidateDate)
