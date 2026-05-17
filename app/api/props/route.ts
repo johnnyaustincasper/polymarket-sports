@@ -898,22 +898,23 @@ function addMissingKalshiContracts(players: PlayerPropLine[], kalshiMarkets: any
     const key = `${team}|${normalizeName(player)}`
     const existing = byKey.get(key)
     if (existing) {
-      if (isFullBoardSport(sport) && !existing.last12?.length) {
-        if (!existing.recommendations.some(r => r.kalshi?.legTicker === rec.kalshi?.legTicker)) existing.recommendations.push(rec)
+      if (isFullBoardSport(sport) && existing.recommendations.some(r => r.kalshi?.legTicker === rec.kalshi?.legTicker)) continue
+      const values = valuesForMetric(existing, rec.metric)
+      const statRec = buildMarketRecommendation(values, rec.line, rec.metric, sport)
+      if (!statRec || !existing.last12?.length) {
+        if (!isFullBoardSport(sport)) continue
+        existing.recommendations.push(rec)
         existing.bestBet = existing.bestBet || rec
         byKey.set(key, existing)
         continue
       }
-      const values = valuesForMetric(existing, rec.metric)
-      const statRec = buildMarketRecommendation(values, rec.line, rec.metric, sport)
-      if (!statRec || !existing.last12?.length) continue
       const enrichedRec: PropRecommendation = {
         ...statRec,
         kalshi: rec.kalshi,
         explanation: `${statRec.explanation} Kalshi ask ${rec.kalshi?.yesAsk ?? '—'}¢; max YES ${statRec.maxYesPrice}¢.`,
       }
       if (!shouldSurfaceKalshiRecommendation(enrichedRec, sport)) continue
-      if (!existing.recommendations.some(r => r.kalshi?.legTicker === enrichedRec.kalshi?.legTicker)) existing.recommendations.push(enrichedRec)
+      existing.recommendations.push(enrichedRec)
       existing.recommendations.sort((a, b) => metricAliases(a.metric)[0].localeCompare(metricAliases(b.metric)[0]) || a.line - b.line)
       existing.bestBet = existing.bestBet || enrichedRec
       byKey.set(key, existing)
