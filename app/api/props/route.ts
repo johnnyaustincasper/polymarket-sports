@@ -471,7 +471,7 @@ async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
   const inflight = kalshiRawInflight.get(sport)
   if (inflight) return inflight
 
-  const durableKey = `kalshi:raw:v2:${sport}`
+  const durableKey = `kalshi:raw:v3:${sport}`
   const durableCached = await getJsonCache<KalshiRawScan>(durableKey)
   if (durableCached && Date.now() - durableCached.fetchedAt < KALSHI_RAW_TTL_MS) {
     kalshiRawCache.set(sport, durableCached)
@@ -501,7 +501,7 @@ async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
 
       for (const seriesTicker of kalshiSupportedEventPrefixes(sport)) {
         cursor = ''
-        for (let page = 0; page < 4; page++) {
+        for (let page = 0; page < 20; page++) {
           const params = new URLSearchParams({ status: 'open', limit: '200', series_ticker: seriesTicker })
           if (cursor) params.set('cursor', cursor)
           const res = await fetch(`${KALSHI_API}/markets?${params.toString()}`, { signal: AbortSignal.timeout(12000), next: { revalidate: 30 } })
