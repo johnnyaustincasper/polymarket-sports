@@ -71,6 +71,7 @@ interface LineupsData {
   home: StarterPlayer[]; away: StarterPlayer[]
   homeTeam: string; awayTeam: string; available: boolean
   homePitcher?: StarterPlayer | null; awayPitcher?: StarterPlayer | null
+  homeSource?: string; awaySource?: string; homeSourceGame?: string; awaySourceGame?: string
 }
 interface PredictionData {
   homeWinPct: number; awayWinPct: number; confidence: number
@@ -2002,8 +2003,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const statusTone = feedLive ? C.red : hasScore ? C.green : C.gold
   const statusLabel = feedLive ? 'Live feed' : hasScore ? 'ESPN score' : 'Starts'
   const lineupSides = [
-    { key: 'away' as const, team: game.awayTeam, pitcher: lineups?.awayPitcher || null, fallbackPitcher: game.mlbMatchup?.awayPitcher, players: lineups?.away || [] },
-    { key: 'home' as const, team: game.homeTeam, pitcher: lineups?.homePitcher || null, fallbackPitcher: game.mlbMatchup?.homePitcher, players: lineups?.home || [] },
+    { key: 'away' as const, team: game.awayTeam, pitcher: lineups?.awayPitcher || null, fallbackPitcher: game.mlbMatchup?.awayPitcher, players: lineups?.away || [], source: lineups?.awaySource, sourceGame: lineups?.awaySourceGame },
+    { key: 'home' as const, team: game.homeTeam, pitcher: lineups?.homePitcher || null, fallbackPitcher: game.mlbMatchup?.homePitcher, players: lineups?.home || [], source: lineups?.homeSource, sourceGame: lineups?.homeSourceGame },
   ]
 
   if (!loadRequested) {
@@ -2152,6 +2153,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                         {side.key === 'home' && side.team.logo && <img src={side.team.logo} alt="" style={{ width: 20, height: 20, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
                       </div>
                       <div style={{ color: C.gold, fontSize: isMobile ? 11 : 12, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: side.key === 'home' ? 'right' : 'left' }}>{side.pitcher?.name || side.fallbackPitcher?.name || 'Starter TBA'}</div>
+                      {side.source === 'previous' && <div style={{ color: C.gold, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 4, textAlign: side.key === 'home' ? 'right' : 'left' }}>Previous game lineup</div>}
                       <div style={{ display: 'grid', gridTemplateColumns: side.key === 'home' ? '1fr auto' : 'auto 1fr', gap: '3px 7px', marginTop: 7, alignItems: 'baseline' }}>
                         {side.key === 'away' && <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>ERA</span>}
                         <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950, textAlign: side.key === 'home' ? 'right' : 'left' }}>{side.pitcher?.era || side.fallbackPitcher?.era || '--'}</span>
