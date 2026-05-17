@@ -2117,9 +2117,33 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
       position: 'relative',
       overflow: 'hidden',
     }}>
-      <div style={{ borderRadius: 21, padding: 16, background: SURFACE.panel, minHeight: 220, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ borderRadius: 21, padding: isMobile ? '48px 16px 16px' : 16, background: SURFACE.panel, minHeight: 220, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)', position: 'relative', overflow: 'hidden' }}>
+        <button
+          onClick={collapseCard}
+          aria-label="Minimize game board"
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            zIndex: 5,
+            borderRadius: 999,
+            padding: '8px 11px',
+            border: `1px solid ${C.border}`,
+            background: 'rgba(5,8,4,0.88)',
+            color: C.textPrimary,
+            fontSize: 10,
+            fontWeight: 950,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            boxShadow: '0 10px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          Minimize
+        </button>
 
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(190px, 0.58fr) minmax(0, 1.42fr) auto', gap: 10, alignItems: 'stretch', marginBottom: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(190px, 0.58fr) minmax(0, 1.42fr)', gap: 10, alignItems: 'stretch', marginBottom: 12 }}>
           <div style={{ borderRadius: 18, padding: isMobile ? 14 : 12, background: feedLive ? 'linear-gradient(145deg, rgba(20,5,9,0.98), rgba(4,4,2,0.97))' : 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.34)' : 'rgba(166,255,63,0.30)'), display: 'grid', gap: isMobile ? 10 : 8, alignContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(166,255,63,0.08)' }}>
             {[
               { team: game.awayTeam, score: awayScore, leading: awayLeading },
@@ -2183,27 +2207,6 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               </div>
             </div>
           )}
-          <button
-            onClick={collapseCard}
-            aria-label="Minimize game board"
-            style={{
-              justifySelf: isMobile ? 'end' : 'auto',
-              flexShrink: 0,
-              borderRadius: 999,
-              padding: '8px 11px',
-              border: `1px solid ${C.border}`,
-              background: 'rgba(255,255,255,0.045)',
-              color: C.textPrimary,
-              fontSize: 10,
-              fontWeight: 950,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-            }}
-          >
-            Minimize
-          </button>
         </div>
 
 
