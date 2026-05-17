@@ -1508,61 +1508,6 @@ function LiveScoreStrip({ game, compact = false }: { game: Game; compact?: boole
   )
 }
 
-function SlateGameFeed({ games, lastUpdatedAt, isMobile }: { games: Game[]; lastUpdatedAt: Date | null; isMobile: boolean }) {
-  if (!games.length) return null
-  const sorted = [...games].sort((a, b) => {
-    const rank = (g: Game) => g.status === 'in' ? 0 : g.status === 'pre' ? 1 : 2
-    return rank(a) - rank(b) || String(a.gameTime || '').localeCompare(String(b.gameTime || ''))
-  })
-  return (
-    <section style={{ marginBottom: isMobile ? 14 : 18, borderRadius: isMobile ? 16 : 20, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.28), rgba(255,255,255,0.08), rgba(168,240,255,0.10))', boxShadow: '0 14px 42px rgba(0,0,0,0.34)' }}>
-      <div style={{ borderRadius: isMobile ? 15 : 19, padding: isMobile ? 10 : 12, background: 'linear-gradient(145deg, rgba(8,13,6,0.96), rgba(2,5,1,0.94))', border: '1px solid rgba(255,255,255,0.07)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Live Game Feed</div>
-          <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>{lastUpdatedAt ? 'Updated ' + lastUpdatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Refreshing'}</div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-          {sorted.map(game => {
-            const live = game.status === 'in'
-            const final = game.status === 'post'
-            const awayScore = game.awayTeam.score || (live || final ? '0' : '')
-            const homeScore = game.homeTeam.score || (live || final ? '0' : '')
-            const awayLeading = Number(awayScore) > Number(homeScore)
-            const homeLeading = Number(homeScore) > Number(awayScore)
-            const statusColor = live ? C.red : final ? C.textSecondary : C.gold
-            const statusLabel = live ? 'Live' : final ? 'Final' : 'Upcoming'
-            return (
-              <div key={'feed-' + game.id} style={{ borderRadius: 13, padding: '9px 10px', background: live ? 'rgba(255,63,95,0.08)' : 'rgba(255,255,255,0.028)', border: '1px solid ' + (live ? 'rgba(255,63,95,0.28)' : C.border) }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 7 }}>
-                  <span style={{ color: statusColor, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    {live && <span style={{ width: 6, height: 6, borderRadius: 999, background: C.red, boxShadow: '0 0 10px ' + C.red, animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />}
-                    {statusLabel}
-                  </span>
-                  <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{game.gameTime || game.gameDate}</span>
-                </div>
-                <div style={{ display: 'grid', gap: 5 }}>
-                  {[
-                    { team: game.awayTeam, score: awayScore, leading: awayLeading },
-                    { team: game.homeTeam, score: homeScore, leading: homeLeading },
-                  ].map(({ team, score, leading }) => (
-                    <div key={team.abbr} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                        {team.logo && <img src={team.logo} alt="" style={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 999, background: 'rgba(255,255,255,0.06)' }} />}
-                        <span style={{ color: leading ? C.textPrimary : C.textSecondary, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
-                      </div>
-                      <span style={{ color: leading ? C.textPrimary : C.textSecondary, fontSize: 15, fontWeight: 950, fontVariantNumeric: 'tabular-nums' }}>{score || '-'}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </section>
-  )
-}
-
 // ─── useColCount / chunkArray / RowGroup ─────────────────────────────────────
 function useColCount() {
   const [cols, setCols] = useState(1)
@@ -1987,6 +1932,13 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   }
   const hasVisibleContracts = allContracts.length > 0
   const scanActive = loading || (loadRequested && !props && !error)
+  const hasScore = game.status === 'in' || game.status === 'post'
+  const awayScore = game.awayTeam.score || (hasScore ? '0' : '')
+  const homeScore = game.homeTeam.score || (hasScore ? '0' : '')
+  const awayLeading = Number(awayScore) > Number(homeScore)
+  const homeLeading = Number(homeScore) > Number(awayScore)
+  const statusTone = game.status === 'in' ? C.red : game.status === 'post' ? C.textSecondary : C.gold
+  const statusLabel = game.status === 'in' ? 'Live' : game.status === 'post' ? 'Final' : 'Upcoming'
 
   if (!loadRequested) {
     return (
@@ -2006,18 +1958,29 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
             <div>
               <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi</div>
               <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 19, fontWeight: 950, marginTop: 4, lineHeight: 1.05 }}>{game.awayTeam.abbr}<br />@ {game.homeTeam.abbr}</div>
-              {game.status === 'in' ? (
-                <div style={{ marginTop: 6 }}><LiveScoreStrip game={game} compact /></div>
-              ) : (
-                <div style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 800, marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{game.gameTime || game.gameDate || 'Game slate'}</div>
-              )}
+              <div style={{ marginTop: 6, display: 'grid', gap: 5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                  {game.status === 'in' && <span style={{ width: 5, height: 5, borderRadius: 999, background: C.red, boxShadow: '0 0 10px ' + C.red, animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />}
+                  <span style={{ color: statusTone, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{statusLabel}</span>
+                  <span style={{ color: C.textSecondary, fontSize: isMobile ? 7 : 9, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{game.gameTime || game.gameDate || 'Game slate'}</span>
+                </div>
+                <div style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 15, fontWeight: 950, fontVariantNumeric: 'tabular-nums', lineHeight: 1.05 }}>
+                  {hasScore ? (
+                    <>
+                      <span style={{ color: awayLeading ? C.textPrimary : C.textSecondary }}>{game.awayTeam.abbr} {awayScore}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.28)' }}> - </span>
+                      <span style={{ color: homeLeading ? C.textPrimary : C.textSecondary }}>{game.homeTeam.abbr} {homeScore}</span>
+                    </>
+                  ) : 'Score pending'}
+                </div>
+              </div>
             </div>
           </div>
           <div style={{ position: 'relative', display: 'flex', gap: isMobile ? 7 : 8, alignItems: 'center', minWidth: 0 }}>
               {[game.awayTeam, game.homeTeam].map(team => (
                 <div key={team.abbr} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 3 : 6, minWidth: 0 }}>
                   {team.logo && <img src={team.logo} alt="" style={{ width: isMobile ? 18 : 22, height: isMobile ? 18 : 22, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
-                  <span style={{ color: C.textPrimary, fontSize: isMobile ? 8 : 11, fontWeight: 950 }}>{team.abbr}{game.status === 'in' && team.score ? ` ${team.score}` : ''}</span>
+                  <span style={{ color: C.textPrimary, fontSize: isMobile ? 8 : 11, fontWeight: 950 }}>{team.abbr}{hasScore && team.score ? ` ${team.score}` : ''}</span>
                 </div>
               ))}
           </div>
@@ -4449,10 +4412,6 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
 
         {sport === 'ufc' && <KalshiUFCSection />}
-
-        {sport !== 'ufc' && subtab === 'slate' && !loading && !feedError && games.length > 0 && (
-          <SlateGameFeed games={games} lastUpdatedAt={lastUpdated} isMobile={isMobile} />
-        )}
 
         {sport !== 'ufc' && subtab === 'slate' && (loading ? (
           <LoadingMarketCards cols={cols} count={6} />
