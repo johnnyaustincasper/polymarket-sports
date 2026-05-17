@@ -15,17 +15,21 @@ export interface LineupsResponse {
   homeTeam: string
   awayTeam: string
   available: boolean
+  homePitcher?: StarterPlayer | null
+  awayPitcher?: StarterPlayer | null
 }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const eventId = searchParams.get('eventId')
+  const sport = (searchParams.get('sport') || 'nba').toLowerCase()
   if (!eventId) return NextResponse.json({ error: 'Missing eventId' }, { status: 400 })
 
   try {
+    const leaguePath = sport === 'mlb' ? 'baseball/mlb' : 'basketball/nba'
     const res = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${eventId}`,
-      { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000), next: { revalidate: 120 } }
+      `https://site.api.espn.com/apis/site/v2/sports/${leaguePath}/summary?event=${eventId}`,
+      { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000), cache: 'no-store' }
     )
     if (!res.ok) return NextResponse.json({ home: [], away: [], homeTeam: '', awayTeam: '', available: false })
     const data = await res.json()
@@ -41,11 +45,17 @@ export async function GET(req: NextRequest) {
     const playerGroups: any[] = data.boxscore?.players || []
     const home: StarterPlayer[] = []
     const away: StarterPlayer[] = []
+    let homePitcher: StarterPlayer | null = null
+    let awayPitcher: StarterPlayer | null = null
 
     for (const group of playerGroups) {
       const teamAbbr = group.team?.abbreviation?.toUpperCase() || ''
       const isHome = teamAbbr === homeAbbr
       for (const statGroup of (group.statistics || [])) {
+        const labels = (statGroup.labels || []).map((x: string) => String(x).toUpperCase())
+        const isMlbBatting = sport === 'mlb' && labels.includes('H-AB')
+        const isMlbPitching = sport === 'mlb' && labels.includes('IP') && labels.includes('ERA')
+        if (sport === 'mlb' && !isMlbBatting && !isMlbPitching) continue
         for (const entry of (statGroup.athletes || [])) {
           if (!entry.starter) continue
           const ath = entry.athlete || {}
@@ -54,15 +64,20 @@ export async function GET(req: NextRequest) {
             position: ath.position?.abbreviation || '?',
             jersey: ath.jersey || '?',
           }
+          if (isMlbPitching) {
+            if (isHome && !homePitcher) homePitcher = player
+            if (!isHome && !awayPitcher) awayPitcher = player
+            continue
+          }
           if (isHome) home.push(player)
           else away.push(player)
         }
-        if ((isHome ? home : away).length > 0) break
+        if (sport !== 'mlb' && (isHome ? home : away).length > 0) break
       }
     }
 
-    const available = home.length > 0 || away.length > 0
-    return NextResponse.json({ home, away, homeTeam: homeAbbr, awayTeam: awayAbbr, available })
+    const available = home.length > 0 || away.length > 0 || Boolean(homePitcher || awayPitcher)
+    return NextResponse.json({ home, away, homeTeam: homeAbbr, awayTeam: awayAbbr, homePitcher, awayPitcher, available })
   } catch {
     return NextResponse.json({ home: [], away: [], homeTeam: '', awayTeam: '', available: false })
   }

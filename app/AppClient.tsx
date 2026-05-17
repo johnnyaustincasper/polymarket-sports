@@ -67,6 +67,7 @@ interface StarterPlayer {
 interface LineupsData {
   home: StarterPlayer[]; away: StarterPlayer[]
   homeTeam: string; awayTeam: string; available: boolean
+  homePitcher?: StarterPlayer | null; awayPitcher?: StarterPlayer | null
 }
 interface PredictionData {
   homeWinPct: number; awayWinPct: number; confidence: number
@@ -1859,6 +1860,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const [expandedContractKey, setExpandedContractKey] = useState<string>('')
   const [loadRequested, setLoadRequested] = useState(false)
   const [showParlayBuilder, setShowParlayBuilder] = useState(false)
+  const [lineups, setLineups] = useState<LineupsData | null>(null)
+  const [lineupsLoading, setLineupsLoading] = useState(false)
   const isMobile = useIsMobile()
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const shouldLoadIntelAndProps = loadRequested
@@ -1876,6 +1879,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     setSelectedContracts({})
     setExpandedContractKey('')
     setShowParlayBuilder(false)
+    setLineups(null)
     onBoardCollapse?.(game.id)
   }, [game.id, onBoardCollapse])
 
@@ -1898,6 +1902,22 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
       .catch(() => { if (!cancelled) setIntel(null) })
     return () => { cancelled = true }
   }, [game.homeTeam.abbr, game.awayTeam.abbr, sport, shouldLoadIntelAndProps])
+
+  useEffect(() => {
+    if (sport !== 'mlb' || !shouldLoadIntelAndProps) {
+      setLineups(null)
+      setLineupsLoading(false)
+      return
+    }
+    let cancelled = false
+    setLineupsLoading(true)
+    fetch(`/api/lineups?eventId=${game.id}&sport=mlb&t=${Date.now()}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setLineups(d) })
+      .catch(() => { if (!cancelled) setLineups(null) })
+      .finally(() => { if (!cancelled) setLineupsLoading(false) })
+    return () => { cancelled = true }
+  }, [game.id, sport, shouldLoadIntelAndProps])
 
   useEffect(() => {
     if (!supportedKalshiSport) {
@@ -2091,17 +2111,56 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     }}>
       <div style={{ borderRadius: 21, padding: 16, background: SURFACE.panel, minHeight: 220, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)', position: 'relative', overflow: 'hidden' }}>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
-          <div>
-            <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi Player Props</div>
-            <div style={{ color: C.textPrimary, fontSize: 15, fontWeight: 950, marginTop: 4 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
-            <InlineGameScore game={game} />
-            <div style={{ marginTop: 8, maxWidth: isMobile ? 260 : 360 }}><LiveScoreStrip game={game} /></div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(180px, 0.62fr) minmax(0, 1.38fr) auto', gap: 10, alignItems: 'stretch', marginBottom: 12 }}>
+          <div style={{ borderRadius: 15, padding: 10, background: feedLive ? 'linear-gradient(145deg, rgba(20,5,9,0.98), rgba(4,4,2,0.97))' : 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.30)' : 'rgba(166,255,63,0.24)'), display: 'grid', gap: 7, alignContent: 'center' }}>
+            {[
+              { team: game.awayTeam, score: awayScore, leading: awayLeading },
+              { team: game.homeTeam, score: homeScore, leading: homeLeading },
+            ].map(({ team, score, leading }) => {
+              const winner = game.status === 'post' && leading
+              const scoreColor = winner ? C.green : game.status === 'post' ? C.textSecondary : leading ? C.textPrimary : C.textSecondary
+              return (
+                <div key={'expanded-score-' + team.abbr} style={{ display: 'grid', gridTemplateColumns: '32px minmax(0,1fr) auto', gap: 8, alignItems: 'center', minWidth: 0 }}>
+                  {team.logo ? <img src={team.logo} alt="" style={{ width: 32, height: 32, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} /> : <span />}
+                  <span style={{ color: winner ? C.green : leading ? C.textPrimary : C.textSecondary, fontSize: 17, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
+                  <span style={{ color: scoreColor, fontSize: 34, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: winner ? '0 0 20px rgba(166,255,63,0.24)' : 'none' }}>{hasScore ? score : '-'}</span>
+                </div>
+              )
+            })}
           </div>
+          {sport === 'mlb' && (
+            <div style={{ borderRadius: 15, padding: 10, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
+                <span style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Lineups + Starters</span>
+                <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>{lineupsLoading ? 'loading' : lineups?.available ? 'ESPN' : 'pending'}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {[
+                  { label: game.awayTeam.abbr, pitcher: lineups?.awayPitcher?.name || game.mlbMatchup?.awayPitcher?.name || 'Starter TBA', players: lineups?.away || [] },
+                  { label: game.homeTeam.abbr, pitcher: lineups?.homePitcher?.name || game.mlbMatchup?.homePitcher?.name || 'Starter TBA', players: lineups?.home || [] },
+                ].map(side => (
+                  <div key={'lineup-' + side.label} style={{ minWidth: 0 }}>
+                    <div style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950, marginBottom: 4 }}>{side.label} <span style={{ color: C.gold, fontSize: 8, fontWeight: 900 }}>SP</span></div>
+                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 900, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{side.pitcher}</div>
+                    <div style={{ display: 'grid', gap: 3 }}>
+                      {(side.players.length ? side.players.slice(0, 9) : [{ name: 'Lineup pending', position: '' } as StarterPlayer]).map((p, i) => (
+                        <div key={side.label + '-' + p.name + '-' + i} style={{ display: 'grid', gridTemplateColumns: '14px minmax(0,1fr) 26px', gap: 4, alignItems: 'center' }}>
+                          <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right' }}>{side.players.length ? i + 1 : '-'}</span>
+                          <span style={{ color: side.players.length ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                          <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right' }}>{p.position || ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <button
             onClick={collapseCard}
             aria-label="Minimize game board"
             style={{
+              justifySelf: isMobile ? 'end' : 'auto',
               flexShrink: 0,
               borderRadius: 999,
               padding: '8px 11px',
