@@ -1702,7 +1702,8 @@ function getLiveBoxRows(live: LiveGameData | null, side?: 'away' | 'home'): any[
   const keyedPlayers = live?.playerStatsByName ? Object.values(live.playerStatsByName) : []
   if (!box) return [...arrayFromUnknown(live?.players), ...keyedPlayers]
   const sideRows = side ? box?.[side] || box?.teams?.[side] || box?.[side + 'Team']?.players : null
-  return [...arrayFromUnknown(sideRows || box?.players || box?.athletes || box), ...keyedPlayers]
+  if (sideRows) return arrayFromUnknown(sideRows)
+  return [...arrayFromUnknown(box?.players || box?.athletes || box), ...keyedPlayers]
 }
 
 function findLivePlayerRow(live: LiveGameData | null, playerName: string): any | null {
@@ -2170,8 +2171,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const statusTone = feedLive ? C.red : hasScore ? C.green : C.gold
   const statusLabel = feedLive ? 'Live feed' : hasScore ? 'ESPN score' : 'Starts'
   const lineupSides = [
-    { key: 'home' as const, side: 'left' as const, team: game.homeTeam, pitcher: lineups?.homePitcher || null, fallbackPitcher: game.mlbMatchup?.homePitcher, players: lineups?.home || [], source: lineups?.homeSource, sourceGame: lineups?.homeSourceGame },
-    { key: 'away' as const, side: 'right' as const, team: game.awayTeam, pitcher: lineups?.awayPitcher || null, fallbackPitcher: game.mlbMatchup?.awayPitcher, players: lineups?.away || [], source: lineups?.awaySource, sourceGame: lineups?.awaySourceGame },
+    { key: 'away' as const, side: 'left' as const, team: game.awayTeam, pitcher: lineups?.awayPitcher || null, fallbackPitcher: game.mlbMatchup?.awayPitcher, players: lineups?.away || [], source: lineups?.awaySource, sourceGame: lineups?.awaySourceGame },
+    { key: 'home' as const, side: 'right' as const, team: game.homeTeam, pitcher: lineups?.homePitcher || null, fallbackPitcher: game.mlbMatchup?.homePitcher, players: lineups?.home || [], source: lineups?.homeSource, sourceGame: lineups?.homeSourceGame },
   ]
 
   if (!loadRequested) {
