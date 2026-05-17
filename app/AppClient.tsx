@@ -1640,7 +1640,7 @@ function formatPropMetricShort(metric: string): string {
     all: 'ALL',
     points: 'PTS', rebounds: 'REB', assists: 'AST', threes: '3PT', steals: 'STL', blocks: 'BLK',
     'PTS+REB+AST': 'PRA', 'passing yards': 'PYD', 'passing TDs': 'PTD', 'rushing yards': 'RYD', 'receiving yards': 'REC YD', receptions: 'REC',
-    hits: 'HIT', 'home runs': 'HR', 'total bases': 'TB', strikeouts: 'K',
+    hits: 'HIT', rbi: 'RBI', RBIs: 'RBI', homeRuns: 'HR', homeRunsAllowed: 'HR', 'home runs': 'HR', totalBases: 'TB', 'total bases': 'TB', strikeouts: 'K',
   }
   return map[key] || key.toUpperCase()
 }
@@ -3062,7 +3062,7 @@ function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTa
   const renderBoxRow = (row: any, idx: number) => {
     const name = compactText(row?.name || row?.player || row?.displayName || row?.athlete)
     const stats = row?.stats || row?.statistics || row?.totals || row || {}
-    const statText = ['hits', 'h', 'homeRuns', 'hr', 'totalBases', 'tb', 'strikeouts', 'so'].map(key => {
+    const statText = ['hits', 'h', 'RBIs', 'rbi', 'homeRuns', 'hr', 'totalBases', 'tb', 'strikeouts', 'so'].map(key => {
       const raw = stats[key] ?? stats[key.toUpperCase()]
       const value = typeof raw === 'object' ? raw?.displayValue ?? raw?.value : raw
       return value == null ? '' : formatPropMetricShort(key) + ' ' + value
