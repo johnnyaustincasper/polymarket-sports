@@ -1932,15 +1932,15 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   }
   const hasVisibleContracts = allContracts.length > 0
   const scanActive = loading || (loadRequested && !props && !error)
-  const hasEspnScore = game.awayTeam.score !== '' || game.homeTeam.score !== ''
+  const hasEspnScore = game.status !== 'pre' && (game.awayTeam.score !== '' || game.homeTeam.score !== '')
   const hasScore = game.status === 'in' || game.status === 'post' || hasEspnScore
   const awayScore = game.awayTeam.score || (hasScore ? '0' : '')
   const homeScore = game.homeTeam.score || (hasScore ? '0' : '')
   const awayLeading = Number(awayScore) > Number(homeScore)
   const homeLeading = Number(homeScore) > Number(awayScore)
   const feedLive = game.status === 'in'
-  const statusTone = feedLive ? C.red : game.status === 'post' || hasEspnScore ? C.green : C.gold
-  const statusLabel = feedLive ? 'Live feed' : game.status === 'post' || hasEspnScore ? 'ESPN score' : 'Starts'
+  const statusTone = feedLive ? C.red : hasScore ? C.green : C.gold
+  const statusLabel = feedLive ? 'Live feed' : hasScore ? 'ESPN score' : 'Starts'
 
   if (!loadRequested) {
     return (
