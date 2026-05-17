@@ -119,7 +119,7 @@ function kalshiSupportedEventPrefixes(sport: Sport): string[] {
   return sport === 'nba'
     ? ['KXNBAPTS', 'KXNBAREB', 'KXNBAAST', 'KXNBASTL', 'KXNBABLK', 'KXNBA3PT']
     : sport === 'mlb'
-      ? ['KXMLBHIT', 'KXMLBHR', 'KXMLBTB', 'KXMLBKS']
+      ? ['KXMLBHIT', 'KXMLBHR', 'KXMLBHRR', 'KXMLBTB', 'KXMLBKS']
       : ['KXNFLPASSYDS', 'KXNFLPASSYD', 'KXNFLPYDS', 'KXNFLPASSTD', 'KXNFLPTD', 'KXNFLRUSHYDS', 'KXNFLRUSHYD', 'KXNFLRYDS', 'KXNFLREC', 'KXNFLRECYDS', 'KXNFLRECYD']
 }
 
@@ -417,6 +417,7 @@ function metricPrefixes(metric: string, sport: Sport): string[] {
   if (sport === 'mlb') {
     if (metric === 'hits') return ['KXMLBHIT']
     if (metric === 'home runs') return ['KXMLBHR']
+    if (metric === 'hits + runs + RBIs') return ['KXMLBHRR']
     if (metric === 'total bases') return ['KXMLBTB']
     if (metric === 'strikeouts') return ['KXMLBKS']
     // No live RBI-only Kalshi player-prop prefix was observed during implementation;
@@ -434,7 +435,7 @@ function metricPrefixes(metric: string, sport: Sport): string[] {
 
 function sportPropMetrics(sport: Sport): string[] {
   if (sport === 'nba') return ['points', 'rebounds', 'assists', 'threes', 'steals', 'blocks', 'PTS+REB+AST']
-  if (sport === 'mlb') return ['hits', 'home runs', 'total bases', 'strikeouts']
+  if (sport === 'mlb') return ['hits', 'home runs', 'hits + runs + RBIs', 'total bases', 'strikeouts']
   return ['passing yards', 'passing TDs', 'rushing yards', 'receiving yards', 'receptions']
 }
 
@@ -470,7 +471,7 @@ async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
   const inflight = kalshiRawInflight.get(sport)
   if (inflight) return inflight
 
-  const durableKey = `kalshi:raw:${sport}`
+  const durableKey = `kalshi:raw:v2:${sport}`
   const durableCached = await getJsonCache<KalshiRawScan>(durableKey)
   if (durableCached && Date.now() - durableCached.fetchedAt < KALSHI_RAW_TTL_MS) {
     kalshiRawCache.set(sport, durableCached)
@@ -486,7 +487,7 @@ async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
       // the broad book for combos, then pull each supported player-prop series
       // directly so standalone Kalshi props (KXNBAPTS/KXNBAREB/etc.) are not
       // missed just because they are past the first ~1200 generic markets.
-      for (let page = 0; page < 6; page++) {
+      for (let page = 0; page < 20; page++) {
         const params = new URLSearchParams({ status: 'open', limit: '200' })
         if (cursor) params.set('cursor', cursor)
         const res = await fetch(`${KALSHI_API}/markets?${params.toString()}`, { signal: AbortSignal.timeout(12000), next: { revalidate: 30 } })
@@ -559,13 +560,66 @@ async function fetchKalshiPropMarkets(sport: Sport, home: string, away: string):
   ]))
   const eventMarkets: any[] = []
   for (const ticker of eventTickers) eventMarkets.push(...await fetchKalshiEventMarkets(ticker))
+  const comboLegMarkets = await expandExecutableComboLegMarkets(comboMarkets, supportedEventPrefixes, homeCode, awayCode)
   const byTicker = new Map<string, any>()
-  for (const m of [...comboMarkets, ...standaloneMarkets, ...eventMarkets]) byTicker.set(String(m.ticker), m)
+  for (const m of [...comboMarkets, ...standaloneMarkets, ...eventMarkets, ...comboLegMarkets]) byTicker.set(String(m.__syntheticKey || m.ticker), m)
   return {
     markets: Array.from(byTicker.values()),
-    scanned: raw.scanned + eventMarkets.length,
+    scanned: raw.scanned + eventMarkets.length + comboLegMarkets.length,
     pages: raw.pages,
   }
+}
+
+function selectedLegMarketTicker(leg: any): string {
+  return String(leg?.market_ticker || leg?.market || leg?.ticker || '')
+}
+
+async function expandExecutableComboLegMarkets(comboMarkets: any[], supportedEventPrefixes: string[], homeCode: string, awayCode: string): Promise<any[]> {
+  const candidates = comboMarkets.flatMap((combo: any) => {
+    const ask = dollarsToCents(combo.yes_ask_dollars)
+    const askSize = sizeToNum(combo.yes_ask_size_fp)
+    if (ask <= 0 || ask >= 100 || askSize <= 0 || !['open', 'active'].includes(String(combo.status))) return []
+    return (combo.mve_selected_legs || []).flatMap((leg: any, legIndex: number) => {
+      const legTicker = selectedLegMarketTicker(leg)
+      if (!supportedEventPrefixes.some(p => legTicker.startsWith(p))) return []
+      if (!marketContainsGame({ title: `${leg.event_ticker || ''} ${legTicker}` }, homeCode, awayCode)) return []
+      return [{ combo, leg, legTicker, legIndex }]
+    })
+  })
+
+  const deduped = Array.from(new Map(candidates.map((c: any) => [`${c.combo.ticker}|${c.legTicker}`, c])).values())
+  const expanded = await mapLimit(deduped, 8, async ({ combo, leg, legTicker, legIndex }: any) => {
+    const legMarket = await fetchKalshiMarketByTicker(legTicker)
+    const eventTicker = String(leg.event_ticker || legMarket?.event_ticker || legTicker.split('-').slice(0, 2).join('-'))
+    const title = String(legMarket?.title || legMarket?.yes_sub_title || leg?.title || comboLegTitle(combo, legIndex) || legTicker)
+    return {
+      ...(legMarket || {}),
+      ticker: legTicker,
+      event_ticker: eventTicker,
+      title,
+      yes_sub_title: legMarket?.yes_sub_title || title,
+      status: combo.status,
+      yes_ask_dollars: combo.yes_ask_dollars,
+      yes_ask_size_fp: combo.yes_ask_size_fp,
+      yes_bid_dollars: combo.yes_bid_dollars,
+      yes_bid_size_fp: combo.yes_bid_size_fp,
+      __comboTicker: String(combo.ticker || ''),
+      __comboTitle: String(combo.title || ''),
+      __syntheticKey: `${combo.ticker}|${legTicker}`,
+      __isComboLeg: true,
+    }
+  })
+  return expanded.filter((m: any) => metricFromKalshiTicker(String(m.ticker || ''), 'mlb' as Sport) || metricFromKalshiTicker(String(m.ticker || ''), 'nba' as Sport) || metricFromKalshiTicker(String(m.ticker || ''), 'nfl' as Sport))
+}
+
+function comboLegTitle(combo: any, legIndex: number): string {
+  const title = String(combo?.title || '')
+  const parts = title
+    .replace(/^Will\s+/i, '')
+    .split(/(?:,\s*|\s+and\s+)(?=yes\s+)/i)
+    .map(s => s.trim())
+    .filter(Boolean)
+  return parts[legIndex] || ''
 }
 
 function isExecutableGamePropMarket(m: any, prefix: string, homeCode: string, awayCode: string): boolean {
@@ -594,7 +648,7 @@ function textHaystack(m: any): string {
 }
 
 function normalizeName(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
 function playerNameMatches(a: string, b: string): boolean {
@@ -674,6 +728,7 @@ function metricAliases(metric: string): string[] {
   if (metric === 'receptions') return ['receptions', 'catches']
   if (metric === 'hits') return ['hits']
   if (metric === 'home runs') return ['home runs', 'homeruns', 'homers', 'hr']
+  if (metric === 'hits + runs + RBIs') return ['hits runs rbis', 'hit run rbi', 'hrr']
   if (metric === 'total bases') return ['total bases', 'bases']
   if (metric === 'strikeouts') return ['strikeouts', 'ks', 'k s']
   return [metric]
@@ -710,6 +765,7 @@ function kalshiSeriesSlug(series: string): string {
     KXNBAAST: 'pro-basketball-player-assists',
     KXMLBHIT: 'pro-baseball-player-hits',
     KXMLBHR: 'pro-baseball-player-home-runs',
+    KXMLBHRR: 'pro-baseball-player-hits-runs-rbis',
     KXMLBTB: 'pro-baseball-player-total-bases',
     KXMLBKS: 'pro-baseball-player-strikeouts',
     KXNFLPASSYDS: 'pro-football-player-passing-yards',
@@ -817,6 +873,7 @@ function metricFromKalshiTicker(ticker: string, sport: Sport): string | null {
   }
   if (sport === 'mlb') {
     if (t.startsWith('KXMLBHIT')) return 'hits'
+    if (t.startsWith('KXMLBHRR')) return 'hits + runs + RBIs'
     if (t.startsWith('KXMLBHR')) return 'home runs'
     if (t.startsWith('KXMLBTB')) return 'total bases'
     if (t.startsWith('KXMLBKS')) return 'strikeouts'
@@ -831,7 +888,7 @@ function metricFromKalshiTicker(ticker: string, sport: Sport): string | null {
 
 function playerFromKalshiTitle(title: string): string | null {
   const raw = String(title || '').trim()
-  const name = raw.split(':')[0]?.trim()
+  const name = raw.split(':')[0]?.replace(/^(will\s+)?(yes|no)\s+/i, '').trim()
   return name && /[a-z]/i.test(name) ? name : null
 }
 
@@ -846,6 +903,8 @@ function teamFromKalshiTicker(ticker: string, home: string, away: string, sport:
 
 function recommendationFromKalshiMarket(m: any, sport: Sport): PropRecommendation | null {
   const ticker = String(m.ticker || '')
+  const comboTicker = String(m.__comboTicker || '')
+  const executableTicker = comboTicker || ticker
   const metric = metricFromKalshiTicker(ticker, sport)
   const line = lineFromKalshiTicker(ticker)
   const ask = dollarsToCents(m.yes_ask_dollars)
@@ -869,20 +928,22 @@ function recommendationFromKalshiMarket(m: any, sport: Sport): PropRecommendatio
     fairProbability: 0,
     risk: 'medium',
     kalshi: {
-      ticker,
-      title,
-      url: kalshiMarketUrl(ticker),
+      ticker: executableTicker,
+      title: comboTicker ? `${title} · combo market` : title,
+      url: kalshiMarketUrl(executableTicker),
       legTicker: ticker,
       eventTicker: String(m.event_ticker || ticker.split('-').slice(0, 2).join('-')),
       yesAsk: ask,
       yesAskSize: askSize,
       yesBid: dollarsToCents(m.yes_bid_dollars),
       yesBidSize: sizeToNum(m.yes_bid_size_fp),
-      isCombo: false,
+      isCombo: Boolean(comboTicker),
     },
     xaiBacked: false,
     socialContext: [],
-    explanation: `Live Kalshi contract found: ${title || label}.`,
+    explanation: comboTicker
+      ? `Live Kalshi combo leg found: ${title || label}. Executable through combo market ${comboTicker}.`
+      : `Live Kalshi contract found: ${title || label}.`,
   }
 }
 
@@ -1010,6 +1071,7 @@ function valuesForMetric(p: PlayerPropLine, metric: string): number[] {
   if (metric === 'receptions') return p.last12.map(g => g.stats.receptions)
   if (metric === 'hits') return p.last12.map(g => g.stats.hits)
   if (metric === 'home runs') return p.last12.map(g => g.stats.homeRuns)
+  if (metric === 'hits + runs + RBIs') return p.last12.map(g => Number(g.stats.hits || 0) + Number(g.stats.runs || 0) + Number(g.stats.RBIs || 0))
   if (metric === 'total bases') return p.last12.map(g => g.stats.totalBases)
   if (metric === 'strikeouts') return p.last12.map(g => g.stats.strikeouts)
   return []
@@ -1159,6 +1221,7 @@ function recommendNFL(logs: GameLogEntry[]): PropRecommendation[] {
 function recommendMLB(logs: GameLogEntry[], position = ''): PropRecommendation[] {
   const hits = logs.map(g => g.stats.hits)
   const homeRuns = logs.map(g => g.stats.homeRuns)
+  const hrr = logs.map(g => Number(g.stats.hits || 0) + Number(g.stats.runs || 0) + Number(g.stats.RBIs || 0))
   const totalBases = logs.map(g => g.stats.totalBases)
   const strikeouts = logs.map(g => g.stats.strikeouts)
   const isPitcher = ['P', 'SP', 'RP'].includes(position.toUpperCase()) || logs.some(g => g.stats.innings > 0)
@@ -1166,6 +1229,7 @@ function recommendMLB(logs: GameLogEntry[], position = ''): PropRecommendation[]
   return [
     findBestThreshold(hits, [1, 2, 3], 'hits'),
     findBinaryThreshold(homeRuns, 'home runs'),
+    findBestThreshold(hrr, [1, 2, 3, 4, 5], 'hits + runs + RBIs'),
     findBestThreshold(totalBases, [2, 3, 4], 'total bases'),
   ].filter(Boolean) as PropRecommendation[]
 }
@@ -1209,7 +1273,7 @@ function parseGameLogs(data: any, sport: Sport): GameLogEntry[] {
             passingYards: stat('passingYards'), passingTouchdowns: stat('passingTouchdowns'), interceptions: stat('interceptions'), rushingYards: stat('rushingYards'), rushingTouchdowns: stat('rushingTouchdowns'), receptions: stat('receptions'), receivingTargets: stat('receivingTargets'), receivingYards: stat('receivingYards'), receivingTouchdowns: stat('receivingTouchdowns'),
           }
         : {
-            atBats: stat('atBats'), hits: stat('hits'), doubles: stat('doubles'), triples: stat('triples'), homeRuns: stat('homeRuns'), RBIs: stat('RBIs'), totalBases: stat('hits') + stat('doubles') + stat('triples') * 2 + stat('homeRuns') * 3, innings: stat('innings'), strikeouts: stat('strikeouts'),
+            atBats: stat('atBats'), runs: stat('runs'), hits: stat('hits'), doubles: stat('doubles'), triples: stat('triples'), homeRuns: stat('homeRuns'), RBIs: stat('RBIs'), totalBases: stat('hits') + stat('doubles') + stat('triples') * 2 + stat('homeRuns') * 3, innings: stat('innings'), strikeouts: stat('strikeouts'),
           }
     logs.push({
       eventId,
