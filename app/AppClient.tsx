@@ -1865,6 +1865,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const [showParlayBuilder, setShowParlayBuilder] = useState(false)
   const [lineups, setLineups] = useState<LineupsData | null>(null)
   const [lineupsLoading, setLineupsLoading] = useState(false)
+  const [activeLineupSide, setActiveLineupSide] = useState<'away' | 'home'>('away')
   const isMobile = useIsMobile()
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const shouldLoadIntelAndProps = loadRequested
@@ -2001,6 +2002,11 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const feedLive = game.status === 'in'
   const statusTone = feedLive ? C.red : hasScore ? C.green : C.gold
   const statusLabel = feedLive ? 'Live feed' : hasScore ? 'ESPN score' : 'Starts'
+  const lineupSides = [
+    { key: 'away' as const, team: game.awayTeam, pitcher: lineups?.awayPitcher || null, fallbackPitcher: game.mlbMatchup?.awayPitcher, players: lineups?.away || [] },
+    { key: 'home' as const, team: game.homeTeam, pitcher: lineups?.homePitcher || null, fallbackPitcher: game.mlbMatchup?.homePitcher, players: lineups?.home || [] },
+  ]
+  const activeLineup = lineupSides.find(side => side.key === activeLineupSide) || lineupSides[0]
 
   if (!loadRequested) {
     if (hasScore) {
@@ -2134,34 +2140,66 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           {sport === 'mlb' && (
             <div style={{ borderRadius: 15, padding: 10, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
-                <span style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Lineups + Starters</span>
+                <span style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Pitcher Matchup</span>
                 <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>{lineupsLoading ? 'loading' : lineups?.available ? 'ESPN' : 'pending'}</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {[
-                  { label: game.awayTeam.abbr, pitcher: lineups?.awayPitcher || null, fallbackPitcher: game.mlbMatchup?.awayPitcher, players: lineups?.away || [] },
-                  { label: game.homeTeam.abbr, pitcher: lineups?.homePitcher || null, fallbackPitcher: game.mlbMatchup?.homePitcher, players: lineups?.home || [] },
-                ].map(side => (
-                  <div key={'lineup-' + side.label} style={{ minWidth: 0 }}>
-                    <div style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950, marginBottom: 4 }}>{side.label} <span style={{ color: C.gold, fontSize: 8, fontWeight: 900 }}>SP</span></div>
-                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 900, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{side.pitcher?.name || side.fallbackPitcher?.name || 'Starter TBA'}</div>
-                    <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {side.pitcher?.era ? `ERA ${side.pitcher.era}` : side.fallbackPitcher?.era != null ? `ERA ${side.fallbackPitcher.era}` : 'ERA --'}{side.pitcher?.strikeouts ? ` · K ${side.pitcher.strikeouts}` : ''}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                {lineupSides.map(side => (
+                  <div key={'pitcher-' + side.team.abbr} style={{ minWidth: 0, borderRadius: 12, padding: 9, background: 'rgba(0,0,0,0.20)', border: `1px solid ${C.border}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, minWidth: 0 }}>
+                      {side.team.logo && <img src={side.team.logo} alt="" style={{ width: 20, height: 20, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
+                      <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950 }}>{side.team.abbr}</span>
+                      <span style={{ color: C.gold, fontSize: 8, fontWeight: 950 }}>SP</span>
                     </div>
-                    {side.pitcher?.form7 && <div style={{ color: C.green, fontSize: 7, fontWeight: 900, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>L7 {side.pitcher.form7}</div>}
-                    {side.pitcher?.form20 && <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 850, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>L20 {side.pitcher.form20}</div>}
-                    <div style={{ display: 'grid', gap: 3 }}>
-                      {(side.players.length ? side.players.slice(0, 9) : [{ name: 'Lineup pending', position: '' } as StarterPlayer]).map((p, i) => (
-                        <div key={side.label + '-' + p.name + '-' + i} style={{ display: 'grid', gridTemplateColumns: '14px minmax(0,1fr) 26px 88px', gap: 4, alignItems: 'center' }}>
-                          <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right' }}>{side.players.length ? i + 1 : '-'}</span>
-                          <span style={{ color: side.players.length ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                          <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right' }}>{p.position || ''}</span>
-                          <span style={{ color: p.form7 ? C.green : p.hitRatio ? C.green : C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.form7 ? `L7 ${p.form7}` : p.hitRatio ? `${p.hitRatio} · RBI ${p.rbi || '0'}` : ''}</span>
-                        </div>
-                      ))}
+                    <div style={{ color: C.gold, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{side.pitcher?.name || side.fallbackPitcher?.name || 'Starter TBA'}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 8px', marginTop: 6, alignItems: 'baseline' }}>
+                      <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>ERA</span>
+                      <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950 }}>{side.pitcher?.era || side.fallbackPitcher?.era || '--'}</span>
+                      <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>L7</span>
+                      <span style={{ color: C.green, fontSize: 9, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{side.pitcher?.form7 || '--'}</span>
+                      <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>L20</span>
+                      <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{side.pitcher?.form20 || '--'}</span>
                     </div>
                   </div>
                 ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
+                {lineupSides.map(side => (
+                  <button
+                    key={'lineup-toggle-' + side.key}
+                    onClick={() => setActiveLineupSide(side.key)}
+                    style={{
+                      borderRadius: 999,
+                      border: `1px solid ${activeLineupSide === side.key ? C.borderHot : C.border}`,
+                      background: activeLineupSide === side.key ? 'rgba(166,255,63,0.15)' : 'rgba(255,255,255,0.035)',
+                      color: activeLineupSide === side.key ? C.green : C.textSecondary,
+                      padding: '7px 8px',
+                      fontSize: 10,
+                      fontWeight: 950,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {side.team.abbr} Lineup
+                  </button>
+                ))}
+              </div>
+              <div style={{ borderRadius: 12, padding: 8, background: 'rgba(0,0,0,0.18)', border: `1px solid ${C.border}` }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) 34px 80px 44px', gap: 6, marginBottom: 5, alignItems: 'center' }}>
+                  {['#', 'Batter', 'Pos', 'Last 7', 'RBI'].map(label => (
+                    <span key={label} style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: label === 'Batter' ? 'left' : 'right' }}>{label}</span>
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {(activeLineup.players.length ? activeLineup.players.slice(0, 9) : [{ name: 'Lineup pending', position: '' } as StarterPlayer]).map((p, i) => (
+                    <div key={activeLineup.team.abbr + '-' + p.name + '-' + i} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) 34px 80px 44px', gap: 6, alignItems: 'center', minHeight: 24 }}>
+                      <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, textAlign: 'right' }}>{activeLineup.players.length ? i + 1 : '-'}</span>
+                      <span style={{ color: activeLineup.players.length ? C.textPrimary : C.textSecondary, fontSize: 10, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                      <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, textAlign: 'right' }}>{p.position || '--'}</span>
+                      <span style={{ color: p.form7 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.form7 || '--'}</span>
+                      <span style={{ color: p.rbi ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{p.rbi || '--'}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
