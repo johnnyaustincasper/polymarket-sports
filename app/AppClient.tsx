@@ -1986,7 +1986,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const [liveLoading, setLiveLoading] = useState(false)
   const [liveError, setLiveError] = useState<string | null>(null)
   const [liveUpdatedAt, setLiveUpdatedAt] = useState<Date | null>(null)
-  const [activeLiveTab, setActiveLiveTab] = useState<'feed' | 'box' | 'lineups'>('feed')
+  const [activeLiveTab, setActiveLiveTab] = useState<'props' | 'feed' | 'box' | 'lineups'>('props')
   const isMobile = useIsMobile()
   const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const shouldLoadIntelAndProps = loadRequested
@@ -2008,7 +2008,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     setLiveGame(null)
     setLiveError(null)
     setLiveUpdatedAt(null)
-    setActiveLiveTab('feed')
+    setActiveLiveTab('props')
     onBoardCollapse?.(game.id)
   }, [game.id, onBoardCollapse])
 
@@ -2328,9 +2328,10 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               )
             })}
             </div>
-            {(game.status === 'in' || liveGame || liveError) && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7 }}>
+            {supportedKalshiSport && (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: 7 }}>
                 {[
+                  { key: 'props' as const, label: 'Props' },
                   { key: 'feed' as const, label: 'Live Feed' },
                   { key: 'box' as const, label: 'Box Score' },
                   { key: 'lineups' as const, label: 'Lineups' },
@@ -2345,7 +2346,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               </div>
             )}
           </div>
-          {sport === 'mlb' && (
+          {sport === 'mlb' && activeLiveTab === 'lineups' && (
             <div style={{ borderRadius: 18, padding: isMobile ? 10 : 12, background: 'linear-gradient(145deg, rgba(166,255,63,0.070), rgba(255,255,255,0.026))', border: `1px solid ${C.borderHot}`, minWidth: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 10 }}>
                 <span style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Game Intel</span>
@@ -2395,7 +2396,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           )}
         </div>
 
-        {(game.status === 'in' || liveGame || liveError) && (
+        {activeLiveTab !== 'props' && activeLiveTab !== 'lineups' && (game.status === 'in' || liveGame || liveError) && (
           <LiveGameDrawer
             game={game}
             live={liveGame}
@@ -2408,7 +2409,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           />
         )}
 
-        {sport === 'nba' && intel && (
+        {activeLiveTab === 'props' && sport === 'nba' && intel && (
           <div style={{ borderRadius: 15, padding: 10, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, marginBottom: 12, opacity: 0, animation: 'dominoFadeIn 920ms cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
               <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Projected Rotation · Last Game Minutes</div>
@@ -2480,7 +2481,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           </div>
         )}
 
-        {!loading && categoryGroups.length > 0 && (
+        {activeLiveTab === 'props' && !loading && categoryGroups.length > 0 && (
           <div style={{ display: 'grid', gap: 9, paddingBottom: 8, marginBottom: 10 }}>
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', overflow: 'visible' }}>
               {categoryGroups.map(group => {
@@ -2499,7 +2500,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           </div>
         )}
 
-        {!supportedKalshiSport ? (
+        {activeLiveTab !== 'props' ? null : !supportedKalshiSport ? (
           <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>Kalshi player prop cards are not wired for {sport.toUpperCase()} yet. Use Polymarket for this sport while we add that feed.</p>
         ) : scanActive ? (
           <div style={{ display: 'grid', gap: 9 }}>
