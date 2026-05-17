@@ -7,6 +7,12 @@ export interface StarterPlayer {
   name: string
   position: string
   jersey: string
+  hitRatio?: string
+  rbi?: string
+  avg?: string
+  era?: string
+  whip?: string
+  strikeouts?: string
 }
 
 export interface LineupsResponse {
@@ -47,6 +53,10 @@ export async function GET(req: NextRequest) {
     const away: StarterPlayer[] = []
     let homePitcher: StarterPlayer | null = null
     let awayPitcher: StarterPlayer | null = null
+    const statAt = (labels: string[], stats: any[], label: string) => {
+      const idx = labels.findIndex(x => x === label)
+      return idx >= 0 ? String(stats?.[idx] ?? '') : ''
+    }
 
     for (const group of playerGroups) {
       const teamAbbr = group.team?.abbreviation?.toUpperCase() || ''
@@ -65,9 +75,17 @@ export async function GET(req: NextRequest) {
             jersey: ath.jersey || '?',
           }
           if (isMlbPitching) {
+            player.era = statAt(labels, entry.stats || [], 'ERA')
+            player.whip = statAt(labels, entry.stats || [], 'WHIP')
+            player.strikeouts = statAt(labels, entry.stats || [], 'K')
             if (isHome && !homePitcher) homePitcher = player
             if (!isHome && !awayPitcher) awayPitcher = player
             continue
+          }
+          if (isMlbBatting) {
+            player.hitRatio = statAt(labels, entry.stats || [], 'H-AB')
+            player.rbi = statAt(labels, entry.stats || [], 'RBI')
+            player.avg = statAt(labels, entry.stats || [], 'AVG')
           }
           if (isHome) home.push(player)
           else away.push(player)

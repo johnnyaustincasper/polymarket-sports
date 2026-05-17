@@ -63,6 +63,7 @@ interface HomeAwaySplit {
 }
 interface StarterPlayer {
   name: string; position: string; jersey: string; starter: boolean
+  hitRatio?: string; rbi?: string; avg?: string; era?: string; whip?: string; strikeouts?: string
 }
 interface LineupsData {
   home: StarterPlayer[]; away: StarterPlayer[]
@@ -2136,18 +2137,22 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {[
-                  { label: game.awayTeam.abbr, pitcher: lineups?.awayPitcher?.name || game.mlbMatchup?.awayPitcher?.name || 'Starter TBA', players: lineups?.away || [] },
-                  { label: game.homeTeam.abbr, pitcher: lineups?.homePitcher?.name || game.mlbMatchup?.homePitcher?.name || 'Starter TBA', players: lineups?.home || [] },
+                  { label: game.awayTeam.abbr, pitcher: lineups?.awayPitcher || null, fallbackPitcher: game.mlbMatchup?.awayPitcher, players: lineups?.away || [] },
+                  { label: game.homeTeam.abbr, pitcher: lineups?.homePitcher || null, fallbackPitcher: game.mlbMatchup?.homePitcher, players: lineups?.home || [] },
                 ].map(side => (
                   <div key={'lineup-' + side.label} style={{ minWidth: 0 }}>
                     <div style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950, marginBottom: 4 }}>{side.label} <span style={{ color: C.gold, fontSize: 8, fontWeight: 900 }}>SP</span></div>
-                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 900, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{side.pitcher}</div>
+                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 900, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{side.pitcher?.name || side.fallbackPitcher?.name || 'Starter TBA'}</div>
+                    <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {side.pitcher?.era ? `ERA ${side.pitcher.era}` : side.fallbackPitcher?.era != null ? `ERA ${side.fallbackPitcher.era}` : 'ERA --'}{side.pitcher?.strikeouts ? ` · K ${side.pitcher.strikeouts}` : ''}
+                    </div>
                     <div style={{ display: 'grid', gap: 3 }}>
                       {(side.players.length ? side.players.slice(0, 9) : [{ name: 'Lineup pending', position: '' } as StarterPlayer]).map((p, i) => (
-                        <div key={side.label + '-' + p.name + '-' + i} style={{ display: 'grid', gridTemplateColumns: '14px minmax(0,1fr) 26px', gap: 4, alignItems: 'center' }}>
+                        <div key={side.label + '-' + p.name + '-' + i} style={{ display: 'grid', gridTemplateColumns: '14px minmax(0,1fr) 26px 48px', gap: 4, alignItems: 'center' }}>
                           <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right' }}>{side.players.length ? i + 1 : '-'}</span>
                           <span style={{ color: side.players.length ? C.textPrimary : C.textSecondary, fontSize: 8, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                           <span style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right' }}>{p.position || ''}</span>
+                          <span style={{ color: p.hitRatio ? C.green : C.textSecondary, fontSize: 7, fontWeight: 900, textAlign: 'right', whiteSpace: 'nowrap' }}>{p.hitRatio ? `${p.hitRatio} · RBI ${p.rbi || '0'}` : ''}</span>
                         </div>
                       ))}
                     </div>
