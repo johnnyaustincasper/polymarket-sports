@@ -1388,6 +1388,42 @@ function PredictionBadge({ winPct, team, confidence }: { winPct: number; team: s
 }
 
 // ─── Live Score Display ───────────────────────────────────────────────────────
+function hasActualGameScore(game: Game) {
+  return game.status !== 'pre' && (game.awayTeam.score !== '' || game.homeTeam.score !== '')
+}
+
+function InlineGameScore({ game, compact = false }: { game: Game; compact?: boolean }) {
+  if (!hasActualGameScore(game)) return null
+  const isLive = game.status === 'in'
+  const awayScore = game.awayTeam.score || '0'
+  const homeScore = game.homeTeam.score || '0'
+  return (
+    <div style={{
+      marginTop: compact ? 5 : 7,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: compact ? 5 : 7,
+      maxWidth: '100%',
+      borderRadius: 999,
+      padding: compact ? '4px 7px' : '5px 9px',
+      background: isLive ? 'rgba(255,63,95,0.16)' : 'rgba(166,255,63,0.13)',
+      border: isLive ? '1px solid rgba(255,63,95,0.42)' : '1px solid rgba(166,255,63,0.36)',
+      boxShadow: isLive ? '0 0 18px rgba(255,63,95,0.12)' : '0 0 18px rgba(166,255,63,0.10)',
+      color: C.textPrimary,
+      fontSize: compact ? 10 : 12,
+      fontWeight: 950,
+      lineHeight: 1,
+      fontVariantNumeric: 'tabular-nums',
+      whiteSpace: 'nowrap',
+    }}>
+      <span style={{ color: isLive ? C.red : C.green, fontSize: compact ? 7 : 8, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{isLive ? 'Live' : 'Score'}</span>
+      <span>{game.awayTeam.abbr} {awayScore}</span>
+      <span style={{ color: 'rgba(255,255,255,0.34)' }}>-</span>
+      <span>{game.homeTeam.abbr} {homeScore}</span>
+    </div>
+  )
+}
+
 function LiveScoreDisplay({ game }: { game: Game }) {
   // Parse period + clock from gameTime e.g. "Q3 - 4:22" or "Halftime" or "End of Q2"
   const rawTime = game.gameTime
@@ -1475,8 +1511,7 @@ function LiveScoreDisplay({ game }: { game: Game }) {
 }
 
 function LiveScoreStrip({ game, compact = false }: { game: Game; compact?: boolean }) {
-  const hasActualScore = game.status !== 'pre' && (game.awayTeam.score !== '' || game.homeTeam.score !== '')
-  if (!hasActualScore) return null
+  if (!hasActualGameScore(game)) return null
   const isLive = game.status === 'in'
   const awayScore = game.awayTeam.score || '0'
   const homeScore = game.homeTeam.score || '0'
@@ -1962,6 +1997,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
             <div style={{ minWidth: 0 }}>
               <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi</div>
               <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 19, fontWeight: 950, marginTop: 4, lineHeight: 1.05 }}>{game.awayTeam.abbr}<br />@ {game.homeTeam.abbr}</div>
+              <InlineGameScore game={game} compact={isMobile} />
               <div style={{ marginTop: 7, display: 'grid', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                   {feedLive && <span style={{ width: 5, height: 5, borderRadius: 999, background: C.red, boxShadow: '0 0 10px ' + C.red, animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />}
@@ -2012,6 +2048,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           <div>
             <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Kalshi Player Props</div>
             <div style={{ color: C.textPrimary, fontSize: 15, fontWeight: 950, marginTop: 4 }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
+            <InlineGameScore game={game} />
             <div style={{ marginTop: 8, maxWidth: isMobile ? 260 : 360 }}><LiveScoreStrip game={game} /></div>
           </div>
           <button
@@ -4341,7 +4378,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   useEffect(() => {
     setLoading(true)
     fetchGames()
-    const iv = setInterval(fetchGames, hasLiveGames ? 15000 : 60000)
+    const iv = setInterval(fetchGames, hasLiveGames ? 5000 : 60000)
     return () => clearInterval(iv)
   }, [fetchGames, hasLiveGames])
 
