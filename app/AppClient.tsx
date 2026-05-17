@@ -4292,7 +4292,6 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
               <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{loading ? 'Syncing markets…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button onClick={onOpenTracker} aria-label="Open bet tracker" style={{ position: 'relative', width: 38, height: 38, borderRadius: 13, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 15, cursor: 'pointer' }}>◫{pendingBets > 0 && <span style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: activeAccent, color: C.bg, fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pendingBets}</span>}</button>
               <button onClick={onRefresh} aria-label="Refresh markets" style={{ width: 38, height: 38, borderRadius: 13, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 16, cursor: 'pointer' }}>↻</button>
               {accountEnabled && <AccountMenu isMobile />}
             </div>
@@ -4327,7 +4326,6 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
               </div>
               <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
                 <a href="/bot" style={{ width: 38, height: 38, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', background: 'rgba(166,255,63,0.08)', border: '1px solid rgba(166,255,63,0.25)', color: C.green, fontSize: 15 }}>⬡</a>
-                <button onClick={onOpenTracker} style={{ position: 'relative', width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 15, cursor: 'pointer' }}>◫{pendingBets > 0 && <span style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: activeAccent, color: C.bg, fontSize: 9, fontWeight: 900 }}>{pendingBets}</span>}</button>
                 <button onClick={onRefresh} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 16, cursor: 'pointer' }}>↻</button>
                 {accountEnabled && <AccountMenu />}
               </div>
