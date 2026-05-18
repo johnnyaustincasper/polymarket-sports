@@ -69,7 +69,10 @@ function parsePlayerStats(summary: any) {
           team,
           position: athlete.position?.abbreviation || '',
           starter: Boolean(entry.starter),
+          active: Boolean(entry.active),
+          batOrder: Number(entry.batOrder || 0),
           kind: isPitching ? 'pitching' : 'batting',
+          decision: (entry.notes || []).find((note: any) => note?.type === 'pitchingDecision')?.text || '',
           stats: isPitching ? {
             innings: statAt(labels, entry.stats || [], 'IP'),
             hitsAllowed: statNum(labels, entry.stats || [], 'H'),
@@ -104,6 +107,29 @@ function parsePlayerStats(summary: any) {
   return { players, byId, byName }
 }
 
+function playerIdFrom(value: any): string {
+  return String(value?.playerId || value?.athlete?.id || value?.id || value?.player?.id || '')
+}
+
+function playerNameFrom(value: any): string {
+  return String(value?.athlete?.displayName || value?.athlete?.shortName || value?.player?.displayName || value?.player?.shortName || value?.displayName || value?.name || '')
+}
+
+function resolvePlayer(value: any, byId: Record<string, any>) {
+  const id = playerIdFrom(value)
+  const name = byId[id]?.name || playerNameFrom(value)
+  return {
+    occupied: Boolean(value),
+    id,
+    name,
+    team: byId[id]?.team || '',
+  }
+}
+
+function latestPlayWithParticipants(summary: any) {
+  return [...(summary.plays || [])].reverse().find((play: any) => play?.participants?.length) || null
+}
+
 function participantId(play: any, type: string) {
   return String((play.participants || []).find((p: any) => p.type === type)?.athlete?.id || '')
 }
@@ -136,6 +162,21 @@ function parsePlays(summary: any, byId: Record<string, any>) {
   })
 }
 
+function nextBatters(players: any[], batterId: string, batterTeam: string) {
+  if (!batterTeam) return []
+  const battingOrder = players
+    .filter(p => p.kind === 'batting' && p.team === batterTeam && Number(p.batOrder) > 0)
+    .sort((a, b) => Number(a.batOrder) - Number(b.batOrder))
+  if (!battingOrder.length) return []
+
+  const currentIndex = battingOrder.findIndex(p => String(p.id) === String(batterId))
+  if (currentIndex < 0) return []
+  return [1, 2].map(offset => {
+    const row = battingOrder[(currentIndex + offset) % battingOrder.length]
+    return row ? { id: row.id, name: row.name, position: row.position, batOrder: row.batOrder, team: row.team } : null
+  }).filter(Boolean)
+}
+
 function parseCompetitor(comp: any, homeAway: 'home' | 'away') {
   const c = (comp?.competitors || []).find((x: any) => x.homeAway === homeAway)
   return {
@@ -163,8 +204,18 @@ export async function GET(req: NextRequest) {
     const situation = summary.situation || comp.situation || {}
     const parsedStats = parsePlayerStats(summary)
     const plays = parsePlays(summary, parsedStats.byId)
-    const currentBatterId = String(situation.batter?.playerId || '')
-    const currentPitcherId = String(situation.pitcher?.playerId || '')
+    const latestPlay = latestPlayWithParticipants(summary)
+    const gameInProgress = status.type?.state === 'in'
+    const fallbackPlay = gameInProgress ? latestPlay : null
+    const currentBatterId = playerIdFrom(situation.batter) || participantId(fallbackPlay, 'batter')
+    const currentPitcherId = playerIdFrom(situation.pitcher) || participantId(fallbackPlay, 'pitcher')
+    const batterTeam = parsedStats.byId[currentBatterId]?.team || ''
+    const currentPitcher = parsedStats.byId[currentPitcherId] || null
+    const baseRunners = {
+      first: resolvePlayer(situation.onFirst || fallbackPlay?.onFirst || fallbackPlay?.participants?.find((p: any) => p.type === 'onFirst'), parsedStats.byId),
+      second: resolvePlayer(situation.onSecond || fallbackPlay?.onSecond || fallbackPlay?.participants?.find((p: any) => p.type === 'onSecond'), parsedStats.byId),
+      third: resolvePlayer(situation.onThird || fallbackPlay?.onThird || fallbackPlay?.participants?.find((p: any) => p.type === 'onThird'), parsedStats.byId),
+    }
     const awayTeam = parseCompetitor(comp, 'away')
     const homeTeam = parseCompetitor(comp, 'home')
     const statusDetail = status.type?.shortDetail || status.type?.detail || ''
@@ -197,16 +248,22 @@ export async function GET(req: NextRequest) {
         home: homeTeam,
       },
       situation: {
-        balls: situation.balls ?? null,
-        strikes: situation.strikes ?? null,
-        outs: situation.outs ?? null,
-        onFirst: Boolean(situation.onFirst),
-        onSecond: Boolean(situation.onSecond),
-        onThird: Boolean(situation.onThird),
+        balls: situation.balls ?? fallbackPlay?.resultCount?.balls ?? fallbackPlay?.pitchCount?.balls ?? null,
+        strikes: situation.strikes ?? fallbackPlay?.resultCount?.strikes ?? fallbackPlay?.pitchCount?.strikes ?? null,
+        outs: situation.outs ?? fallbackPlay?.outs ?? null,
+        inning: status.displayPeriod || status.period || '',
+        inningHalf: status.periodPrefix || fallbackPlay?.period?.type || '',
+        onFirst: baseRunners.first.occupied,
+        onSecond: baseRunners.second.occupied,
+        onThird: baseRunners.third.occupied,
+        bases: baseRunners,
         batterId: currentBatterId,
         batter: parsedStats.byId[currentBatterId]?.name || '',
         pitcherId: currentPitcherId,
-        pitcher: parsedStats.byId[currentPitcherId]?.name || '',
+        pitcher: currentPitcher?.name || '',
+        pitcherRecord: currentPitcher?.decision || '',
+        pitcherLine: currentPitcher?.stats || null,
+        nextBatters: nextBatters(parsedStats.players, currentBatterId, batterTeam),
       },
       plays,
       boxScore: {

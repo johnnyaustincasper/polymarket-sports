@@ -3060,6 +3060,23 @@ function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTa
   const homeScore = live?.score?.home ?? live?.homeScore ?? game.homeTeam.score
   const progress = [live?.inningHalf, live?.inning ? 'Inning ' + live.inning : '', live?.period ? 'Period ' + live.period : '', live?.clock].filter(Boolean).join(' · ')
   const tabs: Array<{ key: 'feed' | 'box' | 'lineups'; label: string }> = [{ key: 'feed', label: 'Live feed' }, { key: 'box', label: 'Box score' }, { key: 'lineups', label: 'Lineups' }]
+  const situation = live?.situation || {}
+  const countText = [situation.balls, situation.strikes].every(v => v != null) ? `${situation.balls}-${situation.strikes}` : '-'
+  const outsText = situation.outs != null ? String(situation.outs) : '-'
+  const inningText = [situation.inningHalf || live?.inningHalf, situation.inning || live?.inning ? 'Inning ' + (situation.inning || live?.inning) : ''].filter(Boolean).join(' ')
+  const pitcherLine = situation.pitcherLine || {}
+  const pitcherLineText = [
+    pitcherLine.innings ? `IP ${pitcherLine.innings}` : '',
+    pitcherLine.strikeouts != null ? `K ${pitcherLine.strikeouts}` : '',
+    pitcherLine.earnedRuns != null ? `ER ${pitcherLine.earnedRuns}` : '',
+    pitcherLine.pitchCount ? `PC ${pitcherLine.pitchCount}` : '',
+  ].filter(Boolean).join(' · ')
+  const baseSlots = [
+    { label: '1B', runner: situation.bases?.first, occupied: situation.onFirst },
+    { label: '2B', runner: situation.bases?.second, occupied: situation.onSecond },
+    { label: '3B', runner: situation.bases?.third, occupied: situation.onThird },
+  ]
+  const nextText = arrayFromUnknown(situation.nextBatters).map((p: any) => compactText(p?.name || p)).filter(Boolean).join(' · ')
   const renderBoxRow = (row: any, idx: number) => {
     const name = compactText(row?.name || row?.player || row?.displayName || row?.athlete)
     const stats = row?.stats || row?.statistics || row?.totals || row || {}
@@ -3099,6 +3116,39 @@ function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTa
         <div style={{ color: C.gold, fontSize: 10, lineHeight: 1.45 }}>Live drawer waiting on /api/game-live: {error}</div>
       ) : activeTab === 'feed' ? (
         <div style={{ display: 'grid', gap: 6 }}>
+          <div style={{ borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.24)', border: '1px solid rgba(166,255,63,0.18)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8, marginBottom: 9 }}>
+              {[{ label: 'Inning', value: inningText || '-' }, { label: 'Count', value: countText }, { label: 'Outs', value: outsText }].map(item => (
+                <div key={item.label} style={{ minWidth: 0, borderRadius: 9, padding: '7px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid ' + C.border }}>
+                  <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{item.label}</div>
+                  <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 9 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.1em', textTransform: 'uppercase' }}>At bat</div>
+                <div style={{ color: situation.batter ? C.green : C.textSecondary, fontSize: 11, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{situation.batter || '-'}</div>
+                <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Next: {nextText || '-'}</div>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Pitching</div>
+                <div style={{ color: situation.pitcher ? C.green : C.textSecondary, fontSize: 11, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{situation.pitcher || '-'}</div>
+                <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[situation.pitcherRecord, pitcherLineText].filter(Boolean).join(' · ') || '-'}</div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6 }}>
+              {baseSlots.map(base => {
+                const runner = compactText(base.runner?.name || base.runner)
+                return (
+                  <div key={base.label} style={{ minWidth: 0, borderRadius: 9, padding: '6px 7px', background: base.occupied ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.035)', border: '1px solid ' + (base.occupied ? C.borderHot : C.border) }}>
+                    <div style={{ color: base.occupied ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950 }}>{base.label}</div>
+                    <div style={{ color: base.occupied ? C.textPrimary : C.textSecondary, fontSize: 9, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{base.occupied ? (runner || 'Occupied') : 'Empty'}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
           {(feed.length ? feed : [{ text: loading ? 'Refreshing live feed...' : 'No live events returned yet.' }]).map((item, idx) => (
             <div key={'feed-' + idx} style={{ borderRadius: 10, padding: '8px 9px', background: 'rgba(0,0,0,0.18)', border: '1px solid ' + C.border }}>
               <div style={{ color: idx === 0 && feed.length ? C.green : C.textPrimary, fontSize: 10, fontWeight: 850, lineHeight: 1.35 }}>{compactText(item) || compactText(item?.play) || compactText(item?.event) || 'Live event'}</div>
