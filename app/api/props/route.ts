@@ -142,6 +142,7 @@ interface PropRecommendation {
   xaiBacked: boolean
   socialContext: string[]
   explanation: string
+  signalTags?: string[]
 }
 
 export interface PlayerPropLine {
@@ -170,6 +171,35 @@ interface PlayerInjuryReport {
   status: string
   detail: string
   updatedAt?: string
+}
+
+interface MlbPitcherContext {
+  name: string
+  team: string
+  era?: number
+  whip?: number
+  strikeouts?: number
+  innings?: number
+  kPer9?: number
+  difficulty: number
+}
+
+interface MlbTeamBattingProfile {
+  team: string
+  hitterCount: number
+  hitsAvg: number
+  totalBasesAvg: number
+  hrrAvg: number
+  strikeoutsAvg: number
+  weaknessScore: number
+  powerScore: number
+}
+
+interface MlbMatchupContext {
+  homePitcher: MlbPitcherContext | null
+  awayPitcher: MlbPitcherContext | null
+  homeProfile: MlbTeamBattingProfile
+  awayProfile: MlbTeamBattingProfile
 }
 
 export interface PropsResponse {
@@ -207,6 +237,120 @@ function toNum(v: unknown): number {
   if (v === '-' || v == null) return 0
   const n = Number(String(v).replace(/,/g, ''))
   return Number.isFinite(n) ? n : 0
+}
+
+function pitcherContextStat(probable: any, names: string[]): number | undefined {
+  const stats = Array.isArray(probable?.statistics) ? probable.statistics : (probable?.statistics?.splits?.categories || [])
+  for (const name of names) {
+    const found = stats.find((x: any) => String(x.name || '').toLowerCase() === name.toLowerCase() || String(x.abbreviation || '').toLowerCase() === name.toLowerCase())
+    const n = Number(found?.value ?? found?.displayValue)
+    if (Number.isFinite(n)) return n
+  }
+  return undefined
+}
+
+function normalizeMlbPitcherContext(probable: any, team: string): MlbPitcherContext | null {
+  const athlete = probable?.athlete
+  if (!athlete?.displayName) return null
+  const era = pitcherContextStat(probable, ['ERA'])
+  const whip = pitcherContextStat(probable, ['WHIP'])
+  const strikeouts = pitcherContextStat(probable, ['strikeouts', 'K'])
+  const innings = Number(pitcherContextStat(probable, ['fullInnings', 'IP']) || 0) + Number(pitcherContextStat(probable, ['partInnings']) || 0) / 3
+  const kPer9 = strikeouts != null && innings > 0 ? (strikeouts * 9) / innings : undefined
+  const difficulty = Math.max(0, Math.min(100, Math.round(
+    (era == null ? 45 : Math.max(0, Math.min(55, (era / 6) * 55))) +
+    (whip == null ? 20 : Math.max(0, Math.min(30, (whip / 1.7) * 30))) +
+    (kPer9 == null ? 10 : Math.max(0, Math.min(15, (11 - Math.min(11, kPer9)) * 1.35)))
+  )))
+  return { name: athlete.displayName, team, era, whip, strikeouts, innings, kPer9, difficulty }
+}
+
+function mlbTeamBattingProfile(team: string, players: PlayerPropLine[]): MlbTeamBattingProfile {
+  const hitters = players.filter(p => !['P', 'SP', 'RP'].includes(String(p.position || '').toUpperCase()) && (p.last12 || []).length)
+  const perPlayer = hitters.map(p => {
+    const logs = p.last12 || []
+    return {
+      hits: avg(logs.map(g => Number(g.stats.hits || 0))),
+      totalBases: avg(logs.map(g => Number(g.stats.totalBases || 0))),
+      hrr: avg(logs.map(g => Number(g.stats.hits || 0) + Number(g.stats.runs || 0) + Number(g.stats.RBIs || 0))),
+      strikeouts: avg(logs.map(g => Number(g.stats.strikeouts || 0))),
+    }
+  })
+  const hitsAvg = avg(perPlayer.map(p => p.hits))
+  const totalBasesAvg = avg(perPlayer.map(p => p.totalBases))
+  const hrrAvg = avg(perPlayer.map(p => p.hrr))
+  const strikeoutsAvg = avg(perPlayer.map(p => p.strikeouts))
+  const weaknessScore = Math.max(0, Math.min(100, Math.round(
+    Math.max(0, 1.05 - hitsAvg) * 32 +
+    Math.max(0, 1.8 - totalBasesAvg) * 18 +
+    Math.max(0, strikeoutsAvg - 0.85) * 38
+  )))
+  const powerScore = Math.max(0, Math.min(100, Math.round(
+    Math.max(0, hitsAvg - 0.85) * 34 +
+    Math.max(0, totalBasesAvg - 1.45) * 24 +
+    Math.max(0, hrrAvg - 1.65) * 16
+  )))
+  return { team, hitterCount: hitters.length, hitsAvg, totalBasesAvg, hrrAvg, strikeoutsAvg, weaknessScore, powerScore }
+}
+
+async function fetchMlbMatchupContext(eventId: string | null, home: string, away: string, homeRaw: PlayerPropLine[], awayRaw: PlayerPropLine[]): Promise<MlbMatchupContext | null> {
+  if (!eventId) return null
+  const summary = await safeJson(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${encodeURIComponent(eventId)}`)
+  const competitors = summary?.header?.competitions?.[0]?.competitors || []
+  const homeComp = competitors.find((c: any) => c.homeAway === 'home')
+  const awayComp = competitors.find((c: any) => c.homeAway === 'away')
+  return {
+    homePitcher: normalizeMlbPitcherContext(homeComp?.probables?.[0], home),
+    awayPitcher: normalizeMlbPitcherContext(awayComp?.probables?.[0], away),
+    homeProfile: mlbTeamBattingProfile(home, homeRaw),
+    awayProfile: mlbTeamBattingProfile(away, awayRaw),
+  }
+}
+
+function withMlbMatchupSignals(players: PlayerPropLine[], context: MlbMatchupContext | null, home: string, away: string): PlayerPropLine[] {
+  if (!context) return players
+  return players.map(player => {
+    const team = String(player.team || '').toUpperCase()
+    const isPitcher = ['P', 'SP', 'RP'].includes(String(player.position || '').toUpperCase()) || (player.last12 || []).some(g => Number(g.stats.innings || 0) > 0)
+    const opponentProfile = team === home ? context.awayProfile : team === away ? context.homeProfile : null
+    const opposingPitcher = team === home ? context.awayPitcher : team === away ? context.homePitcher : null
+    const ownPitcher = team === home ? context.homePitcher : team === away ? context.awayPitcher : null
+    const recommendations = (player.recommendations || []).map(rec => {
+      let boost = 0
+      const tags: string[] = [...(rec.signalTags || [])]
+      const notes: string[] = []
+      if (isPitcher && rec.metric === 'strikeouts' && opponentProfile) {
+        const pitcherK = ownPitcher?.kPer9 || rec.last12Avg || 0
+        const kBoost = Math.round(Math.max(0, pitcherK - 7.2) * 2.8 + opponentProfile.weaknessScore * 0.16)
+        if (kBoost >= 5) {
+          boost += Math.min(16, kBoost)
+          tags.push('K matchup')
+          notes.push(`K matchup: ${ownPitcher?.name || player.player} faces ${opponentProfile.team}, a weaker/high-K recent profile (${opponentProfile.strikeoutsAvg.toFixed(1)} K per hitter, ${opponentProfile.hitsAvg.toFixed(1)} H avg).`)
+        }
+      } else if (!isPitcher && ['hits', 'home runs', 'hits + runs + RBIs', 'total bases'].includes(rec.metric) && opposingPitcher) {
+        const teamPower = team === home ? context.homeProfile.powerScore : context.awayProfile.powerScore
+        const pitcherTarget = opposingPitcher.difficulty
+        const hitterBoost = Math.round(teamPower * 0.12 + Math.max(0, pitcherTarget - 55) * 0.22)
+        if (hitterBoost >= 5) {
+          boost += Math.min(14, hitterBoost)
+          tags.push('Pitcher target')
+          notes.push(`Hitting matchup: ${team} bats get ${opposingPitcher.name}${opposingPitcher.era != null ? ` (${opposingPitcher.era.toFixed(2)} ERA` : ''}${opposingPitcher.whip != null ? `, ${opposingPitcher.whip.toFixed(2)} WHIP)` : opposingPitcher.era != null ? ')' : ''}; recent team contact/power profile supports offense.`)
+        }
+      }
+      if (!boost) return rec
+      const boostedQuality: PropQuality = rec.quality === 'watch' && rec.hitRate >= 50 ? 'lean' : rec.quality
+      return {
+        ...rec,
+        quality: boostedQuality,
+        confidence: Math.min(98, rec.confidence + boost),
+        valueScore: rec.valueScore + boost,
+        maxYesPrice: Math.min(95, rec.maxYesPrice + Math.round(boost * 0.45)),
+        signalTags: Array.from(new Set(tags)),
+        explanation: `${rec.explanation} ${notes.join(' ')}`,
+      }
+    }).sort((a, b) => (b.valueScore - a.valueScore) || ((a.kalshi?.yesAsk || 99) - (b.kalshi?.yesAsk || 99)))
+    return { ...player, recommendations, bestBet: recommendations[0] || player.bestBet }
+  })
 }
 
 function roundLine(avg: number): number {
@@ -1451,6 +1595,7 @@ export async function GET(req: NextRequest) {
   const home = searchParams.get('home')?.toUpperCase()
   const away = searchParams.get('away')?.toUpperCase()
   const sport = parseSportParam(searchParams.get('sport'))
+  const eventId = searchParams.get('eventId')
   const enrich = isTruthyParam(searchParams.get('xai')) || isTruthyParam(searchParams.get('enrich'))
 
   if (!home || !away) return finishRouteTiming(timing, NextResponse.json({ error: 'Missing home or away param' }, { status: 400 }))
@@ -1463,11 +1608,13 @@ export async function GET(req: NextRequest) {
       sport === 'mlb' ? fetchSportInjuries(sport, [home, away]) : Promise.resolve(new Map<string, PlayerInjuryReport>()),
     ])
     const kalshiMarkets = kalshiScan.markets
+    const mlbMatchupContext = sport === 'mlb' ? await fetchMlbMatchupContext(eventId, home, away, homeRaw, awayRaw) : null
     const matchCache: KalshiMatchCache = new Map()
     const [gatedHome, gatedAway] = await Promise.all([gateToKalshi(homeRaw, sport, kalshiMarkets, matchCache), gateToKalshi(awayRaw, sport, kalshiMarkets, matchCache)])
     const withMissing = addMissingKalshiContracts([...awayRaw, ...homeRaw, ...gatedAway, ...gatedHome], kalshiMarkets, sport, home, away)
     const withXai = await applyXaiPropIntel(withMissing, enrich)
-    const statReady = applyInjuryFilter(withXai, injuryMap)
+    const withMatchupSignals = sport === 'mlb' ? withMlbMatchupSignals(withXai, mlbMatchupContext, home, away) : withXai
+    const statReady = applyInjuryFilter(withMatchupSignals, injuryMap)
       .filter(p => isFullBoardSport(sport) || (p.last12 || []).length >= 4)
       .map(p => {
         const recommendations = (p.recommendations || []).filter(r => r.kalshi && (isFullBoardSport(sport) || r.games > 0))

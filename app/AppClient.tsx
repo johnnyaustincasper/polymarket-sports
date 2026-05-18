@@ -1784,6 +1784,7 @@ function buildPropEdgeRead(player: any, bet: any, intel?: TeamIntelData | null) 
     const detail = flaggedMates.map((x: any) => `${x.name}${x.minutes >= 0 ? ` (${x.minutes}m last game)` : ''}${x.warning ? ` — ${x.warning}` : x.fatigueFlag === 'dnp' ? ' — DNP flag' : ' — high fatigue flag'}`).join('; ')
     parts.push(`Context flag: ${detail}. If that player is limited, it can shift ${contextImpact} toward the remaining rotation. Treat this as a support note, not the main reason to bet it.`)
   } else if (injuryNotes && !/none/i.test(injuryNotes)) parts.push(`Team context: ${injuryNotes}`)
+  if (Array.isArray(bet.signalTags) && bet.signalTags.length) parts.push(`Matchup signal: ${bet.signalTags.join(', ')}. ${bet.explanation || ''}`.trim())
   parts.push(`Price discipline: Kalshi is asking ${bet.kalshi?.yesAsk ?? '—'}¢; model max is ${bet.maxYesPrice ?? '—'}¢.`)
   return parts
 }
@@ -2061,7 +2062,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     setLoading(true)
     setError(null)
     setProps(null)
-    fetchJsonCached<PropsPanelData>(cacheKey('/api/props', { home: game.homeTeam.abbr, away: game.awayTeam.abbr, sport }), 30_000, 45_000)
+    fetchJsonCached<PropsPanelData>(cacheKey('/api/props', { home: game.homeTeam.abbr, away: game.awayTeam.abbr, sport, eventId: game.id }), 30_000, 45_000)
       .then(d => { if (!cancelled) setProps(d) })
       .catch(e => { if (!cancelled) setError(e?.name === 'AbortError' ? 'scan timed out — retry in a few seconds' : e?.message || 'props unavailable') })
       .finally(() => { if (!cancelled) setLoading(false) })
