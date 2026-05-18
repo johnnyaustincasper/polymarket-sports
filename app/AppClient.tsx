@@ -2102,7 +2102,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
       }
     }
     fetchLive(true)
-    const intervalMs = game.status === 'in' ? 15_000 : 60_000
+    const intervalMs = game.status === 'in' ? 9_000 : 60_000
     const iv = setInterval(() => fetchLive(false), intervalMs)
     return () => {
       cancelled = true
