@@ -2573,6 +2573,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
             {activePlayerGroups.map(({ player: p, bets }: any, playerIdx: number) => {
               const expandedBet = bets.find((bet: any) => contractKey(p, bet) === expandedContractKey) || null
               const lastGameMinutes = formatLastGameMinutes(p)
+              const playerSignalTags = Array.from(new Set(bets.flatMap((bet: any) => bet.signalTags || [])))
               return (
                 <div key={`${game.id}-${p.team}-${p.player}-${activeGroup.metric}`} style={{ borderRadius: 14, padding: 11, background: 'rgba(166,255,63,0.045)', border: '1px solid rgba(255,255,255,0.10)', opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(playerIdx * 150, 1350)}ms` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
@@ -2580,6 +2581,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                       <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950 }}>{p.player}</div>
                       <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.team} · {p.position || (activeGroup.metric === 'all' ? 'props' : activeGroup.metric)}</div>
                       {lastGameMinutes && <div style={{ color: C.green, fontSize: 8, fontWeight: 950, marginTop: 3, letterSpacing: '0.04em' }}>⏱ {lastGameMinutes}</div>}
+                      {playerSignalTags.length > 0 && <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 5 }}>{playerSignalTags.map((tag: any) => <span key={String(tag)} style={{ borderRadius: 999, padding: '3px 6px', background: 'rgba(166,255,63,0.14)', border: '1px solid ' + C.borderHot, color: C.green, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{String(tag)}</span>)}</div>}
                     </div>
                     <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{bets.length} lines</div>
                   </div>
@@ -2590,9 +2592,10 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                       const selected = !!selectedContracts[key]
                       const safeHit = Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 9
                       const liveProgress = sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, bet) : null
+                      const signalLabel = Array.isArray(bet.signalTags) && bet.signalTags.length ? ' · ' + bet.signalTags.join(' + ') : ''
                       return (
-                        <button key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ borderRadius: 999, padding: '7px 9px', border: `1px solid ${open || safeHit ? C.borderHot : selected ? 'rgba(166,255,63,0.45)' : C.border}`, background: open ? 'rgba(166,255,63,0.18)' : safeHit ? 'rgba(166,255,63,0.13)' : selected ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || safeHit ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', animation: safeHit ? 'safePropThrob 1.25s ease-in-out infinite' : undefined, willChange: safeHit ? 'transform, box-shadow' : undefined }}>
-                          {bet.line}+ {formatPropMetricShort(activeGroup.metric === 'all' ? bet.metric : activeGroup.metric)} · {bet.kalshi?.yesAsk ?? '—'}¢{safeHit ? ` · ${bet.hits}/${bet.games}` : ''}{liveProgress ? ' · LIVE ' + liveProgress.label : ''}
+                        <button key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ borderRadius: 999, padding: '7px 9px', border: '1px solid ' + (open || safeHit || signalLabel ? C.borderHot : selected ? 'rgba(166,255,63,0.45)' : C.border), background: open ? 'rgba(166,255,63,0.18)' : safeHit || signalLabel ? 'rgba(166,255,63,0.13)' : selected ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || safeHit || signalLabel ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', animation: safeHit ? 'safePropThrob 1.25s ease-in-out infinite' : undefined, willChange: safeHit ? 'transform, box-shadow' : undefined }}>
+                          {bet.line}+ {formatPropMetricShort(activeGroup.metric === 'all' ? bet.metric : activeGroup.metric)} · {bet.kalshi?.yesAsk ?? '—'}¢{safeHit ? ` · ${bet.hits}/${bet.games}` : ''}{signalLabel}{liveProgress ? ' · LIVE ' + liveProgress.label : ''}
                         </button>
                       )
                     })}
@@ -3104,6 +3107,7 @@ function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTa
       { key: 'minutes', label: 'MIN' },
     ]
     : [
+      { key: 'position', label: 'POS' },
       { key: 'hits', label: 'H' },
       { key: 'runs', label: 'R' },
       { key: 'RBIs', label: 'RBI' },
@@ -3112,8 +3116,13 @@ function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTa
       { key: 'strikeouts', label: 'K' },
       { key: 'totalBases', label: 'TB' },
       { key: 'atBats', label: 'AB' },
+      { key: 'innings', label: 'IP' },
+      { key: 'earnedRuns', label: 'ER' },
+      { key: 'pitchCount', label: 'PC' },
+      { key: 'era', label: 'ERA' },
     ]
   const readLiveStat = (row: any, key: string) => {
+    if (key === 'position') return row?.position || row?.pos || (row?.kind === 'pitching' ? 'P' : '-')
     const stats = row?.stats || row?.statistics || row?.totals || row || {}
     const raw = stats[key] ?? stats[key.toUpperCase()] ?? stats[key.toLowerCase()]
     const value = typeof raw === 'object' ? raw?.displayValue ?? raw?.value : raw
@@ -3126,7 +3135,7 @@ function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTa
       <div key={section.label} style={{ minWidth: 0, borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.18)', border: '1px solid ' + C.border }}>
         <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 7 }}>{section.label}</div>
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <div style={{ minWidth: sport === 'nba' ? 520 : 430 }}>
+          <div style={{ minWidth: sport === 'nba' ? 520 : 660 }}>
             <div style={{ display: 'grid', gridTemplateColumns, gap: 0, paddingBottom: 5, borderBottom: '1px solid rgba(255,255,255,0.10)' }}>
               <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Player</div>
               {statColumns.map(col => (
