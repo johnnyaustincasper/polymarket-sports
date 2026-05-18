@@ -732,16 +732,22 @@ async function expandExecutableComboLegMarkets(comboMarkets: any[], supportedEve
   })
 
   const deduped = Array.from(new Map(candidates.map((c: any) => [`${c.combo.ticker}|${c.legTicker}`, c])).values())
-  const expanded = await mapLimit(deduped, 8, async ({ combo, leg, legTicker, legIndex }: any) => {
+  const expanded = await mapLimit(deduped, 8, async ({ combo, leg, legTicker }: any) => {
     const legMarket = await fetchKalshiMarketByTicker(legTicker)
-    const eventTicker = String(leg.event_ticker || legMarket?.event_ticker || legTicker.split('-').slice(0, 2).join('-'))
-    const title = String(legMarket?.title || legMarket?.yes_sub_title || leg?.title || comboLegTitle(combo, legIndex) || legTicker)
+    // Do not synthesize player identity from the combo title. Kalshi combo titles
+    // describe every leg, and their order is not reliable enough to pair a title
+    // fragment with a selected leg ticker. If the exact leg market cannot be
+    // fetched, dropping it is safer than showing another player's prop.
+    if (!legMarket) return null
+    const eventTicker = String(leg.event_ticker || legMarket.event_ticker || legTicker.split('-').slice(0, 2).join('-'))
+    const title = String(legMarket.title || legMarket.yes_sub_title || '')
+    if (!title) return null
     return {
-      ...(legMarket || {}),
+      ...legMarket,
       ticker: legTicker,
       event_ticker: eventTicker,
       title,
-      yes_sub_title: legMarket?.yes_sub_title || title,
+      yes_sub_title: legMarket.yes_sub_title || title,
       status: combo.status,
       yes_ask_dollars: combo.yes_ask_dollars,
       yes_ask_size_fp: combo.yes_ask_size_fp,
@@ -753,7 +759,7 @@ async function expandExecutableComboLegMarkets(comboMarkets: any[], supportedEve
       __isComboLeg: true,
     }
   })
-  return expanded.filter((m: any) => metricFromKalshiTicker(String(m.ticker || ''), 'mlb' as Sport) || metricFromKalshiTicker(String(m.ticker || ''), 'nba' as Sport) || metricFromKalshiTicker(String(m.ticker || ''), 'nfl' as Sport))
+  return expanded.filter((m: any) => m && (metricFromKalshiTicker(String(m.ticker || ''), 'mlb' as Sport) || metricFromKalshiTicker(String(m.ticker || ''), 'nba' as Sport) || metricFromKalshiTicker(String(m.ticker || ''), 'nfl' as Sport)))
 }
 
 function comboLegTitle(combo: any, legIndex: number): string {
@@ -799,6 +805,27 @@ function playerNameMatches(a: string, b: string): boolean {
   const left = normalizeName(a)
   const right = normalizeName(b)
   return Boolean(left && right && (left === right || left.includes(right) || right.includes(left)))
+}
+
+function nameTokens(s: string): string[] {
+  const suffixes = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v'])
+  return normalizeName(s).split(' ').filter(t => t && !suffixes.has(t))
+}
+
+function marketTextMatchesPlayer(player: string, marketText: string, sport: Sport): boolean {
+  const hay = normalizeName(marketText)
+  const name = normalizeName(player)
+  if (!hay || !name) return false
+  if (hay.includes(name)) return true
+
+  const tokens = nameTokens(player)
+  const first = tokens[0]
+  const last = tokens.at(-1)
+  // NBA/MLB full-board props have frequent same-last-name collisions
+  // (Jalen/Jaylin Williams, brothers, Jr. suffixes). Require first+last there.
+  if (sport === 'nba' || sport === 'mlb') return Boolean(first && last && first !== last && hay.includes(first) && hay.includes(last))
+
+  return Boolean(last && last.length >= 5 && hay.includes(last))
 }
 
 function injuryEndpointForSport(sport: Sport): string | null {
@@ -880,16 +907,14 @@ function metricAliases(metric: string): string[] {
 
 function marketTextMatches(player: string, rec: PropRecommendation, m: any, sport: Sport): boolean {
   const raw = textHaystack(m)
-  const hay = normalizeName(raw)
-  const name = normalizeName(player)
-  const last = name.split(' ').at(-1) || name
-  if (!hay.includes(name) && !(last.length >= 5 && hay.includes(last))) return false
+  if (!marketTextMatchesPlayer(player, raw, sport)) return false
 
   // Kalshi combo/MVE titles can contain many legs. The selected leg ticker is
   // the source of truth for stat family + line, so text only needs to confirm
   // the player name. Keep the old alias guard for non-combo/sparse markets.
   if (sport === 'nba' || sport === 'nfl' || sport === 'mlb') return true
 
+  const hay = normalizeName(raw)
   const aliases = metricAliases(rec.metric).map(normalizeName)
   return aliases.some(alias => hay.includes(alias))
 }
@@ -1123,7 +1148,7 @@ function addMissingKalshiContracts(players: PlayerPropLine[], kalshiMarkets: any
       existing.recommendations.sort((a, b) => metricAliases(a.metric)[0].localeCompare(metricAliases(b.metric)[0]) || a.line - b.line)
       existing.bestBet = existing.bestBet || enrichedRec
       byKey.set(key, existing)
-    } else if (isFullBoardSport(sport) && team) {
+    } else if (isFullBoardSport(sport) && team && !m.__isComboLeg) {
       byKey.set(key, withLastGameMinutes({
         player,
         team,
