@@ -131,7 +131,7 @@ function latestPlayWithParticipants(summary: any) {
 }
 
 function participantId(play: any, type: string) {
-  return String((play.participants || []).find((p: any) => p.type === type)?.athlete?.id || '')
+  return String((play?.participants || []).find((p: any) => p.type === type)?.athlete?.id || '')
 }
 
 function parsePlays(summary: any, byId: Record<string, any>) {
