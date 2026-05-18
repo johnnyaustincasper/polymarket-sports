@@ -2334,7 +2334,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                 {[
                   { key: 'props' as const, label: 'Props' },
                   { key: 'feed' as const, label: 'Live Feed' },
-                  { key: 'box' as const, label: 'Box Score' },
+                  { key: 'box' as const, label: 'Live Stats' },
                   { key: 'lineups' as const, label: 'Lineups' },
                 ].map(tab => {
                   const active = activeLiveTab === tab.key
@@ -2400,6 +2400,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
         {activeLiveTab !== 'props' && activeLiveTab !== 'lineups' && (game.status === 'in' || liveGame || liveError) && (
           <LiveGameDrawer
             game={game}
+            sport={sport}
             live={liveGame}
             loading={liveLoading}
             error={liveError}
@@ -3043,8 +3044,9 @@ function formatLastGameMinutes(player: any): string | null {
   return `${Math.round(minutes)} min last game`
 }
 
-function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTabChange, lineups }: {
+function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTab, onTabChange, lineups }: {
   game: Game
+  sport: SupportedSport
   live: LiveGameData | null
   loading: boolean
   error: string | null
@@ -3058,12 +3060,22 @@ function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTa
   const homeRows = getLiveBoxRows(live, 'home').slice(0, 9)
   const awayScore = live?.score?.away ?? live?.awayScore ?? game.awayTeam.score
   const homeScore = live?.score?.home ?? live?.homeScore ?? game.homeTeam.score
-  const progress = [live?.inningHalf, live?.inning ? 'Inning ' + live.inning : '', live?.period ? 'Period ' + live.period : '', live?.clock].filter(Boolean).join(' · ')
+  const periodLabel = sport === 'nba' ? 'Quarter' : sport === 'mlb' ? 'Inning' : 'Period'
+  const progress = [
+    sport === 'mlb' ? live?.inningHalf : '',
+    live?.inning ? periodLabel + ' ' + live.inning : '',
+    live?.period && !live?.inning ? periodLabel + ' ' + live.period : '',
+    live?.clock,
+  ].filter(Boolean).join(' · ')
   const tabs: Array<{ key: 'feed' | 'box' | 'lineups'; label: string }> = [{ key: 'feed', label: 'Live feed' }, { key: 'box', label: 'Live stats' }, { key: 'lineups', label: 'Lineups' }]
   const situation = live?.situation || {}
   const countText = [situation.balls, situation.strikes].every(v => v != null) ? `${situation.balls}-${situation.strikes}` : '-'
   const outsText = situation.outs != null ? String(situation.outs) : '-'
-  const inningText = [situation.inningHalf || live?.inningHalf, situation.inning || live?.inning ? 'Inning ' + (situation.inning || live?.inning) : ''].filter(Boolean).join(' ')
+  const inningText = [
+    sport === 'mlb' ? (situation.inningHalf || live?.inningHalf) : '',
+    situation.inning || live?.inning ? periodLabel + ' ' + (situation.inning || live?.inning) : '',
+    !situation.inning && !live?.inning && live?.period ? periodLabel + ' ' + live.period : '',
+  ].filter(Boolean).join(' ')
   const pitcherLine = situation.pitcherLine || {}
   const pitcherLineText = [
     pitcherLine.innings ? `IP ${pitcherLine.innings}` : '',
@@ -3122,7 +3134,10 @@ function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTa
         <div style={{ display: 'grid', gap: 6 }}>
           <div style={{ borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.24)', border: '1px solid rgba(166,255,63,0.18)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8, marginBottom: 9 }}>
-              {[{ label: 'Inning', value: inningText || '-' }, { label: 'Count', value: countText }, { label: 'Outs', value: outsText }].map(item => (
+              {(sport === 'nba'
+                ? [{ label: 'Quarter', value: inningText || '-' }, { label: 'Clock', value: live?.clock || '-' }, { label: 'Status', value: live?.statusLabel || live?.status || '-' }]
+                : [{ label: periodLabel, value: inningText || '-' }, { label: 'Count', value: countText }, { label: 'Outs', value: outsText }]
+              ).map(item => (
                 <div key={item.label} style={{ minWidth: 0, borderRadius: 9, padding: '7px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid ' + C.border }}>
                   <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{item.label}</div>
                   <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.value}</div>
