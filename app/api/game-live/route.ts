@@ -105,6 +105,7 @@ function parsePlayerStats(summary: any) {
             hits: statNum(labels, entry.stats || [], 'H'),
             RBIs: statNum(labels, entry.stats || [], 'RBI'),
             homeRuns: statNum(labels, entry.stats || [], 'HR'),
+            totalBases: statNum(labels, entry.stats || [], 'TB'),
             walks: statNum(labels, entry.stats || [], 'BB'),
             strikeouts: statNum(labels, entry.stats || [], 'K'),
             pitches: statNum(labels, entry.stats || [], '#P'),

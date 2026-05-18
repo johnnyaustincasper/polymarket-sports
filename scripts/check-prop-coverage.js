@@ -2,7 +2,7 @@ const KALSHI_API = 'https://external-api.kalshi.com/trade-api/v2'
 
 const SERIES = {
   nba: ['KXNBAPTS', 'KXNBAREB', 'KXNBAAST', 'KXNBASTL', 'KXNBABLK', 'KXNBA3PT'],
-  mlb: ['KXMLBHIT', 'KXMLBHR', 'KXMLBTB', 'KXMLBKS'],
+  mlb: ['KXMLBHIT', 'KXMLBHR', 'KXMLBHRR', 'KXMLBTB', 'KXMLBKS'],
 }
 
 function cents(value) {

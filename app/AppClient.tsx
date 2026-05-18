@@ -2119,7 +2119,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     : sport === 'nfl'
       ? ['passing yards', 'passing TDs', 'rushing yards', 'receiving yards', 'receptions']
       : sport === 'mlb'
-        ? ['hits', 'home runs', 'total bases', 'strikeouts']
+        ? ['hits', 'home runs', 'hits + runs + RBIs', 'total bases', 'strikeouts']
         : ['points', 'rebounds', 'assists']
   const metricGroups = categoryOrder
     .map(metric => ({ metric, items: allContracts.filter((x: any) => x.bet.metric === metric).sort((a: any, b: any) => (b.bet.hitRate - a.bet.hitRate) || ((a.bet.kalshi?.yesAsk || 99) - (b.bet.kalshi?.yesAsk || 99))) }))
@@ -2171,6 +2171,21 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const feedLive = game.status === 'in'
   const statusTone = feedLive ? C.red : hasScore ? C.green : C.gold
   const statusLabel = feedLive ? 'Live feed' : hasScore ? 'ESPN score' : 'Starts'
+  const liveSituation = liveGame?.situation || {}
+  const livePitcherLine = liveSituation.pitcherLine || {}
+  const livePitcherLineText = [
+    livePitcherLine.innings ? `IP ${livePitcherLine.innings}` : '',
+    livePitcherLine.strikeouts != null ? `K ${livePitcherLine.strikeouts}` : '',
+    livePitcherLine.earnedRuns != null ? `ER ${livePitcherLine.earnedRuns}` : '',
+    livePitcherLine.pitchCount ? `PC ${livePitcherLine.pitchCount}` : '',
+  ].filter(Boolean).join(' · ')
+  const liveCountText = [liveSituation.balls, liveSituation.strikes].every(v => v != null) ? `${liveSituation.balls}-${liveSituation.strikes}` : '-'
+  const liveBaseSlots = [
+    { label: '1B', runner: liveSituation.bases?.first, occupied: liveSituation.onFirst },
+    { label: '2B', runner: liveSituation.bases?.second, occupied: liveSituation.onSecond },
+    { label: '3B', runner: liveSituation.bases?.third, occupied: liveSituation.onThird },
+  ]
+  const liveNextText = arrayFromUnknown(liveSituation.nextBatters).map((p: any) => compactText(p?.name || p)).filter(Boolean).join(' · ')
   const lineupSides = [
     { key: 'away' as const, side: 'left' as const, team: game.awayTeam, pitcher: lineups?.awayPitcher || null, fallbackPitcher: game.mlbMatchup?.awayPitcher, players: lineups?.away || [], source: lineups?.awaySource, sourceGame: lineups?.awaySourceGame },
     { key: 'home' as const, side: 'right' as const, team: game.homeTeam, pitcher: lineups?.homePitcher || null, fallbackPitcher: game.mlbMatchup?.homePitcher, players: lineups?.home || [], source: lineups?.homeSource, sourceGame: lineups?.homeSourceGame },
@@ -2412,6 +2427,56 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           />
         )}
 
+        {sport === 'mlb' && activeLiveTab === 'props' && (game.status === 'in' || liveGame || liveError) && (
+          <div style={{ borderRadius: 15, padding: 10, background: 'linear-gradient(145deg, rgba(255,63,95,0.070), rgba(166,255,63,0.030))', border: '1px solid rgba(255,255,255,0.12)', marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
+              <div style={{ color: feedLive ? C.red : C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Live game state</div>
+              <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}><UpdatedAgeLabel updatedAt={liveUpdatedAt} prefix="refreshed" empty={liveLoading ? 'refreshing' : 'waiting'} /></div>
+            </div>
+            {liveError ? (
+              <div style={{ color: C.gold, fontSize: 10 }}>Live feed waiting on ESPN: {liveError}</div>
+            ) : (
+              <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: 7 }}>
+                  {[
+                    { label: 'Inning', value: [liveSituation.inningHalf || liveGame?.inningHalf, liveSituation.inning || liveGame?.inning].filter(Boolean).join(' ') || '-' },
+                    { label: 'Count', value: liveCountText },
+                    { label: 'Outs', value: liveSituation.outs != null ? String(liveSituation.outs) : '-' },
+                    { label: 'Pitcher', value: liveSituation.pitcher || '-' },
+                  ].map(item => (
+                    <div key={item.label} style={{ minWidth: 0, borderRadius: 10, padding: '7px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid ' + C.border }}>
+                      <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{item.label}</div>
+                      <div style={{ color: item.label === 'Pitcher' && item.value !== '-' ? C.green : C.textPrimary, fontSize: 11, fontWeight: 950, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
+                  <div style={{ minWidth: 0, borderRadius: 10, padding: 8, background: 'rgba(0,0,0,0.20)', border: '1px solid ' + C.border }}>
+                    <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>At bat</div>
+                    <div style={{ color: liveSituation.batter ? C.green : C.textSecondary, fontSize: 11, fontWeight: 900, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{liveSituation.batter || '-'}</div>
+                    <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Next: {liveNextText || '-'}</div>
+                  </div>
+                  <div style={{ minWidth: 0, borderRadius: 10, padding: 8, background: 'rgba(0,0,0,0.20)', border: '1px solid ' + C.border }}>
+                    <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Pitcher line</div>
+                    <div style={{ color: liveSituation.pitcher ? C.green : C.textSecondary, fontSize: 11, fontWeight: 900, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[liveSituation.pitcherRecord, livePitcherLineText].filter(Boolean).join(' · ') || '-'}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6 }}>
+                  {liveBaseSlots.map(base => {
+                    const runner = compactText(base.runner?.name || base.runner)
+                    return (
+                      <div key={'props-live-' + base.label} style={{ minWidth: 0, borderRadius: 9, padding: '6px 7px', background: base.occupied ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.035)', border: '1px solid ' + (base.occupied ? C.borderHot : C.border) }}>
+                        <div style={{ color: base.occupied ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950 }}>{base.label}</div>
+                        <div style={{ color: base.occupied ? C.textPrimary : C.textSecondary, fontSize: 9, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{base.occupied ? (runner || 'Occupied') : 'Empty'}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeLiveTab === 'props' && sport === 'nba' && intel && (
           <div style={{ borderRadius: 15, padding: 10, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, marginBottom: 12, opacity: 0, animation: 'dominoFadeIn 920ms cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
@@ -2553,7 +2618,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                             <div key={contractKey(x.player, x.bet)} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center' }}>
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ color: C.textPrimary, fontSize: 9, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.player.player}</div>
-                                <div style={{ color: C.textSecondary, fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.bet.label}</div>
+                                <div style={{ color: C.textSecondary, fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.bet.label}{x.matchup ? ` · pitcher ${x.matchup.score}/100` : ''}</div>
                               </div>
                               <div style={{ color: C.green, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{x.bet.hits}/{x.bet.games}<br />{x.bet.kalshi?.yesAsk ?? '—'}¢</div>
                             </div>
@@ -2773,7 +2838,7 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
                             <div key={parlayContractKey(item)} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center' }}>
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ color: C.textPrimary, fontSize: 9, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.game?.awayTeam.abbr}@{item.game?.homeTeam.abbr} · {item.player.player}</div>
-                                <div style={{ color: C.textSecondary, fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.bet.label}</div>
+                                <div style={{ color: C.textSecondary, fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.bet.label}{item.matchup ? ` · matchup ${item.matchup.score}/100` : ''}</div>
                                 {item.matchup && <div style={{ marginTop: 4, borderRadius: 8, padding: '5px 6px', background: item.matchup.grade === 'green' ? 'rgba(166,255,63,0.10)' : item.matchup.grade === 'neutral' ? 'rgba(255,215,0,0.09)' : 'rgba(255,68,102,0.08)', border: `1px solid ${item.matchup.grade === 'green' ? 'rgba(166,255,63,0.26)' : item.matchup.grade === 'neutral' ? 'rgba(255,215,0,0.22)' : 'rgba(255,68,102,0.20)'}`, color: item.matchup.grade === 'green' ? C.green : item.matchup.grade === 'neutral' ? C.gold : C.red, fontSize: 9, fontWeight: 900, lineHeight: 1.25 }}>
                                   Matchup {item.matchup.score}/100
                                   <span style={{ color: C.textSecondary, fontWeight: 800 }}> · {item.matchup.note}</span>
