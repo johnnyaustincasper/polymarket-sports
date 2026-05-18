@@ -3056,8 +3056,8 @@ function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTa
   lineups: LineupsData | null
 }) {
   const feed = getLiveFeedItems(live)
-  const awayRows = getLiveBoxRows(live, 'away').slice(0, 9)
-  const homeRows = getLiveBoxRows(live, 'home').slice(0, 9)
+  const awayRows = getLiveBoxRows(live, 'away')
+  const homeRows = getLiveBoxRows(live, 'home')
   const awayScore = live?.score?.away ?? live?.awayScore ?? game.awayTeam.score
   const homeScore = live?.score?.home ?? live?.homeScore ?? game.homeTeam.score
   const periodLabel = sport === 'nba' ? 'Quarter' : sport === 'mlb' ? 'Inning' : 'Period'
@@ -3089,22 +3089,62 @@ function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTa
     { label: '3B', runner: situation.bases?.third, occupied: situation.onThird },
   ]
   const nextText = arrayFromUnknown(situation.nextBatters).map((p: any) => compactText(p?.name || p)).filter(Boolean).join(' · ')
-  const renderBoxRow = (row: any, idx: number) => {
-    const name = compactText(row?.name || row?.player || row?.displayName || row?.athlete)
+  const statColumns = sport === 'nba'
+    ? [
+      { key: 'points', label: 'PTS' },
+      { key: 'rebounds', label: 'REB' },
+      { key: 'assists', label: 'AST' },
+      { key: 'threes', label: '3PT' },
+      { key: 'fieldGoals', label: 'FG' },
+      { key: 'freeThrows', label: 'FT' },
+      { key: 'steals', label: 'STL' },
+      { key: 'blocks', label: 'BLK' },
+      { key: 'turnovers', label: 'TO' },
+      { key: 'minutes', label: 'MIN' },
+    ]
+    : [
+      { key: 'hits', label: 'H' },
+      { key: 'runs', label: 'R' },
+      { key: 'RBIs', label: 'RBI' },
+      { key: 'homeRuns', label: 'HR' },
+      { key: 'walks', label: 'BB' },
+      { key: 'strikeouts', label: 'K' },
+      { key: 'totalBases', label: 'TB' },
+      { key: 'atBats', label: 'AB' },
+    ]
+  const readLiveStat = (row: any, key: string) => {
     const stats = row?.stats || row?.statistics || row?.totals || row || {}
-    const hasNbaStats = stats.points != null || stats.PTS != null || stats.rebounds != null || stats.REB != null || stats.assists != null || stats.AST != null
-    const statKeys = hasNbaStats
-      ? ['points', 'rebounds', 'assists', 'threes', 'steals', 'blocks', 'turnovers', 'minutes']
-      : ['hits', 'h', 'RBIs', 'rbi', 'homeRuns', 'hr', 'totalBases', 'tb', 'strikeouts', 'so']
-    const statText = statKeys.map(key => {
-      const raw = stats[key] ?? stats[key.toUpperCase()]
-      const value = typeof raw === 'object' ? raw?.displayValue ?? raw?.value : raw
-      return value == null ? '' : formatPropMetricShort(key) + ' ' + value
-    }).filter(Boolean).slice(0, 4).join(' · ')
+    const raw = stats[key] ?? stats[key.toUpperCase()] ?? stats[key.toLowerCase()]
+    const value = typeof raw === 'object' ? raw?.displayValue ?? raw?.value : raw
+    return value == null || value === '' ? '-' : String(value)
+  }
+  const renderLiveStatsTable = (section: { label: string; rows: any[] }) => {
+    const rows = section.rows.length ? section.rows : [{ name: loading ? 'Loading live stats' : 'Live stats pending' }]
+    const gridTemplateColumns = `minmax(96px, 1.25fr) repeat(${statColumns.length}, minmax(38px, 0.5fr))`
     return (
-      <div key={(name || 'row') + '-' + idx} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 8, padding: '6px 0', borderTop: idx ? '1px solid rgba(255,255,255,0.055)' : 'none' }}>
-        <span style={{ color: name ? C.textPrimary : C.textSecondary, fontSize: 10, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Player'}</span>
-        <span style={{ color: statText ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, textAlign: 'right' }}>{statText || '-'}</span>
+      <div key={section.label} style={{ minWidth: 0, borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.18)', border: '1px solid ' + C.border }}>
+        <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 7 }}>{section.label}</div>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ minWidth: sport === 'nba' ? 520 : 430 }}>
+            <div style={{ display: 'grid', gridTemplateColumns, gap: 0, paddingBottom: 5, borderBottom: '1px solid rgba(255,255,255,0.10)' }}>
+              <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Player</div>
+              {statColumns.map(col => (
+                <div key={col.key} style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center' }}>{col.label}</div>
+              ))}
+            </div>
+            {rows.map((row, idx) => {
+              const name = compactText(row?.name || row?.player || row?.displayName || row?.athlete)
+              return (
+                <div key={(name || 'row') + '-' + idx} style={{ display: 'grid', gridTemplateColumns, gap: 0, padding: '6px 0', borderTop: idx ? '1px solid rgba(255,255,255,0.055)' : 'none', alignItems: 'center' }}>
+                  <div style={{ color: name ? C.textPrimary : C.textSecondary, fontSize: 9, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 6 }}>{name || 'Player'}</div>
+                  {statColumns.map(col => (
+                    <div key={col.key} style={{ color: name ? C.green : C.textSecondary, fontSize: 9, fontWeight: 900, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{name ? readLiveStat(row, col.key) : '-'}</div>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
     )
   }
@@ -3177,12 +3217,7 @@ function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTa
         </div>
       ) : activeTab === 'box' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-          {[{ label: game.awayTeam.abbr, rows: awayRows }, { label: game.homeTeam.abbr, rows: homeRows }].map(section => (
-            <div key={section.label} style={{ minWidth: 0, borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.18)', border: '1px solid ' + C.border }}>
-              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>{section.label}</div>
-              {(section.rows.length ? section.rows : [{ name: loading ? 'Loading live stats' : 'Live stats pending' }]).map(renderBoxRow)}
-            </div>
-          ))}
+          {[{ label: game.awayTeam.abbr, rows: awayRows }, { label: game.homeTeam.abbr, rows: homeRows }].map(renderLiveStatsTable)}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
