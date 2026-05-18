@@ -1638,7 +1638,7 @@ function formatPropMetricShort(metric: string): string {
   const key = String(metric || '')
   const map: Record<string, string> = {
     all: 'ALL',
-    points: 'PTS', rebounds: 'REB', assists: 'AST', threes: '3PT', steals: 'STL', blocks: 'BLK',
+    points: 'PTS', rebounds: 'REB', assists: 'AST', threes: '3PT', steals: 'STL', blocks: 'BLK', minutes: 'MIN', turnovers: 'TO',
     'PTS+REB+AST': 'PRA', 'passing yards': 'PYD', 'passing TDs': 'PTD', 'rushing yards': 'RYD', 'receiving yards': 'REC YD', receptions: 'REC',
     hits: 'HIT', rbi: 'RBI', RBIs: 'RBI', homeRuns: 'HR', homeRunsAllowed: 'HR', 'home runs': 'HR', totalBases: 'TB', 'total bases': 'TB', strikeouts: 'K',
   }
@@ -3059,7 +3059,7 @@ function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTa
   const awayScore = live?.score?.away ?? live?.awayScore ?? game.awayTeam.score
   const homeScore = live?.score?.home ?? live?.homeScore ?? game.homeTeam.score
   const progress = [live?.inningHalf, live?.inning ? 'Inning ' + live.inning : '', live?.period ? 'Period ' + live.period : '', live?.clock].filter(Boolean).join(' · ')
-  const tabs: Array<{ key: 'feed' | 'box' | 'lineups'; label: string }> = [{ key: 'feed', label: 'Live feed' }, { key: 'box', label: 'Box score' }, { key: 'lineups', label: 'Lineups' }]
+  const tabs: Array<{ key: 'feed' | 'box' | 'lineups'; label: string }> = [{ key: 'feed', label: 'Live feed' }, { key: 'box', label: 'Live stats' }, { key: 'lineups', label: 'Lineups' }]
   const situation = live?.situation || {}
   const countText = [situation.balls, situation.strikes].every(v => v != null) ? `${situation.balls}-${situation.strikes}` : '-'
   const outsText = situation.outs != null ? String(situation.outs) : '-'
@@ -3080,7 +3080,11 @@ function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTa
   const renderBoxRow = (row: any, idx: number) => {
     const name = compactText(row?.name || row?.player || row?.displayName || row?.athlete)
     const stats = row?.stats || row?.statistics || row?.totals || row || {}
-    const statText = ['hits', 'h', 'RBIs', 'rbi', 'homeRuns', 'hr', 'totalBases', 'tb', 'strikeouts', 'so'].map(key => {
+    const hasNbaStats = stats.points != null || stats.PTS != null || stats.rebounds != null || stats.REB != null || stats.assists != null || stats.AST != null
+    const statKeys = hasNbaStats
+      ? ['points', 'rebounds', 'assists', 'threes', 'steals', 'blocks', 'turnovers', 'minutes']
+      : ['hits', 'h', 'RBIs', 'rbi', 'homeRuns', 'hr', 'totalBases', 'tb', 'strikeouts', 'so']
+    const statText = statKeys.map(key => {
       const raw = stats[key] ?? stats[key.toUpperCase()]
       const value = typeof raw === 'object' ? raw?.displayValue ?? raw?.value : raw
       return value == null ? '' : formatPropMetricShort(key) + ' ' + value
@@ -3161,7 +3165,7 @@ function LiveGameDrawer({ game, live, loading, error, updatedAt, activeTab, onTa
           {[{ label: game.awayTeam.abbr, rows: awayRows }, { label: game.homeTeam.abbr, rows: homeRows }].map(section => (
             <div key={section.label} style={{ minWidth: 0, borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.18)', border: '1px solid ' + C.border }}>
               <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>{section.label}</div>
-              {(section.rows.length ? section.rows : [{ name: loading ? 'Loading box score' : 'Box score pending' }]).map(renderBoxRow)}
+              {(section.rows.length ? section.rows : [{ name: loading ? 'Loading live stats' : 'Live stats pending' }]).map(renderBoxRow)}
             </div>
           ))}
         </div>

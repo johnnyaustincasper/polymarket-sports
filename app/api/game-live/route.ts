@@ -57,7 +57,8 @@ function parsePlayerStats(summary: any) {
       const labels = (statGroup.labels || []).map((x: string) => String(x).toUpperCase())
       const isBatting = labels.includes('H-AB') || String(statGroup.type || statGroup.name || '').toLowerCase().includes('bat')
       const isPitching = labels.includes('IP') && labels.includes('ERA')
-      if (!isBatting && !isPitching) continue
+      const isBasketball = labels.includes('PTS') && labels.includes('REB') && labels.includes('AST')
+      if (!isBatting && !isPitching && !isBasketball) continue
 
       for (const entry of (statGroup.athletes || [])) {
         const athlete = entry.athlete || {}
@@ -71,7 +72,7 @@ function parsePlayerStats(summary: any) {
           starter: Boolean(entry.starter),
           active: Boolean(entry.active),
           batOrder: Number(entry.batOrder || 0),
-          kind: isPitching ? 'pitching' : 'batting',
+          kind: isPitching ? 'pitching' : isBasketball ? 'basketball' : 'batting',
           decision: (entry.notes || []).find((note: any) => note?.type === 'pitchingDecision')?.text || '',
           stats: isPitching ? {
             innings: statAt(labels, entry.stats || [], 'IP'),
@@ -83,6 +84,21 @@ function parsePlayerStats(summary: any) {
             homeRunsAllowed: statNum(labels, entry.stats || [], 'HR'),
             pitchCount: statAt(labels, entry.stats || [], 'PC') || statAt(labels, entry.stats || [], 'PC-ST'),
             era: statAt(labels, entry.stats || [], 'ERA'),
+          } : isBasketball ? {
+            minutes: statAt(labels, entry.stats || [], 'MIN'),
+            points: statNum(labels, entry.stats || [], 'PTS'),
+            rebounds: statNum(labels, entry.stats || [], 'REB'),
+            assists: statNum(labels, entry.stats || [], 'AST'),
+            turnovers: statNum(labels, entry.stats || [], 'TO'),
+            steals: statNum(labels, entry.stats || [], 'STL'),
+            blocks: statNum(labels, entry.stats || [], 'BLK'),
+            offensiveRebounds: statNum(labels, entry.stats || [], 'OREB'),
+            defensiveRebounds: statNum(labels, entry.stats || [], 'DREB'),
+            threes: statAt(labels, entry.stats || [], '3PT'),
+            fieldGoals: statAt(labels, entry.stats || [], 'FG'),
+            freeThrows: statAt(labels, entry.stats || [], 'FT'),
+            fouls: statNum(labels, entry.stats || [], 'PF'),
+            plusMinus: statAt(labels, entry.stats || [], '+/-'),
           } : {
             atBats: statNum(labels, entry.stats || [], 'AB'),
             runs: statNum(labels, entry.stats || [], 'R'),
