@@ -1,3 +1,5 @@
+import { isGuestAccessEnabled } from './guest-access'
+
 const SESSION_COOKIE = 'ai_session'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30
 
@@ -85,6 +87,7 @@ export function getAuthConfigStatus() {
     hasSecret: Boolean(getSecret()),
     authorizedUserCount,
     hasGlobalInviteCode: Boolean(process.env.AUTH_INVITE_CODE || process.env.APP_PASSWORD),
+    guestAccessEnabled: isGuestAccessEnabled(),
     // Keeps the existing production password from locking everyone out until
     // AUTHORIZED_EMAILS or AUTHORIZED_USERS_JSON is added in Vercel.
     bootstrapMode: authorizedUserCount === 0 && Boolean(process.env.APP_PASSWORD),
