@@ -1,6 +1,7 @@
 import { auth, clerkClient, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE, verifySessionToken } from '@/app/lib/auth'
+import { isGuestAccessEnabled } from '@/app/lib/guest-access'
 import { getAccountProfile, saveAccountProfile } from '@/app/lib/profile-store'
 
 export const runtime = 'nodejs'
@@ -56,7 +57,9 @@ function clerkToAccountProfile(user: NonNullable<Awaited<ReturnType<typeof curre
 }
 
 async function getLegacySession(req: NextRequest) {
-  return verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)
+  const session = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)
+  if (session?.guest && !isGuestAccessEnabled()) return null
+  return session
 }
 
 export async function GET(req: NextRequest) {
