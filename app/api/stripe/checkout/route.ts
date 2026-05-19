@@ -1,6 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { requireStripe } from '@/app/lib/billing'
 
 export const runtime = 'nodejs'
 
@@ -9,7 +10,10 @@ function appUrl() {
 }
 
 export async function POST() {
-  if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_PRICE_ID) {
+  let stripeKey: string
+  try {
+    stripeKey = requireStripe()
+  } catch {
     return NextResponse.json({ error: 'Stripe is not configured yet.' }, { status: 503 })
   }
 
@@ -19,7 +23,7 @@ export async function POST() {
   const user = await currentUser()
   const email = user?.primaryEmailAddress?.emailAddress
   const metadata = (user?.publicMetadata || {}) as { stripeCustomerId?: string }
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-04-22.dahlia' })
+  const stripe = new Stripe(stripeKey, { apiVersion: '2026-04-22.dahlia' })
 
   try {
     const session = await stripe.checkout.sessions.create({
