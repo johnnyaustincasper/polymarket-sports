@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import AccountMenu from './components/AccountMenu'
 import LoadingMarketCards from './components/LoadingMarketCards'
+import UpdatedAgeLabel from './components/UpdatedAgeLabel'
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
 
@@ -242,25 +243,6 @@ interface FootballIntelData {
   flags: { dome: boolean; divisional: boolean; daysOut: number; spreadGap: number; totalGap: number }
   checklist: { label: string; value: string; status: 'ready' | 'watch' | 'edge' }[]
   warnings: string[]
-}
-
-function formatAge(seconds: number) {
-  return seconds < 60 ? `${seconds}s ago` : `${Math.floor(seconds / 60)}m ago`
-}
-
-function UpdatedAgeLabel({ updatedAt, prefix = 'Updated', empty = null }: { updatedAt: Date | null; prefix?: string; empty?: React.ReactNode }) {
-  const [seconds, setSeconds] = useState(0)
-
-  useEffect(() => {
-    if (!updatedAt) return
-    const update = () => setSeconds(Math.max(0, Math.floor((Date.now() - updatedAt.getTime()) / 1000)))
-    update()
-    const iv = setInterval(update, 1000)
-    return () => clearInterval(iv)
-  }, [updatedAt])
-
-  if (!updatedAt) return <>{empty}</>
-  return <>{prefix}{prefix ? ' ' : ''}{formatAge(seconds)}</>
 }
 
 // ─── UFC accent ───────────────────────────────────────────────────────────────
