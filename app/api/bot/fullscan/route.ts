@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+import { completeWithAi } from '@/app/lib/ai-provider'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 const GAMMA_API = 'https://gamma-api.polymarket.com'
 
@@ -545,21 +544,10 @@ ${playerIntel || 'None found'}
       return NextResponse.json({ report: 'No upcoming-game NBA games found today.' })
     }
 
-    if (!ANTHROPIC_KEY) {
-      return NextResponse.json({
-        report: `AI fullscan is available once ANTHROPIC_API_KEY is configured. Raw edge context generated successfully for ${gameContexts.length} game${gameContexts.length === 1 ? '' : 's'}.`,
-        gamesAnalyzed: gameContexts.length,
-        scannedAt: new Date().toISOString(),
-        requires: 'ANTHROPIC_API_KEY',
-        contexts: gameContexts,
-      })
-    }
-
-    const client = new Anthropic({ apiKey: ANTHROPIC_KEY })
-
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 3000,
+    const ai = await completeWithAi({
+      maxTokens: 3000,
+      xaiModel: process.env.XAI_FULLSCAN_MODEL || process.env.XAI_MODEL,
+      anthropicModel: process.env.ANTHROPIC_FULLSCAN_MODEL || 'claude-sonnet-4-5',
       messages: [{
         role: 'user',
         content: `You are a professional sports bettor who thinks exclusively in terms of EDGE and EXPECTED VALUE. You do not care who is likely to win — you only care where the market is WRONG and by how much. Bankroll: $${bankroll} USDC.
@@ -640,7 +628,28 @@ Be sharp. Underdogs in competitive games are systematically underpriced. A bad r
       }]
     })
 
-    const report = (message.content[0] as any).text || 'Analysis unavailable.'
+    if (ai.available === false) {
+      if (ai.reason === 'provider_error') {
+        return NextResponse.json({
+          error: 'AI fullscan provider failed after raw edge context was generated.',
+          providerError: ai.error,
+          attemptedProviders: ai.attemptedProviders,
+          gamesAnalyzed: gameContexts.length,
+          scannedAt: new Date().toISOString(),
+          contexts: gameContexts,
+        }, { status: 502 })
+      }
+
+      return NextResponse.json({
+        report: `AI fullscan is available once ${ai.requires.join(' or ')} is configured. Raw edge context generated successfully for ${gameContexts.length} game${gameContexts.length === 1 ? '' : 's'}.`,
+        gamesAnalyzed: gameContexts.length,
+        scannedAt: new Date().toISOString(),
+        requires: ai.requires,
+        contexts: gameContexts,
+      })
+    }
+
+    const report = ai.text || 'Analysis unavailable.'
     return NextResponse.json({ report, gamesAnalyzed: gameContexts.length, scannedAt: new Date().toISOString() })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })

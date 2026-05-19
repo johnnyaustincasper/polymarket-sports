@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+import { completeWithAi } from '@/app/lib/ai-provider'
 import {
   fetchTeamRecentGames,
   calcStreak,
@@ -11,7 +11,6 @@ import type { TeamStreak } from '@/app/lib/types'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 
 async function searchStreakContext(teamName: string, streakLabel: string): Promise<string> {
@@ -62,12 +61,18 @@ FACTORS:
 • [factor 3]`
 
   try {
-    const msg = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 300,
+    const ai = await completeWithAi({
       messages: [{ role: 'user', content: prompt }],
+      maxTokens: 300,
     })
-    const text = (msg.content[0] as any).text || ''
+    if (ai.available === false || !ai.text.trim()) {
+      return {
+        analysis: `The ${teamName} are showing ${lastGames[0] === 'W' ? 'strong form' : 'struggles'} with a ${streakLabel} streak.`,
+        keyFactors: ['Momentum', 'Depth', 'Scheduling'],
+      }
+    }
+
+    const text = ai.text
     const analysisMatch = text.match(/ANALYSIS:\s*([\s\S]+?)(?=FACTORS:|$)/)
     const factorsMatch = text.match(/FACTORS:\s*([\s\S]+)/)
     const analysis = analysisMatch?.[1]?.trim() || text.slice(0, 200)

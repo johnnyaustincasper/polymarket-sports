@@ -16,6 +16,7 @@ This app should run as a Vercel/Next.js app at `https://athleteintelligence.xyz`
 
 - `ANTHROPIC_API_KEY`: legacy/fallback AI provider while old bot/team/streak routes are preserved.
 - `ANTHROPIC_MODEL`: defaults to `claude-haiku-4-5`.
+- `XAI_FULLSCAN_MODEL`, `ANTHROPIC_FULLSCAN_MODEL`: route-level overrides for the heavier `/api/bot/fullscan` prompt. Anthropic fullscan fallback defaults to `claude-sonnet-4-5`.
 - `AUTHORIZED_EMAILS`, `AUTHORIZED_USERS_JSON`, `AUTH_INVITE_CODE`, `APP_PASSWORD`: legacy login/bootstrap controls.
 - `API_RATE_LIMIT_REQUESTS`, `API_RATE_LIMIT_WINDOW_MS`: route rate limit overrides.
 - `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_BASE_URL`: reserved optional fallback shape; not required for current production.
@@ -35,8 +36,8 @@ This app should run as a Vercel/Next.js app at `https://athleteintelligence.xyz`
 
 ## Degraded modes to expect
 
-- Missing xAI: analysis should return clear unavailable/degraded responses; prop enrichment is skipped.
-- Missing Anthropic: legacy bot/team/streak routes should use xAI if configured or return fallback narratives/raw context.
+- Missing xAI: Anthropic is used as fallback when configured; otherwise analysis routes return clear unavailable/degraded responses and prop enrichment is skipped.
+- Missing Anthropic: bot/team/streak/fullscan routes use xAI if configured; otherwise they return fallback narratives/raw context where safe.
 - Missing Brave: search context is omitted, but core sports/market data should still work.
 - Missing Redis/KV: durable cache reports `memory` and warns when production/Vercel is using non-durable fallback.
 - Missing Stripe: checkout/webhook are disabled with clear configuration errors; account pages should still render safe unavailable states.

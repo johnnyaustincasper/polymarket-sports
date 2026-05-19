@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { ESPN_ABBR } from '@/app/lib/nba-api'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
 import { enforceRateLimit } from '@/app/lib/rate-limit'
 import { getJsonCache, setJsonCache } from '@/app/lib/durable-cache'
+import { completeWithAi } from '@/app/lib/ai-provider'
 import {
   dollarsToCents,
   findKalshiMatch,
@@ -941,7 +941,7 @@ function xaiPropIntelCacheKey(players: PlayerPropLine[]): string {
 }
 
 async function applyXaiPropIntel(players: PlayerPropLine[], enabled = false): Promise<PlayerPropLine[]> {
-  if (!enabled || !process.env.XAI_API_KEY) return players
+  if (!enabled) return players
   const targets = players.filter(p => p.bestBet?.kalshi).slice(0, 6)
   if (!targets.length) return players
 
@@ -957,14 +957,13 @@ async function applyXaiPropIntel(players: PlayerPropLine[], enabled = false): Pr
       bet: p.bestBet, social: socialByPlayer.get(p.player) || [],
     }))
     try {
-      const client = new OpenAI({ apiKey: process.env.XAI_API_KEY, baseURL: process.env.XAI_BASE_URL || 'https://api.x.ai/v1' })
-      const response = await client.chat.completions.create({
-        model: XAI_MODEL,
-        temperature: 0.25,
-        max_tokens: 1400,
+      const ai = await completeWithAi({
         messages: [{ role: 'user', content: `You are a sharp Kalshi player-props analyst. Use the last-12 logs, Kalshi executable YES ask, and social/X snippets if relevant. Do not invent injuries or news. Return ONLY valid JSON array: [{"player":"","metric":"","line":0,"explanation":"one concise reason to bet or pass; include max YES price and current Kalshi ask","risk":"low|medium|high"}]. Data: ${JSON.stringify(compact)}` }],
-      }, { timeout: XAI_PROP_INTEL_TIMEOUT_MS })
-      const raw = response.choices?.[0]?.message?.content?.trim() || '[]'
+        maxTokens: 1400,
+        temperature: 0.25,
+      })
+      if (ai.available === false) return players
+      const raw = ai.text.trim() || '[]'
       const parsed = JSON.parse(raw.replace(/^```json\s*/i, '').replace(/```$/i, ''))
       const byKey = new Map((Array.isArray(parsed) ? parsed : []).map((r: any) => [`${r.player}|${r.metric}|${r.line}`, r]))
       return players.map(p => {

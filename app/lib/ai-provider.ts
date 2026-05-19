@@ -10,9 +10,11 @@ type AiSelection =
   | { available: true; provider: AiProviderName; model: string; baseURL?: string }
   | { available: false; provider: null; model: null; requires: string[] }
 
+type AiCompletionOptions = { maxTokens: number; temperature: number }
+
 type AiClients = {
-  xaiComplete?: (messages: AiMessage[], model: string) => Promise<string>
-  anthropicComplete?: (messages: AiMessage[], model: string) => Promise<string>
+  xaiComplete?: (messages: AiMessage[], model: string, options: AiCompletionOptions) => Promise<string>
+  anthropicComplete?: (messages: AiMessage[], model: string, options: AiCompletionOptions) => Promise<string>
 }
 
 function configured(value: string | undefined): boolean {
@@ -59,25 +61,26 @@ function splitSystem(messages: AiMessage[]) {
   return { system, nonSystem }
 }
 
-async function defaultXaiComplete(env: Env, messages: AiMessage[], model: string): Promise<string> {
+async function defaultXaiComplete(env: Env, messages: AiMessage[], model: string, options: AiCompletionOptions): Promise<string> {
   if (!env.XAI_API_KEY) throw new Error('Missing XAI_API_KEY')
   const client = new OpenAI({ apiKey: env.XAI_API_KEY, baseURL: env.XAI_BASE_URL || 'https://api.x.ai/v1' })
   const response = await client.chat.completions.create({
     model,
     messages,
-    temperature: 0.2,
+    temperature: options.temperature,
+    max_tokens: options.maxTokens,
   })
   return response.choices[0]?.message?.content?.trim() || ''
 }
 
-async function defaultAnthropicComplete(env: Env, messages: AiMessage[], model: string): Promise<string> {
+async function defaultAnthropicComplete(env: Env, messages: AiMessage[], model: string, options: AiCompletionOptions): Promise<string> {
   if (!env.ANTHROPIC_API_KEY) throw new Error('Missing ANTHROPIC_API_KEY')
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
   const { system, nonSystem } = splitSystem(messages)
   const response = await client.messages.create({
     model,
-    max_tokens: 1200,
-    temperature: 0.2,
+    max_tokens: options.maxTokens,
+    temperature: options.temperature,
     system,
     messages: nonSystem,
   })
@@ -87,12 +90,33 @@ async function defaultAnthropicComplete(env: Env, messages: AiMessage[], model: 
     .trim()
 }
 
+export type AiUnavailableReason = 'missing_config' | 'provider_error'
+
+type AiUnavailableResult = {
+  available: false
+  provider: null
+  model: null
+  text: string
+  error: string
+  reason: AiUnavailableReason
+  requires: string[]
+  attemptedProviders: AiProviderName[]
+}
+
 export async function completeWithAi(options: {
   messages: AiMessage[]
   env?: Env
   clients?: AiClients
-}): Promise<{ available: true; provider: AiProviderName; model: string; text: string } | { available: false; provider: null; model: null; text: string; error: string; requires: string[] }> {
+  maxTokens?: number
+  temperature?: number
+  xaiModel?: string
+  anthropicModel?: string
+}): Promise<{ available: true; provider: AiProviderName; model: string; text: string } | AiUnavailableResult> {
   const env = options.env || process.env
+  const completionOptions = {
+    maxTokens: options.maxTokens ?? 1200,
+    temperature: options.temperature ?? 0.2,
+  }
   const selected = selectAiProvider(env)
   if (!selected.available) {
     const unavailable = selected as Extract<AiSelection, { available: false }>
@@ -102,29 +126,31 @@ export async function completeWithAi(options: {
       model: null,
       text: '',
       error: `No AI provider is configured. Add ${unavailable.requires.join(' or ')}.`,
+      reason: 'missing_config',
       requires: unavailable.requires,
+      attemptedProviders: [],
     }
   }
 
   const providers: Array<{ provider: AiProviderName; model: string; complete: () => Promise<string> }> = []
-  if (env.XAI_API_KEY) {
-    const model = env.XAI_MODEL || 'grok-3-mini'
+  if (configured(env.XAI_API_KEY)) {
+    const model = options.xaiModel || env.XAI_MODEL || 'grok-3-mini'
     providers.push({
       provider: 'xai',
       model,
       complete: () => options.clients?.xaiComplete
-        ? options.clients.xaiComplete(options.messages, model)
-        : defaultXaiComplete(env, options.messages, model),
+        ? options.clients.xaiComplete(options.messages, model, completionOptions)
+        : defaultXaiComplete(env, options.messages, model, completionOptions),
     })
   }
-  if (env.ANTHROPIC_API_KEY) {
-    const model = env.ANTHROPIC_MODEL || 'claude-haiku-4-5'
+  if (configured(env.ANTHROPIC_API_KEY)) {
+    const model = options.anthropicModel || env.ANTHROPIC_MODEL || 'claude-haiku-4-5'
     providers.push({
       provider: 'anthropic',
       model,
       complete: () => options.clients?.anthropicComplete
-        ? options.clients.anthropicComplete(options.messages, model)
-        : defaultAnthropicComplete(env, options.messages, model),
+        ? options.clients.anthropicComplete(options.messages, model, completionOptions)
+        : defaultAnthropicComplete(env, options.messages, model, completionOptions),
     })
   }
 
@@ -144,6 +170,8 @@ export async function completeWithAi(options: {
     model: null,
     text: '',
     error: errors.length ? errors.join('; ') : 'No AI provider completed successfully.',
-    requires: ['XAI_API_KEY', 'ANTHROPIC_API_KEY'],
+    reason: 'provider_error',
+    requires: [],
+    attemptedProviders: providers.map(candidate => candidate.provider),
   }
 }

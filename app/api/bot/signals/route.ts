@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+import { completeWithAi } from '@/app/lib/ai-provider'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 
 async function braveSearch(query: string, count = 5): Promise<string> {
@@ -144,13 +143,21 @@ Respond in this exact JSON format:
   "aiSummary": "2-3 sentence plain English summary of the most important things you found"
 }`
 
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 1024,
+    const ai = await completeWithAi({
       messages: [{ role: 'user', content: prompt }],
+      maxTokens: 1024,
     })
 
-    const responseText = (message.content[0] as any).text || ''
+    const responseText = ai.available === true
+      ? ai.text
+      : JSON.stringify({
+          signals: [],
+          overallEdge: 'none',
+          edgeConfidence: 0,
+          aiSummary: ai.reason === 'missing_config'
+            ? `AI signal analysis is unavailable until ${ai.requires.join(' or ')} is configured. Raw context was collected successfully.`
+            : `AI signal analysis temporarily failed after raw context was collected. Attempted providers: ${ai.attemptedProviders.join(', ') || 'none'}.`,
+        })
 
     // Parse JSON from response
     let parsed: any = { signals: [], overallEdge: 'none', edgeConfidence: 0, aiSummary: 'Analysis unavailable.' }

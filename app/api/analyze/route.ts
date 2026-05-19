@@ -1,26 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { enforceRateLimit } from '@/app/lib/rate-limit'
+import { completeWithAi } from '@/app/lib/ai-provider'
 
-const XAI_MODEL = process.env.XAI_MODEL || 'grok-3-mini'
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 
-function getXaiClient(): OpenAI {
-  return new OpenAI({
-    apiKey: process.env.XAI_API_KEY,
-    baseURL: process.env.XAI_BASE_URL || 'https://api.x.ai/v1',
-  })
-}
-
-async function generateAnalysis(prompt: string): Promise<string> {
-  const response = await getXaiClient().chat.completions.create({
-    model: XAI_MODEL,
-    temperature: 0.4,
-    max_tokens: 2000,
+async function generateAnalysis(prompt: string): Promise<{ analysis?: string; error?: string; status?: number; requires?: string[] }> {
+  const ai = await completeWithAi({
     messages: [{ role: 'user', content: prompt }],
+    maxTokens: 2000,
+    temperature: 0.4,
   })
 
-  return response.choices?.[0]?.message?.content?.trim() || 'No analysis available'
+  if (ai.available === false) {
+    return {
+      error: ai.error,
+      status: 503,
+      requires: ai.requires,
+    }
+  }
+
+  return { analysis: ai.text || 'No analysis available' }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -190,16 +189,18 @@ export async function POST(req: NextRequest) {
   if (rateLimited) return rateLimited
 
   try {
-    if (!process.env.XAI_API_KEY) {
-      return NextResponse.json({ error: 'Missing XAI_API_KEY' }, { status: 500 })
-    }
-
     const { teamA, teamB, polyOddsA, polyOddsB, recordA, recordB, context: customContext } = await req.json()
 
     // If a custom context/prompt is passed (e.g. UFC), use it directly
     if (customContext) {
-      const analysis = await generateAnalysis(customContext)
-      return NextResponse.json({ analysis })
+      const generated = await generateAnalysis(customContext)
+      if (generated.error) {
+        return NextResponse.json(
+          { error: generated.error, requires: generated.requires },
+          { status: generated.status || 503 }
+        )
+      }
+      return NextResponse.json({ analysis: generated.analysis })
     }
 
     const today = getTodayString()
@@ -265,9 +266,15 @@ ${teamA}: ${polyOddsA}% | ${teamB}: ${polyOddsB}%
 ###⚡ The Pick
 [Team name. One sentence. Be direct and confident.]`
 
-    const analysis = await generateAnalysis(prompt)
+    const generated = await generateAnalysis(prompt)
+    if (generated.error) {
+      return NextResponse.json(
+        { error: generated.error, requires: generated.requires },
+        { status: generated.status || 503 }
+      )
+    }
 
-    return NextResponse.json({ analysis })
+    return NextResponse.json({ analysis: generated.analysis })
   } catch (err) {
     console.error('Analysis error:', err)
     return NextResponse.json({ error: 'Analysis failed' }, { status: 500 })
