@@ -16,6 +16,13 @@ import {
   playerNameMatches,
   sizeToNum,
 } from '@/app/lib/props/kalshi-matching'
+import {
+  isExecutableGamePropMarket,
+  isExecutableStandaloneGamePropMarket,
+  kalshiTeamCode,
+  marketContainsGame,
+  selectedLegMarketTicker,
+} from '@/app/lib/props/kalshi-markets'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -557,31 +564,6 @@ function sportPropMetrics(sport: Sport): string[] {
   return ['passing yards', 'passing TDs', 'rushing yards', 'receiving yards', 'receptions']
 }
 
-function kalshiTeamCode(abbr: string, sport: Sport): string {
-  const upper = abbr.toUpperCase()
-  if (sport === 'nba') {
-    const map: Record<string, string> = { NY: 'NYK', SA: 'SAS', GS: 'GSW', PHX: 'PHX', NO: 'NOP', BKN: 'BKN' }
-    return map[upper] || upper
-  }
-  if (sport === 'mlb') {
-    const map: Record<string, string> = {
-      AZ: 'ARI', ARI: 'ARI',
-      ATH: 'ATH', OAK: 'ATH',
-      // ESPN labels the White Sox as CHW; Kalshi MLB player-prop tickers use CWS.
-      CWS: 'CWS', CHW: 'CWS',
-      WSH: 'WSH', WAS: 'WSH',
-      SD: 'SD', SF: 'SF', TB: 'TB',
-    }
-    return map[upper] || upper
-  }
-  return upper
-}
-
-function marketContainsGame(market: any, home: string, away: string): boolean {
-  const hay = `${market.title || ''} ${JSON.stringify(market.custom_strike || {})} ${JSON.stringify(market.mve_selected_legs || [])}`.toUpperCase()
-  return (hay.includes(`${away}${home}`) || hay.includes(`${home}${away}`) || (hay.includes(home) && hay.includes(away)))
-}
-
 async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
   const cached = kalshiRawCache.get(sport)
   if (cached && Date.now() - cached.fetchedAt < KALSHI_RAW_TTL_MS) return cached
@@ -688,10 +670,6 @@ async function fetchKalshiPropMarkets(sport: Sport, home: string, away: string):
   }
 }
 
-function selectedLegMarketTicker(leg: any): string {
-  return String(leg?.market_ticker || leg?.market || leg?.ticker || '')
-}
-
 async function expandExecutableComboLegMarkets(comboMarkets: any[], supportedEventPrefixes: string[], homeCode: string, awayCode: string): Promise<any[]> {
   const candidates = comboMarkets.flatMap((combo: any) => {
     const ask = dollarsToCents(combo.yes_ask_dollars)
@@ -744,27 +722,6 @@ function comboLegTitle(combo: any, legIndex: number): string {
     .map(s => s.trim())
     .filter(Boolean)
   return parts[legIndex] || ''
-}
-
-function isExecutableGamePropMarket(m: any, prefix: string, homeCode: string, awayCode: string): boolean {
-  const ask = dollarsToCents(m.yes_ask_dollars)
-  const askSize = sizeToNum(m.yes_ask_size_fp)
-  // A positive YES ask with size is executable for buying. Kalshi combo props
-  // often show no bid even when there is live ask-side liquidity.
-  if (ask <= 0 || ask >= 100 || askSize <= 0 || !['open', 'active'].includes(String(m.status))) return false
-  const legs = m.mve_selected_legs || []
-  const hasSportLeg = legs.some((l: any) => String(l.market_ticker || l.event_ticker || '').startsWith(prefix))
-  return hasSportLeg && marketContainsGame(m, homeCode, awayCode)
-}
-
-function isExecutableStandaloneGamePropMarket(m: any, prefixes: string[], homeCode: string, awayCode: string): boolean {
-  const ticker = String(m.ticker || '')
-  if ((m.mve_selected_legs || []).length) return false
-  if (!prefixes.some(p => ticker.startsWith(p))) return false
-  const ask = dollarsToCents(m.yes_ask_dollars)
-  const askSize = sizeToNum(m.yes_ask_size_fp)
-  if (ask <= 0 || ask >= 100 || askSize <= 0 || !['open', 'active'].includes(String(m.status))) return false
-  return marketContainsGame(m, homeCode, awayCode) || marketContainsGame({ title: `${m.event_ticker || ''} ${ticker}` }, homeCode, awayCode)
 }
 
 function injuryEndpointForSport(sport: Sport): string | null {
