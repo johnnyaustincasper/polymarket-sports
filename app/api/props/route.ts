@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { ESPN_ABBR } from '@/app/lib/nba-api'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 import { getJsonCache, setJsonCache } from '@/app/lib/durable-cache'
 import {
   dollarsToCents,
@@ -1370,6 +1371,9 @@ function parseSportParam(value: string | null): Sport {
 }
 
 export async function GET(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'props', { limit: 30, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   const timing = startRouteTiming('/api/props')
   const { searchParams } = req.nextUrl
   const home = searchParams.get('home')?.toUpperCase()

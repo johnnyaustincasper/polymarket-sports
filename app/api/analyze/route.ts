@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 
 const XAI_MODEL = process.env.XAI_MODEL || 'grok-3-mini'
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
@@ -185,6 +186,9 @@ async function getGameContext(teamA: string, teamB: string): Promise<string> {
 // ─── Main Handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'analyze', { limit: 20, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   try {
     if (!process.env.XAI_API_KEY) {
       return NextResponse.json({ error: 'Missing XAI_API_KEY' }, { status: 500 })

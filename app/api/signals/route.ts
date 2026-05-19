@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getJsonCache, getJsonList, prependJsonList, setJsonCache, setJsonList } from '@/app/lib/durable-cache'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -293,6 +294,9 @@ function roiForResult(entry: SignalLedgerEntry, hit: boolean): number | null {
 }
 
 export async function GET(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'signals', { limit: 30, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   const timing = startRouteTiming('/api/signals')
   try {
     const sport = parseSport(req.nextUrl.searchParams.get('sport'))
@@ -341,6 +345,9 @@ async function settleLedger(req: NextRequest, sport: Sport, limit: number): Prom
 }
 
 export async function POST(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'signals-write', { limit: 10, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   const timing = startRouteTiming('/api/signals')
   try {
     const body = await req.json().catch(() => ({}))
