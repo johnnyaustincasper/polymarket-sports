@@ -16,5 +16,16 @@ describe('durable cache status', () => {
     expect(status.mode).toBe('redis')
     expect(status.remoteConfigured).toBe(true)
     expect(status.prefix).toBe('ai-prod')
+    expect(status.recommendedForProduction).toBe(true)
+    expect(status.warning).toBeUndefined()
+  })
+
+  it('flags production memory fallback as not production safe', () => {
+    const status = getDurableCacheStatus({ NODE_ENV: 'production', VERCEL: '1' })
+
+    expect(status.mode).toBe('memory')
+    expect(status.remoteConfigured).toBe(false)
+    expect(status.recommendedForProduction).toBe(false)
+    expect(status.warning).toContain('Redis')
   })
 })

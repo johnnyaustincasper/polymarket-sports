@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import {
   fetchTeamRecentGames,
   calcStreak,
@@ -7,12 +6,12 @@ import {
   fetchFatigueReport,
 } from '@/app/lib/nba-api'
 import type { TeamIntel } from '@/app/lib/types'
+import { completeWithAi } from '@/app/lib/ai-provider'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 
 // ─── Static pace data (possessions per 48 min, 2024-25 approx) ──────────────
@@ -296,12 +295,12 @@ Write exactly 2 sentences: "Edge: [TEAM] — [reason1]. [reason2]."
 Prioritize load management / fatigue / back-to-back factors if relevant. Be direct and specific. No fluff.`
 
   try {
-    const msg = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 120,
+    const ai = await completeWithAi({
       messages: [{ role: 'user', content: prompt }],
     })
-    return (msg.content[0] as any).text?.trim() || ''
+    if (ai.available === true && ai.text.trim()) return ai.text.trim()
+    const unavailableReason = ai.available === false ? ` AI unavailable: ${ai.error}` : ''
+    return `Edge: ${homeStreak.startsWith('W') ? homeAbbr : awayAbbr} — home advantage and current form favor them tonight.${unavailableReason}`
   } catch {
     return `Edge: ${homeStreak.startsWith('W') ? homeAbbr : awayAbbr} — home advantage and current form favor them tonight.`
   }
