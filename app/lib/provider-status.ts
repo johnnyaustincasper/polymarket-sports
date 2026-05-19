@@ -1,5 +1,6 @@
 import { getAuthConfigStatus } from './auth'
 import { getDurableCacheStatus } from './durable-cache'
+import { getBillingStatus } from './billing'
 import { isGuestAccessEnabled } from './guest-access'
 
 type Env = Record<string, string | undefined>
