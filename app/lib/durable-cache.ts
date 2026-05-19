@@ -2,16 +2,32 @@ type MemoryEntry = { value: unknown; expiresAt: number }
 
 const memoryCache = new Map<string, MemoryEntry>()
 const memoryLists = new Map<string, MemoryEntry>()
-const CACHE_PREFIX = process.env.DURABLE_CACHE_PREFIX || process.env.KV_CACHE_PREFIX || 'athlete-intel'
 
-function restConfig(): { url: string; token: string } | null {
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || process.env.REDIS_REST_API_URL
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || process.env.REDIS_REST_API_TOKEN || process.env.KV_REST_API_READ_ONLY_TOKEN || process.env.UPSTASH_REDIS_REST_READONLY_TOKEN
+function cachePrefix(env: Record<string, string | undefined> = process.env): string {
+  return env.DURABLE_CACHE_PREFIX || env.KV_CACHE_PREFIX || 'athlete-intel'
+}
+
+const CACHE_PREFIX = cachePrefix()
+
+function restConfig(env: Record<string, string | undefined> = process.env): { url: string; token: string } | null {
+  const url = env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL || env.REDIS_REST_API_URL
+  const token = env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN || env.REDIS_REST_API_TOKEN || env.KV_REST_API_READ_ONLY_TOKEN || env.UPSTASH_REDIS_REST_READONLY_TOKEN
   return url && token ? { url: url.replace(/\/$/, ''), token } : null
 }
 
 function cacheKey(key: string): string {
   return `${CACHE_PREFIX}:${key}`
+}
+
+export function getDurableCacheStatus(env: Record<string, string | undefined> = process.env) {
+  const remoteConfigured = Boolean(restConfig(env))
+  return {
+    mode: remoteConfigured ? 'redis' : 'memory',
+    remoteConfigured,
+    prefix: cachePrefix(env),
+    memoryKeys: memoryCache.size,
+    memoryListKeys: memoryLists.size,
+  }
 }
 
 function getMemory<T>(key: string): T | null {

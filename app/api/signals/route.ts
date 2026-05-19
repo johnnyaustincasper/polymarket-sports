@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getJsonCache, getJsonList, prependJsonList, setJsonCache, setJsonList } from '@/app/lib/durable-cache'
+import { getJsonCache, getJsonList, prependJsonList, setJsonCache, setJsonList, getDurableCacheStatus } from '@/app/lib/durable-cache'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
 import { enforceRateLimit } from '@/app/lib/rate-limit'
 
@@ -60,6 +60,7 @@ type SignalsResponse = {
     avgEdge: number
     bestEdge: number
   }
+  cache?: ReturnType<typeof getDurableCacheStatus>
 }
 
 type SignalLedgerEntry = ModelSignal & {
@@ -362,7 +363,15 @@ export async function POST(req: NextRequest) {
     const force = body.force === true
 
     if (!activeGames.length) {
-      const empty: SignalsResponse = { sport, generatedAt: new Date().toISOString(), gamesScanned: 0, contractsScored: 0, signals: [], summary: { a: 0, b: 0, watch: 0, avgEdge: 0, bestEdge: 0 } }
+      const empty: SignalsResponse = {
+        sport,
+        generatedAt: new Date().toISOString(),
+        gamesScanned: 0,
+        contractsScored: 0,
+        signals: [],
+        summary: { a: 0, b: 0, watch: 0, avgEdge: 0, bestEdge: 0 },
+        cache: getDurableCacheStatus(),
+      }
       return finishRouteTiming(timing, NextResponse.json(empty))
     }
 
@@ -410,6 +419,7 @@ export async function POST(req: NextRequest) {
         avgEdge: edges.length ? Math.round(edges.reduce((sum, n) => sum + n, 0) / edges.length) : 0,
         bestEdge: edges.length ? Math.max(...edges) : 0,
       },
+      cache: getDurableCacheStatus(),
     }
 
     await setJsonCache(cacheKey, response, 5 * 60_000)
