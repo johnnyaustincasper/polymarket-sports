@@ -109,6 +109,7 @@ interface PredictionData {
 }
 interface InjuredPlayer {
   name: string; position: string; status: string; detail: string
+  injury?: string; fantasyStatus?: string; source?: string; updatedAt?: string
 }
 interface BettingSplits {
   homePct: number | null; awayPct: number | null
@@ -972,6 +973,18 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
         </div>
       ) : intel ? (
         <>
+          {[
+            { abbr: intel.away.abbr, players: intel.injuryImpact.awayPlayers || [] },
+            { abbr: intel.home.abbr, players: intel.injuryImpact.homePlayers || [] },
+          ].map(team => team.players.filter(p => /out|doubtful|questionable|gtd|day-to-day/i.test(p.status)).slice(0, 3).map(player => (
+            <div key={`inj-alert-${team.abbr}-${player.name}`} style={{ borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, background: /out|doubtful/i.test(player.status) ? 'rgba(255,68,102,0.12)' : 'rgba(255,165,0,0.10)', border: /out|doubtful/i.test(player.status) ? '1px solid rgba(255,68,102,0.45)' : '1px solid rgba(255,165,0,0.38)' }}>
+              <span>{/out|doubtful/i.test(player.status) ? '🚨' : '⚠️'}</span>
+              <p style={{ color: /out|doubtful/i.test(player.status) ? C.red : C.gold, fontSize: 11, fontWeight: 800, lineHeight: 1.45 }}>
+                {team.abbr}: <strong>{player.name}</strong> {player.status}{player.injury ? ` — ${player.injury}` : ''}{player.detail ? ` · ${player.detail}` : ''}
+              </p>
+            </div>
+          )))}
+
           {[intel.away, intel.home].map(team =>
             team.fatigue?.hasRestingStarter ? (
               <div key={`rest-${team.abbr}`} style={{ borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, background: 'rgba(255,68,102,0.1)', border: '1px solid rgba(255,68,102,0.4)' }}>
