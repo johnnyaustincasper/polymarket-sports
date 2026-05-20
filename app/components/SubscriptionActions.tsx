@@ -13,6 +13,9 @@ export default function SubscriptionActions({ mode = 'checkout' }: { mode?: 'che
       const endpoint = mode === 'portal' ? '/api/stripe/portal' : '/api/stripe/checkout'
       const res = await fetch(endpoint, { method: 'POST' })
       const data = await res.json().catch(() => ({}))
+      if (res.status === 503) {
+        throw new Error('Billing is temporarily unavailable. Please try again later or contact support.')
+      }
       if (!res.ok || !data.url) throw new Error(data.error || data.reason || 'Stripe is not ready yet.')
       window.location.href = data.url
     } catch (err) {
