@@ -12,6 +12,7 @@
     "verify": "npm run test && npm run typecheck && npm run lint && npm run build",
     "check:prop-coverage": "node scripts/check-prop-coverage.js",
     "smoke:prod": "node scripts/smoke-production.js",
+    "smoke:prod:strict": "SMOKE_STRICT_WARNINGS=1 node scripts/smoke-production.js",
     "start": "next start"
   },
   "dependencies": {
