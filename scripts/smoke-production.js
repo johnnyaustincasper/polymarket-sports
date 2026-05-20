@@ -25,8 +25,18 @@ function warn(name, detail) {
   checks.push({ ok: true, warning: true, name, detail })
 }
 
+function parseBaseUrlArg(argv = process.argv.slice(2)) {
+  const urlFlagIndex = argv.findIndex(arg => arg === '--url' || arg === '--base-url')
+  if (urlFlagIndex >= 0) return argv[urlFlagIndex + 1]
+
+  const inlineFlag = argv.find(arg => arg.startsWith('--url=') || arg.startsWith('--base-url='))
+  if (inlineFlag) return inlineFlag.split('=').slice(1).join('=')
+
+  return argv.find(arg => !arg.startsWith('-'))
+}
+
 function baseUrl() {
-  const raw = process.env.SMOKE_BASE_URL || process.argv[2] || DEFAULT_BASE_URL
+  const raw = process.env.SMOKE_BASE_URL || parseBaseUrlArg() || DEFAULT_BASE_URL
   return raw.replace(/\/$/, '')
 }
 

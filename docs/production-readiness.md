@@ -13,9 +13,12 @@ npm run smoke:prod
 Optional overrides:
 
 ```bash
+npm run smoke:prod -- --url=https://athleteintelligence.xyz
+npm run smoke:prod -- --url https://athleteintelligence.xyz
 SMOKE_BASE_URL=https://athleteintelligence.xyz npm run smoke:prod
 SMOKE_TIMEOUT_MS=15000 npm run smoke:prod
 SMOKE_STRICT_WARNINGS=1 npm run smoke:prod
+npm run smoke:prod:strict -- --url=https://athleteintelligence.xyz
 ```
 
 The smoke test checks:
@@ -49,6 +52,8 @@ Readiness criteria:
 
 Operational notes:
 
+- For Vercel Marketplace setup, install `upstash/upstash-kv` or `redis`, connect it to `polymarket-sports`, attach the generated REST URL/token to Production, then redeploy production.
+- Vercel env changes do not affect already-running serverless functions; always run a fresh production deploy after adding/changing Redis/KV variables.
 - Use a production-only Redis/KV database. Do not share with preview/dev unless prefixes are unique.
 - Keep REST tokens in Vercel environment variables only; never commit them.
 - Rotate Redis/KV tokens after incident response or suspected exposure.
@@ -127,4 +132,4 @@ Observed on `https://athleteintelligence.xyz` during readiness hardening:
 - Guest access is enabled: confirm this is the intended launch policy or set `ENABLE_GUEST_ACCESS=false`.
 - `authorizedUserCount` is `0` and `bootstrapMode` is `true`: add `AUTHORIZED_EMAILS` or `AUTHORIZED_USERS_JSON` for controlled access and turn off bootstrap once admins are configured.
 
-These warnings should be resolved or explicitly accepted before a production launch gate.
+These warnings should be resolved or explicitly accepted before a production launch gate. For the 1k-user readiness gate, the durable cache warning is blocking: `npm run smoke:prod:strict -- --url=https://athleteintelligence.xyz` must pass with no provider warnings.
