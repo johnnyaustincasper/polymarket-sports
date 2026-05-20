@@ -9,6 +9,7 @@ import type { TeamIntel } from '@/app/lib/types'
 import { completeWithAi } from '@/app/lib/ai-provider'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
 import { enforceRateLimit } from '@/app/lib/rate-limit'
+import { classifyInjuryImpact, filterInjuriesForTeam, summarizeInjuries, type InjuredPlayer } from '@/app/lib/nba-injuries'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -53,31 +54,6 @@ function computeHomeAwaySplits(games: { win: boolean; isHome: boolean }[]) {
   }
 }
 
-// ─── Injured Player type ─────────────────────────────────────────────────────
-export interface InjuredPlayer {
-  name: string
-  position: string
-  status: string
-  detail: string
-}
-
-// ─── ESPN Injury API ─────────────────────────────────────────────────────────
-// Uses the global NBA injuries endpoint — the per-team endpoint returns {}
-// NOTE: the injuries endpoint returns abbreviation=undefined for all teams,
-// so we must match by exact displayName using this map.
-const TEAM_DISPLAY_NAMES: Record<string, string> = {
-  ATL: 'Atlanta Hawks',    BOS: 'Boston Celtics',     BKN: 'Brooklyn Nets',
-  CHA: 'Charlotte Hornets', CHI: 'Chicago Bulls',    CLE: 'Cleveland Cavaliers',
-  DAL: 'Dallas Mavericks', DEN: 'Denver Nuggets',     DET: 'Detroit Pistons',
-  GSW: 'Golden State Warriors', HOU: 'Houston Rockets', IND: 'Indiana Pacers',
-  LAC: 'LA Clippers',      LAL: 'Los Angeles Lakers', MEM: 'Memphis Grizzlies',
-  MIA: 'Miami Heat',       MIL: 'Milwaukee Bucks',    MIN: 'Minnesota Timberwolves',
-  NOP: 'New Orleans Pelicans', NYK: 'New York Knicks', OKC: 'Oklahoma City Thunder',
-  ORL: 'Orlando Magic',    PHI: 'Philadelphia 76ers', PHX: 'Phoenix Suns',
-  POR: 'Portland Trail Blazers', SAC: 'Sacramento Kings', SAS: 'San Antonio Spurs',
-  TOR: 'Toronto Raptors',  UTA: 'Utah Jazz',          WAS: 'Washington Wizards',
-}
-
 let _injuryCacheTime = 0
 let _injuryCache: any[] = []
 
@@ -95,29 +71,10 @@ async function fetchEspnInjuries(teamAbbr: string): Promise<InjuredPlayer[]> {
       _injuryCacheTime = Date.now()
     }
 
-    // Match by exact displayName — abbreviation field is undefined in this endpoint
-    const targetName = TEAM_DISPLAY_NAMES[teamAbbr.toUpperCase()]
-    const teamSection = _injuryCache.find((t: any) =>
-      targetName ? t.displayName === targetName : false
-    )
-    if (!teamSection) return []
-
-    return (teamSection.injuries || []).map((inj: any) => ({
-      name: inj.athlete?.displayName || 'Unknown',
-      position: inj.athlete?.position?.abbreviation || '?',
-      status: inj.status || 'Unknown',
-      detail: inj.shortComment || inj.longComment?.slice(0, 120) || '',
-    })).filter((p: InjuredPlayer) => p.name !== 'Unknown')
+    return filterInjuriesForTeam(_injuryCache, teamAbbr)
   } catch {
     return []
   }
-}
-
-function classifyInjuryImpact(players: InjuredPlayer[]): 'none' | 'minor' | 'major' {
-  if (players.length === 0) return 'none'
-  if (players.some(p => p.status === 'Out' || p.status === 'Doubtful')) return 'major'
-  if (players.some(p => p.status === 'Questionable' || p.status === 'Day-To-Day' || p.status === 'GTD')) return 'minor'
-  return 'none'
 }
 
 // ─── H2H with last meeting ────────────────────────────────────────────────────
@@ -393,8 +350,8 @@ export async function GET(req: NextRequest) {
       injuryImpact: {
         home: classifyInjuryImpact(homeInjuries),
         away: classifyInjuryImpact(awayInjuries),
-        homeNotes: '',
-        awayNotes: '',
+        homeNotes: summarizeInjuries(homeInjuries),
+        awayNotes: summarizeInjuries(awayInjuries),
         homePlayers: homeInjuries,
         awayPlayers: awayInjuries,
       },
