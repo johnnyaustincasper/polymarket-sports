@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -113,6 +114,9 @@ async function findPreviousCompletedEventId(teamId: string, currentEventId: stri
 }
 
 export async function GET(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'lineups', { limit: 60, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   const { searchParams } = req.nextUrl
   const eventId = searchParams.get('eventId')
   const sport = (searchParams.get('sport') || 'nba').toLowerCase()

@@ -64,7 +64,7 @@ const clerkPassThrough = clerkMiddleware(() => NextResponse.next(), {
   signUpUrl: '/sign-up',
 })
 
-export default function middleware(req: NextRequest, event: any) {
+export function proxy(req: NextRequest, event: any) {
   if (!clerkEnabled) return legacyMiddleware(req)
   return clerkPassThrough(req, event)
 }

@@ -47,6 +47,12 @@ This app should run as a Vercel/Next.js app at `https://athleteintelligence.xyz`
 
 `GET /api/auth/status` returns existing auth/cache status plus a safe `providers` object. It only exposes booleans, roles, modes, public provider labels, model names, and hostnames. It must never expose API keys, tokens, Redis URLs, or Stripe secrets.
 
+For deployment gates and production smoke checks, see `docs/production-readiness.md` and run:
+
+```bash
+npm run smoke:prod
+```
+
 ## Stripe webhook setup
 
 Configure Stripe to send webhooks to:

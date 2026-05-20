@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { completeWithAi } from '@/app/lib/ai-provider'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -295,7 +296,10 @@ async function getH2H(awayAbbr: string, homeName: string): Promise<string> {
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'bot:fullscan', { limit: 5, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   const { searchParams } = new URL(req.url)
   const bankroll = parseFloat(searchParams.get('bankroll') || '200')
 

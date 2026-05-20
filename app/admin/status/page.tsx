@@ -1,12 +1,11 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
+import { getProviderStatus } from '@/app/lib/provider-status'
 
-async function getProviderStatus() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/provider-status`, {
-    cache: 'no-store',
-  })
-  if (!res.ok) throw new Error('Failed to fetch provider status')
-  return res.json()
+function statusBadge(ready: boolean, severity?: string) {
+  if (ready) return '✅ Ready'
+  if (severity === 'warning') return '⚠️ Warning'
+  return '🚫 Blocked'
 }
 
 export default async function AdminStatusPage() {
@@ -14,13 +13,34 @@ export default async function AdminStatusPage() {
   if (!userId) redirect('/login')
 
   // TODO: Add proper admin role check here later
-  const status = await getProviderStatus()
+  const status = getProviderStatus()
+  const readinessChecks = Object.entries(status.readiness.checks)
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Provider Status</h1>
 
       <div className="grid gap-6">
+        {/* Readiness */}
+        <section className={`rounded-xl border p-6 ${status.readiness.ready ? 'border-green-500/50 bg-green-950/20' : 'border-red-500/50 bg-red-950/20'}`}>
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <h2 className="text-xl font-semibold">Production Readiness</h2>
+            <span className="text-sm font-medium">{status.readiness.ready ? '✅ Ready' : '🚫 Not ready'}</span>
+          </div>
+          <p className="text-xs text-zinc-400 mb-4">Generated: {status.readiness.generatedAt}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {readinessChecks.map(([name, check]) => (
+              <div key={name} className="rounded-lg border border-zinc-800 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium capitalize">{name}</span>
+                  <span className="text-xs">{statusBadge(check.ready, check.severity)}</span>
+                </div>
+                <p className="mt-2 text-sm text-zinc-300">{check.message}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* Billing */}
         <section className="rounded-xl border p-6">
           <h2 className="text-xl font-semibold mb-4">Billing</h2>

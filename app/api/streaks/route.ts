@@ -7,6 +7,7 @@ import {
   ESPN_ABBR,
 } from '@/app/lib/nba-api'
 import type { TeamStreak } from '@/app/lib/types'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -91,6 +92,9 @@ FACTORS:
 }
 
 export async function GET(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'streaks', { limit: 20, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   try {
     const searchParams = req.nextUrl.searchParams
     const forceAll = searchParams.get('all') === 'true'

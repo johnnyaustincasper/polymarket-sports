@@ -92,52 +92,121 @@ function aiStatus(env: Env) {
   }
 }
 
+type ReadinessSeverity = 'ready' | 'warning' | 'blocked'
+
+function readinessCheck(ready: boolean, severity: ReadinessSeverity, message: string) {
+  return { ready, severity, message }
+}
+
+function buildReadiness({
+  auth,
+  billing,
+  cache,
+  ai,
+  search,
+  markets,
+}: {
+  auth: ReturnType<typeof authStatus>
+  billing: ReturnType<typeof getBillingStatus>
+  cache: ReturnType<typeof getDurableCacheStatus>
+  ai: ReturnType<typeof aiStatus>
+  search: { brave: { configured: boolean; role: 'optional-context' } }
+  markets: {
+    kalshi: { available: boolean }
+    polymarket: { available: boolean }
+  }
+}) {
+  const authProviderReady = auth.clerkConfigured || auth.legacySessionConfigured
+  const authAccessReady = auth.authorizedUserCount > 0 || auth.hasGlobalInviteCode || auth.guestAccessEnabled || auth.bootstrapMode
+  const authReady = authProviderReady && authAccessReady
+  const marketsReady = markets.kalshi.available || markets.polymarket.available
+
+  const checks = {
+    cache: readinessCheck(
+      cache.recommendedForProduction,
+      cache.recommendedForProduction ? 'ready' : 'blocked',
+      cache.recommendedForProduction ? 'Durable cache is production-ready.' : 'Configure Upstash or Vercel KV for durable production caching.',
+    ),
+    auth: readinessCheck(
+      authReady,
+      authReady ? 'ready' : 'blocked',
+      authReady ? 'Authentication and at least one access path are configured.' : 'Configure Clerk or legacy session auth plus an authorized user, invite code, or guest access.',
+    ),
+    billing: readinessCheck(
+      billing.isFullyConfigured,
+      billing.isFullyConfigured ? 'ready' : 'blocked',
+      billing.isFullyConfigured ? 'Stripe checkout and webhook handling are configured.' : 'Configure Stripe secret, price, and webhook secret for paid subscriptions.',
+    ),
+    ai: readinessCheck(
+      Boolean(ai.primary),
+      ai.primary ? 'ready' : 'blocked',
+      ai.primary ? `Primary AI provider is ${ai.primary}.` : 'Configure xAI or Anthropic for AI-backed analysis.',
+    ),
+    search: readinessCheck(
+      search.brave.configured,
+      search.brave.configured ? 'ready' : 'warning',
+      search.brave.configured ? 'Brave Search context is configured.' : 'Brave Search is optional but missing, so contextual search enrichment is disabled.',
+    ),
+    markets: readinessCheck(
+      marketsReady,
+      marketsReady ? 'ready' : 'blocked',
+      marketsReady ? 'At least one public market data source is available.' : 'No market data source is available.',
+    ),
+  }
+
+  const criticalChecks = [checks.cache, checks.auth, checks.billing, checks.ai, checks.markets]
+  return {
+    ready: criticalChecks.every(check => check.ready),
+    checks,
+    generatedAt: new Date().toISOString(),
+  }
+}
+
 export function getProviderStatus(env: Env = process.env) {
   const cache = getDurableCacheStatus(env)
   const ai = aiStatus(env)
-  const warnings: string[] = []
-
-  if (!ai.primary) warnings.push('No AI provider is configured; analysis routes should return degraded non-AI responses.')
-  if (!cache.recommendedForProduction) warnings.push('Durable cache is using memory fallback in production; configure Upstash or Vercel KV.')
-  if (!configured(env.STRIPE_SECRET_KEY) || !configured(env.STRIPE_PRICE_ID)) warnings.push('Stripe checkout is not fully configured.')
+  const auth = authStatus(env)
+  const billing = getBillingStatus(env as NodeJS.ProcessEnv)
+  const search = {
+    brave: {
+      configured: configured(env.BRAVE_API_KEY),
+      role: 'optional-context' as const,
+    },
+  }
+  const markets = {
+    primary: 'kalshi' as const,
+    kalshi: {
+      available: true,
+      requiresSecret: false,
+      source: 'public-api' as const,
+      role: 'primary-props-contracts' as const,
+    },
+    polymarket: {
+      available: true,
+      requiresSecret: false,
+      source: 'public-api' as const,
+      role: 'legacy-event-scanner' as const,
+    },
+  }
+  const readiness = buildReadiness({ auth, billing, cache, ai, search, markets })
+  const warnings = Object.values(readiness.checks)
+    .filter(check => check.severity !== 'ready')
+    .map(check => check.message)
 
   return {
+    readiness,
     app: {
       appUrlConfigured: configured(env.NEXT_PUBLIC_APP_URL),
       appUrlHost: urlHost(env.NEXT_PUBLIC_APP_URL),
       isVercel: env.VERCEL === '1' || env.VERCEL === 'true',
       nodeEnv: env.NODE_ENV || null,
     },
-    auth: authStatus(env),
-    billing: {
-      stripeConfigured: configured(env.STRIPE_SECRET_KEY),
-      checkoutConfigured: configured(env.STRIPE_SECRET_KEY) && configured(env.STRIPE_PRICE_ID),
-      webhookConfigured: configured(env.STRIPE_SECRET_KEY) && configured(env.STRIPE_WEBHOOK_SECRET),
-      priceConfigured: configured(env.STRIPE_PRICE_ID),
-    },
+    auth,
+    billing,
     cache,
     ai,
-    search: {
-      brave: {
-        configured: configured(env.BRAVE_API_KEY),
-        role: 'optional-context' as const,
-      },
-    },
-    markets: {
-      primary: 'kalshi' as const,
-      kalshi: {
-        available: true,
-        requiresSecret: false,
-        source: 'public-api' as const,
-        role: 'primary-props-contracts' as const,
-      },
-      polymarket: {
-        available: true,
-        requiresSecret: false,
-        source: 'public-api' as const,
-        role: 'legacy-event-scanner' as const,
-      },
-    },
+    search,
+    markets,
     sports: {
       espn: {
         available: true,

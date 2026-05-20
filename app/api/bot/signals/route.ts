@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { completeWithAi } from '@/app/lib/ai-provider'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
 
@@ -57,6 +58,9 @@ export interface NarrativeSignal {
 }
 
 export async function POST(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'bot:signals', { limit: 10, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   const { game, awayTeam, homeTeam, gameTime } = await req.json()
 
   if (!game || !awayTeam || !homeTeam) {
