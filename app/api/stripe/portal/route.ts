@@ -1,6 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { requireStripe } from '@/app/lib/billing'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -24,8 +25,11 @@ function unavailable(reason: string) {
 }
 
 export async function POST() {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return unavailable('Stripe is not configured yet.')
+  let stripeKey: string
+  try {
+    stripeKey = requireStripe()
+  } catch {
+    return NextResponse.json({ error: 'Stripe is not configured yet.' }, { status: 503 })
   }
 
   if (!clerkEnabled) return unavailable('Billing management needs Clerk account auth connected. Guest/legacy users have full testing access but no Stripe customer yet.')
@@ -39,7 +43,7 @@ export async function POST() {
     return unavailable('No Stripe customer found yet.')
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-04-22.dahlia' })
+  const stripe = new Stripe(stripeKey, { apiVersion: '2026-04-22.dahlia' })
 
   try {
     const session = await stripe.billingPortal.sessions.create({

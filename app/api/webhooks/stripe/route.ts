@@ -1,6 +1,7 @@
 import { clerkClient } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { requireStripe } from '@/app/lib/billing'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -33,11 +34,18 @@ async function updateUser(userId: string, data: Record<string, unknown>) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+  let stripeKey: string
+  try {
+    stripeKey = requireStripe()
+  } catch {
     return NextResponse.json({ error: 'Stripe webhook is not configured.' }, { status: 503 })
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-04-22.dahlia' })
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    return NextResponse.json({ error: 'Stripe webhook is not configured.' }, { status: 503 })
+  }
+
+  const stripe = new Stripe(stripeKey, { apiVersion: '2026-04-22.dahlia' })
   const signature = req.headers.get('stripe-signature')
   if (!signature) return NextResponse.json({ error: 'Missing signature.' }, { status: 400 })
 

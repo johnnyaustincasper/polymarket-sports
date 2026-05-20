@@ -21,12 +21,20 @@ function cacheKey(key: string): string {
 
 export function getDurableCacheStatus(env: Record<string, string | undefined> = process.env) {
   const remoteConfigured = Boolean(restConfig(env))
+  const productionRuntime = env.NODE_ENV === 'production' || env.VERCEL === '1' || env.VERCEL === 'true'
+  const recommendedForProduction = remoteConfigured || !productionRuntime
+  const warning = recommendedForProduction
+    ? undefined
+    : 'Redis/Vercel KV is not configured; memory fallback is not durable in production.'
+
   return {
     mode: remoteConfigured ? 'redis' : 'memory',
     remoteConfigured,
     prefix: cachePrefix(env),
     memoryKeys: memoryCache.size,
     memoryListKeys: memoryLists.size,
+    recommendedForProduction,
+    warning,
   }
 }
 

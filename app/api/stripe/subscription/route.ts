@@ -1,5 +1,6 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { getBillingStatus } from '@/app/lib/billing'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,14 +15,15 @@ type SubscriptionMetadata = {
 }
 
 function subscriptionPayload(metadata: SubscriptionMetadata = {}) {
+  const billing = getBillingStatus()
   const status = metadata.subscriptionStatus || 'inactive'
   const hasStripeCustomer = Boolean(metadata.stripeCustomerId)
 
   return {
     configured: {
       clerk: clerkEnabled,
-      stripe: Boolean(process.env.STRIPE_SECRET_KEY),
-      billingPortal: Boolean(process.env.STRIPE_SECRET_KEY && hasStripeCustomer),
+      stripe: billing.stripeConfigured,
+      billingPortal: billing.stripeConfigured && hasStripeCustomer,
     },
     subscription: {
       status,
@@ -33,6 +35,11 @@ function subscriptionPayload(metadata: SubscriptionMetadata = {}) {
 }
 
 export async function GET() {
+  const billing = getBillingStatus()
+  if (!billing.stripeConfigured) {
+    return NextResponse.json({ error: 'Stripe is not configured yet.' }, { status: 503 })
+  }
+
   if (!clerkEnabled) {
     return NextResponse.json({
       available: false,
