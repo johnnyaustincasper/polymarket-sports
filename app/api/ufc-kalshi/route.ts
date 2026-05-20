@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -95,7 +96,10 @@ async function fetchSeries(seriesTicker: string) {
   return markets
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'ufc-kalshi', { limit: 10, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   try {
     const byFight = new Map<string, any>()
     const scannedBySeries: Record<string, number> = {}

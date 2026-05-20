@@ -18,6 +18,13 @@ describe('provider status', () => {
     expect(status.markets.primary).toBe('kalshi')
     expect(status.markets.kalshi.available).toBe(true)
     expect(status.markets.polymarket.available).toBe(true)
+    expect(status.readiness.ready).toBe(false)
+    expect(status.readiness.checks.cache.ready).toBe(true)
+    expect(status.readiness.checks.auth.ready).toBe(false)
+    expect(status.readiness.checks.billing.ready).toBe(false)
+    expect(status.readiness.checks.ai.ready).toBe(false)
+    expect(status.readiness.checks.search.ready).toBe(false)
+    expect(status.readiness.checks.markets.ready).toBe(true)
   })
 
   it('reports configured providers without exposing secret values', () => {
@@ -26,6 +33,7 @@ describe('provider status', () => {
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_secretish',
       CLERK_SECRET_KEY: 'sk_test_secretish',
       AUTH_SESSION_SECRET: 'session-secret',
+      AUTHORIZED_EMAILS: 'admin@example.com',
       ENABLE_GUEST_ACCESS: 'false',
       STRIPE_SECRET_KEY: 'sk_live_secretish',
       STRIPE_PRICE_ID: 'price_123',
@@ -47,6 +55,16 @@ describe('provider status', () => {
     expect(status.ai.xai).toMatchObject({ configured: true, model: 'grok-4.3', baseUrlHost: 'api.x.ai' })
     expect(status.ai.anthropic).toMatchObject({ configured: true, role: 'fallback' })
     expect(status.search.brave.configured).toBe(true)
+    expect(status.readiness.ready).toBe(true)
+    expect(status.readiness.checks).toMatchObject({
+      cache: { ready: true, severity: 'ready' },
+      auth: { ready: true, severity: 'ready' },
+      billing: { ready: true, severity: 'ready' },
+      ai: { ready: true, severity: 'ready' },
+      search: { ready: true, severity: 'ready' },
+      markets: { ready: true, severity: 'ready' },
+    })
+    expect(status.warnings).toEqual([])
 
     const serialized = JSON.stringify(status)
     expect(serialized).not.toContain('secret')

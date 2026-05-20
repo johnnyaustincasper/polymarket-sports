@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -162,7 +163,10 @@ async function getBestAsk(tokenId: string): Promise<number | null> {
   } catch { return null }
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'bot:scan', { limit: 10, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   try {
     const { searchParams } = new URL(req.url)
     const sportParam = (searchParams.get('sport') || 'nba').toLowerCase()

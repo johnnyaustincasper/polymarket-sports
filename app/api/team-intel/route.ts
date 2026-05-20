@@ -8,6 +8,7 @@ import {
 import type { TeamIntel } from '@/app/lib/types'
 import { completeWithAi } from '@/app/lib/ai-provider'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -307,6 +308,9 @@ Prioritize load management / fatigue / back-to-back factors if relevant. Be dire
 }
 
 export async function GET(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'team-intel', { limit: 20, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   const timing = startRouteTiming('/api/team-intel')
   try {
     const { searchParams } = req.nextUrl

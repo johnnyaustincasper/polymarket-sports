@@ -7,7 +7,8 @@ import { SESSION_COOKIE, verifySessionToken } from './lib/auth'
 const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY)
 
 export default async function HomePage() {
-  const guestOrLegacy = await verifySessionToken(cookies().get(SESSION_COOKIE)?.value)
+  const cookieStore = await cookies()
+  const guestOrLegacy = await verifySessionToken(cookieStore.get(SESSION_COOKIE)?.value)
 
   if (clerkEnabled && !guestOrLegacy) {
     const { userId, sessionClaims } = await auth()

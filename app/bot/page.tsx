@@ -6,6 +6,14 @@ import {
   loadCalls, addCall, updateCallStatus, deleteCalls,
   calcKelly, calcPnL, calcStats, exportCSV,
 } from './callTracker'
+import {
+  formatCents as cent,
+  formatEdge as edge,
+  formatGameTime as hhmm,
+  formatPct as pct,
+  formatTimeUntil as timeUntil,
+  formatUnits as units,
+} from '../lib/bot-formatting'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -64,15 +72,6 @@ interface SavedScan {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const pct  = (n: number) => (n * 100).toFixed(1) + '%'
-const cent = (n: number) => (n * 100).toFixed(1) + '¢'
-const edge = (n: number) => (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '¢'
-const units= (n: number) => (n >= 0 ? '+' : '') + n.toFixed(3) + 'u'
-
-function hhmm(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
-}
-
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false)
@@ -83,16 +82,6 @@ function useIsMobile() {
     return () => window.removeEventListener('resize', update)
   }, [])
   return isMobile
-}
-
-function timeUntil(iso: string): string {
-  const diff = new Date(iso).getTime() - Date.now()
-  if (diff <= 0) return 'Now'
-  const h = Math.floor(diff / 3600000)
-  const m = Math.floor((diff % 3600000) / 60000)
-  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`
-  if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
 }
 
 // ── Micro components ──────────────────────────────────────────────────────────

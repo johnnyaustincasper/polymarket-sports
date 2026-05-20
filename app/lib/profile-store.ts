@@ -87,7 +87,7 @@ function storeKind() {
 async function readFileProfiles(): Promise<StoredProfiles> {
   const fs = await import('fs/promises')
   const path = await import('path')
-  const file = process.env.PROFILE_STORE_FILE || path.join(process.cwd(), '.data', 'profiles.json')
+  const file = process.env.PROFILE_STORE_FILE || path.join(/* turbopackIgnore: true */ process.cwd(), '.data', 'profiles.json')
 
   try {
     const raw = await fs.readFile(file, 'utf8')
@@ -102,7 +102,7 @@ async function readFileProfiles(): Promise<StoredProfiles> {
 async function writeFileProfiles(profiles: StoredProfiles) {
   const fs = await import('fs/promises')
   const path = await import('path')
-  const file = process.env.PROFILE_STORE_FILE || path.join(process.cwd(), '.data', 'profiles.json')
+  const file = process.env.PROFILE_STORE_FILE || path.join(/* turbopackIgnore: true */ process.cwd(), '.data', 'profiles.json')
   await fs.mkdir(path.dirname(file), { recursive: true })
   await fs.writeFile(file, JSON.stringify(profiles, null, 2), 'utf8')
 }

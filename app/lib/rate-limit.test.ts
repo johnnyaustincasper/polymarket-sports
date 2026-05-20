@@ -24,9 +24,31 @@ describe('rate limit helpers', () => {
     expect(result.remaining).toBe(1)
   })
 
-  it('uses forwarded headers before remote address when building keys', () => {
+  it('uses forwarded headers before falling back to unknown when building keys', () => {
     const headers = new Headers({ 'x-forwarded-for': '203.0.113.7, 10.0.0.1' })
 
-    expect(getRateLimitKey({ headers, ip: '198.51.100.9' }, 'props')).toBe('props:203.0.113.7')
+    expect(getRateLimitKey({ headers }, 'props')).toBe('props:203.0.113.7')
+  })
+
+  it('normalizes route overrides before environment defaults', async () => {
+    const { getRateLimitConfig } = await import('./rate-limit')
+
+    expect(getRateLimitConfig({ limit: 5, windowMs: 10_000 }, {
+      API_RATE_LIMIT_REQUESTS: '200',
+      API_RATE_LIMIT_WINDOW_MS: '120000',
+    })).toEqual({ limit: 5, windowMs: 10_000 })
+  })
+
+  it('falls back to safe defaults for missing, zero, negative, or non-numeric environment config', async () => {
+    const { getRateLimitConfig } = await import('./rate-limit')
+
+    for (const env of [
+      {},
+      { API_RATE_LIMIT_REQUESTS: '0', API_RATE_LIMIT_WINDOW_MS: '0' },
+      { API_RATE_LIMIT_REQUESTS: '-5', API_RATE_LIMIT_WINDOW_MS: '-1000' },
+      { API_RATE_LIMIT_REQUESTS: 'nope', API_RATE_LIMIT_WINDOW_MS: 'NaN' },
+    ]) {
+      expect(getRateLimitConfig({}, env)).toEqual({ limit: 60, windowMs: 60_000 })
+    }
   })
 })

@@ -7,8 +7,12 @@ import {
   getAuthConfigStatus,
   validateAccessCode,
 } from '@/app/lib/auth'
+import { enforceRateLimit } from '@/app/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
+  const rateLimited = enforceRateLimit(req, 'auth:login', { limit: 5, windowMs: 60_000 })
+  if (rateLimited) return rateLimited
+
   const { email, code, name } = await req.json().catch(() => ({}))
   const cleanEmail = String(email || '').trim().toLowerCase()
   const accessCode = String(code || '').trim()
