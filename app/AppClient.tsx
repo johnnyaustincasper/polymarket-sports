@@ -8,6 +8,7 @@ import UpdatedAgeLabel from './components/UpdatedAgeLabel'
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
 import { resolveStartupSport } from './lib/startup-sport'
+import { resetInitialSlateScroll } from './lib/startup-scroll'
 
 const BetTracker = dynamic(() => import('./components/BetTracker'), { ssr: false })
 
@@ -4857,6 +4858,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const cols = useColCount()
   const isMobile = useIsMobile()
   const hasLiveGames = games.some(g => g.status === 'in')
+
+  useEffect(() => resetInitialSlateScroll(), [])
 
   useEffect(() => {
     const stored = localStorage.getItem('poly-bets')
