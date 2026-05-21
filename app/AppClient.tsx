@@ -7,6 +7,7 @@ import LoadingMarketCards from './components/LoadingMarketCards'
 import UpdatedAgeLabel from './components/UpdatedAgeLabel'
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
+import { resolveStartupSport } from './lib/startup-sport'
 
 const BetTracker = dynamic(() => import('./components/BetTracker'), { ssr: false })
 
@@ -4837,7 +4838,7 @@ function espnRequestDateForChicagoDay(yyyymmdd: string): string {
 export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const today = chicagoYmd()
   const [date, setDate] = useState(today)
-  const [sport, setSport] = useState<SupportedSport | 'ufc'>('mlb')
+  const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
   const [provider, setProvider] = useState<MarketProvider>('kalshi')
   const [games, setGames] = useState<Game[]>([])
@@ -4848,6 +4849,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [bets, setBets] = useState<BetLog[]>([])
   const [oddsDrift, setOddsDrift] = useState<Record<string, OddsDrift>>({})
   const prevGamesRef = useRef<Map<string, Game>>(new Map())
+  const startupSportResolvedRef = useRef(false)
   const [activeIntelGame, setActiveIntelGame] = useState<Game | null>(null)
   const [activeAnalysisGame, setActiveAnalysisGame] = useState<Game | null>(null)
   const [analysisLoadingGameId, setAnalysisLoadingGameId] = useState<string | null>(null)
@@ -4888,28 +4890,50 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
   const fetchGames = useCallback(async () => {
     try {
-      const loadDate = async (yyyymmdd: string): Promise<Game[]> => {
-        const res = await fetch(`/api/markets?date=${espnRequestDateForChicagoDay(yyyymmdd)}&sport=${sport}&displayDate=${yyyymmdd}&t=${Date.now()}`, { cache: 'no-store' })
+      const loadDate = async (sportToLoad: SupportedSport, yyyymmdd: string): Promise<Game[]> => {
+        const res = await fetch(`/api/markets?date=${espnRequestDateForChicagoDay(yyyymmdd)}&sport=${sportToLoad}&displayDate=${yyyymmdd}&t=${Date.now()}`, { cache: 'no-store' })
         const json = await res.json().catch(() => null)
         if (!res.ok) throw new Error(json?.error || `market feed failed (${res.status})`)
         return Array.isArray(json) ? json : []
       }
-      setFeedError(null)
-      let resolvedDate = date
-      let newGames: Game[] = await loadDate(date)
+      const loadSportSlate = async (sportToLoad: SupportedSport, startDate: string): Promise<{ date: string; games: Game[] }> => {
+        let resolvedDate = startDate
+        let loadedGames = await loadDate(sportToLoad, startDate)
 
-      // Only jump forward when ESPN has no games for the selected day. If games
-      // are final, keep them on screen so the slate buttons still show scores.
-      if (provider === 'kalshi' && sport !== 'ufc' && newGames.length === 0) {
-        for (let i = 1; i <= 3; i++) {
-          const candidateDate = addChicagoDays(date, i)
-          const candidateGames = await loadDate(candidateDate)
-          if (candidateGames.some(g => g.status !== 'post')) {
-            resolvedDate = candidateDate
-            newGames = candidateGames
-            break
+        // Only jump forward when ESPN has no games for the selected day. If games
+        // are final, keep them on screen so the slate buttons still show scores.
+        if (provider === 'kalshi' && loadedGames.length === 0) {
+          for (let i = 1; i <= 3; i++) {
+            const candidateDate = addChicagoDays(startDate, i)
+            const candidateGames = await loadDate(sportToLoad, candidateDate)
+            if (candidateGames.some(g => g.status !== 'post')) {
+              resolvedDate = candidateDate
+              loadedGames = candidateGames
+              break
+            }
           }
         }
+
+        return { date: resolvedDate, games: loadedGames }
+      }
+      setFeedError(null)
+      let resolvedDate = date
+      let newGames: Game[] = []
+
+      if (!startupSportResolvedRef.current && provider === 'kalshi' && sport === 'nba') {
+        startupSportResolvedRef.current = true
+        const startup = await resolveStartupSport({
+          initialDate: date,
+          loadGames: (sportToLoad, startDate) => loadSportSlate(sportToLoad, startDate),
+        })
+        resolvedDate = startup.date
+        newGames = startup.games
+        if (startup.sport !== sport) setSport(startup.sport)
+        if (startup.date !== date) setDate(startup.date)
+      } else {
+        const loaded = sport === 'ufc' ? { date, games: [] as Game[] } : await loadSportSlate(sport, date)
+        resolvedDate = loaded.date
+        newGames = loaded.games
         if (resolvedDate !== date) setDate(resolvedDate)
       }
 

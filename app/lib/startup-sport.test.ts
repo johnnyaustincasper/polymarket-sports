@@ -1,0 +1,49 @@
+import { describe, expect, it, vi } from 'vitest'
+import { resolveStartupSport } from './startup-sport'
+
+type TestGame = { id: string; status: 'pre' | 'in' | 'post' }
+
+describe('resolveStartupSport', () => {
+  it('starts on NBA when NBA has games', async () => {
+    const nbaGames: TestGame[] = [{ id: 'nba-1', status: 'pre' }]
+    const loadGames = vi.fn(async (sport: string) => sport === 'nba' ? nbaGames : [])
+
+    const result = await resolveStartupSport({ initialDate: '20260520', loadGames })
+
+    expect(result).toEqual({ sport: 'nba', date: '20260520', games: nbaGames })
+    expect(loadGames).toHaveBeenCalledTimes(1)
+    expect(loadGames).toHaveBeenCalledWith('nba', '20260520')
+  })
+
+  it('falls back from NBA to MLB when NBA has no games', async () => {
+    const mlbGames: TestGame[] = [{ id: 'mlb-1', status: 'pre' }]
+    const loadGames = vi.fn(async (sport: string) => sport === 'mlb' ? mlbGames : [])
+
+    const result = await resolveStartupSport({ initialDate: '20260520', loadGames })
+
+    expect(result).toEqual({ sport: 'mlb', date: '20260520', games: mlbGames })
+    expect(loadGames).toHaveBeenNthCalledWith(1, 'nba', '20260520')
+    expect(loadGames).toHaveBeenNthCalledWith(2, 'mlb', '20260520')
+  })
+
+  it('falls back from NBA to MLB to NFL when only NFL has games', async () => {
+    const nflGames: TestGame[] = [{ id: 'nfl-1', status: 'pre' }]
+    const loadGames = vi.fn(async (sport: string) => sport === 'nfl' ? nflGames : [])
+
+    const result = await resolveStartupSport({ initialDate: '20260520', loadGames })
+
+    expect(result).toEqual({ sport: 'nfl', date: '20260520', games: nflGames })
+    expect(loadGames).toHaveBeenNthCalledWith(1, 'nba', '20260520')
+    expect(loadGames).toHaveBeenNthCalledWith(2, 'mlb', '20260520')
+    expect(loadGames).toHaveBeenNthCalledWith(3, 'nfl', '20260520')
+  })
+
+  it('keeps NBA selected with an empty slate when no fallback sport has games', async () => {
+    const loadGames = vi.fn(async () => [])
+
+    const result = await resolveStartupSport({ initialDate: '20260520', loadGames })
+
+    expect(result).toEqual({ sport: 'nba', date: '20260520', games: [] })
+    expect(loadGames).toHaveBeenCalledTimes(3)
+  })
+})
