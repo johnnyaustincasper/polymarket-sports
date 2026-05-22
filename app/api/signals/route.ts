@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getJsonCache, getJsonList, prependJsonList, setJsonCache, setJsonList, getDurableCacheStatus } from '@/app/lib/durable-cache'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
 import { enforceRateLimit } from '@/app/lib/rate-limit'
+import { computeSignalDeltas, type SignalDelta, type SignalDeltaSnapshot } from '@/app/lib/signals/delta-feed'
+import { buildWhyCare, classifySignalDecision, type SignalDecisionResult } from '@/app/lib/signals/insight'
+import { gradeLiquidity, type LiquidityGrade } from '@/app/lib/signals/liquidity'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const SIGNAL_CACHE_SCHEMA = 'v2'
 
 type Sport = 'nba' | 'nfl' | 'mlb'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
@@ -16,6 +21,20 @@ type SignalGame = {
   status?: string
   homeTeam: { abbr: string; name?: string }
   awayTeam: { abbr: string; name?: string }
+}
+
+type SignalExecution = {
+  side: 'YES'
+  ask: number
+  askSize: number
+  bid?: number
+  bidSize?: number
+  maxBuy: number
+  spread: number | null
+  priceOk: boolean
+  executable: boolean
+  guidance: string
+  warnings: string[]
 }
 
 type ModelSignal = {
@@ -40,19 +59,33 @@ type ModelSignal = {
   avg: number
   risk: string
   liquidity: number
+  askSize?: number
+  bid?: number
+  bidSize?: number
+  yesBid?: number
+  yesBidSize?: number
   ticker: string
   url: string
   reasons: string[]
   flags: string[]
   createdAt: string
+  execution?: SignalExecution
+  liquidityGrade?: LiquidityGrade
+  liquidityLabel?: string
+  liquidityWarnings?: string[]
+  decision?: SignalDecisionResult
+  whyCare?: string[]
+  changeSinceRefresh?: SignalDelta[]
 }
 
 type SignalsResponse = {
   sport: Sport
   generatedAt: string
   gamesScanned: number
+  activeGameIds?: string[]
   contractsScored: number
   signals: ModelSignal[]
+  changeSinceRefresh?: SignalDelta[]
   summary: {
     a: number
     b: number
@@ -105,6 +138,167 @@ function toNum(value: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
+function centsToProbability(value: number): number | null {
+  return Number.isFinite(value) && value > 0 ? value / 100 : null
+}
+
+function optionalPositive(value: number): number | undefined {
+  return Number.isFinite(value) && value > 0 ? value : undefined
+}
+
+function uniq(values: string[]): string[] {
+  return Array.from(new Set(values.map(value => value.trim()).filter(Boolean)))
+}
+
+function formatCents(value: number): string {
+  return Number.isFinite(value) && value > 0 ? `${Math.round(value)}c` : '—'
+}
+
+function buildExecution(input: {
+  ask: number
+  askSize: number
+  bid: number
+  bidSize: number
+  maxBuy: number
+  liquidityGrade: LiquidityGrade
+  liquidityWarnings: string[]
+}): SignalExecution {
+  const priceOk = input.ask > 0 && input.maxBuy > 0 && input.ask <= input.maxBuy
+  const liquid = input.liquidityGrade === 'real' || input.liquidityGrade === 'deep'
+  const executable = priceOk && liquid
+  const spread = input.bid > 0 && input.ask > 0 ? Math.round((input.ask - input.bid) * 10) / 10 : null
+  const warnings = uniq([
+    ...input.liquidityWarnings,
+    input.ask <= 0 ? 'missing_ask' : '',
+    input.ask > input.maxBuy ? 'above_max_buy' : '',
+    input.bid <= 0 ? 'missing_bid' : '',
+  ])
+
+  let guidance = `Buy YES up to ${formatCents(input.maxBuy)}.`
+  if (input.ask <= 0) guidance = 'No executable YES ask is available.'
+  else if (input.ask > input.maxBuy) guidance = `Wait for YES ask at ${formatCents(input.maxBuy)} or better.`
+  else if (!liquid) guidance = 'Price is inside max-buy, but liquidity is too thin for an actionable entry.'
+
+  return {
+    side: 'YES',
+    ask: input.ask,
+    askSize: input.askSize,
+    bid: optionalPositive(input.bid),
+    bidSize: optionalPositive(input.bidSize),
+    maxBuy: input.maxBuy,
+    spread,
+    priceOk,
+    executable,
+    guidance,
+    warnings,
+  }
+}
+
+function enrichSignal(signal: ModelSignal, generatedAt: string): ModelSignal {
+  const ask = toNum(signal.ask)
+  const askSize = toNum(signal.liquidity)
+  const bid = toNum(signal.yesBid)
+  const bidSize = toNum(signal.yesBidSize)
+  const liquidity = gradeLiquidity({
+    ask: centsToProbability(ask),
+    askSize,
+    bid: centsToProbability(bid),
+    bidSize,
+  })
+  const execution = buildExecution({
+    ask,
+    askSize,
+    bid,
+    bidSize,
+    maxBuy: toNum(signal.maxBuy),
+    liquidityGrade: liquidity.grade,
+    liquidityWarnings: liquidity.warnings,
+  })
+  const decision = classifySignalDecision({
+    tier: signal.tier,
+    edge: centsToProbability(signal.edge),
+    ask: centsToProbability(ask),
+    maxBuy: centsToProbability(signal.maxBuy),
+    liquidityGrade: liquidity.grade,
+    flags: [...(signal.flags || []), ...liquidity.warnings],
+    generatedAt: signal.createdAt || generatedAt,
+  })
+  const whyCare = buildWhyCare({
+    player: signal.player,
+    label: signal.label,
+    edge: centsToProbability(signal.edge),
+    fairPrice: centsToProbability(signal.fairPrice),
+    ask: centsToProbability(ask),
+    hitRate: signal.games > 0 ? signal.hits / signal.games : null,
+    hits: signal.hits,
+    games: signal.games,
+    reasons: signal.reasons,
+    flags: signal.flags,
+  })
+
+  return {
+    ...signal,
+    askSize,
+    bid: optionalPositive(bid),
+    bidSize: optionalPositive(bidSize),
+    execution,
+    liquidityGrade: liquidity.grade,
+    liquidityLabel: liquidity.label,
+    liquidityWarnings: liquidity.warnings,
+    decision,
+    whyCare,
+  }
+}
+
+function signalDeltaSnapshot(signal: ModelSignal): SignalDeltaSnapshot {
+  return {
+    id: signal.id,
+    label: `${signal.player} ${signal.label}`,
+    player: signal.player,
+    tier: signal.tier,
+    edge: centsToProbability(signal.edge),
+    ask: centsToProbability(signal.ask),
+    fairPrice: centsToProbability(signal.fairPrice),
+    liquidityGrade: signal.liquidityGrade ?? null,
+  }
+}
+
+function attachSignalDeltas(signals: ModelSignal[], deltas: SignalDelta[]): ModelSignal[] {
+  if (!deltas.length) return signals
+  const byId = new Map<string, SignalDelta[]>()
+  for (const delta of deltas) {
+    const existing = byId.get(delta.id) || []
+    existing.push(delta)
+    byId.set(delta.id, existing)
+  }
+  return signals.map(signal => {
+    const changeSinceRefresh = byId.get(signal.id)
+    return changeSinceRefresh?.length ? { ...signal, changeSinceRefresh } : signal
+  })
+}
+
+function enrichResponse(response: SignalsResponse): SignalsResponse {
+  return {
+    ...response,
+    signals: response.signals.map(signal => enrichSignal(signal, response.generatedAt)),
+  }
+}
+
+function latestCacheKey(sport: Sport, gameIds: string[]): string {
+  return `signals:${SIGNAL_CACHE_SCHEMA}:latest:${sport}:${gameIds.join('|')}`
+}
+
+function lastCacheKey(sport: Sport): string {
+  return `signals:${SIGNAL_CACHE_SCHEMA}:last:${sport}`
+}
+
+function hasSignalSlateOverlap(response: SignalsResponse | null | undefined, activeGameIds: string[]): boolean {
+  if (!response?.signals?.length || !activeGameIds.length) return false
+  const active = new Set(activeGameIds)
+  const previousIds = response.activeGameIds?.length ? response.activeGameIds : response.signals.map(signal => signal.gameId).filter(Boolean)
+  return previousIds.some(id => active.has(id))
+}
+
 function cleanId(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 160)
 }
@@ -151,12 +345,25 @@ function reasonsFor(input: {
   return { reasons, flags }
 }
 
-async function fetchProps(origin: string, sport: Sport, game: SignalGame, cookieHeader: string) {
-  const url = new URL('/api/props', origin)
+function trustedInternalApiOrigin() {
+  const explicitOrigin = process.env.INTERNAL_API_ORIGIN || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL
+  if (explicitOrigin) {
+    const url = new URL(explicitOrigin)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error('Invalid INTERNAL_API_ORIGIN protocol')
+    return url.origin
+  }
+
+  if (process.env.VERCEL_URL) return new URL(`https://${process.env.VERCEL_URL}`).origin
+
+  return `http://127.0.0.1:${process.env.PORT || 3000}`
+}
+
+async function fetchProps(sport: Sport, game: SignalGame) {
+  const url = new URL('/api/props', trustedInternalApiOrigin())
   url.searchParams.set('sport', sport)
   url.searchParams.set('home', game.homeTeam.abbr)
   url.searchParams.set('away', game.awayTeam.abbr)
-  const res = await fetch(url, { headers: cookieHeader ? { cookie: cookieHeader } : undefined, cache: 'no-store', signal: AbortSignal.timeout(45_000) })
+  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(45_000) })
   const data = await res.json().catch(() => null)
   if (!res.ok) throw new Error(data?.error || `props failed ${res.status}`)
   return data
@@ -175,6 +382,8 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
       contracts += 1
       const ask = toNum(kalshi.yesAsk)
       const liquidity = toNum(kalshi.yesAskSize)
+      const yesBid = toNum(kalshi.yesBid)
+      const yesBidSize = toNum(kalshi.yesBidSize)
       const fairPrice = Math.round(toNum(bet.fairProbability))
       const maxBuy = Math.round(toNum(bet.maxYesPrice))
       const hits = toNum(bet.hits)
@@ -208,6 +417,8 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
         avg,
         risk: bet.risk || 'medium',
         liquidity,
+        yesBid: optionalPositive(yesBid),
+        yesBidSize: optionalPositive(yesBidSize),
         ticker,
         url: kalshi.url || '',
         reasons: read.reasons,
@@ -221,15 +432,18 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
 }
 
 function toLedgerEntries(signals: ModelSignal[], generatedAt: string): SignalLedgerEntry[] {
-  return signals.map(signal => ({
-    ...signal,
-    ledgerId: cleanId(signal.id + '-' + generatedAt),
-    status: 'pending',
-    result: null,
-    roiPct: null,
-    wouldBuy: (signal.tier === 'A' || signal.tier === 'B') && signal.ask > 0 && signal.ask <= signal.maxBuy,
-    recordedAt: generatedAt,
-  }))
+  return signals.map(signal => {
+    const { changeSinceRefresh: _changeSinceRefresh, ...ledgerSignal } = signal
+    return {
+      ...ledgerSignal,
+      ledgerId: cleanId(signal.id + '-' + generatedAt),
+      status: 'pending',
+      result: null,
+      roiPct: null,
+      wouldBuy: (signal.tier === 'A' || signal.tier === 'B') && (signal.execution?.executable ?? (signal.ask > 0 && signal.ask <= signal.maxBuy)),
+      recordedAt: generatedAt,
+    }
+  })
 }
 
 function performanceFromLedger(ledger: SignalLedgerEntry[]): SignalPerformanceResponse {
@@ -310,11 +524,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function settleLedger(req: NextRequest, sport: Sport, limit: number): Promise<SettlementResponse> {
+async function settleLedger(sport: Sport, limit: number): Promise<SettlementResponse> {
   const ledger = await getJsonList<SignalLedgerEntry>('signals:ledger:' + sport, Math.max(limit, 500))
   const pending = ledger.filter(row => row.status === 'pending').slice(0, limit)
-  const origin = req.nextUrl.origin
-  const cookieHeader = req.headers.get('cookie') || ''
   const propsCache = new Map<string, any>()
   let graded = 0
 
@@ -324,7 +536,7 @@ async function settleLedger(req: NextRequest, sport: Sport, limit: number): Prom
     const key = awayRaw + '@' + homeRaw
     let data = propsCache.get(key)
     if (!data) {
-      data = await fetchProps(origin, sport, { id: entry.gameId, awayTeam: { abbr: awayRaw }, homeTeam: { abbr: homeRaw } }, cookieHeader)
+      data = await fetchProps(sport, { id: entry.gameId, awayTeam: { abbr: awayRaw }, homeTeam: { abbr: homeRaw } })
       propsCache.set(key, data)
     }
     const players = [...(data?.away || []), ...(data?.home || [])]
@@ -355,11 +567,12 @@ export async function POST(req: NextRequest) {
     const sport = parseSport(body.sport)
     if (body.action === 'settle') {
       const limit = Math.max(1, Math.min(100, Number(body.limit || 50)))
-      return finishRouteTiming(timing, NextResponse.json(await settleLedger(req, sport, limit)))
+      return finishRouteTiming(timing, NextResponse.json(await settleLedger(sport, limit)))
     }
     const games = Array.isArray(body.games) ? body.games as SignalGame[] : []
     const activeGames = games.filter(g => g?.homeTeam?.abbr && g?.awayTeam?.abbr && g.status !== 'post').slice(0, sport === 'mlb' ? 15 : 8)
-    const cacheKey = `signals:latest:${sport}:${activeGames.map(g => g.id).join('|')}`
+    const activeGameIds = activeGames.map(g => g.id)
+    const cacheKey = latestCacheKey(sport, activeGameIds)
     const force = body.force === true
 
     if (!activeGames.length) {
@@ -367,6 +580,7 @@ export async function POST(req: NextRequest) {
         sport,
         generatedAt: new Date().toISOString(),
         gamesScanned: 0,
+        activeGameIds: [],
         contractsScored: 0,
         signals: [],
         summary: { a: 0, b: 0, watch: 0, avgEdge: 0, bestEdge: 0 },
@@ -375,13 +589,13 @@ export async function POST(req: NextRequest) {
       return finishRouteTiming(timing, NextResponse.json(empty))
     }
 
-    if (!force) {
-      const cached = await getJsonCache<SignalsResponse>(cacheKey)
-      if (cached) return finishRouteTiming(timing, NextResponse.json(cached))
+    let previousLatest = await getJsonCache<SignalsResponse>(cacheKey)
+    if (!force && previousLatest) return finishRouteTiming(timing, NextResponse.json(enrichResponse(previousLatest)))
+    if (!previousLatest) {
+      const lastResponse = await getJsonCache<SignalsResponse>(lastCacheKey(sport))
+      previousLatest = hasSignalSlateOverlap(lastResponse, activeGameIds) ? lastResponse : null
     }
 
-    const origin = req.nextUrl.origin
-    const cookieHeader = req.headers.get('cookie') || ''
     const generatedAt = new Date().toISOString()
     const allSignals: ModelSignal[] = []
     let contractsScored = 0
@@ -389,7 +603,7 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < activeGames.length; i += 3) {
       const batch = activeGames.slice(i, i + 3)
       const scored = await Promise.all(batch.map(async game => {
-        const data = await fetchProps(origin, sport, game, cookieHeader)
+        const data = await fetchProps(sport, game)
         return scoreProps(sport, game, data, generatedAt)
       }))
       for (const item of scored) {
@@ -398,20 +612,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const signals = allSignals
+    const rankedSignals = allSignals
       .sort((a, b) => {
         const rank = (tier: SignalTier) => tier === 'A' ? 3 : tier === 'B' ? 2 : tier === 'WATCH' ? 1 : 0
         return rank(b.tier) - rank(a.tier) || b.edge - a.edge || b.confidence - a.confidence
       })
       .slice(0, 40)
+      .map(signal => enrichSignal(signal, generatedAt))
+
+    const previousSignals = previousLatest?.signals?.length ? enrichResponse(previousLatest).signals : []
+    const changeSinceRefresh = previousSignals.length
+      ? computeSignalDeltas(previousSignals.map(signalDeltaSnapshot), rankedSignals.map(signalDeltaSnapshot))
+      : []
+    const signals = attachSignalDeltas(rankedSignals, changeSinceRefresh)
 
     const edges = signals.map(s => s.edge)
     const response: SignalsResponse = {
       sport,
       generatedAt,
       gamesScanned: activeGames.length,
+      activeGameIds,
       contractsScored,
       signals,
+      changeSinceRefresh: changeSinceRefresh.length ? changeSinceRefresh : undefined,
       summary: {
         a: signals.filter(s => s.tier === 'A').length,
         b: signals.filter(s => s.tier === 'B').length,
@@ -423,7 +646,7 @@ export async function POST(req: NextRequest) {
     }
 
     await setJsonCache(cacheKey, response, 5 * 60_000)
-    await setJsonCache(`signals:last:${sport}`, response, 24 * 60 * 60_000)
+    await setJsonCache(lastCacheKey(sport), response, 24 * 60 * 60_000)
     const ledgerEntries = toLedgerEntries(signals, generatedAt)
     await prependJsonList('signals:ledger:' + sport, ledgerEntries, 1000, 60 * 24 * 60 * 60_000)
     await prependJsonList('signals:ledger:' + sport + ':' + todayKey(), ledgerEntries, 1000, 60 * 24 * 60 * 60_000)

@@ -5,10 +5,21 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import AccountMenu from './components/AccountMenu'
 import LoadingMarketCards from './components/LoadingMarketCards'
 import UpdatedAgeLabel from './components/UpdatedAgeLabel'
+import ChangedSinceRefreshFeed from './components/signal-terminal/ChangedSinceRefreshFeed'
+import PropDetailDrawer from './components/signal-terminal/PropDetailDrawer'
+import SignalDetailDrawer from './components/signal-terminal/SignalDetailDrawer'
+import SignalTerminalCard from './components/signal-terminal/SignalTerminalCard'
+import type { LineupInjuryFlagItem, SignalTerminalSignal, SportsbookConsensus } from './components/signal-terminal/types'
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
 import { resolveStartupSport } from './lib/startup-sport'
 import { resetInitialSlateScroll } from './lib/startup-scroll'
+import { detectCorrelationWarnings, type CorrelationInputItem, type CorrelationWarning } from './lib/parlays/correlation'
+import { getLivePropProgress as getLivePropProgressPure } from './lib/live/prop-progress'
+import { buildPropLadder, buildStatDistribution, getMetricStatValue, type StatDistribution } from './lib/props/distributions'
+import { computeSignalDeltas, type SignalDelta, type SignalDeltaSnapshot } from './lib/signals/delta-feed'
+import type { LiquidityGrade } from './lib/signals/liquidity'
+import { buildAlertRulesForWatchItem, buildWatchKey, evaluateAlerts, watchlistReducer, type AlertEvent, type AlertRule, type WatchItem, type WatchSnapshot } from './lib/watchlist/alerts'
 
 const BetTracker = dynamic(() => import('./components/BetTracker'), { ssr: false })
 
@@ -172,25 +183,55 @@ interface ModelSignal {
   gameTime: string
   player: string
   team: string
+  opponent?: string
   metric: string
   label: string
+  side?: string | null
   tier: 'A' | 'B' | 'WATCH' | 'KILL'
   projectedHitPct: number
+  hitRate?: number | null
   fairPrice: number
   ask: number
+  bid?: number | null
   maxBuy: number
   edge: number
   confidence: number
   hits: number
   games: number
   avg: number
+  line?: number | null
+  bookLine?: number | null
   risk: string
   liquidity: number
+  liquidityGrade?: LiquidityGrade | null
+  liquidityLabel?: string | null
+  askSize?: number | null
+  bidSize?: number | null
   ticker: string
   url: string
+  marketTitle?: string | null
   reasons: string[]
   flags: string[]
   createdAt: string
+  generatedAt?: string | null
+  movement?: SignalTerminalSignal['movement']
+  consensus?: SportsbookConsensus | null
+  sportsbookConsensus?: SportsbookConsensus | null
+  lineupFlags?: LineupInjuryFlagItem[]
+  correlationWarnings?: CorrelationWarning[]
+  correlationItems?: CorrelationInputItem[]
+  execution?: {
+    ask?: number | null
+    bid?: number | null
+    askSize?: number | null
+    bidSize?: number | null
+    spread?: number | null
+    liquidityGrade?: LiquidityGrade | null
+    liquidityLabel?: string | null
+  } | null
+  whyCare?: string[]
+  changeSinceRefresh?: SignalDelta[]
+  metadata?: Record<string, unknown>
 }
 interface SignalsPanelData {
   sport: SupportedSport
@@ -1749,6 +1790,249 @@ function buildPropEdgeRead(player: any, bet: any, intel?: TeamIntelData | null) 
   return parts
 }
 
+const SIGNAL_WATCHLIST_STORAGE_KEY = 'signal-terminal-watchlist'
+const SIGNAL_ALERTS_STORAGE_KEY = 'signal-terminal-alerts'
+const SIGNAL_ALERT_COOLDOWN_MS = 10 * 60 * 1000
+
+function finiteSignalNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function signalToTerminalSignal(signal: ModelSignal): SignalTerminalSignal {
+  const execution = signal.execution || null
+  const ask = finiteSignalNumber(signal.ask) ?? finiteSignalNumber(execution?.ask)
+  const bid = finiteSignalNumber(signal.bid) ?? finiteSignalNumber(execution?.bid)
+  const askSize = finiteSignalNumber(signal.askSize) ?? finiteSignalNumber(execution?.askSize)
+  const bidSize = finiteSignalNumber(signal.bidSize) ?? finiteSignalNumber(execution?.bidSize)
+  const liquidityGrade = signal.liquidityGrade ?? execution?.liquidityGrade ?? null
+  const correlationItems = signal.correlationItems ?? [{
+    player: signal.player,
+    team: signal.team,
+    gameId: signal.gameId,
+    metric: signal.metric,
+    label: signal.label,
+    ticker: signal.ticker,
+    askSize,
+  }]
+  const correlationWarnings = signal.correlationWarnings ?? detectCorrelationWarnings(correlationItems)
+
+  return {
+    ...signal,
+    ask,
+    bid,
+    askSize,
+    bidSize,
+    liquidityGrade,
+    liquidityLabel: signal.liquidityLabel ?? execution?.liquidityLabel ?? null,
+    reasons: signal.whyCare?.length ? signal.whyCare : signal.reasons,
+    generatedAt: signal.generatedAt ?? signal.createdAt,
+    correlationItems,
+    correlationWarnings,
+  }
+}
+
+function signalDeltaSnapshot(signal: SignalTerminalSignal): SignalDeltaSnapshot {
+  return {
+    id: signal.id,
+    label: signal.label || signal.player || signal.ticker || signal.id,
+    player: signal.player,
+    tier: signal.tier,
+    edge: finiteSignalNumber(signal.edge),
+    ask: finiteSignalNumber(signal.ask),
+    fairPrice: finiteSignalNumber(signal.fairPrice),
+    liquidityGrade: signal.liquidityGrade ?? null,
+  }
+}
+
+function watchKeyForSignal(signal: SignalTerminalSignal): string {
+  return buildWatchKey({ id: signal.id, gameId: signal.gameId, player: signal.player, label: signal.label, ticker: signal.ticker ?? undefined })
+}
+
+function watchSnapshotForSignal(signal: SignalTerminalSignal, lastAlerts?: Record<string, string | number | Date>): WatchSnapshot {
+  return {
+    key: watchKeyForSignal(signal),
+    label: [signal.player, signal.label].filter(Boolean).join(' · ') || signal.ticker || signal.id,
+    ask: finiteSignalNumber(signal.ask),
+    edge: finiteSignalNumber(signal.edge),
+    tier: signal.tier ?? null,
+    liquidity: finiteSignalNumber(signal.askSize ?? signal.liquidity),
+    lastAlerts,
+  }
+}
+
+function alertThreshold(rule: AlertRule): number | string {
+  return rule.target ?? rule.min ?? ''
+}
+
+function alertSignatureForRule(rule: AlertRule) {
+  return `${rule.type}:${alertThreshold(rule)}`
+}
+
+function isTrustedMarketUrl(value?: string | null): value is string {
+  if (!value) return false
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:') return false
+    const host = url.hostname.toLowerCase()
+    return host === 'kalshi.com'
+      || host.endsWith('.kalshi.com')
+      || host === 'polymarket.com'
+      || host.endsWith('.polymarket.com')
+  } catch {
+    return false
+  }
+}
+
+function signalToExactKalshiBet(signal: SignalTerminalSignal): KalshiBetLike {
+  return {
+    label: signal.label,
+    metric: signal.metric,
+    line: finiteSignalNumber(signal.line ?? signal.bookLine) ?? undefined,
+    hitRate: finiteSignalNumber(signal.hitRate ?? signal.projectedHitPct) ?? undefined,
+    games: finiteSignalNumber(signal.games) ?? undefined,
+    avg: finiteSignalNumber(signal.avg) ?? undefined,
+    explanation: signal.reasons?.[0] || signal.risk || undefined,
+    maxYesPrice: finiteSignalNumber(signal.maxBuy) ?? undefined,
+    kalshi: {
+      title: signal.marketTitle || signal.label,
+      ticker: signal.ticker || undefined,
+      legTicker: signal.ticker || undefined,
+      url: signal.url || undefined,
+      yesAsk: finiteSignalNumber(signal.ask) ?? undefined,
+      yesAskSize: finiteSignalNumber(signal.askSize) ?? undefined,
+    },
+  }
+}
+
+function propCorrelationItem(game: Game, player: any, bet: any): CorrelationInputItem {
+  return {
+    player: player?.player || player?.name,
+    team: player?.team,
+    gameId: game.id,
+    metric: bet?.metric,
+    label: bet?.label,
+    ticker: bet?.kalshi?.legTicker || bet?.kalshi?.ticker,
+    askSize: finiteSignalNumber(bet?.kalshi?.yesAskSize),
+  }
+}
+
+function propDistributionValues(player: any, bet: any): number[] {
+  return (player?.last12 || [])
+    .map((log: any) => {
+      const merged = { ...(log || {}), ...((log && log.stats) || {}) }
+      return getMetricStatValue(merged, bet?.metric || '') ?? getPropStatValue(player, log, bet?.metric)
+    })
+    .filter((value: unknown): value is number => typeof value === 'number' && Number.isFinite(value))
+}
+
+function propDistributionReason(distribution: StatDistribution, line?: number | null): string {
+  if (!distribution.count) return 'Distribution: recent game-log sample is not available for this market yet.'
+  const hitText = distribution.hitRate == null ? 'hit rate pending' : `${Math.round(distribution.hitRate * 100)}% hit rate`
+  return `Distribution: ${distribution.count}-game sample averages ${Math.round((distribution.mean ?? 0) * 10) / 10}, median ${Math.round((distribution.median ?? 0) * 10) / 10}, ${hitText}${line != null ? ` at ${line}+` : ''}; volatility ${distribution.volatility}.`
+}
+
+function buildPropLineupFlags(player: any, bet: any, intel: TeamIntelData | null, lineups: LineupsData | null): LineupInjuryFlagItem[] {
+  const flags: LineupInjuryFlagItem[] = []
+  const playerName = player?.player || player?.name
+  const playerTeam = player?.team
+  if (player?.injury || player?.status || player?.injuryStatus) {
+    flags.push({ player: playerName, team: playerTeam, status: String(player.status || player.injuryStatus || 'listed'), injury: String(player.injury || ''), severity: 'watch', detail: 'Player has an injury/status field on the prop feed.' })
+  }
+  const teamIntel = playerTeam && intel ? ([intel.home, intel.away].find(t => t.abbr === playerTeam) || null) : null
+  const injuryNotes = teamIntel?.abbr === intel?.home?.abbr ? intel?.injuryImpact?.homeNotes : teamIntel?.abbr === intel?.away?.abbr ? intel?.injuryImpact?.awayNotes : ''
+  if (injuryNotes && !/none/i.test(injuryNotes)) {
+    flags.push({ player: playerName, team: playerTeam, status: 'team context', severity: 'info', detail: injuryNotes })
+  }
+  if (lineups?.available && playerName) {
+    const rows = [...(lineups.home || []), ...(lineups.away || [])]
+    const row = rows.find((entry: any) => normalizePlayerName(entry?.name) === normalizePlayerName(playerName))
+    if (!row && playerTeam) flags.push({ player: playerName, team: playerTeam, status: 'lineup check', severity: 'watch', detail: 'Player was not found in the latest lineup payload.' })
+    else if (row?.starter === false) flags.push({ player: playerName, team: playerTeam, status: 'bench', severity: 'info', detail: 'Listed off the bench in the latest lineup payload.' })
+  }
+  if (Array.isArray(bet?.flags)) {
+    bet.flags.slice(0, 4).forEach((flag: any) => flags.push({ player: playerName, team: playerTeam, status: String(flag), severity: 'info', detail: String(flag) }))
+  }
+  return flags
+}
+
+function buildPropDetailSignal(input: { game: Game; sport: SupportedSport; player: any; bet: any; selectedItems: Array<{ player: any; bet: any }>; liveGame: LiveGameData | null; intel: TeamIntelData | null; lineups: LineupsData | null }): SignalTerminalSignal {
+  const { game, sport, player, bet, selectedItems, liveGame, intel, lineups } = input
+  const line = finiteSignalNumber(bet?.line)
+  const values = propDistributionValues(player, bet)
+  const distribution = buildStatDistribution(values, line)
+  const ladderLines = Array.from(new Set([line == null ? null : line - 2, line == null ? null : line - 1, line, line == null ? null : line + 1, line == null ? null : line + 2].filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0))).sort((a, b) => a - b)
+  const ladder = buildPropLadder(values, ladderLines)
+  const liveProgress = getLivePropProgressPure(liveGame, player?.player || player?.name || '', bet?.metric || '', line) ?? (sport === 'mlb' ? getLiveMlbPropProgress(liveGame, player, bet) : null)
+  const currentItem = propCorrelationItem(game, player, bet)
+  const selectedCorrelationItems = selectedItems.map(item => propCorrelationItem(game, item.player, item.bet))
+  const correlationItems = [...selectedCorrelationItems.filter(item => (item.ticker || item.player || item.label) !== (currentItem.ticker || currentItem.player || currentItem.label)), currentItem]
+  const correlationWarnings = detectCorrelationWarnings(correlationItems)
+  const ask = finiteSignalNumber(bet?.kalshi?.yesAsk)
+  const fairPrice = finiteSignalNumber(bet?.fairPrice ?? bet?.modelPrice ?? bet?.maxYesPrice)
+  const maxBuy = finiteSignalNumber(bet?.maxYesPrice)
+  const edge = ask != null && fairPrice != null ? fairPrice - ask : undefined
+  const ladderReason = ladder.length ? `Ladder: ${ladder.map(row => `${row.line}+ ${row.hits}/${row.games}`).join(' · ')}.` : 'Ladder: alternate-line sample pending.'
+  const liveReason = liveProgress ? `Live progress: ${liveProgress.label}${liveProgress.hit ? ' — currently clearing.' : ' — still needs more.'}` : 'Live progress: no live stat row matched this prop yet.'
+  const reasons = [
+    propDistributionReason(distribution, line),
+    ladderReason,
+    liveReason,
+    ...buildPropEdgeRead(player, bet, intel).slice(0, 3),
+  ]
+
+  return {
+    id: contractKeyForDrawer(game, player, bet),
+    sport,
+    gameId: game.id,
+    matchup: `${game.awayTeam.abbr}@${game.homeTeam.abbr}`,
+    gameTime: game.gameTime,
+    player: player?.player || player?.name,
+    team: player?.team,
+    metric: bet?.metric,
+    label: bet?.label,
+    side: 'yes',
+    tier: bet?.quality === 'bet' ? 'A' : bet?.quality === 'lean' ? 'B' : 'WATCH',
+    projectedHitPct: finiteSignalNumber(bet?.hitRate),
+    hitRate: finiteSignalNumber(bet?.hitRate),
+    fairPrice,
+    ask,
+    maxBuy,
+    edge,
+    confidence: finiteSignalNumber(bet?.confidence ?? distribution.hitRate),
+    hits: finiteSignalNumber(bet?.hits),
+    games: finiteSignalNumber(bet?.games),
+    avg: finiteSignalNumber(bet?.avg ?? distribution.mean),
+    line,
+    bookLine: line,
+    risk: bet?.risk || bet?.explanation || null,
+    liquidity: finiteSignalNumber(bet?.kalshi?.yesAskSize),
+    askSize: finiteSignalNumber(bet?.kalshi?.yesAskSize),
+    ticker: bet?.kalshi?.legTicker || bet?.kalshi?.ticker || null,
+    url: bet?.kalshi?.url || null,
+    marketTitle: bet?.kalshi?.title || bet?.label,
+    reasons,
+    flags: [distribution.volatility !== 'unknown' ? `volatility:${distribution.volatility}` : '', ...(liveProgress ? [liveProgress.hit ? 'live-clearing' : 'live-tracking'] : [])].filter(Boolean),
+    createdAt: new Date().toISOString(),
+    generatedAt: new Date().toISOString(),
+    lineupFlags: buildPropLineupFlags(player, bet, intel, lineups),
+    correlationItems,
+    correlationWarnings,
+    consensus: bet?.consensus ?? bet?.sportsbookConsensus ?? null,
+    sportsbookConsensus: bet?.sportsbookConsensus ?? null,
+    movement: bet?.movement,
+    metadata: { distribution, ladder, liveProgress },
+  }
+}
+
+function contractKeyForDrawer(game: Game, player: any, bet: any) {
+  return `${game.id}|${player?.team || ''}|${player?.player || player?.name || ''}|${bet?.metric || ''}|${bet?.line ?? ''}|${bet?.kalshi?.legTicker || bet?.kalshi?.ticker || ''}`
+}
+
 function parlayContractKey(item: ParlayItem) {
   const gameKey = item.game ? `${item.game.awayTeam.abbr}@${item.game.homeTeam.abbr}` : ''
   return `${gameKey}|${item.player.team}|${item.player.player}|${item.bet.metric}|${item.bet.line}|${item.bet.kalshi?.legTicker || item.bet.kalshi?.ticker || ''}`
@@ -1940,6 +2224,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const [activePropTab, setActivePropTab] = useState<string>('all')
   const [selectedContracts, setSelectedContracts] = useState<Record<string, boolean>>({})
   const [expandedContractKey, setExpandedContractKey] = useState<string>('')
+  const [activePropDetail, setActivePropDetail] = useState<SignalTerminalSignal | null>(null)
   const [loadRequested, setLoadRequested] = useState(false)
   const [showParlayBuilder, setShowParlayBuilder] = useState(false)
   const [lineups, setLineups] = useState<LineupsData | null>(null)
@@ -1965,6 +2250,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     setActivePropTab('all')
     setSelectedContracts({})
     setExpandedContractKey('')
+    setActivePropDetail(null)
     setShowParlayBuilder(false)
     setLineups(null)
     setLiveGame(null)
@@ -2668,8 +2954,9 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                             return <div key={`${g.eventId || idx}-${idx}`} title={`${g.date || ''} ${g.opponent || ''}${minuteText}`} style={{ borderRadius: 5, padding: '3px 1px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.15)' : 'rgba(255,255,255,0.05)', color: hit ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900 }}><div>{val ?? '—'}</div>{Number.isFinite(gameMinutes) && gameMinutes > 0 && <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, marginTop: 1 }}>{Math.round(gameMinutes)}m</div>}</div>
                           })}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 9 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
                           <button onClick={() => setSelectedContracts(prev => ({ ...prev, [key]: !prev[key] }))} style={{ borderRadius: 999, padding: '7px 10px', border: `1px solid ${selected ? C.borderHot : C.border}`, background: selected ? 'rgba(166,255,63,0.16)' : 'rgba(255,255,255,0.035)', color: selected ? C.green : C.textPrimary, fontSize: 9, fontWeight: 950, cursor: 'pointer' }}>{selected ? 'Selected ✓' : 'Select contract +'}</button>
+                          <button onClick={() => setActivePropDetail(buildPropDetailSignal({ game, sport, player: p, bet: expandedBet, selectedItems, liveGame, intel, lineups }))} style={{ borderRadius: 999, padding: '7px 10px', border: `1px solid ${C.borderHot}`, background: 'rgba(141,247,255,0.10)', color: C.cyan, fontSize: 9, fontWeight: 950, cursor: 'pointer' }}>Details</button>
                           {expandedBet.kalshi?.url && <ExactKalshiBetButton player={p.player} bet={expandedBet} compact />}
                         </div>
                       </div>
@@ -2696,6 +2983,19 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           </div>
         ) : (
           <GameMarketFallback game={game} />
+        )}
+        {activePropDetail && (
+          <div style={{ marginTop: 12 }}>
+            <PropDetailDrawer
+              signal={activePropDetail}
+              open
+              title="Prop terminal detail"
+              onClose={() => setActivePropDetail(null)}
+              onOpenMarket={(signal) => {
+                if (isTrustedMarketUrl(signal?.url)) window.open(signal.url, '_blank', 'noopener,noreferrer')
+              }}
+            />
+          </div>
         )}
       </div>
     </div>
@@ -2825,6 +3125,14 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   const [scanning, setScanning] = useState(false)
   const [settling, setSettling] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedSignal, setSelectedSignal] = useState<SignalTerminalSignal | null>(null)
+  const [watchlist, setWatchlist] = useState<WatchItem[]>([])
+  const [alertEvents, setAlertEvents] = useState<AlertEvent[]>([])
+  const [signalDeltaFeed, setSignalDeltaFeed] = useState<SignalDelta[]>([])
+  const [latestSignalDeltas, setLatestSignalDeltas] = useState<SignalDelta[]>([])
+  const [storageHydrated, setStorageHydrated] = useState(false)
+  const previousSignalSnapshotsRef = useRef<SignalDeltaSnapshot[]>([])
+  const previousWatchSnapshotsRef = useRef<Record<string, WatchSnapshot>>({})
   const autoRunKeyRef = useRef<string | null>(null)
   const supported = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
   const activeGames = games.filter(g => g.status !== 'post')
@@ -2834,7 +3142,29 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
     setData(null)
     setError(null)
     setScanning(false)
+    setSelectedSignal(null)
+    setLatestSignalDeltas([])
   }, [slateKey])
+
+  useEffect(() => {
+    try {
+      const storedWatchlist = localStorage.getItem(SIGNAL_WATCHLIST_STORAGE_KEY)
+      if (storedWatchlist) setWatchlist(JSON.parse(storedWatchlist))
+      const storedAlerts = localStorage.getItem(SIGNAL_ALERTS_STORAGE_KEY)
+      if (storedAlerts) setAlertEvents(JSON.parse(storedAlerts))
+    } catch {}
+    setStorageHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!storageHydrated) return
+    try { localStorage.setItem(SIGNAL_WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist)) } catch {}
+  }, [storageHydrated, watchlist])
+
+  useEffect(() => {
+    if (!storageHydrated) return
+    try { localStorage.setItem(SIGNAL_ALERTS_STORAGE_KEY, JSON.stringify(alertEvents.slice(0, 30))) } catch {}
+  }, [storageHydrated, alertEvents])
 
   const loadPerformance = async () => {
     if (!supported) return
@@ -2862,7 +3192,37 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
       })
       const json = await res.json().catch(() => null)
       if (!res.ok) throw new Error(json?.error || 'signal scan failed')
-      setData(json)
+      const nextSignals: SignalTerminalSignal[] = Array.isArray(json?.signals) ? json.signals.map((signal: ModelSignal) => signalToTerminalSignal(signal)) : []
+      const nextSnapshots = nextSignals.map(signalDeltaSnapshot)
+      const deltas = computeSignalDeltas(previousSignalSnapshotsRef.current, nextSnapshots, { thresholds: { edge: 1, ask: 1, fairPrice: 1 } })
+      previousSignalSnapshotsRef.current = nextSnapshots
+      setSelectedSignal(prev => prev ? (nextSignals.find(signal => signal.id === prev.id) ?? prev) : prev)
+      setLatestSignalDeltas(deltas)
+      if (deltas.length) setSignalDeltaFeed(prev => [...deltas, ...prev].slice(0, 30))
+      const watchedActive = watchlist.filter(item => item.active)
+      if (watchedActive.length && nextSignals.length) {
+        const events: AlertEvent[] = []
+        const nextWatchSnapshots: Record<string, WatchSnapshot> = { ...previousWatchSnapshotsRef.current }
+        for (const signal of nextSignals) {
+          const key = watchKeyForSignal(signal)
+          const watchedItem = watchedActive.find(item => item.key === key)
+          if (!watchedItem) continue
+          const previous = previousWatchSnapshotsRef.current[key] ?? null
+          const rules = buildAlertRulesForWatchItem(watchedItem, signal, SIGNAL_ALERT_COOLDOWN_MS)
+          const current = watchSnapshotForSignal(signal, previous?.lastAlerts)
+          const fired = evaluateAlerts({ previous, current, rules })
+          const lastAlerts = { ...(previous?.lastAlerts || {}) }
+          for (const event of fired) {
+            const rule = rules.find(candidate => candidate.type === event.type)
+            if (rule) lastAlerts[alertSignatureForRule(rule)] = event.at
+          }
+          nextWatchSnapshots[key] = watchSnapshotForSignal(signal, lastAlerts)
+          events.push(...fired)
+        }
+        previousWatchSnapshotsRef.current = nextWatchSnapshots
+        if (events.length) setAlertEvents(prev => [...events, ...prev].slice(0, 30))
+      }
+      setData({ ...json, signals: nextSignals } as SignalsPanelData)
       loadPerformance()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'signal scan unavailable')
@@ -2899,8 +3259,20 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
 
   if (!supported || loading || !activeGames.length) return null
 
-  const tierColor = (tier: ModelSignal['tier']) => tier === 'A' ? C.green : tier === 'B' ? C.cyan : C.gold
-  const topSignals = data?.signals || []
+  const topSignals = (data?.signals || []).map(signal => signalToTerminalSignal(signal))
+  const watchedKeys = new Set(watchlist.filter(item => item.active).map(item => item.key))
+  const openMarket = (signal: SignalTerminalSignal) => {
+    if (isTrustedMarketUrl(signal.url)) window.open(signal.url, '_blank', 'noopener,noreferrer')
+  }
+  const toggleWatch = (signal: SignalTerminalSignal) => {
+    const key = watchKeyForSignal(signal)
+    setWatchlist(prev => {
+      const existing = prev.find(item => item.key === key)
+      if (existing) return watchlistReducer(prev, { type: 'toggle', key, active: !existing.active })
+      return watchlistReducer(prev, { type: 'add', item: { key, id: signal.id, gameId: signal.gameId, player: signal.player, label: signal.label, ticker: signal.ticker ?? undefined, addedAt: new Date().toISOString(), askTarget: finiteSignalNumber(signal.maxBuy) ?? finiteSignalNumber(signal.ask) ?? undefined, edgeTarget: finiteSignalNumber(signal.edge) ?? undefined, minLiquidity: Math.max(5, finiteSignalNumber(signal.askSize ?? signal.liquidity) ?? 5) } })
+    })
+    previousWatchSnapshotsRef.current[key] = watchSnapshotForSignal(signal, previousWatchSnapshotsRef.current[key]?.lastAlerts)
+  }
 
   return (
     <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.36)' }}>
@@ -2969,35 +3341,73 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
               ))}
             </div>
 
+            <ChangedSinceRefreshFeed
+              changes={signalDeltaFeed}
+              maxItems={6}
+              title="Refresh-change feed"
+              emptyLabel="Run or refresh the signal model to build a durable change feed. Tiny moves are ignored."
+              onSelectChange={(id) => {
+                const next = topSignals.find(signal => signal.id === id)
+                if (next) setSelectedSignal(next)
+              }}
+            />
+
+            {alertEvents.length > 0 && (
+              <div style={{ borderRadius: 13, padding: 10, background: 'rgba(255,209,102,0.055)', border: '1px solid rgba(255,209,102,0.18)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 7 }}>
+                  <div style={{ color: C.gold, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Watchlist alerts</div>
+                  <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{watchlist.filter(item => item.active).length} watched</div>
+                </div>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  {alertEvents.slice(0, 4).map((event, idx) => (
+                    <div key={`${event.key}-${event.type}-${event.at}-${idx}`} style={{ color: event.severity === 'danger' ? C.red : event.severity === 'watch' ? C.gold : C.cyan, fontSize: 9, lineHeight: 1.35, fontWeight: 850 }}>
+                      {event.label}: <span style={{ color: C.textSecondary }}>{event.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {topSignals.length ? (
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
-                {topSignals.slice(0, 8).map((signal, signalIdx) => (
-                  <a key={signal.id} href={signal.url || undefined} target="_blank" rel="noopener noreferrer" onClick={e => { if (!signal.url) e.preventDefault() }} style={{ textDecoration: 'none', borderRadius: 14, padding: 11, background: 'rgba(0,0,0,0.24)', border: '1px solid ' + (signal.tier === 'A' ? C.borderHot : C.border), display: 'block', opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 120, 840)}ms` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ color: tierColor(signal.tier), fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{signal.tier} Signal · {signal.matchup}</div>
-                        <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{signal.player}</div>
-                        <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{signal.label}</div>
-                      </div>
-                      <div style={{ color: tierColor(signal.tier), fontSize: 11, fontWeight: 950, textAlign: 'right', flexShrink: 0 }}>+{signal.edge}c<br /><span style={{ color: C.textSecondary, fontSize: 8 }}>{signal.ask}c ask</span></div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) minmax(310px, 0.72fr)', gap: 12, alignItems: 'start' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
+                  {topSignals.slice(0, 8).map((signal, signalIdx) => (
+                    <div key={signal.id} style={{ opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 120, 840)}ms` }}>
+                      <SignalTerminalCard
+                        signal={signal}
+                        selected={selectedSignal?.id === signal.id}
+                        watched={watchedKeys.has(watchKeyForSignal(signal))}
+                        onOpen={setSelectedSignal}
+                        onToggleWatch={toggleWatch}
+                        onOpenMarket={openMarket}
+                      />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 5, marginTop: 9 }}>
-                      {[
-                        ['Hit', String(signal.hits) + '/' + String(signal.games)],
-                        ['Fair', String(signal.fairPrice) + 'c'],
-                        ['Conf', String(signal.confidence)],
-                        ['Liq', String(signal.liquidity)],
-                      ].map(([label, value]) => (
-                        <div key={label} style={{ borderRadius: 8, padding: '5px 4px', background: 'rgba(255,255,255,0.035)', textAlign: 'center' }}>
-                          <div style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950 }}>{value}</div>
-                          <div style={{ color: C.textSecondary, fontSize: 6, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{label}</div>
+                  ))}
+                </div>
+                <div style={{ position: isMobile ? 'static' : 'sticky', top: 12, display: 'grid', gap: 10 }}>
+                  {selectedSignal ? (
+                    <>
+                      <SignalDetailDrawer
+                        signal={selectedSignal}
+                        open
+                        watched={watchedKeys.has(watchKeyForSignal(selectedSignal))}
+                        onClose={() => setSelectedSignal(null)}
+                        onToggleWatch={toggleWatch}
+                        onOpenMarket={openMarket}
+                        deltas={latestSignalDeltas.length ? latestSignalDeltas : signalDeltaFeed}
+                      />
+                      {isTrustedMarketUrl(selectedSignal.url) && (
+                        <div style={{ borderRadius: 14, padding: 11, background: 'rgba(0,0,0,0.20)', border: `1px solid ${C.border}` }}>
+                          <ExactKalshiBetButton player={selectedSignal.player || selectedSignal.label || 'Signal'} bet={signalToExactKalshiBet(selectedSignal)} compact />
                         </div>
-                      ))}
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ borderRadius: 16, padding: 13, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}>
+                      Select a signal to open the detail drawer with execution notes, consensus placeholder, warnings, watch controls, and matching refresh deltas.
                     </div>
-                    <div style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.42, marginTop: 8 }}>{signal.reasons[0]}</div>
-                    {signal.flags.length > 0 && <div style={{ color: C.gold, fontSize: 8, fontWeight: 900, marginTop: 6 }}>{signal.flags.slice(0, 2).join(' · ')}</div>}
-                  </a>
-                ))}
+                  )}
+                </div>
               </div>
             ) : (
               <div style={{ color: C.textSecondary, fontSize: 11 }}>No A/B/Watch calls passed the current model gate on this slate.</div>
