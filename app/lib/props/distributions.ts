@@ -87,6 +87,8 @@ const metricAliases: Record<string, string[]> = {
   points: ['points', 'point', 'pts', 'pt', 'p'],
   rebounds: ['rebounds', 'rebound', 'rebs', 'reb', 'totalrebounds', 'totalrebound', 'trb'],
   assists: ['assists', 'assist', 'asts', 'ast'],
+  threes: ['threes', 'three', 'threepointers', 'threepointer', 'threepointfieldgoalsmade', 'threepointfieldgoals', 'threepointersmade', '3pm', '3pt', 'fg3m'],
+  '3pt': ['threes', 'three', 'threepointers', 'threepointer', 'threepointfieldgoalsmade', 'threepointfieldgoals', 'threepointersmade', '3pm', '3pt', 'fg3m'],
   hits: ['hits', 'hit', 'h'],
   homeruns: ['homeruns', 'homerun', 'homers', 'hr', 'hrs'],
   strikeouts: ['strikeouts', 'strikeout', 'ks', 'k', 'so', 'pitcherstrikeouts'],

@@ -81,6 +81,12 @@ describe('metric stat aliases', () => {
     expect(getMetricStatValue(log, 'total bases')).toBe(6)
   })
 
+  it('extracts NBA three pointer aliases from parsed stats and ESPN-shaped names', () => {
+    expect(getMetricStatValue({ threes: 4 }, 'threes')).toBe(4)
+    expect(getMetricStatValue({ threePointFieldGoalsMade: 3 }, 'threes')).toBe(3)
+    expect(getMetricStatValue({ '3PM': 5 }, '3PT')).toBe(5)
+  })
+
   it('returns null for unknown metrics or non-numeric values', () => {
     expect(getMetricStatValue({ pts: 'DNP' }, 'points')).toBeNull()
     expect(getMetricStatValue({ points: 10 }, 'steals')).toBeNull()

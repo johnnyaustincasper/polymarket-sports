@@ -4,6 +4,7 @@ import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observabili
 import { enforceRateLimit } from '@/app/lib/rate-limit'
 import { getJsonCache, setJsonCache } from '@/app/lib/durable-cache'
 import { completeWithAi } from '@/app/lib/ai-provider'
+import { parseNbaGameLogStats } from '@/app/lib/props/espn-gamelog'
 import {
   dollarsToCents,
   findKalshiMatch,
@@ -1189,9 +1190,7 @@ function parseGameLogs(data: any, sport: Sport): GameLogEntry[] {
       return idx >= 0 ? toNum(statsArr[idx]) : 0
     }
     const stats: Record<string, number> = sport === 'nba'
-      ? {
-          minutes: stat('minutes'), points: stat('points'), rebounds: stat('totalRebounds'), assists: stat('assists'), blocks: stat('blocks'), steals: stat('steals'), threes: stat('threePointFieldGoalsMade') || stat('threePointFieldGoals') || stat('threePointersMade'), turnovers: stat('turnovers'),
-        }
+      ? parseNbaGameLogStats(names, statsArr)
       : sport === 'nfl'
         ? {
             passingYards: stat('passingYards'), passingTouchdowns: stat('passingTouchdowns'), interceptions: stat('interceptions'), rushingYards: stat('rushingYards'), rushingTouchdowns: stat('rushingTouchdowns'), receptions: stat('receptions'), receivingTargets: stat('receivingTargets'), receivingYards: stat('receivingYards'), receivingTouchdowns: stat('receivingTouchdowns'),

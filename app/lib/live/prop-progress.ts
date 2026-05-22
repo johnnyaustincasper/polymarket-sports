@@ -136,7 +136,8 @@ function readMetricValue(row: StatRow, metric: string): number | null {
 
 function readDirectValue(row: StatRow, metricKeys: string[]) {
   const statName = normalizeKey(asString(row.stat) ?? asString(row.name) ?? asString(row.displayName) ?? asString(row.abbreviation))
-  if (!statName || !metricKeys.includes(statName)) return null
+  const normalizedMetricKeys = metricKeys.map(normalizeKey)
+  if (!statName || !normalizedMetricKeys.includes(statName)) return null
   return toNumber(row.value) ?? toNumber(row.displayValue)
 }
 
@@ -180,6 +181,7 @@ function metricAliases(metric: string) {
   if (['points', 'point', 'pts'].includes(normalized)) return ['points', 'point', 'pts']
   if (['rebounds', 'rebound', 'reb', 'rebs'].includes(normalized)) return ['rebounds', 'rebound', 'reb', 'rebs']
   if (['assists', 'assist', 'ast', 'asts'].includes(normalized)) return ['assists', 'assist', 'ast', 'asts']
+  if (['threes', 'three', 'three-pointers', 'three-pointer', 'three-point-field-goals-made', 'three-point-field-goals', 'three-pointers-made', '3pm', '3pt', 'fg3m'].includes(normalized)) return ['threes', 'three', 'three-pointers', 'three-pointer', 'threePointFieldGoalsMade', 'threePointFieldGoals', 'threePointersMade', '3PM', '3PT', 'fg3m']
   if (['strikeouts', 'strikeout', 'k', 'ks'].includes(normalized)) return ['strikeouts', 'strikeout', 'k', 'ks']
   if (['home-runs', 'home-run', 'hr'].includes(normalized)) return ['home-runs', 'home-run', 'homeRuns', 'homeRun', 'hr']
   if (['hits', 'hit', 'h'].includes(normalized)) return ['hits', 'hit', 'h']

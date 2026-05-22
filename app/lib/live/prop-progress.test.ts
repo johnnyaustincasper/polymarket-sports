@@ -52,6 +52,26 @@ describe('getLivePropProgress', () => {
     expect(progress).toEqual({ value: 4, line: 3, hit: true, label: '4 / 3 hits + runs + RBIs' })
   })
 
+  it('reads NBA threes from ESPN-style stat aliases', () => {
+    const progress = getLivePropProgress({
+      statistics: [
+        { athlete: { displayName: 'Stephen Curry' }, statistics: { threePointFieldGoalsMade: 5 } },
+      ],
+    }, 'Stephen Curry', 'threes', 4)
+
+    expect(progress).toEqual({ value: 5, line: 4, hit: true, label: '5 / 4 threes' })
+  })
+
+  it('reads NBA threes from ESPN-style statistic-array aliases', () => {
+    const progress = getLivePropProgress({
+      statistics: [
+        { athlete: { displayName: 'Stephen Curry' }, name: 'threePointFieldGoalsMade', value: 5 },
+      ],
+    }, 'Stephen Curry', 'threes', 4)
+
+    expect(progress).toEqual({ value: 5, line: 4, hit: true, label: '5 / 4 threes' })
+  })
+
   it('returns null when no matching player stat exists', () => {
     expect(getLivePropProgress({ stats: [] }, 'Shohei Ohtani', 'home runs', 1)).toBeNull()
   })
