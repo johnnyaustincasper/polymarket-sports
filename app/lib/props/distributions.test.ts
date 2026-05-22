@@ -85,6 +85,7 @@ describe('metric stat aliases', () => {
     expect(getMetricStatValue({ threes: 4 }, 'threes')).toBe(4)
     expect(getMetricStatValue({ threePointFieldGoalsMade: 3 }, 'threes')).toBe(3)
     expect(getMetricStatValue({ '3PM': 5 }, '3PT')).toBe(5)
+    expect(getMetricStatValue({ threes: 6 }, '3-pointers')).toBe(6)
   })
 
   it('returns null for unknown metrics or non-numeric values', () => {

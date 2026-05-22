@@ -1658,12 +1658,12 @@ function formatPropMetricLabel(metric: string): string {
 function getPropStatValue(player: any, game: any, metric: string): number | null {
   const stats = game?.stats || game || {}
   const key = String(metric || '').toLowerCase()
+  if (key.includes('three') || key.includes('3pt') || key.includes('3-pointer') || key.includes('3 pointer')) return stats.threes ?? stats.threePointFieldGoalsMade ?? stats.threePointersMade ?? null
   if (key.includes('point')) return stats.points ?? stats.pts ?? null
   if (key.includes('rebound')) return stats.rebounds ?? stats.totalRebounds ?? stats.reb ?? null
   if (key.includes('assist')) return stats.assists ?? stats.ast ?? null
   if (key.includes('steal')) return stats.steals ?? stats.stl ?? null
   if (key.includes('block')) return stats.blocks ?? stats.blk ?? null
-  if (key.includes('three') || key.includes('3pt')) return stats.threes ?? stats.threePointFieldGoalsMade ?? stats.threePointersMade ?? null
   if (key.includes('hit') && !key.includes('rate')) return stats.hits ?? stats.hit ?? null
   if (key.includes('home run') || key === 'hr' || key.includes('homer')) return stats.homeRuns ?? stats.hr ?? null
   if (key.includes('total base')) return stats.totalBases ?? stats.tb ?? null

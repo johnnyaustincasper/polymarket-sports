@@ -32,6 +32,8 @@ export const revalidate = 0
 const KALSHI_API = 'https://external-api.kalshi.com/trade-api/v2'
 const XAI_MODEL = process.env.XAI_MODEL || 'grok-3-mini'
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
+const ESPN_GAMELOG_CACHE_SCHEMA = 'v2-3pt-made-attempted'
+const ESPN_TEAM_PROPS_CACHE_SCHEMA = 'v2-3pt-made-attempted'
 
 type Sport = 'nba' | 'nfl' | 'mlb'
 type Trend = 'over' | 'under' | 'push'
@@ -1212,7 +1214,7 @@ function parseGameLogs(data: any, sport: Sport): GameLogEntry[] {
 }
 
 async function fetchPlayerGameLogs(athleteId: string, sport: Sport): Promise<GameLogEntry[]> {
-  const key = `${sport}:${athleteId}`
+  const key = `${ESPN_GAMELOG_CACHE_SCHEMA}:${sport}:${athleteId}`
   const cached = getFreshCache(playerGameLogCache, key, ESPN_PLAYER_GAMELOG_TTL_MS)
   if (cached) return cached
 
@@ -1333,7 +1335,7 @@ async function fetchTeamPropsUncached(abbr: string, sport: Sport): Promise<Playe
 }
 
 async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLine[]> {
-  const key = `${sport}:${abbr.toUpperCase()}`
+  const key = `${ESPN_TEAM_PROPS_CACHE_SCHEMA}:${sport}:${abbr.toUpperCase()}`
   const cached = getFreshCache(teamPropsCache, key, ESPN_TEAM_PROPS_TTL_MS)
   if (cached) return cached
 
