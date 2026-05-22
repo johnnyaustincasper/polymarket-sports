@@ -21,7 +21,7 @@ describe('ESPN NBA gamelog stat parsing', () => {
     ]
     const rowStats = ['36', '4-16', '25.0', '3-10', '30.0', '6-6', '100.0', '4', '4', '0', '2', '1', '4', '17']
 
-    expect(parseEspnStat(names, rowStats, ['threePointFieldGoalsMade-threePointFieldGoalsAttempted'])).toBe(3)
+    expect(parseEspnStat(names, rowStats, ['threePointFieldGoalsMade', 'threePointFieldGoalsMade-threePointFieldGoalsAttempted'])).toBe(3)
     expect(parseNbaGameLogStats(names, rowStats)).toMatchObject({
       minutes: 36,
       points: 17,
