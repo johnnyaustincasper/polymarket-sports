@@ -4,6 +4,7 @@ import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observabili
 import { enforceRateLimit } from '@/app/lib/rate-limit'
 import { getJsonCache, setJsonCache } from '@/app/lib/durable-cache'
 import { completeWithAi } from '@/app/lib/ai-provider'
+import { parseNbaGameLogStats } from '@/app/lib/props/espn-gamelog'
 import {
   dollarsToCents,
   findKalshiMatch,
@@ -31,6 +32,8 @@ export const revalidate = 0
 const KALSHI_API = 'https://external-api.kalshi.com/trade-api/v2'
 const XAI_MODEL = process.env.XAI_MODEL || 'grok-3-mini'
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
+const ESPN_GAMELOG_CACHE_SCHEMA = 'v2-3pt-made-attempted'
+const ESPN_TEAM_PROPS_CACHE_SCHEMA = 'v2-3pt-made-attempted'
 
 type Sport = 'nba' | 'nfl' | 'mlb'
 type Trend = 'over' | 'under' | 'push'
@@ -1189,9 +1192,7 @@ function parseGameLogs(data: any, sport: Sport): GameLogEntry[] {
       return idx >= 0 ? toNum(statsArr[idx]) : 0
     }
     const stats: Record<string, number> = sport === 'nba'
-      ? {
-          minutes: stat('minutes'), points: stat('points'), rebounds: stat('totalRebounds'), assists: stat('assists'), blocks: stat('blocks'), steals: stat('steals'), threes: stat('threePointFieldGoalsMade') || stat('threePointFieldGoals') || stat('threePointersMade'), turnovers: stat('turnovers'),
-        }
+      ? parseNbaGameLogStats(names, statsArr)
       : sport === 'nfl'
         ? {
             passingYards: stat('passingYards'), passingTouchdowns: stat('passingTouchdowns'), interceptions: stat('interceptions'), rushingYards: stat('rushingYards'), rushingTouchdowns: stat('rushingTouchdowns'), receptions: stat('receptions'), receivingTargets: stat('receivingTargets'), receivingYards: stat('receivingYards'), receivingTouchdowns: stat('receivingTouchdowns'),
@@ -1213,7 +1214,7 @@ function parseGameLogs(data: any, sport: Sport): GameLogEntry[] {
 }
 
 async function fetchPlayerGameLogs(athleteId: string, sport: Sport): Promise<GameLogEntry[]> {
-  const key = `${sport}:${athleteId}`
+  const key = `${ESPN_GAMELOG_CACHE_SCHEMA}:${sport}:${athleteId}`
   const cached = getFreshCache(playerGameLogCache, key, ESPN_PLAYER_GAMELOG_TTL_MS)
   if (cached) return cached
 
@@ -1334,7 +1335,7 @@ async function fetchTeamPropsUncached(abbr: string, sport: Sport): Promise<Playe
 }
 
 async function fetchTeamProps(abbr: string, sport: Sport): Promise<PlayerPropLine[]> {
-  const key = `${sport}:${abbr.toUpperCase()}`
+  const key = `${ESPN_TEAM_PROPS_CACHE_SCHEMA}:${sport}:${abbr.toUpperCase()}`
   const cached = getFreshCache(teamPropsCache, key, ESPN_TEAM_PROPS_TTL_MS)
   if (cached) return cached
 
