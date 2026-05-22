@@ -34,6 +34,15 @@ export function normalizeNbaAbbr(abbr: string | null | undefined): string {
   return ESPN_TO_INTERNAL_ABBR[upper] || upper
 }
 
+export function espnTeamSlug(abbr: string | null | undefined): string {
+  const normalized = normalizeNbaAbbr(abbr)
+  return ESPN_ABBR[normalized] || String(abbr || '').toLowerCase()
+}
+
+export function boxscoreTeamMatches(boxscoreTeam: any, requestedAbbr: string | null | undefined): boolean {
+  return normalizeNbaAbbr(boxscoreTeam?.team?.abbreviation) === normalizeNbaAbbr(requestedAbbr)
+}
+
 // Full team names to abbreviation map (for matching ESPN data)
 export const TEAM_NAME_TO_ABBR: Record<string, string> = {
   'Atlanta Hawks': 'ATL', 'Boston Celtics': 'BOS', 'Brooklyn Nets': 'BKN',
@@ -50,6 +59,7 @@ export const TEAM_NAME_TO_ABBR: Record<string, string> = {
 }
 
 export interface GameResult {
+  eventId?: string
   date: string
   win: boolean
   score: string       // e.g. "110-105"
@@ -62,8 +72,8 @@ export interface GameResult {
  * Returns results newest-first.
  */
 export async function fetchTeamRecentGames(abbr: string, limit = 10): Promise<GameResult[]> {
-  const upper = abbr.toUpperCase()
-  const espnAbbr = ESPN_ABBR[upper] || abbr.toLowerCase()
+  const upper = normalizeNbaAbbr(abbr)
+  const espnAbbr = espnTeamSlug(upper)
 
   try {
     const res = await fetch(
@@ -104,6 +114,7 @@ export async function fetchTeamRecentGames(abbr: string, limit = 10): Promise<Ga
       const isHome = team.homeAway === 'home'
 
       games.push({
+        eventId: event.id ? String(event.id) : undefined,
         date: (event.date || '').slice(0, 10),
         win,
         score: `${teamScore}-${oppScore}`,
@@ -190,8 +201,8 @@ export async function fetchTodayTeamAbbrs(): Promise<string[]> {
  * Fetch the most recent completed game's event ID for a team from ESPN schedule.
  */
 export async function fetchLastEventId(abbr: string): Promise<string | null> {
-  const upper = abbr.toUpperCase()
-  const espnAbbr = ESPN_ABBR[upper] || abbr.toLowerCase()
+  const upper = normalizeNbaAbbr(abbr)
+  const espnAbbr = espnTeamSlug(upper)
   try {
     const res = await fetch(
       `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${espnAbbr}/schedule`,
@@ -230,12 +241,13 @@ import type { PlayerMinutes, FatigueReport } from './types'
 export async function fetchFatigueReport(
   abbr: string,
   restDays: number,
-  lastGameDate: string
+  lastGameDate: string,
+  knownLastEventId?: string | null
 ): Promise<FatigueReport | null> {
-  const upper = abbr.toUpperCase()
+  const upper = normalizeNbaAbbr(abbr)
 
   // Get last event ID
-  const eventId = await fetchLastEventId(upper)
+  const eventId = knownLastEventId || await fetchLastEventId(upper)
   if (!eventId) return null
 
   try {
@@ -248,9 +260,7 @@ export async function fetchFatigueReport(
 
     // Find this team's boxscore
     const boxscores: any[] = data.boxscore?.players || []
-    const teamBox = boxscores.find((b: any) =>
-      b.team?.abbreviation?.toUpperCase() === upper
-    )
+    const teamBox = boxscores.find((b: any) => boxscoreTeamMatches(b, upper))
     if (!teamBox) return null
 
     const isBackToBack = restDays === 0

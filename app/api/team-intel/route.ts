@@ -4,6 +4,8 @@ import {
   calcStreak,
   calcRestDays,
   fetchFatigueReport,
+  espnTeamSlug,
+  normalizeNbaAbbr,
 } from '@/app/lib/nba-api'
 import type { TeamIntel } from '@/app/lib/types'
 import { completeWithAi } from '@/app/lib/ai-provider'
@@ -15,6 +17,19 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const BRAVE_KEY = process.env.BRAVE_API_KEY || ''
+
+async function softTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const safePromise = promise.catch(() => fallback)
+  const timeout = new Promise<T>(resolve => {
+    timer = setTimeout(() => resolve(fallback), ms)
+  })
+  try {
+    return await Promise.race([safePromise, timeout])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
 
 // ─── Static pace data (possessions per 48 min, 2024-25 approx) ──────────────
 const PACE_DATA: Record<string, number> = {
@@ -85,9 +100,10 @@ interface H2HResult {
 
 async function fetchH2H(homeAbbr: string, awayAbbr: string): Promise<H2HResult> {
   try {
+    const homeSlug = espnTeamSlug(homeAbbr)
     const res = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${homeAbbr.toLowerCase()}/schedule`,
-      { signal: AbortSignal.timeout(8000) }
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${homeSlug}/schedule`,
+      { signal: AbortSignal.timeout(3000) }
     )
     if (!res.ok) return { summary: 'H2H data unavailable', lastMeeting: null }
     const data = await res.json()
@@ -102,16 +118,14 @@ async function fetchH2H(homeAbbr: string, awayAbbr: string): Promise<H2HResult> 
     for (const event of games) {
       const comp = event.competitions?.[0]
       const competitors: any[] = comp?.competitors || []
-      const hasAway = competitors.some((c: any) =>
-        c.team?.abbreviation?.toUpperCase() === awayAbbr.toUpperCase()
-      )
+      const hasAway = competitors.some((c: any) => normalizeNbaAbbr(c.team?.abbreviation) === awayAbbr)
       if (!hasAway) continue
 
       const homeTeam = competitors.find((c: any) =>
-        c.team?.abbreviation?.toUpperCase() === homeAbbr.toUpperCase()
+        normalizeNbaAbbr(c.team?.abbreviation) === homeAbbr
       )
       const awayTeam = competitors.find((c: any) =>
-        c.team?.abbreviation?.toUpperCase() === awayAbbr.toUpperCase()
+        normalizeNbaAbbr(c.team?.abbreviation) === awayAbbr
       )
 
       if (homeTeam?.winner) homeWins++
@@ -161,7 +175,7 @@ async function fetchPublicBettingSplits(
       `https://api.actionnetwork.com/web/v1/games?sport=nba&date=${date}`,
       {
         headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(1500),
       }
     )
     if (!res.ok) return null
@@ -170,8 +184,8 @@ async function fetchPublicBettingSplits(
 
     // Try to match by team name / abbr
     const game = games.find((g: any) => {
-      const awayId = g.away_team?.abbr?.toUpperCase() || g.teams?.away?.abbr?.toUpperCase() || ''
-      const homeId = g.home_team?.abbr?.toUpperCase() || g.teams?.home?.abbr?.toUpperCase() || ''
+      const awayId = normalizeNbaAbbr(g.away_team?.abbr || g.teams?.away?.abbr)
+      const homeId = normalizeNbaAbbr(g.home_team?.abbr || g.teams?.home?.abbr)
       return (homeId === homeAbbr && awayId === awayAbbr)
         || (homeId.includes(homeAbbr) || awayId.includes(awayAbbr))
     })
@@ -217,7 +231,7 @@ async function fetchRefereeAssignments(dateStr: string): Promise<string[]> {
       `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=3&freshness=pd`,
       {
         headers: { 'Accept': 'application/json', 'X-Subscription-Token': BRAVE_KEY },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(1500),
       }
     )
     if (!res.ok) return []
@@ -271,10 +285,12 @@ export async function GET(req: NextRequest) {
   const timing = startRouteTiming('/api/team-intel')
   try {
     const { searchParams } = req.nextUrl
-    const home = searchParams.get('home')?.toUpperCase()
-    const away = searchParams.get('away')?.toUpperCase()
+    const homeRaw = searchParams.get('home')?.toUpperCase()
+    const awayRaw = searchParams.get('away')?.toUpperCase()
+    const home = normalizeNbaAbbr(homeRaw)
+    const away = normalizeNbaAbbr(awayRaw)
 
-    if (!home || !away) {
+    if (!homeRaw || !awayRaw) {
       return finishRouteTiming(timing, NextResponse.json({ error: 'Missing home or away param' }, { status: 400 }))
     }
 
@@ -284,11 +300,11 @@ export async function GET(req: NextRequest) {
     const [homeGames, awayGames, h2hResult, homeInjuries, awayInjuries, refs, bettingSplits] = await Promise.all([
       fetchTeamRecentGames(home, 15),
       fetchTeamRecentGames(away, 15),
-      fetchH2H(home, away),
+      softTimeout(fetchH2H(home, away), 3200, { summary: 'H2H data unavailable', lastMeeting: null }),
       fetchEspnInjuries(home),
       fetchEspnInjuries(away),
-      fetchRefereeAssignments(today),
-      fetchPublicBettingSplits(home, away, today),
+      softTimeout(fetchRefereeAssignments(today), 1800, []),
+      softTimeout(fetchPublicBettingSplits(home, away, today), 1800, null),
     ])
 
     const homeStreakData = calcStreak(homeGames)
@@ -297,6 +313,8 @@ export async function GET(req: NextRequest) {
     const awayRest = calcRestDays(awayGames)
     const homeLastDate = homeGames[0]?.date || ''
     const awayLastDate = awayGames[0]?.date || ''
+    const homeLastEventId = homeGames[0]?.eventId || null
+    const awayLastEventId = awayGames[0]?.eventId || null
 
     // Home/Away splits
     const homeSplits = computeHomeAwaySplits(homeGames)
@@ -309,18 +327,18 @@ export async function GET(req: NextRequest) {
 
     // Fetch fatigue reports + edge read in parallel
     const [homeFatigue, awayFatigue] = await Promise.all([
-      fetchFatigueReport(home, homeRest, homeLastDate),
-      fetchFatigueReport(away, awayRest, awayLastDate),
+      fetchFatigueReport(home, homeRest, homeLastDate, homeLastEventId),
+      fetchFatigueReport(away, awayRest, awayLastDate, awayLastEventId),
     ])
 
-    const edgeRead = await generateEdgeRead(
+    const edgeRead = await softTimeout(generateEdgeRead(
       home, away,
       homeStreakData.label, awayStreakData.label,
       homeRest, awayRest,
       h2hResult.summary,
       homeFatigue?.summary || 'no data',
       awayFatigue?.summary || 'no data'
-    )
+    ), 1800, `Edge: ${home} — rotation, injury, and rest data loaded; AI edge read still warming.`)
 
     // Altitude note
     const altitudeNote = ALTITUDE_TEAMS.includes(home)
