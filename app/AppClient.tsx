@@ -3277,16 +3277,9 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   return (
     <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.36)' }}>
       <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 12 : 15, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row' }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Single-leg signals</div>
-            <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, marginTop: 3 }}>Find the best individual calls</div>
-            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4 }}>Ranks executable props by fair price, ask, hit rate, confidence, liquidity, and risk.</div>
-          </div>
-          <button onClick={() => runSignals(Boolean(data))} disabled={scanning} style={{ width: isMobile ? '100%' : 'auto', flexShrink: 0, borderRadius: 999, padding: '10px 14px', border: '1px solid ' + C.borderHot, background: scanning ? 'rgba(255,255,255,0.05)' : 'rgba(166,255,63,0.14)', color: scanning ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: scanning ? 'default' : 'pointer' }}>
-            {scanning ? 'Scoring' : data ? 'Rescore' : 'Run model'}
-          </button>
-        </div>
+        <button onClick={() => runSignals(Boolean(data))} disabled={scanning} style={{ width: '100%', borderRadius: 999, padding: isMobile ? '12px 14px' : '10px 16px', border: '1px solid ' + C.borderHot, background: scanning ? 'rgba(255,255,255,0.05)' : 'rgba(166,255,63,0.14)', color: scanning ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: scanning ? 'default' : 'pointer' }}>
+          {scanning ? 'Scoring' : data ? 'Rescore' : 'Run model'}
+        </button>
 
         {error && <div style={{ marginTop: 10, color: C.gold, fontSize: 11 }}>Signals unavailable: {error}</div>}
 
