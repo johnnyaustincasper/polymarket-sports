@@ -76,6 +76,9 @@ type ModelSignal = {
   decision?: SignalDecisionResult
   whyCare?: string[]
   changeSinceRefresh?: SignalDelta[]
+  metadata?: {
+    recentGames?: Array<{ value: number; opponent?: string; date?: string; eventId?: string }>
+  }
 }
 
 type SignalsResponse = {
@@ -345,6 +348,22 @@ function reasonsFor(input: {
   return { reasons, flags }
 }
 
+function recentGamesForMetric(player: any, metric: string) {
+  return (Array.isArray(player?.last12) ? player.last12 : [])
+    .map((game: any) => {
+      const value = statValueForMetric(player, game, metric)
+      if (!Number.isFinite(value)) return null
+      return {
+        value: Number(value),
+        opponent: String(game?.opponent || game?.opponentAbbr || game?.vs || '').trim() || undefined,
+        date: String(game?.date || game?.gameDate || game?.shortDate || '').trim() || undefined,
+        eventId: String(game?.eventId || game?.id || '').trim() || undefined,
+      }
+    })
+    .filter(Boolean)
+    .slice(0, 12) as Array<{ value: number; opponent?: string; date?: string; eventId?: string }>
+}
+
 function trustedInternalApiOrigin() {
   const explicitOrigin = process.env.INTERNAL_API_ORIGIN || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL
   if (explicitOrigin) {
@@ -424,6 +443,9 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
         reasons: read.reasons,
         flags: read.flags,
         createdAt,
+        metadata: {
+          recentGames: recentGamesForMetric(player, bet.metric),
+        },
       })
     }
   }

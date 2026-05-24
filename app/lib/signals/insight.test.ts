@@ -87,8 +87,8 @@ describe('buildWhyCare', () => {
 
     expect(result[0]).toContain('Jalen Brunson')
     expect(result).toEqual(expect.arrayContaining([
-      expect.stringContaining('+8.4% edge'),
-      expect.stringContaining('fair 61% vs ask 52%'),
+      expect.stringContaining('+8.4c edge'),
+      expect.stringContaining('fair 61c vs ask 52c'),
       expect.stringContaining('67% hit rate (8/12)'),
       expect.stringContaining('Usage jumps without OG'),
       expect.stringContaining('Watch: thin liquidity'),

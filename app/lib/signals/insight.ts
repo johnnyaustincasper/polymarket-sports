@@ -72,7 +72,7 @@ export function classifySignalDecision(input: ClassifySignalDecisionInput): Sign
   }
 
   if (isFiniteNumber(input.ask) && isFiniteNumber(input.maxBuy) && input.ask > input.maxBuy) {
-    return result('trap', 'Above max buy', `Ask ${formatPercent(input.ask)} is above max buy ${formatPercent(input.maxBuy)}.`)
+    return result('trap', 'Above max buy', `Ask ${formatCents(input.ask)} is above max buy ${formatCents(input.maxBuy)}.`)
   }
 
   if (tier === 'KILL') {
@@ -88,7 +88,7 @@ export function classifySignalDecision(input: ClassifySignalDecisionInput): Sign
   }
 
   if (tier === 'A' && edge >= ACTIONABLE_EDGE && (input.liquidityGrade === 'real' || input.liquidityGrade === 'deep')) {
-    return result('actionable', 'Actionable signal', `A-tier signal with ${formatSignedPercent(edge)} edge and executable liquidity.`)
+    return result('actionable', 'Actionable signal', `A-tier signal with ${formatSignedCents(edge)} edge and executable liquidity.`)
   }
 
   if ((tier === 'A' || tier === 'B' || tier === 'WATCH') && edge >= WATCH_EDGE) {
@@ -98,10 +98,14 @@ export function classifySignalDecision(input: ClassifySignalDecisionInput): Sign
   return result('pass', 'Pass', 'Edge is below the watch threshold.')
 }
 
-function formatSignedPercent(value: number) {
-  const percent = value * 100
-  const sign = percent > 0 ? '+' : ''
-  return `${sign}${formatNumber(percent)}%`
+function formatSignedCents(value: number) {
+  const cents = value * 100
+  const sign = cents > 0 ? '+' : ''
+  return `${sign}${formatNumber(cents)}c`
+}
+
+function formatCents(value: number) {
+  return `${formatNumber(value * 100)}c`
 }
 
 function formatPercent(value: number) {
@@ -121,15 +125,15 @@ export function buildWhyCare(input: BuildWhyCareInput): string[] {
   const bullets: string[] = [`${input.player}: ${input.label}`]
 
   if (isFiniteNumber(input.edge)) {
-    bullets.push(`${formatSignedPercent(input.edge)} edge vs market`)
+    bullets.push(`${formatSignedCents(input.edge)} edge vs market`)
   }
 
   if (isFiniteNumber(input.fairPrice) && isFiniteNumber(input.ask)) {
-    bullets.push(`Model fair ${formatPercent(input.fairPrice)} vs ask ${formatPercent(input.ask)}`)
+    bullets.push(`Model fair ${formatCents(input.fairPrice)} vs ask ${formatCents(input.ask)}`)
   } else if (isFiniteNumber(input.fairPrice)) {
-    bullets.push(`Model fair ${formatPercent(input.fairPrice)}`)
+    bullets.push(`Model fair ${formatCents(input.fairPrice)}`)
   } else if (isFiniteNumber(input.ask)) {
-    bullets.push(`Current ask ${formatPercent(input.ask)}`)
+    bullets.push(`Current ask ${formatCents(input.ask)}`)
   }
 
   if (isFiniteNumber(input.hitRate)) {

@@ -6,7 +6,6 @@ import CorrelationWarnings from './CorrelationWarnings'
 import LineupInjuryFlags from './LineupInjuryFlags'
 import PriceFairMovementChart from './PriceFairMovementChart'
 import SportsbookConsensusPanel from './SportsbookConsensusPanel'
-import WatchlistControls from './WatchlistControls'
 import type { SignalDrawerProps, SignalTerminalSignal, SignalTier } from './types'
 
 const C = {
@@ -96,10 +95,10 @@ function SectionTitle({ children }: { children: string }) {
 export default function SignalDetailDrawer({
   signal,
   open = true,
-  watched = false,
+  watched: _watched = false,
   onClose,
-  onToggleWatch,
-  onOpenMarket,
+  onToggleWatch: _onToggleWatch,
+  onOpenMarket: _onOpenMarket,
   deltas,
 }: SignalDrawerProps) {
   if (!open || !signal) return null
@@ -181,13 +180,6 @@ export default function SignalDetailDrawer({
           </div>
 
           <div style={{ display: 'grid', gap: 12, alignContent: 'start', minWidth: 0 }}>
-            <WatchlistControls
-              signal={signal}
-              watched={watched}
-              onToggleWatch={onToggleWatch ? (next) => { if (next) onToggleWatch(next) } : undefined}
-              onOpenMarket={onOpenMarket ? (next) => { if (next) onOpenMarket(next) } : undefined}
-              note={signal.ticker ? `Tracking ${signal.ticker}.` : undefined}
-            />
             <ChangedSinceRefreshFeed changes={deltas?.filter((delta) => delta.id === signal.id)} />
             <LineupInjuryFlags flags={signal.lineupFlags} />
             <CorrelationWarnings warnings={signal.correlationWarnings} items={signal.correlationItems} />

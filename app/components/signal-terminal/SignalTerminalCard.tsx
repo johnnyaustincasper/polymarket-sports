@@ -5,7 +5,6 @@ import { buildWhyCare, classifySignalDecision } from '../../lib/signals/insight'
 import CorrelationWarnings from './CorrelationWarnings'
 import LineupInjuryFlags from './LineupInjuryFlags'
 import PriceFairMovementChart from './PriceFairMovementChart'
-import WatchlistControls from './WatchlistControls'
 import type { SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
 
 const C = {
@@ -100,10 +99,10 @@ export default function SignalTerminalCard({
   signal,
   selected = false,
   compact = false,
-  watched = false,
+  watched: _watched = false,
   onOpen,
-  onToggleWatch,
-  onOpenMarket,
+  onToggleWatch: _onToggleWatch,
+  onOpenMarket: _onOpenMarket,
 }: SignalTerminalCardProps) {
   const tier = signal.tier ?? 'WATCH'
   const decision = classifySignalDecision({
@@ -129,6 +128,13 @@ export default function SignalTerminalCard({
     flags: signal.flags,
   })
   const hasWarnings = Boolean(signal.lineupFlags?.length || signal.correlationWarnings?.length || signal.correlationItems?.length)
+  const recentGames = Array.isArray(signal.metadata?.recentGames)
+    ? (signal.metadata?.recentGames as Array<{ value?: unknown; opponent?: unknown; date?: unknown }>).filter(game => isFiniteNumber(Number(game.value))).slice(0, 12)
+    : []
+  const recentValues = recentGames.map(game => Number(game.value))
+  const recentAvg = recentValues.length ? recentValues.reduce((sum, value) => sum + value, 0) / recentValues.length : null
+  const recentMin = recentValues.length ? Math.min(...recentValues) : null
+  const recentMax = recentValues.length ? Math.max(...recentValues) : null
 
   return (
     <div
@@ -168,10 +174,10 @@ export default function SignalTerminalCard({
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 6, marginTop: 11 }}>
           {[
+            ['Ask', formatCents(signal.ask), C.amber],
             ['Fair', formatCents(signal.fairPrice), C.green],
-            ['Max buy', formatCents(signal.maxBuy), C.amber],
-            ['Hit', signal.hits != null && signal.games != null ? `${formatNumber(signal.hits)}/${formatNumber(signal.games)}` : formatPercent(signal.hitRate ?? signal.projectedHitPct), C.text],
-            ['Conf', formatPercent(signal.confidence), C.cyan],
+            ['L12 hit', signal.hits != null && signal.games != null ? `${formatNumber(signal.hits)}/${formatNumber(signal.games)}` : formatPercent(signal.hitRate ?? signal.projectedHitPct), C.text],
+            ['Avg', formatNumber(signal.avg), C.cyan],
           ].map(([label, value, color]) => (
             <div key={label} style={{ minWidth: 0, borderRadius: 11, padding: '7px 6px', background: 'rgba(255,255,255,0.036)', border: `1px solid ${C.border}`, textAlign: 'center' }}>
               <div style={{ color, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
@@ -191,6 +197,27 @@ export default function SignalTerminalCard({
           ))}
         </div>
 
+        {!compact && recentValues.length > 0 && (
+          <div style={{ marginTop: 10, borderRadius: 12, padding: 9, background: 'rgba(255,255,255,0.028)', border: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 7 }}>
+              <div style={{ color: C.text, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Last 12 full stats</div>
+              <div style={{ color: C.faint, fontSize: 8, fontWeight: 900 }}>avg {formatNumber(recentAvg)} · range {formatNumber(recentMin)}-{formatNumber(recentMax)}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 5 }}>
+              {recentGames.map((game, idx) => {
+                const value = Number(game.value)
+                const hit = isFiniteNumber(signal.line) ? value >= signal.line : false
+                return (
+                  <div key={`${idx}-${value}-${String(game.opponent || '')}`} title={[game.date, game.opponent].filter(Boolean).join(' · ')} style={{ borderRadius: 8, padding: '5px 3px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${hit ? 'rgba(166,255,63,0.20)' : 'rgba(255,255,255,0.06)'}` }}>
+                    <div style={{ color: hit ? C.green : C.text, fontSize: 10, fontWeight: 950 }}>{formatNumber(value)}</div>
+                    <div style={{ color: C.faint, fontSize: 6, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(game.opponent || `G${idx + 1}`).replace(/^vs\s+|^@\s+/i, '')}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {signal.flags?.length ? (
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 10 }}>
             {signal.flags.slice(0, compact ? 3 : 6).map((flag) => (
@@ -206,16 +233,7 @@ export default function SignalTerminalCard({
           </div>
         )}
 
-        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} style={{ marginTop: 11, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <WatchlistControls
-            signal={signal}
-            watched={watched}
-            onToggleWatch={onToggleWatch ? (next) => { if (next) onToggleWatch(next) } : undefined}
-            onOpenMarket={onOpenMarket ? (next) => { if (next) onOpenMarket(next) } : undefined}
-            compact
-          />
-          <div style={{ color: C.faint, fontSize: 8, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{signal.ticker || signal.liquidityLabel || signal.liquidityGrade || decision.reason}</div>
-        </div>
+        <div style={{ marginTop: 10, color: C.faint, fontSize: 8, fontWeight: 900, lineHeight: 1.35 }}>{signal.liquidityLabel || signal.liquidityGrade || decision.reason}</div>
       </div>
     </div>
   )

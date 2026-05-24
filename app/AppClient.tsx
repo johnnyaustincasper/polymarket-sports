@@ -3286,8 +3286,6 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
                         selected={selectedSignal?.id === signal.id}
                         watched={watchedKeys.has(watchKeyForSignal(signal))}
                         onOpen={setSelectedSignal}
-                        onToggleWatch={toggleWatch}
-                        onOpenMarket={openMarket}
                       />
                     </div>
                   ))}
@@ -3300,19 +3298,12 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
                         open
                         watched={watchedKeys.has(watchKeyForSignal(selectedSignal))}
                         onClose={() => setSelectedSignal(null)}
-                        onToggleWatch={toggleWatch}
-                        onOpenMarket={openMarket}
                         deltas={latestSignalDeltas.length ? latestSignalDeltas : signalDeltaFeed}
                       />
-                      {isTrustedMarketUrl(selectedSignal.url) && (
-                        <div style={{ borderRadius: 14, padding: 11, background: 'rgba(0,0,0,0.20)', border: `1px solid ${C.border}` }}>
-                          <ExactKalshiBetButton player={selectedSignal.player || selectedSignal.label || 'Signal'} bet={signalToExactKalshiBet(selectedSignal)} compact />
-                        </div>
-                      )}
                     </>
                   ) : (
                     <div style={{ borderRadius: 16, padding: 13, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}>
-                      Tap a signal to open execution notes, movement, watch controls, and the exact Kalshi leg.
+                      Tap a signal to open context, movement, last-12 stats, and risk notes.
                     </div>
                   )}
                 </div>
