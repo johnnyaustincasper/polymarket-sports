@@ -2,7 +2,6 @@
 
 import { buildWhyCare, classifySignalDecision } from '../../lib/signals/insight'
 import ChangedSinceRefreshFeed from './ChangedSinceRefreshFeed'
-import CorrelationWarnings from './CorrelationWarnings'
 import LineupInjuryFlags from './LineupInjuryFlags'
 import PriceFairMovementChart from './PriceFairMovementChart'
 import SportsbookConsensusPanel from './SportsbookConsensusPanel'
@@ -182,12 +181,9 @@ export default function SignalDetailDrawer({
           <div style={{ display: 'grid', gap: 12, alignContent: 'start', minWidth: 0 }}>
             <ChangedSinceRefreshFeed changes={deltas?.filter((delta) => delta.id === signal.id)} />
             <LineupInjuryFlags flags={signal.lineupFlags} />
-            <CorrelationWarnings warnings={signal.correlationWarnings} items={signal.correlationItems} />
             <div style={{ borderRadius: 14, padding: 12, background: 'rgba(0,0,0,0.18)', border: `1px solid ${C.border}` }}>
-              <SectionTitle>Execution notes</SectionTitle>
+              <SectionTitle>Context notes</SectionTitle>
               <div style={{ display: 'grid', gap: 6, color: C.muted, fontSize: 9, lineHeight: 1.4 }}>
-                <div>Liquidity: {signal.liquidityLabel || signal.liquidityGrade || formatNumber(signal.liquidity)}</div>
-                <div>Ask size: {formatNumber(signal.askSize)} · Bid size: {formatNumber(signal.bidSize)}</div>
                 <div>Risk: {signal.risk || 'No explicit risk note supplied.'}</div>
                 <div>Ticker: {signal.ticker || '—'}</div>
               </div>

@@ -2,8 +2,6 @@
 
 import type { KeyboardEvent } from 'react'
 import { buildWhyCare, classifySignalDecision } from '../../lib/signals/insight'
-import CorrelationWarnings from './CorrelationWarnings'
-import LineupInjuryFlags from './LineupInjuryFlags'
 import PriceFairMovementChart from './PriceFairMovementChart'
 import type { SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
 
@@ -127,7 +125,6 @@ export default function SignalTerminalCard({
     reasons: signal.reasons,
     flags: signal.flags,
   })
-  const hasWarnings = Boolean(signal.lineupFlags?.length || signal.correlationWarnings?.length || signal.correlationItems?.length)
   const recentGames = Array.isArray(signal.metadata?.recentGames)
     ? (signal.metadata?.recentGames as Array<{ value?: unknown; opponent?: unknown; date?: unknown }>).filter(game => isFiniteNumber(Number(game.value))).slice(0, 12)
     : []
@@ -160,7 +157,6 @@ export default function SignalTerminalCard({
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ color: tierColor(tier), fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{tier} signal</span>
-              <span style={{ color: hotColor, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', borderRadius: 999, padding: '3px 6px', border: `1px solid ${hotColor}55`, background: `${hotColor}16` }}>{decision.label}</span>
               {signal.sport && <span style={{ color: C.faint, fontSize: 8, fontWeight: 900, textTransform: 'uppercase' }}>{signal.sport}</span>}
             </div>
             <div style={{ color: C.text, fontSize: compact ? 14 : 16, fontWeight: 950, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleFor(signal)}</div>
@@ -226,14 +222,6 @@ export default function SignalTerminalCard({
           </div>
         ) : null}
 
-        {!compact && hasWarnings && (
-          <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-            <LineupInjuryFlags flags={signal.lineupFlags} compact />
-            <CorrelationWarnings warnings={signal.correlationWarnings} items={signal.correlationItems} compact />
-          </div>
-        )}
-
-        <div style={{ marginTop: 10, color: C.faint, fontSize: 8, fontWeight: 900, lineHeight: 1.35 }}>{signal.liquidityLabel || signal.liquidityGrade || decision.reason}</div>
       </div>
     </div>
   )

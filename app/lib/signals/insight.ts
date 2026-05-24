@@ -136,9 +136,10 @@ export function buildWhyCare(input: BuildWhyCareInput): string[] {
     bullets.push(`Current ask ${formatCents(input.ask)}`)
   }
 
-  if (isFiniteNumber(input.hitRate)) {
-    const record = isFiniteNumber(input.hits) && isFiniteNumber(input.games) ? ` (${input.hits}/${input.games})` : ''
-    bullets.push(`${formatNumber(input.hitRate * 100)}% hit rate${record}`)
+  if (isFiniteNumber(input.hits) && isFiniteNumber(input.games)) {
+    bullets.push(`${formatNumber(input.hits)}/${formatNumber(input.games)} hit in recent sample`)
+  } else if (isFiniteNumber(input.hitRate)) {
+    bullets.push(`Recent sample cleared this line ${formatNumber(input.hitRate * 100)}% of the time`)
   }
 
   for (const reason of input.reasons ?? []) {

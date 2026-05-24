@@ -89,7 +89,7 @@ describe('buildWhyCare', () => {
     expect(result).toEqual(expect.arrayContaining([
       expect.stringContaining('+8.4c edge'),
       expect.stringContaining('fair 61c vs ask 52c'),
-      expect.stringContaining('67% hit rate (8/12)'),
+      expect.stringContaining('8/12 hit in recent sample'),
       expect.stringContaining('Usage jumps without OG'),
       expect.stringContaining('Watch: thin liquidity'),
     ]))
