@@ -5083,17 +5083,15 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
     }}>
       {isMobile ? (
         <>
-          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, border: `1px solid ${activeAccent}4d`, background: '#02020f', boxShadow: `0 0 26px ${activeAccent}18, 0 14px 36px rgba(0,0,0,0.36)` }}>
-            <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', height: 128, display: 'block', padding: 0, border: 0, background: '#02020f', cursor: 'pointer', overflow: 'hidden' }}>
-              <img src="/brand/ai-athlete-intelligence-header.png" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} />
+          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, border: `1px solid ${activeAccent}42`, background: '#000', boxShadow: `0 0 22px ${activeAccent}12, 0 12px 32px rgba(0,0,0,0.34)` }}>
+            <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: 92, display: 'flex', alignItems: 'center', padding: '10px 88px 10px 12px', border: 0, background: '#000', cursor: 'pointer', textAlign: 'left' }}>
+              <img src="/brand/ai-athlete-intelligence-wordmark.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: 250, height: 72, objectFit: 'contain', objectPosition: 'left center', display: 'block' }} />
             </button>
-            <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button onClick={onRefresh} aria-label="Refresh markets" style={{ width: 38, height: 38, borderRadius: 13, background: 'rgba(0,0,0,0.58)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
+            <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button onClick={onRefresh} aria-label="Refresh markets" style={{ width: 38, height: 38, borderRadius: 13, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
               {accountEnabled && <AccountMenu isMobile />}
             </div>
-            <div style={{ position: 'absolute', left: 10, bottom: 9, display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', borderRadius: 999, background: 'rgba(0,0,0,0.58)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', backdropFilter: 'blur(10px)' }}>
-              {sportLabel} Board
-            </div>
+            <div style={{ position: 'absolute', right: 10, bottom: 9, padding: '5px 8px', borderRadius: 999, background: 'rgba(0,0,0,0.72)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{sportLabel}</div>
           </div>
           {sportsOpen && (
             <div style={{ marginTop: 10, padding: 8, borderRadius: 16, background: 'rgba(0,0,0,0.24)', border: `1px solid ${C.border}` }}>
@@ -5112,18 +5110,16 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
         </>
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
-          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 26, border: '1px solid rgba(166,255,63,0.26)', background: '#02020f', boxShadow: '0 0 30px rgba(166,255,63,0.14), 0 18px 48px rgba(0,0,0,0.36)' }}>
-            <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', height: 190, display: 'block', padding: 0, border: 0, background: '#02020f', cursor: 'pointer', overflow: 'hidden' }}>
-              <img src="/brand/ai-athlete-intelligence-header.png" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} />
+          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 24, border: '1px solid rgba(166,255,63,0.22)', background: '#000', boxShadow: '0 0 26px rgba(166,255,63,0.10), 0 18px 48px rgba(0,0,0,0.34)' }}>
+            <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: 132, display: 'flex', alignItems: 'center', padding: '18px 260px 18px 22px', border: 0, background: '#000', cursor: 'pointer', textAlign: 'left' }}>
+              <img src="/brand/ai-athlete-intelligence-wordmark.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: 500, height: 96, objectFit: 'contain', objectPosition: 'left center', display: 'block' }} />
             </button>
-            <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', gap: 7, alignItems: 'center' }}>
-              <div style={{ color: C.textSecondary, fontSize: 11, whiteSpace: 'nowrap', padding: '9px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.58)', border: `1px solid ${activeAccent}38`, backdropFilter: 'blur(10px)' }}>{loading ? 'Syncing…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
-              <button onClick={onRefresh} style={{ width: 40, height: 40, borderRadius: 13, background: 'rgba(0,0,0,0.58)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
+            <div style={{ position: 'absolute', top: 18, right: 18, display: 'flex', gap: 7, alignItems: 'center' }}>
+              <div style={{ color: C.textSecondary, fontSize: 11, whiteSpace: 'nowrap', padding: '9px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}38`, backdropFilter: 'blur(10px)' }}>{loading ? 'Syncing…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
+              <button onClick={onRefresh} style={{ width: 40, height: 40, borderRadius: 13, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
               {accountEnabled && <AccountMenu />}
             </div>
-            <div style={{ position: 'absolute', left: 14, bottom: 14, padding: '8px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.58)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', backdropFilter: 'blur(10px)' }}>
-              {sportLabel} Board
-            </div>
+            <div style={{ position: 'absolute', right: 18, bottom: 18, padding: '8px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.72)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{sportLabel} Board</div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             {sports.map(({ value, label }) => <ControlButton key={value} active={sport === value || (label === 'NCAA' && (sport === 'ncaaf' || sport === 'ncaab'))} accent={sportAccent(value)} onClick={() => switchSport(value)} minWidth={78}>{label}</ControlButton>)}
@@ -5386,7 +5382,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           loading={loading}
           lastUpdatedAt={lastUpdated}
           isMobile={isMobile}
-          accountEnabled={true}
+          accountEnabled={clerkEnabled}
         />
 
         <MarketModeDock />
