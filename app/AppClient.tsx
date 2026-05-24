@@ -5083,18 +5083,20 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
     }}>
       {isMobile ? (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: '54px minmax(0,1fr) auto', gap: 10, alignItems: 'center' }}>
-            <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: 54, height: 54, borderRadius: 16, overflow: 'hidden', padding: 0, background: '#02020f', border: `1px solid ${activeAccent}`, boxShadow: `0 0 22px ${activeAccent}24`, cursor: 'pointer' }}>
-              <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, border: `1px solid ${activeAccent}55`, background: '#02020f', boxShadow: `0 0 30px ${activeAccent}22, 0 14px 36px rgba(0,0,0,0.38)` }}>
+            <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', height: 118, display: 'block', padding: 0, border: 0, background: '#02020f', cursor: 'pointer', overflow: 'hidden' }}>
+              <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} />
             </button>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: activeAccent, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Athlete Intelligence</div>
-              <div style={{ color: C.textPrimary, fontSize: 19, fontWeight: 950, letterSpacing: '-0.03em', lineHeight: 1.05 }}>{sportLabel} Slate</div>
-              <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{loading ? 'Syncing markets…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
-            </div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button onClick={onRefresh} aria-label="Refresh markets" style={{ width: 38, height: 38, borderRadius: 13, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 16, cursor: 'pointer' }}>↻</button>
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.42))' }} />
+            <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button onClick={onRefresh} aria-label="Refresh markets" style={{ width: 38, height: 38, borderRadius: 13, background: 'rgba(0,0,0,0.56)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
               {accountEnabled && <AccountMenu isMobile />}
+            </div>
+            <div style={{ position: 'absolute', left: 12, right: 12, bottom: 10, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10, pointerEvents: 'none' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: activeAccent, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', textShadow: '0 2px 12px rgba(0,0,0,0.95)' }}>{sportLabel} Board</div>
+                <div style={{ color: C.textPrimary, fontSize: 10, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 12px rgba(0,0,0,0.95)' }}>{loading ? 'Syncing markets…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
+              </div>
             </div>
           </div>
           {sportsOpen && (
@@ -5113,26 +5115,27 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
           </div>
         </>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '132px minmax(0, 1fr)', gap: 16, alignItems: 'stretch' }}>
-          <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: 132, height: 132, borderRadius: 28, overflow: 'hidden', padding: 0, background: '#02020f', border: '1px solid rgba(166,255,63,0.30)', boxShadow: '0 0 28px rgba(166,255,63,0.18), 0 10px 34px rgba(0,0,0,0.40)', cursor: 'pointer' }}>
-            <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          </button>
-          <div style={{ display: 'grid', gap: 10, alignContent: 'space-between' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 30, border: '1px solid rgba(166,255,63,0.30)', background: '#02020f', boxShadow: '0 0 34px rgba(166,255,63,0.18), 0 18px 48px rgba(0,0,0,0.42)' }}>
+            <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', height: 190, display: 'block', padding: 0, border: 0, background: '#02020f', cursor: 'pointer', overflow: 'hidden' }}>
+              <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} />
+            </button>
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.42))' }} />
+            <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', gap: 7, alignItems: 'center' }}>
+              <button onClick={onRefresh} style={{ width: 40, height: 40, borderRadius: 13, background: 'rgba(0,0,0,0.56)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
+              {accountEnabled && <AccountMenu />}
+            </div>
+            <div style={{ position: 'absolute', left: 18, right: 18, bottom: 16, display: 'flex', justifyContent: 'space-between', gap: 16, pointerEvents: 'none' }}>
               <div>
-                <div style={{ color: activeAccent, fontSize: 11, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Athlete Intelligence</div>
-                <div style={{ color: C.textPrimary, fontSize: 34, fontWeight: 950, letterSpacing: '-0.05em' }}>{sportLabel} Market Board</div>
-                <div style={{ color: C.textSecondary, fontSize: 12 }}>Know the player. Read the contract. Pick your edge.</div>
+                <div style={{ color: activeAccent, fontSize: 11, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', textShadow: '0 2px 14px rgba(0,0,0,0.95)' }}>Athlete Intelligence</div>
+                <div style={{ color: C.textPrimary, fontSize: 24, fontWeight: 950, letterSpacing: '-0.04em', textShadow: '0 2px 14px rgba(0,0,0,0.95)' }}>{sportLabel} Board</div>
               </div>
-              <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
-                <button onClick={onRefresh} style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 16, cursor: 'pointer' }}>↻</button>
-                {accountEnabled && <AccountMenu />}
-              </div>
+              <div style={{ alignSelf: 'flex-end', color: C.textSecondary, fontSize: 12, textShadow: '0 2px 14px rgba(0,0,0,0.95)' }}>{loading ? 'Syncing markets…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              {sports.map(({ value, label }) => <ControlButton key={value} active={sport === value || (label === 'NCAA' && (sport === 'ncaaf' || sport === 'ncaab'))} accent={sportAccent(value)} onClick={() => switchSport(value)} minWidth={78}>{label}</ControlButton>)}
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>{days.map(day => <ControlButton key={day.value} active={date === day.value} accent={activeAccent} onClick={() => setDate(day.value)}>{day.label}</ControlButton>)}</div>
-            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {sports.map(({ value, label }) => <ControlButton key={value} active={sport === value || (label === 'NCAA' && (sport === 'ncaaf' || sport === 'ncaab'))} accent={sportAccent(value)} onClick={() => switchSport(value)} minWidth={78}>{label}</ControlButton>)}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>{days.map(day => <ControlButton key={day.value} active={date === day.value} accent={activeAccent} onClick={() => setDate(day.value)}>{day.label}</ControlButton>)}</div>
           </div>
         </div>
       )}
