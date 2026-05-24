@@ -2226,7 +2226,6 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const [expandedContractKey, setExpandedContractKey] = useState<string>('')
   const [activePropDetail, setActivePropDetail] = useState<SignalTerminalSignal | null>(null)
   const [loadRequested, setLoadRequested] = useState(false)
-  const [showParlayBuilder, setShowParlayBuilder] = useState(false)
   const [lineups, setLineups] = useState<LineupsData | null>(null)
   const [lineupsLoading, setLineupsLoading] = useState(false)
   const [liveGame, setLiveGame] = useState<LiveGameData | null>(null)
@@ -2251,7 +2250,6 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     setSelectedContracts({})
     setExpandedContractKey('')
     setActivePropDetail(null)
-    setShowParlayBuilder(false)
     setLineups(null)
     setLiveGame(null)
     setLiveError(null)
@@ -2386,17 +2384,6 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   }, new Map()).values()) : []
   const contractKey = (p: any, bet: any) => `${p.team}|${p.player}|${bet.metric}|${bet.line}|${bet.kalshi?.legTicker || bet.kalshi?.ticker || ''}`
   const selectedItems = allContracts.filter((x: any) => selectedContracts[contractKey(x.player, x.bet)])
-  const safeParlayPool = buildSafeParlayPool(allContracts.map((x: any) => ({ player: x.player, bet: x.bet })))
-  const parlaySuggestions = buildParlaySuggestions(safeParlayPool)
-  const selectParlayItems = (items: ParlayItem[]) => {
-    const next: Record<string, boolean> = {}
-    items.forEach(x => { next[contractKey(x.player, x.bet)] = true })
-    setSelectedContracts(next)
-  }
-  const copyParlayItems = async (items: ParlayItem[]) => {
-    const text = items.map((x, i) => `${i + 1}. ${x.player.player} — ${x.bet.label} — hit ${x.bet.hits}/${x.bet.games} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`).join('\n')
-    try { await navigator.clipboard?.writeText(text) } catch {}
-  }
   const copySelected = async () => {
     const text = selectedItems.map((x: any, i: number) => `${i + 1}. ${x.player.player} — ${x.bet.label} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`).join('\n')
     try { await navigator.clipboard?.writeText(text) } catch {}
@@ -2812,11 +2799,6 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                 </button>
               })}
             </div>
-            {safeParlayPool.length >= 2 && (
-              <button onClick={() => setShowParlayBuilder(v => !v)} style={{ width: '100%', borderRadius: 14, padding: '10px 12px', border: `1px solid ${showParlayBuilder ? C.borderHot : 'rgba(168,240,255,0.26)'}`, background: showParlayBuilder ? 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(168,240,255,0.08))' : 'rgba(168,240,255,0.055)', color: showParlayBuilder ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                {showParlayBuilder ? 'Hide parlay builder' : `Build 2-8 leg parlays · ${safeParlayPool.length} screened props`}
-              </button>
-            )}
           </div>
         )}
 
@@ -2844,45 +2826,6 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           <p style={{ color: C.gold, fontSize: 11 }}>Kalshi scan unavailable: {error}</p>
         ) : activeGroup ? (
           <div style={{ display: 'grid', gap: 10 }}>
-            {showParlayBuilder && parlaySuggestions.length > 0 && (
-              <div style={{ borderRadius: 16, padding: 12, background: 'linear-gradient(135deg, rgba(166,255,63,0.10), rgba(168,240,255,0.045))', border: `1px solid ${C.borderHot}`, boxShadow: '0 14px 42px rgba(0,0,0,0.34)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 9 }}>
-                  <div>
-                    <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>9/12+ Parlay Builder</div>
-                    <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 3 }}>Exact Kalshi contracts only. One line per player per ticket.</div>
-                  </div>
-                  <button onClick={() => setShowParlayBuilder(false)} style={{ border: 'none', background: 'transparent', color: C.textSecondary, fontSize: 10, fontWeight: 900, cursor: 'pointer' }}>Hide</button>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
-                  {parlaySuggestions.map((ticket, idx) => {
-                    const avgAsk = Math.round(ticket.items.reduce((sum: number, x: any) => sum + Number(x.bet.kalshi?.yesAsk || 0), 0) / ticket.items.length)
-                    return (
-                      <div key={`parlay-${ticket.size}-${idx}`} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}` }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 7 }}>
-                          <div>
-                            <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{ticket.size}-leg screened ticket</div>
-                            <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>avg ask {avgAsk}¢ · priced under model max</div>
-                          </div>
-                          <button onClick={() => selectParlayItems(ticket.items)} style={{ borderRadius: 999, padding: '6px 9px', border: `1px solid ${C.borderHot}`, background: 'rgba(166,255,63,0.14)', color: C.green, fontSize: 8, fontWeight: 950, cursor: 'pointer' }}>Select</button>
-                        </div>
-                        <div style={{ display: 'grid', gap: 5 }}>
-                          {ticket.items.map((x: any) => (
-                            <div key={contractKey(x.player, x.bet)} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center' }}>
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ color: C.textPrimary, fontSize: 9, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.player.player}</div>
-                                <div style={{ color: C.textSecondary, fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.bet.label}{x.matchup ? ` · pitcher ${x.matchup.score}/100` : ''}</div>
-                              </div>
-                              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{x.bet.hits}/{x.bet.games}<br />{x.bet.kalshi?.yesAsk ?? '—'}¢</div>
-                            </div>
-                          ))}
-                        </div>
-                        <button onClick={() => copyParlayItems(ticket.items)} style={{ width: '100%', marginTop: 8, borderRadius: 10, padding: '8px 9px', border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.04)', color: C.textPrimary, fontSize: 9, fontWeight: 950, cursor: 'pointer' }}>Copy ticket</button>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}`, paddingBottom: 5 }}>
               <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{formatPropMetricLabel(activeGroup.metric)}</div>
               <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{activeGroup.items.length} contracts · {activePlayerGroups.length} players</div>
@@ -5076,16 +5019,15 @@ function ControlButton({ active, accent, children, onClick, minWidth = 0 }: {
   )
 }
 
-type SportSubtab = 'slate' | 'legBuilder' | 'playerSignals'
+type SportSubtab = 'slate' | 'playerSignals'
 
 function SportSubtabBar({ active, onChange, isMobile }: { active: SportSubtab; onChange: (tab: SportSubtab) => void; isMobile: boolean }) {
   const tabs: { value: SportSubtab; label: string }[] = [
     { value: 'slate', label: 'Slate' },
-    { value: 'legBuilder', label: 'Leg Builder' },
     { value: 'playerSignals', label: 'Player Signals' },
   ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: isMobile ? 8 : 10, marginBottom: isMobile ? 14 : 18 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 10, marginBottom: isMobile ? 14 : 18 }}>
       {tabs.map(tab => {
         const selected = active === tab.value
         return (
@@ -5478,7 +5420,6 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
             alignItems: 'start',
           }}>
             {subtab === 'playerSignals' && <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} autoRun />}
-            {subtab === 'legBuilder' && provider === 'kalshi' && <SportSlateParlayBuilder sport={sport as SupportedSport} games={games} isMobile={isMobile} autoRun />}
           </div>
         )}
 
