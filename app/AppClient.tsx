@@ -3256,7 +3256,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
                 <div>
                   <div style={{ color: C.textPrimary, fontSize: isMobile ? 13 : 14, fontWeight: 950, letterSpacing: '-0.02em' }}>Best available singles</div>
-                  <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>Ranked by edge, price, liquidity, confidence, and risk.</div>
+                  <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>Ranked by edge, price, and recent sample.</div>
                 </div>
                 <div style={{ color: C.green, fontSize: isMobile ? 18 : 20, fontWeight: 950, lineHeight: 1 }}>{topSignals.length}</div>
               </div>
