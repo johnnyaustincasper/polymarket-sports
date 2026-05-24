@@ -5068,37 +5068,30 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
   ]
   const sportLabel = sport === 'ncaaf' || sport === 'ncaab' ? 'NCAA' : sport.toUpperCase()
   const switchSport = (s: SupportedSport | 'ufc') => { setSport(s); if (isMobile) setSportsOpen(false) }
+  const logoSrc = isMobile ? '/brand/ai-athlete-intelligence-mobile-logo.jpg' : '/brand/ai-athlete-intelligence-wordmark.jpg'
 
   return (
     <header style={{
-      position: isMobile ? 'fixed' : 'relative',
-      top: isMobile ? 0 : undefined,
-      left: isMobile ? 0 : undefined,
-      right: isMobile ? 0 : undefined,
-      width: isMobile ? '100%' : undefined,
-      maxWidth: isMobile ? 1200 : undefined,
-      margin: isMobile ? '0 auto' : undefined,
-      zIndex: isMobile ? 10000 : 100,
-      marginBottom: isMobile ? 0 : 26,
-      padding: isMobile ? 'calc(8px + env(safe-area-inset-top, 0px)) 8px 8px' : 0,
+      position: 'relative',
+      zIndex: 100,
+      marginBottom: 26,
+      padding: 0,
       borderRadius: 0,
-      background: isMobile ? 'linear-gradient(180deg, rgba(0,0,0,0.98), rgba(0,0,0,0.90) 78%, rgba(0,0,0,0))' : 'transparent',
+      background: 'transparent',
       border: 'none',
       boxShadow: 'none',
-      backdropFilter: isMobile ? 'blur(18px)' : undefined,
-      WebkitBackdropFilter: isMobile ? 'blur(18px)' : undefined,
     }}>
       <div style={{ display: 'grid', gap: isMobile ? 8 : 12 }}>
         <div style={{ position: 'relative', overflow: 'hidden', borderRadius: isMobile ? 18 : 24, border: '1px solid rgba(166,255,63,0.22)', background: '#000', boxShadow: '0 0 26px rgba(166,255,63,0.10), 0 18px 48px rgba(0,0,0,0.34)' }}>
-          <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: isMobile ? 112 : 132, display: 'flex', alignItems: 'center', padding: isMobile ? '14px 110px 14px 12px' : '18px 260px 18px 22px', border: 0, background: '#000', cursor: 'pointer', textAlign: 'left' }}>
-            <img src="/brand/ai-athlete-intelligence-wordmark.jpg" alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: isMobile ? 250 : 500, height: isMobile ? 84 : 96, objectFit: 'contain', objectPosition: 'left center', display: 'block' }} />
+          <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: isMobile ? 126 : 132, display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '16px 14px 14px' : '18px 260px 18px 22px', border: 0, background: '#000', cursor: 'pointer', textAlign: isMobile ? 'center' : 'left' }}>
+            <img src={logoSrc} alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: isMobile ? 340 : 500, height: isMobile ? 96 : 96, objectFit: 'contain', objectPosition: isMobile ? 'center center' : 'left center', display: 'block' }} />
           </button>
-          <div style={{ position: 'absolute', top: isMobile ? 10 : 18, right: isMobile ? 10 : 18, display: 'flex', gap: isMobile ? 5 : 7, alignItems: 'center' }}>
+          <div style={{ position: 'absolute', top: isMobile ? 8 : 18, right: isMobile ? 8 : 18, display: 'flex', gap: isMobile ? 5 : 7, alignItems: 'center' }}>
             <div style={{ color: C.textSecondary, fontSize: isMobile ? 9 : 11, whiteSpace: 'nowrap', padding: isMobile ? '7px 8px' : '9px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}38`, backdropFilter: 'blur(10px)' }}>{loading ? 'Syncing…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty={isMobile ? 'Intel' : 'Kalshi + market intelligence'} />}</div>
             <button onClick={onRefresh} style={{ width: isMobile ? 34 : 40, height: isMobile ? 34 : 40, borderRadius: isMobile ? 11 : 13, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: isMobile ? 15 : 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
             {accountEnabled && <AccountMenu isMobile={isMobile} />}
           </div>
-          <div style={{ position: 'absolute', right: isMobile ? 10 : 18, bottom: isMobile ? 10 : 18, padding: isMobile ? '7px 9px' : '8px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.72)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: isMobile ? 9 : 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{sportLabel} Board</div>
+          <div style={{ position: 'absolute', right: isMobile ? 8 : 18, bottom: isMobile ? 8 : 18, padding: isMobile ? '7px 9px' : '8px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.72)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: isMobile ? 9 : 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{sportLabel} Board</div>
         </div>
         <div className={isMobile ? 'no-scrollbar' : undefined} style={{ display: 'flex', gap: isMobile ? 6 : 8, flexWrap: isMobile ? 'nowrap' : 'wrap', alignItems: 'center', overflowX: isMobile ? 'auto' : undefined, paddingBottom: isMobile ? 1 : undefined }}>
           {sports.map(({ value, label }) => <ControlButton key={value} active={sport === value || (label === 'NCAA' && (sport === 'ncaaf' || sport === 'ncaab'))} accent={sportAccent(value)} onClick={() => switchSport(value)} minWidth={isMobile ? 62 : 78}>{label}</ControlButton>)}
@@ -5349,7 +5342,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       onRefresh={() => { setLoading(true); fetchGames() }}
       loading={loading}
       lastUpdatedAt={lastUpdated}
-      isMobile={false}
+      isMobile={isMobile}
       accountEnabled={clerkEnabled}
     />
   )
