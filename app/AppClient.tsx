@@ -2595,9 +2595,9 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: 7 }}>
                 {[
                   { key: 'props' as const, label: 'Props' },
-                  { key: 'feed' as const, label: 'Live Feed' },
+                  { key: 'lineups' as const, label: sport === 'nba' ? 'Rotation' : 'Lineups' },
                   { key: 'box' as const, label: 'Live Stats' },
-                  { key: 'lineups' as const, label: 'Lineups' },
+                  { key: 'feed' as const, label: 'Live Feed' },
                 ].map(tab => {
                   const active = activeLiveTab === tab.key
                   return (
@@ -2723,10 +2723,10 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           </div>
         )}
 
-        {activeLiveTab === 'props' && sport === 'nba' && intel && (
+        {activeLiveTab === 'lineups' && sport === 'nba' && intel && (
           <div style={{ borderRadius: 15, padding: 10, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, marginBottom: 12, opacity: 0, animation: 'dominoFadeIn 920ms cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
-              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Projected Rotation · Last Game Minutes</div>
+              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>NBA Rotation · Last Game Minutes</div>
               <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>starters + minutes + alerts</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 9 : 10 }}>
@@ -2792,6 +2792,12 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               })}
             </div>
             <div style={{ color: C.textSecondary, fontSize: 8, lineHeight: 1.35, marginTop: 8 }}>START is projected until official lineups lock near tip. Minutes are from each player’s last game.</div>
+          </div>
+        )}
+
+        {activeLiveTab === 'lineups' && sport === 'nba' && !intel && (
+          <div style={{ borderRadius: 15, padding: 11, background: 'rgba(255,255,255,0.026)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginBottom: 12 }}>
+            {loadRequested ? 'Loading NBA rotation, last-game minutes, rest, and injury alerts…' : 'Tap Props first to load this game board.'}
           </div>
         )}
 
