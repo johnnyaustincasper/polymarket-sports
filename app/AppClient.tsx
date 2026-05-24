@@ -5071,16 +5071,17 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
 
   return (
     <header style={{
-      position: isMobile ? 'fixed' : 'relative',
-      top: isMobile ? 0 : undefined,
-      left: isMobile ? 0 : undefined,
-      right: isMobile ? 0 : undefined,
-      width: isMobile ? '100%' : undefined,
-      maxWidth: isMobile ? 1200 : undefined,
-      margin: isMobile ? '0 auto' : undefined,
-      zIndex: isMobile ? 10000 : 100,
-      marginBottom: isMobile ? 0 : 26,
-      padding: isMobile ? 'calc(8px + env(safe-area-inset-top, 0px)) 8px 8px' : 0,
+      position: 'fixed',
+      top: isMobile ? 0 : 32,
+      left: '50%',
+      right: 'auto',
+      width: isMobile ? 'calc(100% - 16px)' : 'calc(100% - 32px)',
+      maxWidth: 1200,
+      margin: 0,
+      transform: 'translateX(-50%)',
+      zIndex: 10000,
+      marginBottom: 0,
+      padding: isMobile ? 'calc(8px + env(safe-area-inset-top, 0px)) 0 8px' : 0,
       borderRadius: 0,
       background: isMobile ? 'linear-gradient(180deg, rgba(0,0,0,0.98), rgba(0,0,0,0.90) 78%, rgba(0,0,0,0))' : 'transparent',
       border: 'none',
@@ -5363,13 +5364,9 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(166,255,63,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(166,255,63,0.05) 0%, transparent 70%)',
       }} />
 
-      {isMobile ? header : (
-        <div style={{ position: 'relative', zIndex: 5, maxWidth: 1200, margin: '0 auto', padding: '32px 16px 0' }}>
-          {header}
-        </div>
-      )}
+      {header}
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '218px 10px 64px' : '0 16px 80px' }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '218px 10px 64px' : '246px 16px 80px' }}>
 
         <MarketModeDock />
 
