@@ -5072,41 +5072,42 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
   return (
     <header style={{
       position: isMobile ? 'sticky' : 'relative', top: isMobile ? 0 : undefined, zIndex: 30,
-      marginBottom: isMobile ? 14 : 26,
-      padding: isMobile ? 10 : 0,
-      borderRadius: isMobile ? 18 : 0,
-      background: isMobile ? 'linear-gradient(135deg, rgba(2,2,15,0.94), rgba(3,12,10,0.90))' : 'transparent',
-      border: isMobile ? '1px solid rgba(166,255,63,0.14)' : 'none',
-      boxShadow: isMobile ? '0 14px 34px rgba(0,0,0,0.42), 0 0 22px rgba(166,255,63,0.07)' : 'none',
-      backdropFilter: isMobile ? 'blur(20px)' : undefined,
-      WebkitBackdropFilter: isMobile ? 'blur(20px)' : undefined,
+      marginBottom: isMobile ? 12 : 26,
+      padding: isMobile ? '8px 8px 0' : 0,
+      borderRadius: isMobile ? 0 : 0,
+      background: 'transparent',
+      border: 'none',
+      boxShadow: 'none',
+      backdropFilter: undefined,
+      WebkitBackdropFilter: undefined,
     }}>
       {isMobile ? (
         <>
-          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, border: `1px solid ${activeAccent}42`, background: '#000', boxShadow: `0 0 22px ${activeAccent}12, 0 12px 32px rgba(0,0,0,0.34)` }}>
-            <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: 128, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 8px 10px', border: 0, background: '#000', cursor: 'pointer', textAlign: 'center' }}>
-              <img src="/brand/ai-athlete-intelligence-wordmark.jpg" alt="AI Athlete Intelligence" style={{ width: '96%', maxWidth: '100%', height: 'auto', objectFit: 'contain', objectPosition: 'center center', display: 'block', filter: `drop-shadow(0 0 14px ${activeAccent}22)` }} />
+          <div style={{ display: 'grid', gap: 8, padding: 8, borderRadius: 20, background: 'linear-gradient(180deg, rgba(5,8,4,0.96), rgba(1,2,1,0.92))', border: '1px solid rgba(166,255,63,0.13)', boxShadow: '0 12px 28px rgba(0,0,0,0.34), 0 0 18px rgba(166,255,63,0.045)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' }}>
+            <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: 102, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 6px 8px', borderRadius: 15, border: `1px solid ${activeAccent}28`, background: '#000', cursor: 'pointer', textAlign: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)' }}>
+              <img src="/brand/ai-athlete-intelligence-wordmark.jpg" alt="AI Athlete Intelligence" style={{ width: '94%', maxWidth: '100%', height: 'auto', objectFit: 'contain', objectPosition: 'center center', display: 'block' }} />
             </button>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
-            <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ minHeight: 38, minWidth: 72, borderRadius: 999, padding: '8px 13px', background: `${activeAccent}1f`, border: `1px solid ${activeAccent}`, color: activeAccent, fontSize: 11, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase', cursor: 'pointer', boxShadow: `0 0 18px ${activeAccent}10` }}>{sportLabel}</button>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button onClick={onRefresh} aria-label="Refresh markets" style={{ width: 38, height: 38, borderRadius: 13, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
-              {accountEnabled && <AccountMenu isMobile />}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(72px, auto) minmax(0, 1fr) auto', alignItems: 'center', gap: 8 }}>
+              <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ minHeight: 34, borderRadius: 999, padding: '7px 12px', background: `${activeAccent}18`, border: `1px solid ${activeAccent}85`, color: activeAccent, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>{sportLabel}</button>
+              <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{loading ? 'Syncing markets…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Market intelligence" />}</div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end' }}>
+                <button onClick={onRefresh} aria-label="Refresh markets" style={{ width: 34, height: 34, borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: `1px solid ${activeAccent}55`, color: activeAccent, fontSize: 15, cursor: 'pointer' }}>↻</button>
+                {accountEnabled && <AccountMenu isMobile />}
+              </div>
             </div>
           </div>
           {sportsOpen && (
-            <div style={{ marginTop: 10, padding: 8, borderRadius: 16, background: 'rgba(0,0,0,0.24)', border: `1px solid ${C.border}` }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 7 }}>
+            <div style={{ marginTop: 8, padding: 8, borderRadius: 16, background: 'rgba(0,0,0,0.32)', border: `1px solid ${C.border}` }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 7 }}>
                 {sports.map(({ value, label }) => {
                   const active = sport === value || (label === 'NCAA' && (sport === 'ncaaf' || sport === 'ncaab'))
                   const accent = sportAccent(value)
-                  return <button key={value} onClick={() => switchSport(value)} style={{ minHeight: 42, borderRadius: 13, background: active ? `${accent}1f` : 'rgba(255,255,255,0.035)', border: `1px solid ${active ? accent : C.border}`, color: active ? accent : C.textPrimary, fontSize: 12, fontWeight: 950, letterSpacing: '0.08em', cursor: 'pointer' }}>{label}</button>
+                  return <button key={value} onClick={() => switchSport(value)} style={{ minHeight: 38, borderRadius: 13, background: active ? `${accent}1f` : 'rgba(255,255,255,0.035)', border: `1px solid ${active ? accent : C.border}`, color: active ? accent : C.textPrimary, fontSize: 11, fontWeight: 950, letterSpacing: '0.08em', cursor: 'pointer' }}>{label}</button>
                 })}
               </div>
             </div>
           )}
-          <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginTop: 10, paddingBottom: 1 }}>
+          <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginTop: 8, paddingBottom: 1 }}>
             {days.map(day => <ControlButton key={day.value} active={date === day.value} accent={activeAccent} onClick={() => setDate(day.value)} minWidth={62}>{day.label}</ControlButton>)}
           </div>
         </>
