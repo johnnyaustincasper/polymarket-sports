@@ -5071,15 +5071,22 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
 
   return (
     <header style={{
-      position: isMobile ? 'sticky' : 'relative', top: isMobile ? 0 : undefined, zIndex: 30,
-      marginBottom: isMobile ? 12 : 26,
-      padding: isMobile ? '8px 8px 0' : 0,
-      borderRadius: isMobile ? 0 : 0,
-      background: 'transparent',
+      position: isMobile ? 'fixed' : 'relative',
+      top: isMobile ? 0 : undefined,
+      left: isMobile ? 0 : undefined,
+      right: isMobile ? 0 : undefined,
+      width: isMobile ? '100%' : undefined,
+      maxWidth: isMobile ? 1200 : undefined,
+      margin: isMobile ? '0 auto' : undefined,
+      zIndex: 100,
+      marginBottom: isMobile ? 0 : 26,
+      padding: isMobile ? 'calc(8px + env(safe-area-inset-top, 0px)) 8px 8px' : 0,
+      borderRadius: 0,
+      background: isMobile ? 'linear-gradient(180deg, rgba(0,0,0,0.98), rgba(0,0,0,0.90) 78%, rgba(0,0,0,0))' : 'transparent',
       border: 'none',
       boxShadow: 'none',
-      backdropFilter: undefined,
-      WebkitBackdropFilter: undefined,
+      backdropFilter: isMobile ? 'blur(18px)' : undefined,
+      WebkitBackdropFilter: isMobile ? 'blur(18px)' : undefined,
     }}>
       {isMobile ? (
         <>
@@ -5371,7 +5378,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(166,255,63,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(166,255,63,0.05) 0%, transparent 70%)',
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '18px 10px 64px' : '32px 16px 80px' }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '218px 10px 64px' : '32px 16px 80px' }}>
 
         <AIAthleteHeader
           sport={sport}
