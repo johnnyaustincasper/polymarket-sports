@@ -5078,7 +5078,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
       width: isMobile ? '100%' : undefined,
       maxWidth: isMobile ? 1200 : undefined,
       margin: isMobile ? '0 auto' : undefined,
-      zIndex: 100,
+      zIndex: isMobile ? 10000 : 100,
       marginBottom: isMobile ? 0 : 26,
       padding: isMobile ? 'calc(8px + env(safe-area-inset-top, 0px)) 8px 8px' : 0,
       borderRadius: 0,
@@ -5369,6 +5369,23 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   }, [])
   const logBet = (b: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) =>
     saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])
+  const header = (
+    <AIAthleteHeader
+      sport={sport}
+      setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
+      days={days}
+      date={date}
+      setDate={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}
+      pendingBets={pendingBets}
+      onOpenTracker={() => setShowTracker(true)}
+      onRefresh={() => { setLoading(true); fetchGames() }}
+      loading={loading}
+      lastUpdatedAt={lastUpdated}
+      isMobile={isMobile}
+      accountEnabled={clerkEnabled}
+    />
+  )
+
   return (
     <main style={{ minHeight: '100vh', background: C.bg, color: C.textPrimary, position: 'relative', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <style>{GLOBAL_STYLES}</style>
@@ -5378,22 +5395,13 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(166,255,63,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(166,255,63,0.05) 0%, transparent 70%)',
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '218px 10px 64px' : '32px 16px 80px' }}>
+      {isMobile ? header : (
+        <div style={{ position: 'relative', zIndex: 5, maxWidth: 1200, margin: '0 auto', padding: '32px 16px 0' }}>
+          {header}
+        </div>
+      )}
 
-        <AIAthleteHeader
-          sport={sport}
-          setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
-          days={days}
-          date={date}
-          setDate={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}
-          pendingBets={pendingBets}
-          onOpenTracker={() => setShowTracker(true)}
-          onRefresh={() => { setLoading(true); fetchGames() }}
-          loading={loading}
-          lastUpdatedAt={lastUpdated}
-          isMobile={isMobile}
-          accountEnabled={clerkEnabled}
-        />
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '218px 10px 64px' : '0 16px 80px' }}>
 
         <MarketModeDock />
 
