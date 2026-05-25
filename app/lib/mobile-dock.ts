@@ -1,6 +1,6 @@
 import type { SupportedSport } from './sports-utils'
 
-export type MobileDockTab = 'sport' | 'signals' | 'slate' | 'dates' | 'profile'
+export type MobileDockTab = 'sport' | 'teams' | 'signals' | 'dates' | 'profile'
 export type MobileDockIcon = MobileDockTab
 export type MobileSportOption = { value: SupportedSport | 'ufc'; label: string }
 export type MobileDateOption = { label: string; value: string }
@@ -15,15 +15,17 @@ export const mobileDockSportOptions: MobileSportOption[] = [
 export function buildMobileDockTabs(): { key: MobileDockTab; label: string; icon: MobileDockIcon; primary?: boolean }[] {
   return [
     { key: 'sport', label: 'Sport', icon: 'sport' },
-    { key: 'signals', label: 'Signals', icon: 'signals' },
-    { key: 'slate', label: 'Slate', icon: 'slate', primary: true },
+    { key: 'teams', label: 'Teams', icon: 'teams' },
+    { key: 'signals', label: 'Signals', icon: 'signals', primary: true },
     { key: 'dates', label: 'Dates', icon: 'dates' },
     { key: 'profile', label: 'Profile', icon: 'profile' },
   ]
 }
 
-export function getMobileDockActiveTab(subtab: 'slate' | 'playerSignals'): MobileDockTab {
-  return subtab === 'playerSignals' ? 'signals' : 'slate'
+export function getMobileDockActiveTab(subtab: 'slate' | 'teams' | 'playerSignals'): MobileDockTab {
+  if (subtab === 'playerSignals') return 'signals'
+  if (subtab === 'teams') return 'teams'
+  return 'signals'
 }
 
 export function mobileDockDateOptions(days: MobileDateOption[]): MobileDateOption[] {

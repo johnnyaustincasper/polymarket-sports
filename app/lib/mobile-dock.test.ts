@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions } from './mobile-dock'
 
 describe('mobile bottom dock configuration', () => {
-  it('uses the requested five bottom tabs with Slate centered', () => {
-    expect(buildMobileDockTabs().map(tab => tab.label)).toEqual(['Sport', 'Signals', 'Slate', 'Dates', 'Profile'])
-    expect(buildMobileDockTabs()[2]).toMatchObject({ key: 'slate', label: 'Slate', primary: true })
+  it('uses the requested five bottom tabs with Signals centered and Teams beside Sport', () => {
+    expect(buildMobileDockTabs().map(tab => tab.label)).toEqual(['Sport', 'Teams', 'Signals', 'Dates', 'Profile'])
+    expect(buildMobileDockTabs()[1]).toMatchObject({ key: 'teams', label: 'Teams' })
+    expect(buildMobileDockTabs()[2]).toMatchObject({ key: 'signals', label: 'Signals', primary: true })
   })
 
   it('maps app subtab state to dock active tabs', () => {
-    expect(getMobileDockActiveTab('slate')).toBe('slate')
+    expect(getMobileDockActiveTab('slate')).toBe('signals')
+    expect(getMobileDockActiveTab('teams')).toBe('teams')
     expect(getMobileDockActiveTab('playerSignals')).toBe('signals')
   })
 

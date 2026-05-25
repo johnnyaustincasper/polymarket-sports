@@ -242,6 +242,34 @@ interface SignalsPanelData {
   signals: ModelSignal[]
   summary: { a: number; b: number; watch: number; avgEdge: number; bestEdge: number }
 }
+
+interface TeamsDirectoryTeam {
+  id: string
+  abbr: string
+  name: string
+  shortName: string
+  color?: string
+  logo?: string | null
+  record?: string | null
+}
+interface TeamsDirectoryPlayer {
+  id: string
+  name: string
+  position: string
+  jersey?: string | null
+  age?: number | null
+  height?: string | null
+  weight?: string | null
+  headshot?: string | null
+  status?: string | null
+}
+interface TeamsDirectoryDetail {
+  team: TeamsDirectoryTeam
+  roster: TeamsDirectoryPlayer[]
+  stats: { label: string; value: string }[]
+  injuries: { player: string; position?: string; status: string; detail?: string }[]
+  generatedAt: string
+}
 interface SignalPerformanceData {
   generatedAt: string
   total: number
@@ -5023,15 +5051,16 @@ function ControlButton({ active, accent, children, onClick, minWidth = 0 }: {
   )
 }
 
-type SportSubtab = 'slate' | 'playerSignals'
+type SportSubtab = 'slate' | 'teams' | 'playerSignals'
 
 function SportSubtabBar({ active, onChange, isMobile }: { active: SportSubtab; onChange: (tab: SportSubtab) => void; isMobile: boolean }) {
   const tabs: { value: SportSubtab; label: string }[] = [
     { value: 'slate', label: 'Slate' },
+    { value: 'teams', label: 'Teams' },
     { value: 'playerSignals', label: 'Player Signals' },
   ]
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 10, marginBottom: isMobile ? 14 : 18 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`, gap: isMobile ? 8 : 10, marginBottom: isMobile ? 14 : 18 }}>
       {tabs.map(tab => {
         const selected = active === tab.value
         return (
@@ -5054,6 +5083,165 @@ function SportSubtabBar({ active, onChange, isMobile }: { active: SportSubtab; o
         )
       })}
     </div>
+  )
+}
+
+function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc'; isMobile: boolean }) {
+  const supported = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
+  const [teams, setTeams] = useState<TeamsDirectoryTeam[]>([])
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
+  const [detail, setDetail] = useState<TeamsDirectoryDetail | null>(null)
+  const [loadingTeams, setLoadingTeams] = useState(false)
+  const [loadingDetail, setLoadingDetail] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!supported) {
+      setTeams([])
+      setSelectedTeamId(null)
+      setDetail(null)
+      return
+    }
+    let cancelled = false
+    async function loadTeams() {
+      setLoadingTeams(true)
+      setError(null)
+      try {
+        const res = await fetch(`/api/teams?sport=${sport}&t=${Date.now()}`, { cache: 'no-store' })
+        const json = await res.json().catch(() => null)
+        if (!res.ok) throw new Error(json?.error || `team feed failed (${res.status})`)
+        const nextTeams = Array.isArray(json?.teams) ? json.teams : []
+        if (cancelled) return
+        setTeams(nextTeams)
+        setSelectedTeamId(prev => prev && nextTeams.some((team: TeamsDirectoryTeam) => team.id === prev) ? prev : nextTeams[0]?.id || null)
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'team feed unavailable')
+      } finally {
+        if (!cancelled) setLoadingTeams(false)
+      }
+    }
+    loadTeams()
+    return () => { cancelled = true }
+  }, [sport, supported])
+
+  useEffect(() => {
+    if (!supported || !selectedTeamId) {
+      setDetail(null)
+      return
+    }
+    const teamId = selectedTeamId as string
+    let cancelled = false
+    async function loadDetail() {
+      setLoadingDetail(true)
+      setError(null)
+      try {
+        const res = await fetch(`/api/teams?sport=${sport}&team=${encodeURIComponent(teamId)}&t=${Date.now()}`, { cache: 'no-store' })
+        const json = await res.json().catch(() => null)
+        if (!res.ok) throw new Error(json?.error || `team detail failed (${res.status})`)
+        if (!cancelled) setDetail(json)
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'team detail unavailable')
+      } finally {
+        if (!cancelled) setLoadingDetail(false)
+      }
+    }
+    loadDetail()
+    return () => { cancelled = true }
+  }, [sport, selectedTeamId, supported])
+
+  if (!supported) {
+    return (
+      <section style={{ borderRadius: 20, padding: 18, background: 'rgba(255,255,255,0.035)', border: `1px solid ${C.border}` }}>
+        <p style={{ color: C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Teams unavailable</p>
+        <p style={{ color: C.textSecondary, fontSize: 13, lineHeight: 1.45 }}>Team rosters are wired for NBA, MLB, and NFL first. Switch sports from the dock to browse teams.</p>
+      </section>
+    )
+  }
+
+  const accent = detail?.team?.color || C.green
+  const roster = detail?.roster || []
+  const injuries = detail?.injuries || []
+  const stats = detail?.stats || []
+
+  return (
+    <section style={{ display: 'grid', gap: isMobile ? 12 : 16 }}>
+      <div style={{ borderRadius: isMobile ? 18 : 22, padding: isMobile ? 12 : 14, background: 'linear-gradient(145deg, rgba(166,255,63,0.10), rgba(255,255,255,0.035))', border: `1px solid ${C.border}`, boxShadow: '0 18px 54px rgba(0,0,0,0.34)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+          <div>
+            <p style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{sport.toUpperCase()} Teams</p>
+            <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 4 }}>Tap a team for roster, season stats, and injury report.</p>
+          </div>
+          {(loadingTeams || loadingDetail) && <span style={{ color: C.gold, fontSize: 10, fontWeight: 900 }}>Loading…</span>}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : 'repeat(6, minmax(0, 1fr))', gap: 8 }}>
+          {teams.map(team => {
+            const selected = selectedTeamId === team.id
+            return (
+              <button key={team.id} type="button" onClick={() => setSelectedTeamId(team.id)} style={{
+                minHeight: isMobile ? 48 : 52,
+                borderRadius: 15,
+                border: `1px solid ${selected ? accent : 'rgba(255,255,255,0.10)'}`,
+                background: selected ? `${accent}24` : 'rgba(255,255,255,0.035)',
+                color: selected ? C.textPrimary : C.textSecondary,
+                fontSize: 10,
+                fontWeight: 950,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}>{team.abbr}</button>
+            )
+          })}
+        </div>
+        {error && <p style={{ color: C.gold, fontSize: 11, marginTop: 10 }}>{error}</p>}
+      </div>
+
+      {detail && (
+        <div style={{ borderRadius: isMobile ? 20 : 24, padding: isMobile ? 14 : 18, background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(3,5,0,0.94))', border: `1px solid ${accent}55`, boxShadow: `0 0 34px ${accent}18, 0 20px 60px rgba(0,0,0,0.44)` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+            {detail.team.logo && <img src={detail.team.logo} alt="" style={{ width: 46, height: 46, objectFit: 'contain', flexShrink: 0 }} />}
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ color: C.textPrimary, fontSize: isMobile ? 20 : 24, fontWeight: 950, margin: 0, lineHeight: 1.05 }}>{detail.team.name}</h2>
+              <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 5 }}>{detail.team.record ? `Record ${detail.team.record}` : 'Season profile'}</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))', gap: 8, marginBottom: 14 }}>
+            {(stats.length ? stats : [{ label: 'Roster', value: String(roster.length) }]).map(stat => (
+              <div key={`${stat.label}-${stat.value}`} style={{ borderRadius: 14, padding: '10px 9px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ color: accent, fontSize: 17, fontWeight: 950 }}>{stat.value}</div>
+                <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 3 }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.35fr 0.85fr', gap: 12 }}>
+            <div style={{ borderRadius: 18, padding: 12, background: 'rgba(0,0,0,0.26)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <p style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>Roster</p>
+              <div style={{ display: 'grid', gap: 7 }}>
+                {roster.slice(0, 18).map(player => (
+                  <div key={player.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.055)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{player.name}</div>
+                      <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 2 }}>{player.position}{player.jersey ? ` · #${player.jersey}` : ''}{player.height ? ` · ${player.height}` : ''}</div>
+                    </div>
+                    {player.status && <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800 }}>{player.status}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ borderRadius: 18, padding: 12, background: 'rgba(0,0,0,0.26)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <p style={{ color: injuries.length ? C.gold : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>Injury Report</p>
+              {injuries.length ? injuries.slice(0, 10).map((injury, idx) => (
+                <div key={`${injury.player}-${idx}`} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.055)' }}>
+                  <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 850 }}>{injury.player}</div>
+                  <div style={{ color: C.gold, fontSize: 10, marginTop: 2 }}>{injury.status}{injury.detail ? ` · ${injury.detail}` : ''}</div>
+                </div>
+              )) : <p style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.45 }}>No current ESPN injury flags on this roster.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -5157,8 +5345,8 @@ function DockIcon({ icon, active, primary }: { icon: MobileDockIcon; active: boo
   const common = { fill: 'none', stroke, strokeWidth, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
 
   if (icon === 'sport') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="12" cy="12" r="7.5" /><path {...common} d="M12 4.5v15M4.5 12h15M7.3 6.8c2.5 2 6.9 2 9.4 0M7.3 17.2c2.5-2 6.9-2 9.4 0" /></svg>
+  if (icon === 'teams') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="8.5" cy="8" r="3" /><circle {...common} cx="16" cy="9" r="2.5" /><path {...common} d="M3.8 19c0-3.3 1.9-5.2 4.7-5.2s4.7 1.9 4.7 5.2" /><path {...common} d="M12.8 16.8c.7-1.4 1.8-2.1 3.2-2.1 2.4 0 4 1.6 4.2 4.3" /></svg>
   if (icon === 'signals') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><path {...common} d="M4 18h16" /><path {...common} d="M6.5 15.5l4.1-4.4 3.2 2.8 4.8-6.1" /><circle cx="18.6" cy="7.8" r="1.35" fill={stroke} /></svg>
-  if (icon === 'slate') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><rect {...common} x="5" y="4.5" width="14" height="15" rx="3" /><path {...common} d="M8.5 9h7M8.5 13h7M8.5 17h4" /></svg>
   if (icon === 'dates') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><rect {...common} x="5" y="6" width="14" height="13" rx="3" /><path {...common} d="M8 4v4M16 4v4M5 10h14" /><circle cx="9" cy="14" r="1" fill={stroke} /><circle cx="13" cy="14" r="1" fill={stroke} /><circle cx="17" cy="14" r="1" fill={stroke} /></svg>
   return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="12" cy="8.5" r="3.5" /><path {...common} d="M5.5 19c1.2-3.4 3.4-5.1 6.5-5.1s5.3 1.7 6.5 5.1" /></svg>
 }
@@ -5333,7 +5521,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
-  const [mobileDockTab, setMobileDockTab] = useState<MobileDockTab>('slate')
+  const [mobileDockTab, setMobileDockTab] = useState<MobileDockTab>('signals')
   const [mobileDockPanel, setMobileDockPanel] = useState<'sport' | 'dates' | null>(null)
   const [openMobileProfile, setOpenMobileProfile] = useState(false)
   const [provider, setProvider] = useState<MarketProvider>('kalshi')
@@ -5520,7 +5708,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
     setSport(nextSport)
     setDate(chicagoYmd())
     setSubtab('slate')
-    setMobileDockTab('slate')
+    setMobileDockTab('signals')
     setMobileDockPanel(null)
     setProvider('kalshi')
     setFeedError(null)
@@ -5530,7 +5718,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const handleDockDateChange = (nextDate: string) => {
     setDate(nextDate)
     setSubtab('slate')
-    setMobileDockTab('slate')
+    setMobileDockTab('signals')
     setMobileDockPanel(null)
     setFeedError(null)
     setLoading(true)
@@ -5545,6 +5733,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
     }
     if (nextTab === 'signals') {
       setSubtab('playerSignals')
+    } else if (nextTab === 'teams') {
+      setSubtab('teams')
     } else {
       setSubtab('slate')
     }
@@ -5553,7 +5743,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const header = (
     <AIAthleteHeader
       sport={sport}
-      setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setMobileDockTab('slate'); setMobileDockPanel(null); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
+      setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setMobileDockTab('signals'); setMobileDockPanel(null); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
       days={days}
       date={date}
       setDate={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}
@@ -5596,6 +5786,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
             marginBottom: isMobile ? 14 : 18,
             alignItems: 'start',
           }}>
+            {subtab === 'teams' && <TeamsDirectoryPanel sport={sport} isMobile={isMobile} />}
             {subtab === 'playerSignals' && <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} autoRun />}
           </div>
         )}
@@ -5696,7 +5887,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
       {isMobile && provider === 'kalshi' && (
         <BottomDock
-          active={getMobileDockActiveTab(subtab) === 'signals' ? 'signals' : mobileDockTab}
+          active={subtab === 'slate' ? mobileDockTab : getMobileDockActiveTab(subtab)}
           openPanel={mobileDockPanel}
           sport={sport}
           sports={mobileDockSportOptions}
