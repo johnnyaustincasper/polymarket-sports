@@ -5289,11 +5289,11 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
       {detail && (
         <div ref={detailRef} style={{ scrollMarginTop: isMobile ? 12 : 18, borderRadius: isMobile ? 20 : 24, padding: isMobile ? 14 : 18, background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(3,5,0,0.94))', border: `1px solid ${accent}55`, boxShadow: `0 0 34px ${accent}18, 0 20px 60px rgba(0,0,0,0.44)` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            <span style={{ width: isMobile ? 84 : 92, flexShrink: 0 }}>
+            <span style={{ width: isMobile ? 74 : 88, flexShrink: 0 }}>
               <TeamLeagueCard abbr={detail.team.abbr} name={detail.team.name} sport={sport} selected compact />
             </span>
-            <div style={{ minWidth: 0 }}>
-              <h2 style={{ color: C.textPrimary, fontSize: isMobile ? 20 : 24, fontWeight: 950, margin: 0, lineHeight: 1.05 }}>{detail.team.name}</h2>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h2 style={{ color: C.textPrimary, fontSize: isMobile ? 18 : 24, fontWeight: 950, margin: 0, lineHeight: 1.08, overflowWrap: 'anywhere' }}>{detail.team.name}</h2>
               <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 5 }}>{detail.team.record ? `Record ${detail.team.record}` : 'Season profile'}</p>
             </div>
           </div>
