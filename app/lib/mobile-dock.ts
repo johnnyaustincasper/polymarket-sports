@@ -31,6 +31,15 @@ export const premiumMobileDockLayout = {
   containerRadius: 30,
 } as const
 
+export const slateMainFeatureAnimation = {
+  tab: 'slate',
+  ariaLabel: 'Slate — main feature',
+  ringAnimationName: 'slate-main-feature-ring',
+  shimmerAnimationName: 'slate-main-feature-shimmer',
+  respectsReducedMotion: true,
+  preservesEqualFootprint: true,
+} as const
+
 export function getMobileDockActiveTab(subtab: 'slate' | 'teams' | 'playerSignals'): MobileDockTab {
   if (subtab === 'playerSignals') return 'signals'
   if (subtab === 'teams') return 'teams'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout } from './mobile-dock'
+import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout, slateMainFeatureAnimation } from './mobile-dock'
 
 describe('mobile bottom dock configuration', () => {
   it('keeps Slate as the centered primary tab and adds Signals as its own tab', () => {
@@ -17,6 +17,17 @@ describe('mobile bottom dock configuration', () => {
       activeScale: 1,
       activeTranslateY: 0,
       containerRadius: 30,
+    })
+  })
+
+  it('marks Slate as the main feature with a premium motion cue without changing its footprint', () => {
+    expect(slateMainFeatureAnimation).toMatchObject({
+      tab: 'slate',
+      ariaLabel: 'Slate — main feature',
+      ringAnimationName: 'slate-main-feature-ring',
+      shimmerAnimationName: 'slate-main-feature-shimmer',
+      respectsReducedMotion: true,
+      preservesEqualFootprint: true,
     })
   })
 

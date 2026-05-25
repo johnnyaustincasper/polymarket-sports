@@ -13,7 +13,7 @@ import type { LineupInjuryFlagItem, SignalTerminalSignal, SportsbookConsensus } 
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
 import { resolveStartupSport } from './lib/startup-sport'
-import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout, type MobileDockIcon, type MobileDockTab } from './lib/mobile-dock'
+import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout, slateMainFeatureAnimation, type MobileDockIcon, type MobileDockTab } from './lib/mobile-dock'
 import { resetInitialSlateScroll } from './lib/startup-scroll'
 import { detectCorrelationWarnings, type CorrelationInputItem, type CorrelationWarning } from './lib/parlays/correlation'
 import { getLivePropProgress as getLivePropProgressPure } from './lib/live/prop-progress'
@@ -5494,7 +5494,7 @@ function MarketToggleButton({ active, accent, children, onClick, minWidth }: {
 }
 
 function DockIcon({ icon, active, primary }: { icon: MobileDockIcon; active: boolean; primary?: boolean }) {
-  const stroke = active ? '#030500' : 'currentColor'
+  const stroke = active ? '#d7ff58' : 'currentColor'
   const strokeWidth = primary ? 2.4 : 2.1
   const common = { fill: 'none', stroke, strokeWidth, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
 
@@ -5550,6 +5550,7 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
     transform: `translateY(${premiumMobileDockLayout.activeTranslateY}px) scale(${premiumMobileDockLayout.activeScale})`,
     transition: 'transform 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 180ms ease, background 180ms ease',
     WebkitTapHighlightColor: 'transparent',
+    overflow: 'visible',
   })
 
   const iconWrap = (selected: boolean): React.CSSProperties => ({
@@ -5558,11 +5559,11 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
     borderRadius: 999,
     display: 'grid',
     placeItems: 'center',
-    color: selected ? '#030500' : 'rgba(238,246,255,0.86)',
+    color: selected ? '#d7ff58' : 'rgba(238,246,255,0.86)',
     background: selected
-      ? 'linear-gradient(180deg, #d7ff58, #a6ff3f)'
+      ? 'rgba(200,255,47,0.075)'
       : 'rgba(255,255,255,0.040)',
-    boxShadow: selected ? '0 0 18px rgba(200,255,47,0.36), inset 0 1px 0 rgba(255,255,255,0.42)' : 'inset 0 1px 0 rgba(255,255,255,0.08)',
+    boxShadow: selected ? 'inset 0 1px 0 rgba(255,255,255,0.10)' : 'inset 0 1px 0 rgba(255,255,255,0.08)',
   })
 
   const verticalDockStyle = (side: 'left' | 'right'): React.CSSProperties => ({
@@ -5621,6 +5622,23 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
     }}>
       <span aria-hidden="true" style={{ position: 'absolute', left: 28, right: 28, top: 0, height: 2, borderRadius: 999, background: 'linear-gradient(90deg, transparent, rgba(200,255,47,0.82), transparent)', boxShadow: '0 0 16px rgba(200,255,47,0.5)', opacity: 0.9 }} />
       <span aria-hidden="true" style={{ position: 'absolute', inset: 1, borderRadius: 33, pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.055)' }} />
+      <style>{`
+        @keyframes ${slateMainFeatureAnimation.ringAnimationName} {
+          0%, 100% { opacity: 0.58; transform: scale(0.96); box-shadow: 0 0 0 0 rgba(200,255,47,0.34), 0 0 18px rgba(200,255,47,0.24); }
+          50% { opacity: 1; transform: scale(1.04); box-shadow: 0 0 0 5px rgba(200,255,47,0.10), 0 0 30px rgba(200,255,47,0.48); }
+        }
+        @keyframes ${slateMainFeatureAnimation.shimmerAnimationName} {
+          0% { transform: translateX(-145%) rotate(18deg); opacity: 0; }
+          28% { opacity: 0.72; }
+          58%, 100% { transform: translateX(145%) rotate(18deg); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-slate-main-feature="true"] [data-slate-ring="true"],
+          [data-slate-main-feature="true"] [data-slate-shimmer="true"] {
+            animation: none !important;
+          }
+        }
+      `}</style>
       {openPanel === 'sport' && <div aria-label="Choose sport" style={verticalDockStyle('left')}>
         {sports.map(option => <button key={option.value} type="button" onClick={() => onSportChange(option.value)} style={optionButtonStyle(sport === option.value)}>{option.label}</button>)}
       </div>}
@@ -5632,11 +5650,42 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
         const click = item.key === 'sport'
           ? () => onTogglePanel('sport')
           : () => onChange(item.key)
+        const isSlateMainFeature = item.key === slateMainFeatureAnimation.tab
         return (
-          <button key={item.key} type="button" onClick={click} aria-current={selected ? 'page' : undefined} aria-label={item.label} style={dockButton(selected)}>
+          <button
+            key={item.key}
+            type="button"
+            onClick={click}
+            aria-current={selected ? 'page' : undefined}
+            aria-label={isSlateMainFeature ? slateMainFeatureAnimation.ariaLabel : item.label}
+            data-slate-main-feature={isSlateMainFeature ? 'true' : undefined}
+            style={dockButton(selected)}
+          >
+            {isSlateMainFeature && <>
+              <span aria-hidden="true" data-slate-ring="true" style={{
+                position: 'absolute',
+                inset: -3,
+                borderRadius: 25,
+                border: '1px solid rgba(200,255,47,0.78)',
+                pointerEvents: 'none',
+                animation: `${slateMainFeatureAnimation.ringAnimationName} 2.4s ease-in-out infinite`,
+              }} />
+              <span aria-hidden="true" style={{ position: 'absolute', inset: 2, borderRadius: 21, overflow: 'hidden', pointerEvents: 'none' }}>
+                <span data-slate-shimmer="true" style={{
+                  position: 'absolute',
+                  top: -12,
+                  bottom: -12,
+                  left: '42%',
+                  width: 18,
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.38), rgba(200,255,47,0.26), transparent)',
+                  filter: 'blur(0.5px)',
+                  animation: `${slateMainFeatureAnimation.shimmerAnimationName} 3.2s ease-in-out infinite`,
+                }} />
+              </span>
+            </>}
             <span style={iconWrap(selected)}><DockIcon icon={item.icon} active={selected} primary={false} /></span>
-            <span>{item.label}</span>
-            {selected && <span aria-hidden="true" style={{ width: 14, height: 2, borderRadius: 999, background: '#d7ff58', boxShadow: '0 0 11px rgba(200,255,47,0.82)' }} />}
+            <span style={{ position: 'relative', zIndex: 1 }}>{item.label}</span>
+            {selected && <span aria-hidden="true" style={{ position: 'relative', zIndex: 1, width: 14, height: 2, borderRadius: 999, background: '#d7ff58', boxShadow: '0 0 11px rgba(200,255,47,0.82)' }} />}
           </button>
         )
       })}
