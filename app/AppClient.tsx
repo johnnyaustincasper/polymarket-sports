@@ -16,6 +16,7 @@ import { resolveStartupSport } from './lib/startup-sport'
 import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout, slateMainFeatureAnimation, type MobileDockIcon, type MobileDockTab } from './lib/mobile-dock'
 import { resetInitialSlateScroll } from './lib/startup-scroll'
 import { expandTeamStatLabel } from './lib/team-stat-labels'
+import { getTeamBadgeText, getTeamBadgeTone, type TeamBadgeSport } from './lib/team-badge'
 import { detectCorrelationWarnings, type CorrelationInputItem, type CorrelationWarning } from './lib/parlays/correlation'
 import { getLivePropProgress as getLivePropProgressPure } from './lib/live/prop-progress'
 import { buildPropLadder, buildStatDistribution, getMetricStatValue, type StatDistribution } from './lib/props/distributions'
@@ -366,6 +367,43 @@ const SURFACE = {
   border: 'rgba(166,255,63,0.18)',
   borderStrong: 'rgba(166,255,63,0.42)',
   shadow: '0 18px 60px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+function TeamBadge({ abbr, name, sport, size = 40, selected = false, compact = false }: { abbr?: string | null; name?: string | null; sport?: TeamBadgeSport | null; size?: number; selected?: boolean; compact?: boolean }) {
+  const tone = getTeamBadgeTone(sport)
+  const text = getTeamBadgeText(abbr)
+  const fontSize = Math.max(8, Math.round(size * (text.length > 3 ? 0.24 : text.length > 2 ? 0.27 : 0.31)))
+  return (
+    <span
+      role="img"
+      aria-label={`Team abbreviation badge for ${name || text}`}
+      data-team-badge="true"
+      style={{
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: compact ? Math.round(size * 0.28) : 999,
+        display: 'inline-grid',
+        placeItems: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        background: tone.background,
+        border: `1px solid ${selected ? tone.accent : tone.border}`,
+        boxShadow: selected ? `${tone.glow}, 0 0 0 1px ${tone.border}` : tone.glow,
+        color: tone.accent,
+        fontSize,
+        fontWeight: 950,
+        letterSpacing: text.length > 2 ? '0.02em' : '0.06em',
+        lineHeight: 1,
+        textTransform: 'uppercase',
+        textShadow: `0 0 ${Math.max(6, Math.round(size * 0.28))}px ${tone.border}`,
+      }}
+    >
+      <span style={{ position: 'absolute', inset: 0, opacity: 0.32, background: 'linear-gradient(135deg, rgba(255,255,255,0.16), transparent 34%, rgba(255,255,255,0.05) 64%, transparent)', pointerEvents: 'none' }} />
+      <span style={{ position: 'absolute', width: '140%', height: 1, background: tone.border, transform: 'rotate(-28deg)', opacity: 0.48, pointerEvents: 'none' }} />
+      <span style={{ position: 'relative', zIndex: 1 }}>{text}</span>
+    </span>
+  )
 }
 
 // ─── Global CSS keyframes ──────────────────────────────────────────────────────
@@ -1544,10 +1582,7 @@ function LiveScoreDisplay({ game }: { game: Game }) {
         {/* Away */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {game.awayTeam.logo
-              ? <img src={game.awayTeam.logo} style={{ width: 40, height: 40, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(166,255,63,0.3))' }} />
-              : <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(166,255,63,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 11, fontWeight: 800 }}>{game.awayTeam.abbr.slice(0, 2)}</div>
-            }
+            <TeamBadge abbr={game.awayTeam.abbr} name={game.awayTeam.name} sport={game.sport} size={40} />
             <div>
               <p style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700 }}>{game.awayTeam.abbr}</p>
               <p style={{ color: awayLeading ? '#ffffff' : C.textSecondary, fontSize: 10 }}>{game.awayTeam.record}</p>
@@ -1571,10 +1606,7 @@ function LiveScoreDisplay({ game }: { game: Game }) {
         {/* Home */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row-reverse' }}>
-            {game.homeTeam.logo
-              ? <img src={game.homeTeam.logo} style={{ width: 40, height: 40, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(166,255,63,0.3))' }} />
-              : <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(166,255,63,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 11, fontWeight: 800 }}>{game.homeTeam.abbr.slice(0, 2)}</div>
-            }
+            <TeamBadge abbr={game.homeTeam.abbr} name={game.homeTeam.name} sport={game.sport} size={40} />
             <div style={{ textAlign: 'right' }}>
               <p style={{ color: C.textSecondary, fontSize: 10, fontWeight: 700 }}>{game.homeTeam.abbr}</p>
               <p style={{ color: homeLeading ? '#ffffff' : C.textSecondary, fontSize: 10 }}>{game.homeTeam.record}</p>
@@ -2510,10 +2542,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                 const scoreColor = winner ? C.green : game.status === 'post' ? C.textSecondary : leading ? C.textPrimary : C.textSecondary
                 return (
                 <div key={'score-button-' + team.abbr} style={{ display: 'grid', gridTemplateColumns: `${isMobile ? 30 : 38}px minmax(0,1fr) auto`, alignItems: 'center', gap: isMobile ? 7 : 10, minWidth: 0 }}>
-                  {team.logo
-                    ? <img src={team.logo} alt="" style={{ width: isMobile ? 30 : 38, height: isMobile ? 30 : 38, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)', boxShadow: winner ? '0 0 18px rgba(166,255,63,0.20)' : '0 0 14px rgba(255,255,255,0.07)' }} />
-                    : <span style={{ width: isMobile ? 30 : 38, height: isMobile ? 30 : 38, borderRadius: 999, background: 'rgba(255,255,255,0.06)' }} />
-                  }
+                  <TeamBadge abbr={team.abbr} name={team.name} sport={sport} size={isMobile ? 30 : 38} selected={winner} />
                   <span style={{ color: winner ? C.green : leading ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 17 : 22, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
                   <span style={{ color: scoreColor, fontSize: isMobile ? 32 : 44, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: winner ? '0 0 22px rgba(166,255,63,0.25)' : leading ? '0 0 20px rgba(255,255,255,0.16)' : 'none' }}>{score}</span>
                 </div>
@@ -2566,7 +2595,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           <div style={{ position: 'relative', display: 'flex', gap: isMobile ? 7 : 8, alignItems: 'center', minWidth: 0 }}>
               {[game.awayTeam, game.homeTeam].map(team => (
                 <div key={team.abbr} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 3 : 6, minWidth: 0 }}>
-                  {team.logo && <img src={team.logo} alt="" style={{ width: isMobile ? 18 : 22, height: isMobile ? 18 : 22, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
+                  <TeamBadge abbr={team.abbr} name={team.name} sport={sport} size={isMobile ? 18 : 22} />
                   <span style={{ color: C.textPrimary, fontSize: isMobile ? 8 : 11, fontWeight: 950 }}>{team.abbr}{hasScore && team.score ? ` ${team.score}` : ''}</span>
                 </div>
               ))}
@@ -2622,7 +2651,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               const scoreColor = winner ? C.green : game.status === 'post' ? C.textSecondary : leading ? C.textPrimary : C.textSecondary
               return (
                 <div key={'expanded-score-' + team.abbr} style={{ display: 'grid', gridTemplateColumns: `${isMobile ? 40 : 32}px minmax(0,1fr) auto`, gap: 10, alignItems: 'center', minWidth: 0 }}>
-                  {team.logo ? <img src={team.logo} alt="" style={{ width: isMobile ? 40 : 32, height: isMobile ? 40 : 32, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} /> : <span />}
+                  <TeamBadge abbr={team.abbr} name={team.name} sport={sport} size={isMobile ? 40 : 32} />
                   <span style={{ color: winner ? C.green : leading ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 21 : 17, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
                   <span style={{ color: scoreColor, fontSize: isMobile ? 44 : 34, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: winner ? '0 0 20px rgba(166,255,63,0.24)' : 'none' }}>{hasScore ? score : '-'}</span>
                 </div>
@@ -2658,10 +2687,10 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                   <div key={'team-intel-' + side.team.abbr} style={{ minWidth: 0, display: 'grid', gap: 8 }}>
                     <div style={{ minWidth: 0, borderRadius: 14, padding: 9, background: 'rgba(0,0,0,0.26)', border: `1px solid ${C.border}` }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: side.side === 'right' ? 'flex-end' : 'flex-start', gap: 6, marginBottom: 5, minWidth: 0 }}>
-                        {side.side === 'left' && side.team.logo && <img src={side.team.logo} alt="" style={{ width: 20, height: 20, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
+                        {side.side === 'left' && <TeamBadge abbr={side.team.abbr} name={side.team.name} sport={sport} size={20} />}
                         <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950 }}>{side.team.abbr}</span>
                         <span style={{ color: C.gold, fontSize: 8, fontWeight: 950 }}>SP</span>
-                        {side.side === 'right' && side.team.logo && <img src={side.team.logo} alt="" style={{ width: 20, height: 20, borderRadius: 999, objectFit: 'contain', background: 'rgba(255,255,255,0.06)' }} />}
+                        {side.side === 'right' && <TeamBadge abbr={side.team.abbr} name={side.team.name} sport={sport} size={20} />}
                       </div>
                       <div style={{ color: C.gold, fontSize: isMobile ? 11 : 12, fontWeight: 950, overflowWrap: 'anywhere', lineHeight: 1.2, textAlign: side.side }}>{side.pitcher?.name || side.fallbackPitcher?.name || 'Starter TBA'}</div>
                       {side.source === 'previous' && <div style={{ color: C.gold, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 4, textAlign: side.side }}>Previous game lineup</div>}
@@ -4162,25 +4191,19 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
             ) : isFinal ? (
               <div className="flex items-center justify-between px-1 mb-4">
                 <div className="flex items-center gap-2.5">
-                  {game.awayTeam.logo
-                    ? <img src={game.awayTeam.logo} style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(166,255,63,0.3))' }} />
-                    : <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(166,255,63,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 10, fontWeight: 800 }}>{game.awayTeam.abbr.slice(0, 2)}</div>}
+                  <TeamBadge abbr={game.awayTeam.abbr} name={game.awayTeam.name} sport={game.sport} size={isMobile ? 30 : 36} />
                   <span style={{ color: C.textPrimary, fontSize: 28, fontWeight: 900 }}>{game.awayTeam.score}</span>
                 </div>
                 <span style={{ color: C.textSecondary, fontSize: 12 }}>—</span>
                 <div className="flex items-center gap-2.5">
                   <span style={{ color: C.textPrimary, fontSize: 28, fontWeight: 900 }}>{game.homeTeam.score}</span>
-                  {game.homeTeam.logo
-                    ? <img src={game.homeTeam.logo} style={{ width: 36, height: 36, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(166,255,63,0.3))' }} />
-                    : <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(166,255,63,0.1)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 10, fontWeight: 800 }}>{game.homeTeam.abbr.slice(0, 2)}</div>}
+                  <TeamBadge abbr={game.homeTeam.abbr} name={game.homeTeam.name} sport={game.sport} size={36} />
                 </div>
               </div>
             ) : (
               <div className="flex items-center justify-between px-1 mb-4">
                 <div className="flex items-center gap-2.5">
-                  {game.awayTeam.logo
-                    ? <img src={game.awayTeam.logo} style={{ width: 32, height: 32, objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(166,255,63,0.25))' }} />
-                    : <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(166,255,63,0.08)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 9, fontWeight: 800 }}>{game.awayTeam.abbr.slice(0, 2)}</div>}
+                  <TeamBadge abbr={game.awayTeam.abbr} name={game.awayTeam.name} sport={game.sport} size={32} compact />
                   <div>
                     <p style={{ color: C.textPrimary, fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em' }}>{game.awayTeam.abbr}</p>
                     <p style={{ color: C.textSecondary, fontSize: 10 }}>{game.awayTeam.record}</p>
@@ -4191,9 +4214,7 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
                   {game.venue && <p style={{ color: C.textSecondary, fontSize: 9, marginTop: 2, lineHeight: 1.4 }}>{game.venue.name}</p>}
                 </div>
                 <div className="flex items-center gap-2.5 flex-row-reverse">
-                  {game.homeTeam.logo
-                    ? <img src={game.homeTeam.logo} style={{ width: 32, height: 32, objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(166,255,63,0.25))' }} />
-                    : <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(166,255,63,0.08)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.cyan, fontSize: 9, fontWeight: 800 }}>{game.homeTeam.abbr.slice(0, 2)}</div>}
+                  <TeamBadge abbr={game.homeTeam.abbr} name={game.homeTeam.name} sport={game.sport} size={32} compact />
                   <div style={{ textAlign: 'right' }}>
                     <p style={{ color: C.textPrimary, fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em' }}>{game.homeTeam.abbr}</p>
                     <p style={{ color: C.textSecondary, fontSize: 10 }}>{game.homeTeam.record}</p>
@@ -4267,7 +4288,7 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
                 {/* Away row */}
                 <div className="flex items-center gap-2 mb-2">
                   <div style={{ width: 80, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {game.awayTeam.logo && <img src={game.awayTeam.logo} style={{ width: 20, height: 20, objectFit: 'contain' }} />}
+                    <TeamBadge abbr={game.awayTeam.abbr} name={game.awayTeam.name} sport={game.sport} size={20} />
                     <span style={{ color: C.textSecondary, fontSize: 11, fontWeight: 700 }}>{game.awayTeam.abbr}</span>
                   </div>
                   {game.hasWinnerOdds
@@ -4284,7 +4305,7 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
                 {/* Home row */}
                 <div className="flex items-center gap-2">
                   <div style={{ width: 80, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {game.homeTeam.logo && <img src={game.homeTeam.logo} style={{ width: 20, height: 20, objectFit: 'contain' }} />}
+                    <TeamBadge abbr={game.homeTeam.abbr} name={game.homeTeam.name} sport={game.sport} size={20} />
                     <span style={{ color: C.textSecondary, fontSize: 11, fontWeight: 700 }}>{game.homeTeam.abbr}</span>
                   </div>
                   {game.hasWinnerOdds
@@ -5218,11 +5239,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
                 placeItems: 'center',
                 padding: isMobile ? '4px 2px' : '5px 4px',
               }}>
-                {team.logo ? (
-                  <img src={team.logo} alt="" loading="lazy" decoding="async" style={{ width: isMobile ? 54 : 60, height: isMobile ? 54 : 60, objectFit: 'contain', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.38))' }} />
-                ) : (
-                  <span style={{ color: C.textSecondary, fontSize: 12, fontWeight: 950 }}>{team.abbr}</span>
-                )}
+                <TeamBadge abbr={team.abbr} name={team.name} sport={sport} size={isMobile ? 54 : 60} selected={selected} />
               </button>
             )
           })}
@@ -5233,7 +5250,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
       {detail && (
         <div ref={detailRef} style={{ scrollMarginTop: isMobile ? 12 : 18, borderRadius: isMobile ? 20 : 24, padding: isMobile ? 14 : 18, background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(3,5,0,0.94))', border: `1px solid ${accent}55`, boxShadow: `0 0 34px ${accent}18, 0 20px 60px rgba(0,0,0,0.44)` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            {detail.team.logo && <img src={detail.team.logo} alt="" style={{ width: 46, height: 46, objectFit: 'contain', flexShrink: 0 }} />}
+            <TeamBadge abbr={detail.team.abbr} name={detail.team.name} sport={sport} size={46} selected />
             <div style={{ minWidth: 0 }}>
               <h2 style={{ color: C.textPrimary, fontSize: isMobile ? 20 : 24, fontWeight: 950, margin: 0, lineHeight: 1.05 }}>{detail.team.name}</h2>
               <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 5 }}>{detail.team.record ? `Record ${detail.team.record}` : 'Season profile'}</p>

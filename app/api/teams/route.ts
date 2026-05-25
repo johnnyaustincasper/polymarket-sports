@@ -61,7 +61,7 @@ function normalizeTeam(raw: any) {
     name: team?.displayName || team?.name || abbr,
     shortName: team?.shortDisplayName || team?.name || abbr,
     color: team?.color ? `#${String(team.color).replace(/^#/, '')}` : '#a6ff3f',
-    logo: team?.logos?.[0]?.href || null,
+    logo: null,
     record: team?.record?.items?.[0]?.summary || team?.recordSummary || null,
   }
 }

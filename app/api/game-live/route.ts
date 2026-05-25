@@ -202,7 +202,7 @@ function parseCompetitor(comp: any, homeAway: 'home' | 'away') {
     name: c?.team?.displayName || '',
     abbr: String(c?.team?.abbreviation || '').toUpperCase(),
     score: String(c?.score ?? ''),
-    logo: c?.team?.logo || '',
+    logo: '',
     linescores: (c?.linescores || []).map((x: any) => String(x.value ?? x.displayValue ?? '')),
   }
 }
