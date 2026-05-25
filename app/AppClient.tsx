@@ -5190,30 +5190,20 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
             const teamAccent = team.color || accent
             return (
               <button key={team.id} type="button" aria-label={`View ${team.name} roster and injuries`} title={team.name} aria-pressed={selected} onClick={() => selectTeam(team.id)} style={{
-                minHeight: isMobile ? 76 : 72,
-                borderRadius: 16,
-                border: `1px solid ${selected ? teamAccent : 'rgba(255,255,255,0.10)'}`,
-                background: selected ? `linear-gradient(180deg, ${teamAccent}36, rgba(0,0,0,0.40))` : 'linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.022))',
+                minHeight: isMobile ? 64 : 68,
+                border: 0,
+                background: 'transparent',
                 color: selected ? C.textPrimary : C.textSecondary,
-                fontSize: 10,
-                fontWeight: 950,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
                 cursor: 'pointer',
-                boxShadow: selected ? `0 0 22px ${teamAccent}24, inset 0 1px 0 rgba(255,255,255,0.16)` : 'inset 0 1px 0 rgba(255,255,255,0.06)',
                 display: 'grid',
-                gap: 4,
                 placeItems: 'center',
-                padding: '8px 6px 7px',
+                padding: isMobile ? '4px 2px' : '5px 4px',
               }}>
-                <span style={{ width: isMobile ? 38 : 42, height: isMobile ? 38 : 42, display: 'grid', placeItems: 'center', borderRadius: 14, background: selected ? 'rgba(0,0,0,0.24)' : 'rgba(0,0,0,0.16)', boxShadow: selected ? `0 0 16px ${teamAccent}20` : 'none' }}>
-                  {team.logo ? (
-                    <img src={team.logo} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: selected ? 'drop-shadow(0 0 8px rgba(255,255,255,0.20))' : 'drop-shadow(0 2px 6px rgba(0,0,0,0.34))' }} />
-                  ) : (
-                    <span style={{ color: selected ? C.textPrimary : C.textSecondary, fontSize: 11, fontWeight: 950 }}>{team.abbr}</span>
-                  )}
-                </span>
-                <span style={{ color: selected ? teamAccent : 'rgba(184,198,214,0.62)', fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', lineHeight: 1 }}>{team.abbr}</span>
+                {team.logo ? (
+                  <img src={team.logo} alt="" loading="lazy" decoding="async" style={{ width: isMobile ? 54 : 60, height: isMobile ? 54 : 60, objectFit: 'contain', transform: selected ? 'scale(1.08)' : 'scale(1)', filter: selected ? `drop-shadow(0 0 10px ${teamAccent}88) drop-shadow(0 5px 12px rgba(0,0,0,0.42))` : 'drop-shadow(0 4px 10px rgba(0,0,0,0.38))', transition: 'transform 140ms ease, filter 140ms ease' }} />
+                ) : (
+                  <span style={{ color: selected ? teamAccent : C.textSecondary, fontSize: 12, fontWeight: 950 }}>{team.abbr}</span>
+                )}
               </button>
             )
           })}
