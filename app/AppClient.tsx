@@ -5093,10 +5093,10 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
           </div>}
           {!isMobile && <div style={{ position: 'absolute', right: 18, bottom: 18, padding: '8px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.72)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{sportLabel} Board</div>}
         </div>
-        <div className={isMobile ? 'no-scrollbar' : undefined} style={{ display: 'flex', gap: isMobile ? 6 : 8, flexWrap: isMobile ? 'nowrap' : 'wrap', alignItems: 'center', overflowX: isMobile ? 'auto' : undefined, paddingBottom: isMobile ? 1 : undefined }}>
-          {sports.map(({ value, label }) => <ControlButton key={value} active={sport === value || (label === 'NCAA' && (sport === 'ncaaf' || sport === 'ncaab'))} accent={sportAccent(value)} onClick={() => switchSport(value)} minWidth={isMobile ? 62 : 78}>{label}</ControlButton>)}
-          <div style={{ marginLeft: isMobile ? 0 : 'auto', display: 'flex', gap: 6, flex: '0 0 auto' }}>{days.map(day => <ControlButton key={day.value} active={date === day.value} accent={activeAccent} onClick={() => setDate(day.value)} minWidth={isMobile ? 62 : 0}>{day.label}</ControlButton>)}</div>
-        </div>
+        {!isMobile && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {sports.map(({ value, label }) => <ControlButton key={value} active={sport === value || (label === 'NCAA' && (sport === 'ncaaf' || sport === 'ncaab'))} accent={sportAccent(value)} onClick={() => switchSport(value)} minWidth={78}>{label}</ControlButton>)}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flex: '0 0 auto' }}>{days.map(day => <ControlButton key={day.value} active={date === day.value} accent={activeAccent} onClick={() => setDate(day.value)}>{day.label}</ControlButton>)}</div>
+        </div>}
       </div>
     </header>
   )
@@ -5138,23 +5138,91 @@ function MarketToggleButton({ active, accent, children, onClick, minWidth }: {
   )
 }
 
-function MobileBottomDock({ active, onChange, onRefresh, loading, lastUpdatedAt, accountEnabled }: {
+function MobileBottomDock({ active, onChange, sport, onSportChange, days, date, onDateChange, accountEnabled }: {
   active: SportSubtab
   onChange: (tab: SportSubtab) => void
-  onRefresh: () => void
-  loading: boolean
-  lastUpdatedAt: Date | null
+  sport: SupportedSport | 'ufc'
+  onSportChange: (sport: SupportedSport | 'ufc') => void
+  days: DayOption[]
+  date: string
+  onDateChange: (date: string) => void
   accountEnabled: boolean
 }) {
-  const dockButton = (selected: boolean): React.CSSProperties => ({
-    minHeight: 46,
-    borderRadius: 16,
-    padding: '7px 8px',
+  const [openMenu, setOpenMenu] = useState<'sport' | 'dates' | null>(null)
+  const sports: { value: SupportedSport | 'ufc'; label: string }[] = [
+    { value: 'nba', label: 'NBA' },
+    { value: 'mlb', label: 'MLB' },
+    { value: 'nfl', label: 'NFL' },
+    { value: 'ncaaf', label: 'NCAAF' },
+    { value: 'ncaab', label: 'NCAAB' },
+    { value: 'ufc', label: 'UFC' },
+  ]
+  const currentSportLabel = sports.find(item => item.value === sport)?.label || sport.toUpperCase()
+  const currentDateLabel = days.find(day => day.value === date)?.label || 'Dates'
+
+  const closeMenus = () => setOpenMenu(null)
+  const toggleMenu = (menu: 'sport' | 'dates') => setOpenMenu(current => current === menu ? null : menu)
+  const selectSport = (nextSport: SupportedSport | 'ufc') => { onSportChange(nextSport); closeMenus() }
+  const selectDate = (nextDate: string) => { onDateChange(nextDate); closeMenus() }
+
+  const dockButton = (selected: boolean, elevated = false): React.CSSProperties => ({
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    minHeight: elevated ? 58 : 50,
+    borderRadius: elevated ? 999 : 18,
+    padding: elevated ? '7px 6px' : '7px 6px',
     border: `1px solid ${selected ? C.borderHot : 'rgba(255,255,255,0.10)'}`,
-    background: selected ? 'linear-gradient(145deg, rgba(166,255,63,0.18), rgba(6,12,3,0.98))' : 'rgba(255,255,255,0.045)',
+    background: selected
+      ? 'linear-gradient(145deg, rgba(166,255,63,0.22), rgba(6,12,3,0.98))'
+      : 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025))',
     color: selected ? C.green : C.textSecondary,
-    boxShadow: selected ? '0 0 22px rgba(166,255,63,0.16), inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
-    fontSize: 9,
+    boxShadow: selected
+      ? '0 0 26px rgba(166,255,63,0.22), inset 0 1px 0 rgba(255,255,255,0.10)'
+      : 'inset 0 1px 0 rgba(255,255,255,0.045)',
+    fontSize: 8,
+    fontWeight: 950,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    cursor: 'pointer',
+    display: 'grid',
+    placeItems: 'center',
+    gap: 3,
+    lineHeight: 1,
+  })
+  const glyphStyle = (selected: boolean, size = 16): React.CSSProperties => ({
+    width: size + 12,
+    height: size + 12,
+    borderRadius: 999,
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: size,
+    color: selected ? '#030500' : C.green,
+    background: selected ? C.green : 'rgba(166,255,63,0.08)',
+    border: `1px solid ${selected ? 'rgba(166,255,63,0.92)' : 'rgba(166,255,63,0.22)'}`,
+    boxShadow: selected ? '0 0 22px rgba(166,255,63,0.36)' : 'none',
+  })
+  const menuStyle = (side: 'left' | 'right'): React.CSSProperties => ({
+    position: 'absolute',
+    bottom: 76,
+    [side]: 8,
+    display: 'grid',
+    gap: 7,
+    width: side === 'left' ? 104 : 112,
+    padding: 8,
+    borderRadius: 20,
+    border: `1px solid ${C.borderHot}`,
+    background: 'linear-gradient(180deg, rgba(6,10,3,0.98), rgba(2,4,0,0.995))',
+    boxShadow: '0 -16px 48px rgba(0,0,0,0.76), 0 0 28px rgba(166,255,63,0.14), inset 0 1px 0 rgba(255,255,255,0.07)',
+    backdropFilter: 'blur(18px)',
+    WebkitBackdropFilter: 'blur(18px)',
+  })
+  const menuButton = (selected: boolean): React.CSSProperties => ({
+    minHeight: 36,
+    borderRadius: 14,
+    border: `1px solid ${selected ? C.borderHot : 'rgba(255,255,255,0.10)'}`,
+    background: selected ? 'rgba(166,255,63,0.18)' : 'rgba(255,255,255,0.045)',
+    color: selected ? C.green : C.textSecondary,
+    fontSize: 10,
     fontWeight: 950,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
@@ -5169,22 +5237,45 @@ function MobileBottomDock({ active, onChange, onRefresh, loading, lastUpdatedAt,
       bottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
       zIndex: 1000,
       display: 'grid',
-      gridTemplateColumns: accountEnabled ? '1fr 1fr 48px 48px' : '1fr 1fr 48px',
+      gridTemplateColumns: '1fr 1fr 66px 1fr 1fr',
+      alignItems: 'end',
       gap: 7,
-      padding: 8,
-      borderRadius: 22,
+      padding: '8px 9px',
+      borderRadius: 28,
       border: `1px solid ${C.borderHot}`,
-      background: 'linear-gradient(180deg, rgba(6,10,3,0.94), rgba(2,4,0,0.98))',
-      boxShadow: '0 -14px 46px rgba(0,0,0,0.72), 0 0 24px rgba(166,255,63,0.10), inset 0 1px 0 rgba(255,255,255,0.06)',
-      backdropFilter: 'blur(18px)',
-      WebkitBackdropFilter: 'blur(18px)',
+      background: 'linear-gradient(180deg, rgba(6,10,3,0.94), rgba(2,4,0,0.985))',
+      boxShadow: '0 -16px 50px rgba(0,0,0,0.74), 0 0 30px rgba(166,255,63,0.12), inset 0 1px 0 rgba(255,255,255,0.065)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
     }}>
-      <button onClick={() => onChange('slate')} style={dockButton(active === 'slate')}>Slate</button>
-      <button onClick={() => onChange('playerSignals')} style={dockButton(active === 'playerSignals')}>Signals</button>
-      <button onClick={onRefresh} aria-label="Refresh market intelligence" style={{ ...dockButton(false), minWidth: 0, padding: 0, color: C.green, fontSize: 18 }}>{loading ? '…' : '↻'}</button>
-      {accountEnabled && <div style={{ display: 'grid', placeItems: 'center' }}><AccountMenu isMobile /></div>}
-      <div style={{ position: 'absolute', left: 14, right: 14, bottom: -16, color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.08em', textAlign: 'center', opacity: 0.72, pointerEvents: 'none' }}>
-        {loading ? 'Syncing market intelligence…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Ready" />}
+      {openMenu === 'sport' && <div style={menuStyle('left')}>
+        {sports.map(item => <button key={item.value} onClick={() => selectSport(item.value)} style={menuButton(sport === item.value)}>{item.label}</button>)}
+      </div>}
+      {openMenu === 'dates' && <div style={menuStyle('right')}>
+        {days.map(day => <button key={day.value} onClick={() => selectDate(day.value)} style={menuButton(date === day.value)}>{day.label}</button>)}
+      </div>}
+
+      <button onClick={() => toggleMenu('sport')} aria-expanded={openMenu === 'sport'} aria-label="Choose sport" style={dockButton(openMenu === 'sport')}>
+        <span style={glyphStyle(openMenu === 'sport')}>▦</span>
+        <span>Sport</span>
+        <span style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.04em' }}>{currentSportLabel}</span>
+      </button>
+      <button onClick={() => { onChange('playerSignals'); closeMenus() }} aria-label="Open Player Signals" style={dockButton(active === 'playerSignals')}>
+        <span style={glyphStyle(active === 'playerSignals')}>≋</span>
+        <span>Signals</span>
+      </button>
+      <button onClick={() => { onChange('slate'); closeMenus() }} aria-label="Open Slate" style={{ ...dockButton(active === 'slate', true), transform: 'translateY(-8px)', borderRadius: 999, background: active === 'slate' ? 'radial-gradient(circle, rgba(166,255,63,0.95), rgba(166,255,63,0.22) 54%, rgba(6,12,3,0.98) 72%)' : 'radial-gradient(circle, rgba(166,255,63,0.20), rgba(6,12,3,0.98) 72%)', color: active === 'slate' ? '#030500' : C.green, boxShadow: '0 0 34px rgba(166,255,63,0.34), 0 0 0 7px rgba(166,255,63,0.08), inset 0 1px 0 rgba(255,255,255,0.18)' }}>
+        <span style={{ fontSize: 20, lineHeight: 1 }}>◎</span>
+        <span>Slate</span>
+      </button>
+      <button onClick={() => toggleMenu('dates')} aria-expanded={openMenu === 'dates'} aria-label="Choose date" style={dockButton(openMenu === 'dates')}>
+        <span style={glyphStyle(openMenu === 'dates')}>◷</span>
+        <span>Dates</span>
+        <span style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.04em' }}>{currentDateLabel}</span>
+      </button>
+      <div style={{ display: 'grid', placeItems: 'center', gap: 3, minHeight: 50, color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+        {accountEnabled ? <AccountMenu isMobile /> : <button onClick={() => { window.location.href = '/login' }} aria-label="Open profile" style={{ ...dockButton(false), width: '100%' }}><span style={glyphStyle(false)}>◉</span><span>Profile</span></button>}
+        {accountEnabled && <span>Profile</span>}
       </div>
     </nav>
   )
@@ -5526,13 +5617,15 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         ))}
       </div>
 
-      {isMobile && sport !== 'ufc' && provider === 'kalshi' && (
+      {isMobile && provider === 'kalshi' && (
         <MobileBottomDock
           active={subtab}
           onChange={setSubtab}
-          onRefresh={() => { setLoading(true); fetchGames() }}
-          loading={loading}
-          lastUpdatedAt={lastUpdated}
+          sport={sport}
+          onSportChange={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
+          days={days}
+          date={date}
+          onDateChange={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}
           accountEnabled={clerkEnabled}
         />
       )}
