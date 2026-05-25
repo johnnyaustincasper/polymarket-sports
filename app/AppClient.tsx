@@ -15,6 +15,7 @@ import { cacheKey, fetchJsonCached } from './lib/client-cache'
 import { resolveStartupSport } from './lib/startup-sport'
 import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout, slateMainFeatureAnimation, type MobileDockIcon, type MobileDockTab } from './lib/mobile-dock'
 import { resetInitialSlateScroll } from './lib/startup-scroll'
+import { expandTeamStatLabel } from './lib/team-stat-labels'
 import { detectCorrelationWarnings, type CorrelationInputItem, type CorrelationWarning } from './lib/parlays/correlation'
 import { getLivePropProgress as getLivePropProgressPure } from './lib/live/prop-progress'
 import { buildPropLadder, buildStatDistribution, getMetricStatValue, type StatDistribution } from './lib/props/distributions'
@@ -5240,12 +5241,15 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))', gap: 8, marginBottom: 14 }}>
-            {(stats.length ? stats : [{ label: 'Roster', value: String(roster.length) }]).map(stat => (
-              <div key={`${stat.label}-${stat.value}`} style={{ borderRadius: 14, padding: '10px 9px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ color: accent, fontSize: 17, fontWeight: 950 }}>{stat.value}</div>
-                <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 3 }}>{stat.label}</div>
-              </div>
-            ))}
+            {(stats.length ? stats : [{ label: 'Roster', value: String(roster.length) }]).map(stat => {
+              const expandedLabel = expandTeamStatLabel(stat.label)
+              return (
+                <div key={`${stat.label}-${stat.value}`} style={{ borderRadius: 14, padding: '10px 9px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ color: accent, fontSize: 17, fontWeight: 950 }}>{stat.value}</div>
+                  <div style={{ color: C.textSecondary, fontSize: isMobile ? 9 : 10, fontWeight: 900, letterSpacing: '0.03em', textTransform: 'none', marginTop: 3, lineHeight: 1.18 }}>{expandedLabel}</div>
+                </div>
+              )
+            })}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.35fr 0.85fr', gap: 12 }}>
