@@ -57,16 +57,16 @@ export function getTeamBadgeTone(sport: TeamBadgeSport | null | undefined): Team
   return SPORT_BADGE_TONES[sport || 'nba'] || SPORT_BADGE_TONES.nba
 }
 
-export function getTeamScoutTileLabel(sport: TeamBadgeSport | null | undefined): string {
+export function getTeamLeagueCardLabel(sport: TeamBadgeSport | null | undefined): string {
   const labels: Record<TeamBadgeSport, string> = {
-    nba: 'Team Intel',
-    ncaab: 'Team Intel',
-    nfl: 'Team Intel',
-    ncaaf: 'Team Intel',
-    mlb: 'Season Profile',
-    ufc: 'Fighter Intel',
+    nba: 'NBA',
+    ncaab: 'NCAAB',
+    nfl: 'NFL',
+    ncaaf: 'NCAAF',
+    mlb: 'MLB',
+    ufc: 'UFC',
   }
-  return labels[sport || 'nba'] || 'Team Intel'
+  return labels[sport || 'nba'] || 'AI'
 }
 
 export const teamLogoReplacementContract = {
@@ -74,6 +74,7 @@ export const teamLogoReplacementContract = {
   usesExternalImageSrc: false,
   defaultFallback: 'AI',
   accessibleLabelPattern: 'Team abbreviation badge for {team}',
-  defaultPresentation: 'ai-scouting-report-tile',
+  defaultPresentation: 'compact-league-card-badge',
   includesContextLabel: true,
+  mobileGridColumns: 3,
 } as const

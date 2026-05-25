@@ -16,7 +16,7 @@ import { resolveStartupSport } from './lib/startup-sport'
 import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout, slateMainFeatureAnimation, type MobileDockIcon, type MobileDockTab } from './lib/mobile-dock'
 import { resetInitialSlateScroll } from './lib/startup-scroll'
 import { expandTeamStatLabel } from './lib/team-stat-labels'
-import { getTeamBadgeText, getTeamBadgeTone, getTeamScoutTileLabel, type TeamBadgeSport } from './lib/team-badge'
+import { getTeamBadgeText, getTeamBadgeTone, getTeamLeagueCardLabel, type TeamBadgeSport } from './lib/team-badge'
 import { detectCorrelationWarnings, type CorrelationInputItem, type CorrelationWarning } from './lib/parlays/correlation'
 import { getLivePropProgress as getLivePropProgressPure } from './lib/live/prop-progress'
 import { buildPropLadder, buildStatDistribution, getMetricStatValue, type StatDistribution } from './lib/props/distributions'
@@ -406,38 +406,41 @@ function TeamBadge({ abbr, name, sport, size = 40, selected = false, compact = f
   )
 }
 
-function TeamScoutTile({ abbr, name, sport, selected = false, compact = false }: { abbr?: string | null; name?: string | null; sport?: TeamBadgeSport | null; selected?: boolean; compact?: boolean }) {
+function TeamLeagueCard({ abbr, name, sport, selected = false, compact = false }: { abbr?: string | null; name?: string | null; sport?: TeamBadgeSport | null; selected?: boolean; compact?: boolean }) {
   const tone = getTeamBadgeTone(sport)
   const text = getTeamBadgeText(abbr)
-  const label = getTeamScoutTileLabel(sport)
+  const league = getTeamLeagueCardLabel(sport)
   return (
     <span
-      data-team-scout-tile="true"
+      role="img"
+      aria-label={`Team league-card badge for ${name || text}`}
+      data-team-league-card="true"
       data-team-badge="true"
-      aria-label={`Team scouting report tile for ${name || text}`}
       style={{
         width: '100%',
-        minHeight: compact ? 52 : 72,
-        borderRadius: compact ? 14 : 18,
+        minHeight: compact ? 38 : 50,
+        maxWidth: compact ? 82 : 96,
+        justifySelf: 'center',
+        flexShrink: 0,
+        borderRadius: compact ? 12 : 15,
         display: 'grid',
+        placeItems: 'center',
         alignContent: 'center',
-        gap: compact ? 3 : 5,
-        padding: compact ? '8px 6px' : '10px 8px',
+        gap: compact ? 1 : 2,
+        padding: compact ? '5px 7px' : '7px 8px',
         position: 'relative',
         overflow: 'hidden',
-        background: selected
-          ? `linear-gradient(145deg, ${tone.border}, rgba(3,5,0,0.94) 62%, rgba(255,255,255,0.055))`
-          : 'linear-gradient(145deg, rgba(255,255,255,0.055), rgba(3,5,0,0.90) 58%, rgba(166,255,63,0.035))',
-        border: `1px solid ${selected ? tone.accent : 'rgba(255,255,255,0.095)'}`,
-        boxShadow: selected ? `${tone.glow}, inset 0 1px 0 rgba(255,255,255,0.12)` : 'inset 0 1px 0 rgba(255,255,255,0.055)',
-        color: C.textPrimary,
+        background: tone.background,
+        border: `1px solid ${selected ? tone.accent : tone.border}`,
+        boxShadow: selected ? `${tone.glow}, 0 0 0 1px ${tone.border}` : tone.glow,
+        color: tone.accent,
+        textTransform: 'uppercase',
       }}
     >
-      <span style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 18% 15%, ${tone.border}, transparent 34%), linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.10) 42%, transparent 72%)`, opacity: selected ? 0.72 : 0.48, pointerEvents: 'none' }} />
-      <span style={{ position: 'absolute', right: -18, top: -18, width: 46, height: 46, borderRadius: 999, border: `1px solid ${tone.border}`, opacity: 0.32, pointerEvents: 'none' }} />
-      <span style={{ position: 'relative', zIndex: 1, color: tone.accent, fontSize: compact ? 8 : 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.9 }}>{label}</span>
-      <span style={{ position: 'relative', zIndex: 1, color: C.textPrimary, fontSize: compact ? 17 : 22, fontWeight: 950, letterSpacing: text.length > 3 ? '0.01em' : '0.04em', lineHeight: 0.95, textShadow: `0 0 14px ${tone.border}` }}>{text}</span>
-      {!compact && <span style={{ position: 'relative', zIndex: 1, color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Tap report</span>}
+      <span style={{ position: 'absolute', inset: 0, opacity: 0.34, background: 'linear-gradient(135deg, rgba(255,255,255,0.16), transparent 34%, rgba(255,255,255,0.05) 64%, transparent)', pointerEvents: 'none' }} />
+      <span style={{ position: 'absolute', left: -8, right: -8, height: 1, background: tone.border, transform: 'rotate(-23deg)', opacity: 0.42, pointerEvents: 'none' }} />
+      <span style={{ position: 'relative', zIndex: 1, color: tone.accent, fontSize: compact ? 7 : 8, fontWeight: 950, letterSpacing: '0.15em', lineHeight: 1 }}>{league}</span>
+      <span style={{ position: 'relative', zIndex: 1, color: C.textPrimary, fontSize: compact ? 17 : 20, fontWeight: 950, letterSpacing: text.length > 3 ? '0.01em' : '0.045em', lineHeight: 0.95, textShadow: `0 0 12px ${tone.border}` }}>{text}</span>
     </span>
   )
 }
@@ -5261,21 +5264,21 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
           </div>
           {(loadingTeams || loadingDetail) && <span style={{ color: C.gold, fontSize: 10, fontWeight: 900 }}>Loading…</span>}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(6, minmax(0, 1fr))', gap: isMobile ? 8 : 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : 'repeat(8, minmax(0, 1fr))', gap: isMobile ? 7 : 9 }}>
           {teams.map(team => {
             const selected = selectedTeamId === team.id
             return (
               <button key={team.id} type="button" aria-label={`View ${team.name} roster and injuries`} title={team.name} aria-pressed={selected} onClick={() => selectTeam(team.id)} style={{
-                minHeight: isMobile ? 82 : 88,
+                minHeight: isMobile ? 56 : 62,
                 border: 0,
                 background: 'transparent',
                 color: C.textSecondary,
                 cursor: 'pointer',
                 display: 'grid',
-                placeItems: 'stretch',
+                placeItems: 'center',
                 padding: 0,
               }}>
-                <TeamScoutTile abbr={team.abbr} name={team.name} sport={sport} selected={selected} />
+                <TeamLeagueCard abbr={team.abbr} name={team.name} sport={sport} selected={selected} />
               </button>
             )
           })}
@@ -5286,8 +5289,8 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
       {detail && (
         <div ref={detailRef} style={{ scrollMarginTop: isMobile ? 12 : 18, borderRadius: isMobile ? 20 : 24, padding: isMobile ? 14 : 18, background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(3,5,0,0.94))', border: `1px solid ${accent}55`, boxShadow: `0 0 34px ${accent}18, 0 20px 60px rgba(0,0,0,0.44)` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            <span style={{ width: isMobile ? 104 : 116, flexShrink: 0 }}>
-              <TeamScoutTile abbr={detail.team.abbr} name={detail.team.name} sport={sport} selected compact />
+            <span style={{ width: isMobile ? 84 : 92, flexShrink: 0 }}>
+              <TeamLeagueCard abbr={detail.team.abbr} name={detail.team.name} sport={sport} selected compact />
             </span>
             <div style={{ minWidth: 0 }}>
               <h2 style={{ color: C.textPrimary, fontSize: isMobile ? 20 : 24, fontWeight: 950, margin: 0, lineHeight: 1.05 }}>{detail.team.name}</h2>

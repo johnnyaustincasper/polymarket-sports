@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getTeamBadgeText, getTeamBadgeTone, getTeamScoutTileLabel, teamLogoReplacementContract } from './team-badge'
+import { getTeamBadgeText, getTeamBadgeTone, getTeamLeagueCardLabel, teamLogoReplacementContract } from './team-badge'
 
 describe('team badge logo replacement', () => {
   it('uses neutral app-native badges instead of external logo images', () => {
@@ -23,11 +23,12 @@ describe('team badge logo replacement', () => {
     expect(getTeamBadgeTone('ufc').accent).toBe('#ff3f5f')
   })
 
-  it('frames logo-free teams as scouting report tiles', () => {
-    expect(teamLogoReplacementContract.defaultPresentation).toBe('ai-scouting-report-tile')
+  it('frames logo-free teams as compact league-card badges', () => {
+    expect(teamLogoReplacementContract.defaultPresentation).toBe('compact-league-card-badge')
     expect(teamLogoReplacementContract.includesContextLabel).toBe(true)
-    expect(getTeamScoutTileLabel('nba')).toBe('Team Intel')
-    expect(getTeamScoutTileLabel('mlb')).toBe('Season Profile')
-    expect(getTeamScoutTileLabel('nfl')).toBe('Team Intel')
+    expect(teamLogoReplacementContract.mobileGridColumns).toBe(3)
+    expect(getTeamLeagueCardLabel('nba')).toBe('NBA')
+    expect(getTeamLeagueCardLabel('mlb')).toBe('MLB')
+    expect(getTeamLeagueCardLabel('nfl')).toBe('NFL')
   })
 })
