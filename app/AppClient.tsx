@@ -5213,13 +5213,13 @@ function MobileBottomDock({ active, onChange, sport, onSportChange, days, date, 
     border: `1px solid ${selected ? 'rgba(166,255,63,0.92)' : 'rgba(166,255,63,0.22)'}`,
     boxShadow: selected ? '0 0 22px rgba(166,255,63,0.36)' : 'none',
   })
-  const menuStyle = (side: 'left' | 'right'): React.CSSProperties => ({
+  const menuStyle = (menu: 'sport' | 'dates'): React.CSSProperties => ({
     position: 'absolute',
     bottom: 76,
-    [side]: 8,
+    left: menu === 'sport' ? 8 : 'calc(20% + 5px)',
     display: 'grid',
     gap: 7,
-    width: side === 'left' ? 104 : 112,
+    width: menu === 'sport' ? 104 : 112,
     padding: 8,
     borderRadius: 20,
     border: `1px solid ${C.borderHot}`,
@@ -5260,10 +5260,10 @@ function MobileBottomDock({ active, onChange, sport, onSportChange, days, date, 
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
     }}>
-      {openMenu === 'sport' && <div style={menuStyle('left')}>
+      {openMenu === 'sport' && <div style={menuStyle('sport')}>
         {sports.map(item => <button key={item.value} onClick={() => selectSport(item.value)} style={menuButton(sport === item.value)}>{item.label}</button>)}
       </div>}
-      {openMenu === 'dates' && <div style={menuStyle('right')}>
+      {openMenu === 'dates' && <div style={menuStyle('dates')}>
         {days.map(day => <button key={day.value} onClick={() => selectDate(day.value)} style={menuButton(date === day.value)}>{day.label}</button>)}
       </div>}
 
@@ -5272,18 +5272,18 @@ function MobileBottomDock({ active, onChange, sport, onSportChange, days, date, 
         <span>Sport</span>
         <span style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.04em' }}>{currentSportLabel}</span>
       </button>
-      <button onClick={() => { onChange('playerSignals'); closeMenus() }} aria-label="Open Player Signals" style={dockButton(active === 'playerSignals')}>
-        <span style={glyphStyle(active === 'playerSignals')}>≋</span>
-        <span>Signals</span>
+      <button onClick={() => toggleMenu('dates')} aria-expanded={openMenu === 'dates'} aria-label="Choose date" style={dockButton(openMenu === 'dates')}>
+        <span style={glyphStyle(openMenu === 'dates')}>◷</span>
+        <span>Dates</span>
+        <span style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.04em' }}>{currentDateLabel}</span>
       </button>
       <button onClick={() => { onChange('slate'); closeMenus() }} aria-label="Open Slate" style={{ ...dockButton(active === 'slate', true), transform: 'translateY(-8px)', borderRadius: 999, background: active === 'slate' ? 'radial-gradient(circle, rgba(166,255,63,0.95), rgba(166,255,63,0.22) 54%, rgba(6,12,3,0.98) 72%)' : 'radial-gradient(circle, rgba(166,255,63,0.20), rgba(6,12,3,0.98) 72%)', color: active === 'slate' ? '#030500' : C.green, boxShadow: '0 0 34px rgba(166,255,63,0.34), 0 0 0 7px rgba(166,255,63,0.08), inset 0 1px 0 rgba(255,255,255,0.18)' }}>
         <span style={{ fontSize: 20, lineHeight: 1 }}>◎</span>
         <span>Slate</span>
       </button>
-      <button onClick={() => toggleMenu('dates')} aria-expanded={openMenu === 'dates'} aria-label="Choose date" style={dockButton(openMenu === 'dates')}>
-        <span style={glyphStyle(openMenu === 'dates')}>◷</span>
-        <span>Dates</span>
-        <span style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.04em' }}>{currentDateLabel}</span>
+      <button onClick={() => { onChange('playerSignals'); closeMenus() }} aria-label="Open Player Signals" style={dockButton(active === 'playerSignals')}>
+        <span style={glyphStyle(active === 'playerSignals')}>≋</span>
+        <span>Signals</span>
       </button>
       <div style={{ display: 'grid', placeItems: 'center', gap: 3, minHeight: 50, color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
         {accountEnabled ? <AccountMenu isMobile /> : <button onClick={() => { window.location.href = '/login' }} aria-label="Open profile" style={{ ...dockButton(false), width: '100%' }}><span style={glyphStyle(false)}>◉</span><span>Profile</span></button>}
