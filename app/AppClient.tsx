@@ -13,7 +13,7 @@ import type { LineupInjuryFlagItem, SignalTerminalSignal, SportsbookConsensus } 
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
 import { resolveStartupSport } from './lib/startup-sport'
-import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, type MobileDockIcon, type MobileDockTab } from './lib/mobile-dock'
+import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout, type MobileDockIcon, type MobileDockTab } from './lib/mobile-dock'
 import { resetInitialSlateScroll } from './lib/startup-scroll'
 import { detectCorrelationWarnings, type CorrelationInputItem, type CorrelationWarning } from './lib/parlays/correlation'
 import { getLivePropProgress as getLivePropProgressPure } from './lib/live/prop-progress'
@@ -5520,53 +5520,49 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
   const navItems = buildMobileDockTabs(sport)
   const dateOptions = mobileDockDateOptions(days)
 
-  const dockButton = (selected: boolean, primary?: boolean): React.CSSProperties => ({
+  const dockButton = (selected: boolean): React.CSSProperties => ({
     appearance: 'none',
     WebkitAppearance: 'none',
     position: 'relative',
-    zIndex: primary ? 3 : 2,
+    zIndex: selected ? 3 : 2,
     minWidth: 0,
-    minHeight: primary ? 64 : 54,
-    borderRadius: primary ? 999 : 22,
-    border: selected ? '1px solid rgba(200,255,47,0.82)' : '1px solid rgba(182,197,211,0.16)',
+    minHeight: premiumMobileDockLayout.buttonMinHeight,
+    borderRadius: 23,
+    border: selected ? '1px solid rgba(200,255,47,0.92)' : '1px solid rgba(255,255,255,0.10)',
     background: selected
-      ? primary
-        ? 'radial-gradient(circle at 50% 34%, #d7ff58 0%, #baff22 42%, rgba(200,255,47,0.30) 58%, rgba(2,4,6,0.92) 76%)'
-        : 'linear-gradient(180deg, rgba(200,255,47,0.18), rgba(2,4,6,0.74))'
-      : 'linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025))',
-    color: selected ? (primary ? '#030500' : '#c8ff2f') : 'rgba(184,198,214,0.74)',
+      ? 'linear-gradient(180deg, rgba(200,255,47,0.18) 0%, rgba(10,15,8,0.94) 48%, rgba(2,4,6,0.96) 100%)'
+      : 'linear-gradient(180deg, rgba(255,255,255,0.070), rgba(255,255,255,0.026))',
+    color: selected ? '#d7ff58' : 'rgba(238,246,255,0.76)',
     boxShadow: selected
-      ? primary
-        ? '0 0 34px rgba(200,255,47,0.46), 0 0 0 8px rgba(200,255,47,0.075), inset 0 1px 0 rgba(255,255,255,0.42)'
-        : '0 0 20px rgba(200,255,47,0.18), inset 0 1px 0 rgba(255,255,255,0.13)'
-      : 'inset 0 1px 0 rgba(255,255,255,0.07)',
+      ? '0 0 0 1px rgba(200,255,47,0.12), 0 0 24px rgba(200,255,47,0.30), inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(200,255,47,0.18)'
+      : 'inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 16px rgba(0,0,0,0.18)',
     cursor: 'pointer',
     display: 'grid',
     placeItems: 'center',
     alignContent: 'center',
-    gap: primary ? 3 : 4,
-    padding: primary ? '7px 5px 6px' : '7px 4px 6px',
-    fontSize: primary ? 9 : 8,
+    gap: 4,
+    padding: '7px 4px 6px',
+    fontSize: 8,
     fontWeight: 950,
-    letterSpacing: '0.08em',
+    letterSpacing: '0.07em',
     lineHeight: 1,
     textTransform: 'uppercase',
-    transform: primary ? 'translateY(-10px)' : 'translateY(0)',
+    transform: `translateY(${premiumMobileDockLayout.activeTranslateY}px) scale(${premiumMobileDockLayout.activeScale})`,
     transition: 'transform 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 180ms ease, background 180ms ease',
     WebkitTapHighlightColor: 'transparent',
   })
 
-  const iconWrap = (selected: boolean, primary?: boolean): React.CSSProperties => ({
-    width: primary ? 31 : 25,
-    height: primary ? 31 : 25,
+  const iconWrap = (selected: boolean): React.CSSProperties => ({
+    width: premiumMobileDockLayout.iconSize,
+    height: premiumMobileDockLayout.iconSize,
     borderRadius: 999,
     display: 'grid',
     placeItems: 'center',
-    color: selected ? (primary ? '#030500' : '#c8ff2f') : 'rgba(184,198,214,0.82)',
+    color: selected ? '#030500' : 'rgba(238,246,255,0.86)',
     background: selected
-      ? primary ? 'rgba(255,255,255,0.20)' : 'rgba(200,255,47,0.10)'
-      : 'rgba(255,255,255,0.035)',
-    boxShadow: selected ? '0 0 16px rgba(200,255,47,0.22)' : 'none',
+      ? 'linear-gradient(180deg, #d7ff58, #a6ff3f)'
+      : 'rgba(255,255,255,0.040)',
+    boxShadow: selected ? '0 0 18px rgba(200,255,47,0.36), inset 0 1px 0 rgba(255,255,255,0.42)' : 'inset 0 1px 0 rgba(255,255,255,0.08)',
   })
 
   const verticalDockStyle = (side: 'left' | 'right'): React.CSSProperties => ({
@@ -5606,19 +5602,19 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
       position: 'fixed',
       left: '50%',
       right: 'auto',
-      width: 'min(430px, calc(100vw - 20px))',
+      width: 'min(430px, calc(100vw - 18px))',
       bottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
       transform: 'translateX(-50%)',
       zIndex: 1000,
       display: 'grid',
-      gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
-      alignItems: 'end',
-      gap: 6,
-      padding: '9px 10px 8px',
-      borderRadius: 34,
-      border: '1px solid rgba(185,197,205,0.24)',
-      background: 'linear-gradient(180deg, rgba(23,28,31,0.92) 0%, rgba(2,4,6,0.88) 42%, rgba(0,0,0,0.94) 100%)',
-      boxShadow: '0 -18px 52px rgba(0,0,0,0.76), 0 0 32px rgba(200,255,47,0.13), inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(200,255,47,0.16)',
+      gridTemplateColumns: `repeat(${premiumMobileDockLayout.columns}, minmax(0, 1fr))`,
+      alignItems: 'stretch',
+      gap: 7,
+      padding: '8px 9px',
+      borderRadius: premiumMobileDockLayout.containerRadius,
+      border: '1px solid rgba(200,255,47,0.20)',
+      background: 'linear-gradient(180deg, rgba(25,30,29,0.88) 0%, rgba(7,10,10,0.88) 46%, rgba(0,0,0,0.94) 100%)',
+      boxShadow: '0 -20px 56px rgba(0,0,0,0.76), 0 0 34px rgba(200,255,47,0.14), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(200,255,47,0.18)',
       backdropFilter: 'blur(22px) saturate(1.25)',
       WebkitBackdropFilter: 'blur(22px) saturate(1.25)',
       overflow: 'visible',
@@ -5637,10 +5633,10 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
           ? () => onTogglePanel('sport')
           : () => onChange(item.key)
         return (
-          <button key={item.key} type="button" onClick={click} aria-current={selected ? 'page' : undefined} aria-label={item.label} style={dockButton(selected, item.primary)}>
-            <span style={iconWrap(selected, item.primary)}><DockIcon icon={item.icon} active={selected} primary={item.primary} /></span>
+          <button key={item.key} type="button" onClick={click} aria-current={selected ? 'page' : undefined} aria-label={item.label} style={dockButton(selected)}>
+            <span style={iconWrap(selected)}><DockIcon icon={item.icon} active={selected} primary={false} /></span>
             <span>{item.label}</span>
-            {selected && <span aria-hidden="true" style={{ width: item.primary ? 16 : 10, height: item.primary ? 3 : 2, borderRadius: 999, background: item.primary ? '#030500' : '#c8ff2f', boxShadow: item.primary ? '0 0 12px rgba(3,5,0,0.35)' : '0 0 10px rgba(200,255,47,0.74)' }} />}
+            {selected && <span aria-hidden="true" style={{ width: 14, height: 2, borderRadius: 999, background: '#d7ff58', boxShadow: '0 0 11px rgba(200,255,47,0.82)' }} />}
           </button>
         )
       })}

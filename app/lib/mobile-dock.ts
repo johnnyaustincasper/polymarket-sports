@@ -22,6 +22,15 @@ export function buildMobileDockTabs(sport?: SupportedSport | 'ufc'): { key: Mobi
   ]
 }
 
+export const premiumMobileDockLayout = {
+  columns: 5,
+  buttonMinHeight: 58,
+  iconSize: 26,
+  activeScale: 1,
+  activeTranslateY: 0,
+  containerRadius: 30,
+} as const
+
 export function getMobileDockActiveTab(subtab: 'slate' | 'teams' | 'playerSignals'): MobileDockTab {
   if (subtab === 'playerSignals') return 'signals'
   if (subtab === 'teams') return 'teams'

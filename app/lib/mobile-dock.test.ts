@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions } from './mobile-dock'
+import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout } from './mobile-dock'
 
 describe('mobile bottom dock configuration', () => {
   it('keeps Slate as the centered primary tab and adds Signals as its own tab', () => {
@@ -7,6 +7,17 @@ describe('mobile bottom dock configuration', () => {
     expect(buildMobileDockTabs()[1]).toMatchObject({ key: 'teams', label: 'Teams' })
     expect(buildMobileDockTabs()[2]).toMatchObject({ key: 'slate', label: 'Slate', primary: true })
     expect(buildMobileDockTabs()[3]).toMatchObject({ key: 'signals', label: 'Signals' })
+  })
+
+  it('uses an even premium dock footprint so no tab is oversized or raised', () => {
+    expect(premiumMobileDockLayout).toMatchObject({
+      columns: 5,
+      buttonMinHeight: 58,
+      iconSize: 26,
+      activeScale: 1,
+      activeTranslateY: 0,
+      containerRadius: 30,
+    })
   })
 
   it('renames Teams to Fighters when UFC is selected', () => {
