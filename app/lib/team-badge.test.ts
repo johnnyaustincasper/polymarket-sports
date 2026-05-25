@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getTeamBadgeText, getTeamBadgeTone, teamLogoReplacementContract } from './team-badge'
+import { getTeamBadgeText, getTeamBadgeTone, getTeamScoutTileLabel, teamLogoReplacementContract } from './team-badge'
 
 describe('team badge logo replacement', () => {
   it('uses neutral app-native badges instead of external logo images', () => {
@@ -21,5 +21,13 @@ describe('team badge logo replacement', () => {
     expect(getTeamBadgeTone('mlb').accent).toBe('#f8d94a')
     expect(getTeamBadgeTone('nfl').accent).toBe('#a8f0ff')
     expect(getTeamBadgeTone('ufc').accent).toBe('#ff3f5f')
+  })
+
+  it('frames logo-free teams as scouting report tiles', () => {
+    expect(teamLogoReplacementContract.defaultPresentation).toBe('ai-scouting-report-tile')
+    expect(teamLogoReplacementContract.includesContextLabel).toBe(true)
+    expect(getTeamScoutTileLabel('nba')).toBe('Team Intel')
+    expect(getTeamScoutTileLabel('mlb')).toBe('Season Profile')
+    expect(getTeamScoutTileLabel('nfl')).toBe('Team Intel')
   })
 })

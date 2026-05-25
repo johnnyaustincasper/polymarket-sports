@@ -57,9 +57,23 @@ export function getTeamBadgeTone(sport: TeamBadgeSport | null | undefined): Team
   return SPORT_BADGE_TONES[sport || 'nba'] || SPORT_BADGE_TONES.nba
 }
 
+export function getTeamScoutTileLabel(sport: TeamBadgeSport | null | undefined): string {
+  const labels: Record<TeamBadgeSport, string> = {
+    nba: 'Team Intel',
+    ncaab: 'Team Intel',
+    nfl: 'Team Intel',
+    ncaaf: 'Team Intel',
+    mlb: 'Season Profile',
+    ufc: 'Fighter Intel',
+  }
+  return labels[sport || 'nba'] || 'Team Intel'
+}
+
 export const teamLogoReplacementContract = {
   rendersOfficialLogos: false,
   usesExternalImageSrc: false,
   defaultFallback: 'AI',
   accessibleLabelPattern: 'Team abbreviation badge for {team}',
+  defaultPresentation: 'ai-scouting-report-tile',
+  includesContextLabel: true,
 } as const
