@@ -5086,12 +5086,12 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
           <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: isMobile ? 126 : 132, display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '16px 14px 14px' : '18px 260px 18px 22px', border: 0, background: '#000', cursor: 'pointer', textAlign: isMobile ? 'center' : 'left' }}>
             <img src={logoSrc} alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: isMobile ? 340 : 500, height: isMobile ? 96 : 96, objectFit: 'contain', objectPosition: isMobile ? 'center center' : 'left center', display: 'block' }} />
           </button>
-          <div style={{ position: 'absolute', top: isMobile ? 8 : 18, right: isMobile ? 8 : 18, display: 'flex', gap: isMobile ? 5 : 7, alignItems: 'center' }}>
-            <div style={{ color: C.textSecondary, fontSize: isMobile ? 9 : 11, whiteSpace: 'nowrap', padding: isMobile ? '7px 8px' : '9px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}38`, backdropFilter: 'blur(10px)' }}>{loading ? 'Syncing…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty={isMobile ? 'Intel' : 'Kalshi + market intelligence'} />}</div>
-            <button onClick={onRefresh} style={{ width: isMobile ? 34 : 40, height: isMobile ? 34 : 40, borderRadius: isMobile ? 11 : 13, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: isMobile ? 15 : 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
-            {accountEnabled && <AccountMenu isMobile={isMobile} />}
-          </div>
-          <div style={{ position: 'absolute', right: isMobile ? 8 : 18, bottom: isMobile ? 8 : 18, padding: isMobile ? '7px 9px' : '8px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.72)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: isMobile ? 9 : 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{sportLabel} Board</div>
+          {!isMobile && <div style={{ position: 'absolute', top: 18, right: 18, display: 'flex', gap: 7, alignItems: 'center' }}>
+            <div style={{ color: C.textSecondary, fontSize: 11, whiteSpace: 'nowrap', padding: '9px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}38`, backdropFilter: 'blur(10px)' }}>{loading ? 'Syncing…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
+            <button onClick={onRefresh} style={{ width: 40, height: 40, borderRadius: 13, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
+            {accountEnabled && <AccountMenu isMobile={false} />}
+          </div>}
+          {!isMobile && <div style={{ position: 'absolute', right: 18, bottom: 18, padding: '8px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.72)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{sportLabel} Board</div>}
         </div>
         <div className={isMobile ? 'no-scrollbar' : undefined} style={{ display: 'flex', gap: isMobile ? 6 : 8, flexWrap: isMobile ? 'nowrap' : 'wrap', alignItems: 'center', overflowX: isMobile ? 'auto' : undefined, paddingBottom: isMobile ? 1 : undefined }}>
           {sports.map(({ value, label }) => <ControlButton key={value} active={sport === value || (label === 'NCAA' && (sport === 'ncaaf' || sport === 'ncaab'))} accent={sportAccent(value)} onClick={() => switchSport(value)} minWidth={isMobile ? 62 : 78}>{label}</ControlButton>)}
@@ -5135,6 +5135,58 @@ function MarketToggleButton({ active, accent, children, onClick, minWidth }: {
       overflow: 'hidden',
       transform: 'translateZ(0)',
     }}>{children}</button>
+  )
+}
+
+function MobileBottomDock({ active, onChange, onRefresh, loading, lastUpdatedAt, accountEnabled }: {
+  active: SportSubtab
+  onChange: (tab: SportSubtab) => void
+  onRefresh: () => void
+  loading: boolean
+  lastUpdatedAt: Date | null
+  accountEnabled: boolean
+}) {
+  const dockButton = (selected: boolean): React.CSSProperties => ({
+    minHeight: 46,
+    borderRadius: 16,
+    padding: '7px 8px',
+    border: `1px solid ${selected ? C.borderHot : 'rgba(255,255,255,0.10)'}`,
+    background: selected ? 'linear-gradient(145deg, rgba(166,255,63,0.18), rgba(6,12,3,0.98))' : 'rgba(255,255,255,0.045)',
+    color: selected ? C.green : C.textSecondary,
+    boxShadow: selected ? '0 0 22px rgba(166,255,63,0.16), inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+    fontSize: 9,
+    fontWeight: 950,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    cursor: 'pointer',
+  })
+
+  return (
+    <nav aria-label="Mobile app dock" style={{
+      position: 'fixed',
+      left: 10,
+      right: 10,
+      bottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
+      zIndex: 1000,
+      display: 'grid',
+      gridTemplateColumns: accountEnabled ? '1fr 1fr 48px 48px' : '1fr 1fr 48px',
+      gap: 7,
+      padding: 8,
+      borderRadius: 22,
+      border: `1px solid ${C.borderHot}`,
+      background: 'linear-gradient(180deg, rgba(6,10,3,0.94), rgba(2,4,0,0.98))',
+      boxShadow: '0 -14px 46px rgba(0,0,0,0.72), 0 0 24px rgba(166,255,63,0.10), inset 0 1px 0 rgba(255,255,255,0.06)',
+      backdropFilter: 'blur(18px)',
+      WebkitBackdropFilter: 'blur(18px)',
+    }}>
+      <button onClick={() => onChange('slate')} style={dockButton(active === 'slate')}>Slate</button>
+      <button onClick={() => onChange('playerSignals')} style={dockButton(active === 'playerSignals')}>Signals</button>
+      <button onClick={onRefresh} aria-label="Refresh market intelligence" style={{ ...dockButton(false), minWidth: 0, padding: 0, color: C.green, fontSize: 18 }}>{loading ? '…' : '↻'}</button>
+      {accountEnabled && <div style={{ display: 'grid', placeItems: 'center' }}><AccountMenu isMobile /></div>}
+      <div style={{ position: 'absolute', left: 14, right: 14, bottom: -16, color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.08em', textAlign: 'center', opacity: 0.72, pointerEvents: 'none' }}>
+        {loading ? 'Syncing market intelligence…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Ready" />}
+      </div>
+    </nav>
   )
 }
 
@@ -5360,12 +5412,12 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         {header}
       </div>
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: '0 16px 80px' }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 16px 132px' : '0 16px 80px' }}>
 
         <MarketModeDock />
 
-        {sport !== 'ufc' && provider === 'kalshi' && (
-          <SportSubtabBar active={subtab} onChange={setSubtab} isMobile={isMobile} />
+        {sport !== 'ufc' && provider === 'kalshi' && !isMobile && (
+          <SportSubtabBar active={subtab} onChange={setSubtab} isMobile={false} />
         )}
 
         {!loading && sport !== 'ufc' && subtab !== 'slate' && (
@@ -5473,6 +5525,17 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           </div>
         ))}
       </div>
+
+      {isMobile && sport !== 'ufc' && provider === 'kalshi' && (
+        <MobileBottomDock
+          active={subtab}
+          onChange={setSubtab}
+          onRefresh={() => { setLoading(true); fetchGames() }}
+          loading={loading}
+          lastUpdatedAt={lastUpdated}
+          accountEnabled={clerkEnabled}
+        />
+      )}
 
       {showTracker && <BetTracker bets={bets} onUpdate={saveBets} onClose={() => setShowTracker(false)} />}
     </main>
