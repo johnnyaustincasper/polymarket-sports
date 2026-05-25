@@ -66,11 +66,23 @@ function normalizeTeam(raw: any) {
   }
 }
 
+function flattenRosterAthletes(athletes: any[]) {
+  return athletes.flatMap((entry: any) => {
+    if (Array.isArray(entry?.items)) {
+      return entry.items.map((athlete: any) => ({
+        ...athlete,
+        rosterGroup: entry?.position || null,
+      }))
+    }
+    return [entry]
+  })
+}
+
 function normalizeRoster(athletes: any[]) {
-  return athletes.map((athlete: any) => ({
+  return flattenRosterAthletes(athletes).map((athlete: any) => ({
     id: String(athlete?.id || athlete?.uid || athlete?.displayName),
     name: athlete?.displayName || athlete?.fullName || athlete?.shortName || 'Unknown',
-    position: athlete?.position?.abbreviation || athlete?.position?.displayName || '—',
+    position: athlete?.position?.abbreviation || athlete?.position?.displayName || athlete?.rosterGroup || '—',
     jersey: athlete?.jersey || null,
     age: athlete?.age || null,
     height: athlete?.displayHeight || null,

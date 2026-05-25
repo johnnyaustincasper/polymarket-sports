@@ -12,10 +12,10 @@ export const mobileDockSportOptions: MobileSportOption[] = [
   { value: 'nfl', label: 'NFL' },
 ]
 
-export function buildMobileDockTabs(): { key: MobileDockTab; label: string; icon: MobileDockIcon; primary?: boolean }[] {
+export function buildMobileDockTabs(sport?: SupportedSport | 'ufc'): { key: MobileDockTab; label: string; icon: MobileDockIcon; primary?: boolean }[] {
   return [
     { key: 'sport', label: 'Sport', icon: 'sport' },
-    { key: 'teams', label: 'Teams', icon: 'teams' },
+    { key: 'teams', label: sport === 'ufc' ? 'Fighters' : 'Teams', icon: 'teams' },
     { key: 'slate', label: 'Slate', icon: 'slate', primary: true },
     { key: 'signals', label: 'Signals', icon: 'signals' },
     { key: 'profile', label: 'Profile', icon: 'profile' },

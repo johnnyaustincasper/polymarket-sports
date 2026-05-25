@@ -9,6 +9,11 @@ describe('mobile bottom dock configuration', () => {
     expect(buildMobileDockTabs()[3]).toMatchObject({ key: 'signals', label: 'Signals' })
   })
 
+  it('renames Teams to Fighters when UFC is selected', () => {
+    expect(buildMobileDockTabs('ufc')[1]).toMatchObject({ key: 'teams', label: 'Fighters' })
+    expect(buildMobileDockTabs('nba')[1]).toMatchObject({ key: 'teams', label: 'Teams' })
+  })
+
   it('maps app subtab state to dock active tabs without replacing Slate with Signals', () => {
     expect(getMobileDockActiveTab('slate')).toBe('slate')
     expect(getMobileDockActiveTab('teams')).toBe('teams')
