@@ -5468,9 +5468,11 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
   return (
     <nav aria-label="Mobile bottom navigation" style={{
       position: 'fixed',
-      left: 'max(10px, env(safe-area-inset-left, 0px))',
-      right: 'max(10px, env(safe-area-inset-right, 0px))',
+      left: '50%',
+      right: 'auto',
+      width: 'min(430px, calc(100vw - 20px))',
       bottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
+      transform: 'translateX(-50%)',
       zIndex: 1000,
       display: 'grid',
       gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
@@ -5768,7 +5770,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       onRefresh={() => { setLoading(true); fetchGames() }}
       loading={loading}
       lastUpdatedAt={lastUpdated}
-      isMobile={isMobile}
+      isMobile={true}
       accountEnabled={clerkEnabled}
     />
   )
@@ -5786,13 +5788,9 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         {header}
       </div>
 
-      <div id="market-content-top" style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 16px calc(148px + env(safe-area-inset-bottom, 0px))' : '0 16px 80px', scrollMarginTop: 12 }}>
+      <div id="market-content-top" style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: '0 16px calc(148px + env(safe-area-inset-bottom, 0px))', scrollMarginTop: 12 }}>
 
         <MarketModeDock />
-
-        {sport !== 'ufc' && provider === 'kalshi' && !isMobile && (
-          <SportSubtabBar active={subtab} onChange={handleSubtabChange} isMobile={false} />
-        )}
 
         {sport !== 'ufc' && subtab !== 'slate' && (
           <div style={{
@@ -5901,7 +5899,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         ))}
       </div>
 
-      {isMobile && provider === 'kalshi' && (
+      {provider === 'kalshi' && (
         <BottomDock
           active={subtab === 'slate' ? mobileDockTab : getMobileDockActiveTab(subtab)}
           openPanel={mobileDockPanel}
@@ -5916,7 +5914,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         />
       )}
 
-      {isMobile && clerkEnabled && (
+      {clerkEnabled && (
         <AccountMenu
           isMobile
           hideTrigger
