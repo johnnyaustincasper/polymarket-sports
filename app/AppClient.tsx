@@ -14,7 +14,6 @@ import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap 
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
 import { resolveStartupSport } from './lib/startup-sport'
 import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout, slateMainFeatureAnimation, type MobileDockIcon, type MobileDockTab } from './lib/mobile-dock'
-import { animatedGameCardFrame } from './lib/game-card-animation'
 import { resetInitialSlateScroll } from './lib/startup-scroll'
 import { detectCorrelationWarnings, type CorrelationInputItem, type CorrelationWarning } from './lib/parlays/correlation'
 import { getLivePropProgress as getLivePropProgressPure } from './lib/live/prop-progress'
@@ -448,59 +447,6 @@ const GLOBAL_STYLES = `
     0% { --load-board-angle: 0deg; }
     100% { --load-board-angle: 360deg; }
   }
-  @property --game-card-frame-angle {
-    syntax: '<angle>';
-    inherits: false;
-    initial-value: 0deg;
-  }
-  @keyframes gameCardFrameOrbit {
-    0% { --game-card-frame-angle: 0deg; }
-    100% { --game-card-frame-angle: 360deg; }
-  }
-  @keyframes gameCardFrameGlow {
-    0%, 100% { filter: brightness(1); box-shadow: 0 14px 38px rgba(0,0,0,0.42), 0 0 12px rgba(166,255,63,0.15); }
-    50% { filter: brightness(1.045); box-shadow: 0 20px 56px rgba(0,0,0,0.54), 0 0 28px rgba(166,255,63,0.27); }
-  }
-  @keyframes gameCardFrameShimmer {
-    0% { transform: translateX(-145%) skewX(-18deg); opacity: 0; }
-    18% { opacity: 0.54; }
-    46% { opacity: 0.18; }
-    100% { transform: translateX(145%) skewX(-18deg); opacity: 0; }
-  }
-  .animated-game-card-frame {
-    --game-card-frame-angle: 0deg;
-    position: relative;
-    isolation: isolate;
-    overflow: hidden;
-  }
-  .animated-game-card-frame::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: conic-gradient(from var(--game-card-frame-angle), rgba(166,255,63,0.16) 0deg, rgba(166,255,63,0.95) 25deg, rgba(248,217,74,0.54) 39deg, rgba(168,240,255,0.42) 54deg, rgba(166,255,63,0.13) 112deg, rgba(166,255,63,0.16) 360deg);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    z-index: 4;
-    animation: gameCardFrameOrbit 2.8s linear infinite;
-  }
-  .animated-game-card-frame::after {
-    content: '';
-    position: absolute;
-    top: -28%;
-    bottom: -28%;
-    left: 0;
-    width: 42%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, transparent, rgba(166,255,63,0.24), rgba(248,217,74,0.18), transparent);
-    filter: blur(18px);
-    pointer-events: none;
-    z-index: 3;
-    animation: gameCardFrameShimmer 3.3s ease-in-out infinite;
-  }
   .load-board-card {
     --load-board-angle: 0deg;
     position: relative;
@@ -550,20 +496,6 @@ const GLOBAL_STYLES = `
     63% { transform: translateX(-14px); opacity: 0.50; }
     66% { transform: translateX(18px); opacity: 0.18; }
     70% { opacity: 0; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .animated-game-card-frame,
-    .animated-game-card-frame::before,
-    .animated-game-card-frame::after,
-    .load-board-card {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
-    .animated-game-card-frame::after {
-      opacity: 0.18;
-      transform: none;
-    }
   }
   .no-scrollbar {
     scrollbar-width: none;
@@ -2545,7 +2477,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   if (!loadRequested) {
     if (hasScore) {
       return (
-        <button className={animatedGameCardFrame.compactLoadClassName} onClick={requestCardLoad} style={{
+        <button className="load-board-card" onClick={requestCardLoad} style={{
           width: '100%',
           textAlign: 'left',
           borderRadius: isMobile ? 16 : 22,
@@ -2592,7 +2524,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     }
 
     return (
-      <button className={animatedGameCardFrame.compactLoadClassName} onClick={requestCardLoad} style={{
+      <button className="load-board-card" onClick={requestCardLoad} style={{
         width: '100%',
         textAlign: 'left',
         borderRadius: isMobile ? 16 : 22,
@@ -2644,7 +2576,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   }
 
   return (
-    <div className={animatedGameCardFrame.className} style={{
+    <div style={{
       borderRadius: 22,
       padding: 1,
       background: hasVisibleContracts ? 'linear-gradient(135deg, rgba(166,255,63,0.64), rgba(255,255,255,0.14), rgba(166,255,63,0.12))' : 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.06))',
@@ -4104,7 +4036,7 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
   return (
     <>
       <div className="mb-4" style={{ position: 'relative' }}>
-        <div className={`${animatedGameCardFrame.className} ${isLive ? '' : 'holo-projection holo-scanlines rounded-3xl'}`} style={{
+        <div className={isLive ? '' : 'holo-projection holo-scanlines rounded-3xl'} style={{
           ...cardStyle,
           animation: isAnalyzing ? 'analysisCardBlink 0.94s steps(1, end) infinite' : cardStyle.animation,
           border: isAnalyzing ? `1px solid ${C.green}` : cardStyle.border,
@@ -4859,7 +4791,7 @@ function KalshiUFCSection() {
         const loaded = Boolean(loadedFightIds[fight.id])
         if (!loaded) {
           return (
-            <button key={fight.id} className={animatedGameCardFrame.compactLoadClassName} onClick={() => setLoadedFightIds(prev => ({ ...prev, [fight.id]: true }))} style={{
+            <button key={fight.id} className="load-board-card" onClick={() => setLoadedFightIds(prev => ({ ...prev, [fight.id]: true }))} style={{
               width: '100%',
               textAlign: 'left',
               borderRadius: isMobile ? 16 : 22,
@@ -4888,7 +4820,7 @@ function KalshiUFCSection() {
           )
         }
         return (
-          <div key={fight.id} className={animatedGameCardFrame.className} style={{ gridColumn: '1 / -1', borderRadius: 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(255,255,255,0.10), rgba(166,255,63,0.08))', boxShadow: '0 14px 42px rgba(0,0,0,0.42)', overflow: 'hidden' }}>
+          <div key={fight.id} style={{ gridColumn: '1 / -1', borderRadius: 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(255,255,255,0.10), rgba(166,255,63,0.08))', boxShadow: '0 14px 42px rgba(0,0,0,0.42)', overflow: 'hidden' }}>
             <div style={{ borderRadius: 21, padding: 14, background: SURFACE.panel, minHeight: 190 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
                 <div style={{ minWidth: 0 }}>
