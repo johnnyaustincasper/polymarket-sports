@@ -5094,6 +5094,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
   const [loadingTeams, setLoadingTeams] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const detailRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (!supported) {
@@ -5162,6 +5163,15 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
   const roster = detail?.roster || []
   const injuries = detail?.injuries || []
   const stats = detail?.stats || []
+  const selectedTeam = teams.find(team => team.id === selectedTeamId) || detail?.team || null
+  const selectTeam = (teamId: string) => {
+    setSelectedTeamId(teamId)
+    if (isMobile) {
+      window.setTimeout(() => {
+        detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 120)
+    }
+  }
 
   return (
     <section style={{ display: 'grid', gap: isMobile ? 12 : 16 }}>
@@ -5170,6 +5180,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
           <div>
             <p style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{sport.toUpperCase()} Teams</p>
             <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 4 }}>Tap a team for roster, season stats, and injury report.</p>
+            {selectedTeam && <p style={{ color: accent, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 8 }}>Viewing {selectedTeam.abbr || selectedTeam.name}</p>}
           </div>
           {(loadingTeams || loadingDetail) && <span style={{ color: C.gold, fontSize: 10, fontWeight: 900 }}>Loading…</span>}
         </div>
@@ -5177,18 +5188,25 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
           {teams.map(team => {
             const selected = selectedTeamId === team.id
             return (
-              <button key={team.id} type="button" onClick={() => setSelectedTeamId(team.id)} style={{
-                minHeight: isMobile ? 48 : 52,
+              <button key={team.id} type="button" aria-label={`View ${team.name} roster and injuries`} aria-pressed={selected} onClick={() => selectTeam(team.id)} style={{
+                minHeight: isMobile ? 56 : 52,
                 borderRadius: 15,
                 border: `1px solid ${selected ? accent : 'rgba(255,255,255,0.10)'}`,
-                background: selected ? `${accent}24` : 'rgba(255,255,255,0.035)',
+                background: selected ? `linear-gradient(180deg, ${accent}38, rgba(0,0,0,0.38))` : 'rgba(255,255,255,0.035)',
                 color: selected ? C.textPrimary : C.textSecondary,
                 fontSize: 10,
                 fontWeight: 950,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 cursor: 'pointer',
-              }}>{team.abbr}</button>
+                boxShadow: selected ? `0 0 18px ${accent}24, inset 0 1px 0 rgba(255,255,255,0.16)` : 'inset 0 1px 0 rgba(255,255,255,0.05)',
+                display: 'grid',
+                gap: 3,
+                placeItems: 'center',
+              }}>
+                <span>{team.abbr}</span>
+                <span style={{ color: selected ? accent : 'rgba(184,198,214,0.52)', fontSize: 7, fontWeight: 950, letterSpacing: '0.16em' }}>{selected ? 'OPEN' : 'VIEW'}</span>
+              </button>
             )
           })}
         </div>
@@ -5196,7 +5214,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
       </div>
 
       {detail && (
-        <div style={{ borderRadius: isMobile ? 20 : 24, padding: isMobile ? 14 : 18, background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(3,5,0,0.94))', border: `1px solid ${accent}55`, boxShadow: `0 0 34px ${accent}18, 0 20px 60px rgba(0,0,0,0.44)` }}>
+        <div ref={detailRef} style={{ scrollMarginTop: isMobile ? 12 : 18, borderRadius: isMobile ? 20 : 24, padding: isMobile ? 14 : 18, background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(3,5,0,0.94))', border: `1px solid ${accent}55`, boxShadow: `0 0 34px ${accent}18, 0 20px 60px rgba(0,0,0,0.44)` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
             {detail.team.logo && <img src={detail.team.logo} alt="" style={{ width: 46, height: 46, objectFit: 'contain', flexShrink: 0 }} />}
             <div style={{ minWidth: 0 }}>
