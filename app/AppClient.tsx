@@ -5281,10 +5281,8 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
 
 function FightersDirectoryPanel({ isMobile }: { isMobile: boolean }) {
   const [weightClasses, setWeightClasses] = useState<FighterWeightClassGroup[]>([])
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const detailRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -5295,10 +5293,7 @@ function FightersDirectoryPanel({ isMobile }: { isMobile: boolean }) {
         const res = await fetch(`/api/fighters?t=${Date.now()}`, { cache: 'no-store' })
         const json = await res.json().catch(() => null)
         if (!res.ok) throw new Error(json?.error || `fighter feed failed (${res.status})`)
-        const groups = Array.isArray(json?.weightClasses) ? json.weightClasses : []
-        if (cancelled) return
-        setWeightClasses(groups)
-        setSelectedClassId(prev => prev && groups.some((group: FighterWeightClassGroup) => group.id === prev) ? prev : groups[0]?.id || null)
+        if (!cancelled) setWeightClasses(Array.isArray(json?.weightClasses) ? json.weightClasses : [])
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'fighter feed unavailable')
       } finally {
@@ -5309,83 +5304,74 @@ function FightersDirectoryPanel({ isMobile }: { isMobile: boolean }) {
     return () => { cancelled = true }
   }, [])
 
-  const selectedClass = weightClasses.find(group => group.id === selectedClassId) || weightClasses[0] || null
-  const selectClass = (classId: string) => {
-    setSelectedClassId(classId)
-    if (isMobile) {
-      window.setTimeout(() => {
-        detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 120)
-    }
-  }
+  const totalFighters = weightClasses.reduce((sum, group) => sum + group.fighters.length, 0)
 
   return (
-    <section style={{ display: 'grid', gap: isMobile ? 12 : 16 }}>
-      <div style={{ borderRadius: isMobile ? 18 : 22, padding: isMobile ? 12 : 14, background: 'transparent', border: '1px solid transparent', boxShadow: 'none' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-          <div>
+    <section style={{ display: 'grid', gap: isMobile ? 12 : 16, width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+      <div style={{ borderRadius: isMobile ? 18 : 22, padding: isMobile ? 12 : 14, background: 'transparent', border: '1px solid transparent', boxShadow: 'none', maxWidth: '100%', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 10, maxWidth: '100%' }}>
+          <div style={{ minWidth: 0 }}>
             <p style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>UFC Fighters</p>
-            <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 4 }}>Browse ranked fighters by UFC weight class.</p>
+            <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 4, lineHeight: 1.35 }}>{totalFighters ? `${totalFighters} ranked fighters across ${weightClasses.length} weight classes.` : 'Ranked fighters grouped by weight class.'}</p>
           </div>
-          {loading && <span style={{ color: C.gold, fontSize: 10, fontWeight: 900 }}>Loading…</span>}
-        </div>
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 4 }}>
-          {weightClasses.map(group => {
-            const selected = selectedClass?.id === group.id
-            return (
-              <button key={group.id} type="button" aria-label={`View ${group.name} fighters`} aria-pressed={selected} onClick={() => selectClass(group.id)} style={{
-                flex: '0 0 auto',
-                borderRadius: 999,
-                border: `1px solid ${selected ? 'rgba(200,255,47,0.72)' : 'rgba(255,255,255,0.12)'}`,
-                background: selected ? 'rgba(200,255,47,0.14)' : 'rgba(255,255,255,0.045)',
-                color: selected ? C.green : C.textSecondary,
-                padding: '9px 12px',
-                fontSize: 10,
-                fontWeight: 950,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}>{group.shortName || group.name}</button>
-            )
-          })}
+          {loading && <span style={{ color: C.gold, fontSize: 10, fontWeight: 900, flex: '0 0 auto' }}>Loading…</span>}
         </div>
         {error && <p style={{ color: C.gold, fontSize: 11, marginTop: 10 }}>{error}</p>}
       </div>
 
-      {selectedClass && (
-        <div ref={detailRef} style={{ scrollMarginTop: isMobile ? 12 : 18, borderRadius: isMobile ? 20 : 24, padding: isMobile ? 14 : 18, background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(3,5,0,0.94))', border: '1px solid rgba(200,255,47,0.34)', boxShadow: '0 20px 60px rgba(0,0,0,0.44)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
-            <div style={{ minWidth: 0 }}>
-              <h2 style={{ color: C.textPrimary, fontSize: isMobile ? 20 : 24, fontWeight: 950, margin: 0, lineHeight: 1.05 }}>{selectedClass.name}</h2>
-              <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 5 }}>{selectedClass.limit ? `${selectedClass.limit} · ` : ''}{selectedClass.fighters.length} ranked fighters</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: isMobile ? 12 : 14, width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+        {weightClasses.map(group => (
+          <section key={group.id} aria-label={`${group.name} fighters`} style={{
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: 0,
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+            borderRadius: isMobile ? 18 : 22,
+            padding: isMobile ? 12 : 14,
+            background: 'linear-gradient(160deg, rgba(255,255,255,0.052), rgba(3,5,0,0.92))',
+            border: '1px solid rgba(200,255,47,0.18)',
+            boxShadow: '0 18px 42px rgba(0,0,0,0.30)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 10, minWidth: 0 }}>
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ color: C.textPrimary, fontSize: isMobile ? 16 : 19, fontWeight: 950, margin: 0, lineHeight: 1.1, overflowWrap: 'anywhere' }}>{group.name}</h2>
+                <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>{group.limit ? `${group.limit} · ` : ''}{group.fighters.length} ranked</p>
+              </div>
             </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
-            {selectedClass.fighters.map(fighter => (
-              <a key={fighter.id} href={fighter.url || undefined} target={fighter.url ? '_blank' : undefined} rel={fighter.url ? 'noreferrer' : undefined} style={{
-                textDecoration: 'none',
-                display: 'grid',
-                gridTemplateColumns: '44px 1fr auto',
-                gap: 10,
-                alignItems: 'center',
-                padding: '9px 0',
-                borderBottom: '1px solid rgba(255,255,255,0.055)',
-                color: C.textPrimary,
-              }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', background: fighter.color ? `${fighter.color}22` : 'rgba(255,255,255,0.06)', display: 'grid', placeItems: 'center', border: '1px solid rgba(255,255,255,0.10)' }}>
-                  {fighter.headshot ? <img src={fighter.headshot} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.green, fontSize: 11, fontWeight: 950 }}>{fighter.name.split(' ').map(part => part[0]).join('').slice(0, 2)}</span>}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fighter.name}</div>
-                  <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fighter.nickname ? `“${fighter.nickname}” · ` : ''}{fighter.record || 'Record unavailable'}{fighter.country ? ` · ${fighter.country}` : ''}</div>
-                </div>
-                <span style={{ color: fighter.champion ? C.gold : C.green, fontSize: 10, fontWeight: 950 }}>{fighter.champion ? 'CHAMP' : fighter.rank ? `#${fighter.rank}` : '—'}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9, width: '100%', maxWidth: '100%' }}>
+              {group.fighters.map(fighter => (
+                <a key={fighter.id} href={fighter.url || undefined} target={fighter.url ? '_blank' : undefined} rel={fighter.url ? 'noreferrer' : undefined} style={{
+                  textDecoration: 'none',
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '38px minmax(0, 1fr) 42px' : '42px minmax(0, 1fr) 48px',
+                  gap: 8,
+                  alignItems: 'center',
+                  width: '100%',
+                  maxWidth: '100%',
+                  minWidth: 0,
+                  boxSizing: 'border-box',
+                  padding: '8px 9px',
+                  borderRadius: 14,
+                  background: 'rgba(0,0,0,0.22)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  color: C.textPrimary,
+                  overflow: 'hidden',
+                }}>
+                  <div style={{ width: isMobile ? 38 : 42, height: isMobile ? 38 : 42, borderRadius: '50%', overflow: 'hidden', background: fighter.color ? `${fighter.color}22` : 'rgba(255,255,255,0.06)', display: 'grid', placeItems: 'center', border: '1px solid rgba(255,255,255,0.10)', minWidth: 0 }}>
+                    {fighter.headshot ? <img src={fighter.headshot} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.green, fontSize: 10, fontWeight: 950 }}>{fighter.name.split(' ').map(part => part[0]).join('').slice(0, 2)}</span>}
+                  </div>
+                  <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                    <div style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 13, fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fighter.name}</div>
+                    <div style={{ color: C.textSecondary, fontSize: isMobile ? 9 : 10, marginTop: 2, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fighter.nickname ? `“${fighter.nickname}” · ` : ''}{fighter.record || 'Record unavailable'}{fighter.country ? ` · ${fighter.country}` : ''}</div>
+                  </div>
+                  <span style={{ justifySelf: 'end', color: fighter.champion ? C.gold : C.green, fontSize: isMobile ? 9 : 10, fontWeight: 950, whiteSpace: 'nowrap' }}>{fighter.champion ? 'CHAMP' : fighter.rank ? `#${fighter.rank}` : '—'}</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
     </section>
   )
 }
@@ -5409,8 +5395,8 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
   const sports: { value: SupportedSport | 'ufc'; label: string }[] = [
     { value: 'nba', label: 'NBA' },
     { value: 'mlb', label: 'MLB' },
-    { value: 'ufc', label: 'UFC' },
     { value: 'nfl', label: 'NFL' },
+    { value: 'ufc', label: 'UFC' },
   ]
   const sportLabel = sport === 'ncaaf' || sport === 'ncaab' ? 'NCAA' : sport.toUpperCase()
   const switchSport = (s: SupportedSport | 'ufc') => { setSport(s); if (isMobile) setSportsOpen(false) }

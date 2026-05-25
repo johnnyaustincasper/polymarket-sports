@@ -8,8 +8,8 @@ export type MobileDateOption = { label: string; value: string }
 export const mobileDockSportOptions: MobileSportOption[] = [
   { value: 'nba', label: 'NBA' },
   { value: 'mlb', label: 'MLB' },
-  { value: 'ufc', label: 'UFC' },
   { value: 'nfl', label: 'NFL' },
+  { value: 'ufc', label: 'UFC' },
 ]
 
 export function buildMobileDockTabs(sport?: SupportedSport | 'ufc'): { key: MobileDockTab; label: string; icon: MobileDockIcon; primary?: boolean }[] {

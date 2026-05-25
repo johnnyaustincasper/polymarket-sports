@@ -21,7 +21,7 @@ describe('mobile bottom dock configuration', () => {
   })
 
   it('exposes the available sports for the Sport vertical dock', () => {
-    expect(mobileDockSportOptions.map(option => option.label)).toEqual(['NBA', 'MLB', 'UFC', 'NFL'])
+    expect(mobileDockSportOptions.map(option => option.label)).toEqual(['NBA', 'MLB', 'NFL', 'UFC'])
   })
 
   it('keeps all five available day options in the Dates helper for non-dock consumers', () => {
