@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { usePathname } from 'next/navigation'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import AccountMenu from './components/AccountMenu'
 import LoadingMarketCards from './components/LoadingMarketCards'
@@ -5150,145 +5151,117 @@ function MarketToggleButton({ active, accent, children, onClick, minWidth }: {
   )
 }
 
-function MobileBottomDock({ active, onChange, sport, onSportChange, days, date, onDateChange, accountEnabled }: {
-  active: SportSubtab
-  onChange: (tab: SportSubtab) => void
-  sport: SupportedSport | 'ufc'
-  onSportChange: (sport: SupportedSport | 'ufc') => void
-  days: DayOption[]
-  date: string
-  onDateChange: (date: string) => void
-  accountEnabled: boolean
+type BottomDockTab = 'feed' | 'games' | 'edge' | 'trends' | 'bot'
+
+type BottomDockIcon = 'feed' | 'games' | 'edge' | 'trends' | 'bot'
+
+function DockIcon({ icon, active, primary }: { icon: BottomDockIcon; active: boolean; primary?: boolean }) {
+  const stroke = active ? '#030500' : 'currentColor'
+  const strokeWidth = primary ? 2.4 : 2.1
+  const common = { fill: 'none', stroke, strokeWidth, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+
+  if (icon === 'feed') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><path {...common} d="M5 7h14M5 12h10M5 17h7" /><circle cx="18" cy="17" r="1.4" fill={stroke} /></svg>
+  if (icon === 'games') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="12" cy="12" r="7.5" /><path {...common} d="M12 4.5v15M4.5 12h15M7.3 6.8c2.5 2 6.9 2 9.4 0M7.3 17.2c2.5-2 6.9-2 9.4 0" /></svg>
+  if (icon === 'edge') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="12" cy="12" r="7.5" /><circle {...common} cx="12" cy="12" r="3.2" /><path {...common} d="M12 1.8v3.1M12 19.1v3.1M1.8 12h3.1M19.1 12h3.1" /></svg>
+  if (icon === 'trends') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><path {...common} d="M4 18h16" /><path {...common} d="M6.5 15.5l4.1-4.4 3.2 2.8 4.8-6.1" /><circle cx="18.6" cy="7.8" r="1.35" fill={stroke} /></svg>
+  return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><rect {...common} x="5.5" y="8" width="13" height="9.5" rx="3" /><path {...common} d="M12 5v3M9 5h6" /><circle cx="10" cy="12.5" r="1.1" fill={stroke} /><circle cx="14" cy="12.5" r="1.1" fill={stroke} /><path {...common} d="M9.5 15h5" /></svg>
+}
+
+function BottomDock({ active, onChange }: {
+  active: BottomDockTab
+  onChange: (tab: BottomDockTab) => void
 }) {
-  const [openMenu, setOpenMenu] = useState<'sport' | 'dates' | null>(null)
-  const sports: { value: SupportedSport | 'ufc'; label: string }[] = [
-    { value: 'nba', label: 'NBA' },
-    { value: 'mlb', label: 'MLB' },
-    { value: 'nfl', label: 'NFL' },
-    { value: 'ncaaf', label: 'NCAAF' },
-    { value: 'ncaab', label: 'NCAAB' },
-    { value: 'ufc', label: 'UFC' },
+  const pathname = usePathname()
+  const routeActive: BottomDockTab = pathname?.startsWith('/bot') ? 'bot' : active
+  const navItems: { key: BottomDockTab; label: string; icon: BottomDockIcon; primary?: boolean; href?: string }[] = [
+    { key: 'feed', label: 'Feed', icon: 'feed' },
+    { key: 'games', label: 'Games', icon: 'games' },
+    { key: 'edge', label: 'Edge', icon: 'edge', primary: true },
+    { key: 'trends', label: 'Trends', icon: 'trends' },
+    { key: 'bot', label: 'Bot', icon: 'bot', href: '/bot' },
   ]
-  const currentSportLabel = sports.find(item => item.value === sport)?.label || sport.toUpperCase()
-  const currentDateLabel = days.find(day => day.value === date)?.label || 'Dates'
 
-  const closeMenus = () => setOpenMenu(null)
-  const toggleMenu = (menu: 'sport' | 'dates') => setOpenMenu(current => current === menu ? null : menu)
-  const selectSport = (nextSport: SupportedSport | 'ufc') => { onSportChange(nextSport); closeMenus() }
-  const selectDate = (nextDate: string) => { onDateChange(nextDate); closeMenus() }
-
-  const dockButton = (selected: boolean, elevated = false): React.CSSProperties => ({
+  const dockButton = (selected: boolean, primary?: boolean): React.CSSProperties => ({
     appearance: 'none',
     WebkitAppearance: 'none',
-    minHeight: elevated ? 58 : 50,
-    borderRadius: elevated ? 999 : 18,
-    padding: elevated ? '7px 6px' : '7px 6px',
-    border: `1px solid ${selected ? C.borderHot : 'rgba(255,255,255,0.10)'}`,
+    position: 'relative',
+    zIndex: primary ? 3 : 2,
+    minWidth: 0,
+    minHeight: primary ? 64 : 54,
+    borderRadius: primary ? 999 : 22,
+    border: selected ? '1px solid rgba(200,255,47,0.82)' : '1px solid rgba(182,197,211,0.16)',
     background: selected
-      ? 'linear-gradient(145deg, rgba(166,255,63,0.22), rgba(6,12,3,0.98))'
-      : 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025))',
-    color: selected ? C.green : C.textSecondary,
+      ? primary
+        ? 'radial-gradient(circle at 50% 34%, #d7ff58 0%, #baff22 42%, rgba(200,255,47,0.30) 58%, rgba(2,4,6,0.92) 76%)'
+        : 'linear-gradient(180deg, rgba(200,255,47,0.18), rgba(2,4,6,0.74))'
+      : 'linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025))',
+    color: selected ? (primary ? '#030500' : '#c8ff2f') : 'rgba(184,198,214,0.74)',
     boxShadow: selected
-      ? '0 0 26px rgba(166,255,63,0.22), inset 0 1px 0 rgba(255,255,255,0.10)'
-      : 'inset 0 1px 0 rgba(255,255,255,0.045)',
-    fontSize: 8,
-    fontWeight: 950,
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
+      ? primary
+        ? '0 0 34px rgba(200,255,47,0.46), 0 0 0 8px rgba(200,255,47,0.075), inset 0 1px 0 rgba(255,255,255,0.42)'
+        : '0 0 20px rgba(200,255,47,0.18), inset 0 1px 0 rgba(255,255,255,0.13)'
+      : 'inset 0 1px 0 rgba(255,255,255,0.07)',
     cursor: 'pointer',
     display: 'grid',
     placeItems: 'center',
-    gap: 3,
+    alignContent: 'center',
+    gap: primary ? 3 : 4,
+    padding: primary ? '7px 5px 6px' : '7px 4px 6px',
+    fontSize: primary ? 9 : 8,
+    fontWeight: 950,
+    letterSpacing: '0.08em',
     lineHeight: 1,
+    textTransform: 'uppercase',
+    transform: primary ? 'translateY(-10px)' : 'translateY(0)',
+    transition: 'transform 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 180ms ease, background 180ms ease',
+    WebkitTapHighlightColor: 'transparent',
   })
-  const glyphStyle = (selected: boolean, size = 16): React.CSSProperties => ({
-    width: size + 12,
-    height: size + 12,
+
+  const iconWrap = (selected: boolean, primary?: boolean): React.CSSProperties => ({
+    width: primary ? 31 : 25,
+    height: primary ? 31 : 25,
     borderRadius: 999,
     display: 'grid',
     placeItems: 'center',
-    fontSize: size,
-    color: selected ? '#030500' : C.green,
-    background: selected ? C.green : 'rgba(166,255,63,0.08)',
-    border: `1px solid ${selected ? 'rgba(166,255,63,0.92)' : 'rgba(166,255,63,0.22)'}`,
-    boxShadow: selected ? '0 0 22px rgba(166,255,63,0.36)' : 'none',
-  })
-  const menuStyle = (menu: 'sport' | 'dates'): React.CSSProperties => ({
-    position: 'absolute',
-    bottom: 76,
-    left: menu === 'sport' ? 8 : 'calc(20% + 5px)',
-    display: 'grid',
-    gap: 7,
-    width: menu === 'sport' ? 104 : 112,
-    padding: 8,
-    borderRadius: 20,
-    border: `1px solid ${C.borderHot}`,
-    background: 'linear-gradient(180deg, rgba(6,10,3,0.98), rgba(2,4,0,0.995))',
-    boxShadow: '0 -16px 48px rgba(0,0,0,0.76), 0 0 28px rgba(166,255,63,0.14), inset 0 1px 0 rgba(255,255,255,0.07)',
-    backdropFilter: 'blur(18px)',
-    WebkitBackdropFilter: 'blur(18px)',
-  })
-  const menuButton = (selected: boolean): React.CSSProperties => ({
-    minHeight: 36,
-    borderRadius: 14,
-    border: `1px solid ${selected ? C.borderHot : 'rgba(255,255,255,0.10)'}`,
-    background: selected ? 'rgba(166,255,63,0.18)' : 'rgba(255,255,255,0.045)',
-    color: selected ? C.green : C.textSecondary,
-    fontSize: 10,
-    fontWeight: 950,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    cursor: 'pointer',
+    color: selected ? (primary ? '#030500' : '#c8ff2f') : 'rgba(184,198,214,0.82)',
+    background: selected
+      ? primary ? 'rgba(255,255,255,0.20)' : 'rgba(200,255,47,0.10)'
+      : 'rgba(255,255,255,0.035)',
+    boxShadow: selected ? '0 0 16px rgba(200,255,47,0.22)' : 'none',
   })
 
   return (
-    <nav aria-label="Mobile app dock" style={{
+    <nav aria-label="Mobile bottom navigation" style={{
       position: 'fixed',
-      left: 10,
-      right: 10,
+      left: 'max(10px, env(safe-area-inset-left, 0px))',
+      right: 'max(10px, env(safe-area-inset-right, 0px))',
       bottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
       zIndex: 1000,
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr 66px 1fr 1fr',
+      gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
       alignItems: 'end',
-      gap: 7,
-      padding: '8px 9px',
-      borderRadius: 28,
-      border: `1px solid ${C.borderHot}`,
-      background: 'linear-gradient(180deg, rgba(6,10,3,0.94), rgba(2,4,0,0.985))',
-      boxShadow: '0 -16px 50px rgba(0,0,0,0.74), 0 0 30px rgba(166,255,63,0.12), inset 0 1px 0 rgba(255,255,255,0.065)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
+      gap: 6,
+      padding: '9px 10px 8px',
+      borderRadius: 34,
+      border: '1px solid rgba(185,197,205,0.24)',
+      background: 'linear-gradient(180deg, rgba(23,28,31,0.92) 0%, rgba(2,4,6,0.88) 42%, rgba(0,0,0,0.94) 100%)',
+      boxShadow: '0 -18px 52px rgba(0,0,0,0.76), 0 0 32px rgba(200,255,47,0.13), inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(200,255,47,0.16)',
+      backdropFilter: 'blur(22px) saturate(1.25)',
+      WebkitBackdropFilter: 'blur(22px) saturate(1.25)',
+      overflow: 'visible',
     }}>
-      {openMenu === 'sport' && <div style={menuStyle('sport')}>
-        {sports.map(item => <button key={item.value} onClick={() => selectSport(item.value)} style={menuButton(sport === item.value)}>{item.label}</button>)}
-      </div>}
-      {openMenu === 'dates' && <div style={menuStyle('dates')}>
-        {days.map(day => <button key={day.value} onClick={() => selectDate(day.value)} style={menuButton(date === day.value)}>{day.label}</button>)}
-      </div>}
-
-      <button onClick={() => toggleMenu('sport')} aria-expanded={openMenu === 'sport'} aria-label="Choose sport" style={dockButton(openMenu === 'sport')}>
-        <span style={glyphStyle(openMenu === 'sport')}>▦</span>
-        <span>Sport</span>
-        <span style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.04em' }}>{currentSportLabel}</span>
-      </button>
-      <button onClick={() => toggleMenu('dates')} aria-expanded={openMenu === 'dates'} aria-label="Choose date" style={dockButton(openMenu === 'dates')}>
-        <span style={glyphStyle(openMenu === 'dates')}>◷</span>
-        <span>Dates</span>
-        <span style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.04em' }}>{currentDateLabel}</span>
-      </button>
-      <button onClick={() => { onChange('slate'); closeMenus() }} aria-label="Open Slate" style={{ ...dockButton(active === 'slate', true), transform: 'translateY(-8px)', borderRadius: 999, background: active === 'slate' ? 'radial-gradient(circle, rgba(166,255,63,0.95), rgba(166,255,63,0.22) 54%, rgba(6,12,3,0.98) 72%)' : 'radial-gradient(circle, rgba(166,255,63,0.20), rgba(6,12,3,0.98) 72%)', color: active === 'slate' ? '#030500' : C.green, boxShadow: '0 0 34px rgba(166,255,63,0.34), 0 0 0 7px rgba(166,255,63,0.08), inset 0 1px 0 rgba(255,255,255,0.18)' }}>
-        <span style={{ fontSize: 20, lineHeight: 1 }}>◎</span>
-        <span>Slate</span>
-      </button>
-      <button onClick={() => { onChange('playerSignals'); closeMenus() }} aria-label="Open Player Signals" style={dockButton(active === 'playerSignals')}>
-        <span style={glyphStyle(active === 'playerSignals')}>≋</span>
-        <span>Signals</span>
-      </button>
-      <div style={{ display: 'grid', placeItems: 'center', gap: 3, minHeight: 50, color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-        {accountEnabled ? <AccountMenu isMobile /> : <button onClick={() => { window.location.href = '/login' }} aria-label="Open profile" style={{ ...dockButton(false), width: '100%' }}><span style={glyphStyle(false)}>◉</span><span>Profile</span></button>}
-        {accountEnabled && <span>Profile</span>}
-      </div>
+      <span aria-hidden="true" style={{ position: 'absolute', left: 28, right: 28, top: 0, height: 2, borderRadius: 999, background: 'linear-gradient(90deg, transparent, rgba(200,255,47,0.82), transparent)', boxShadow: '0 0 16px rgba(200,255,47,0.5)', opacity: 0.9 }} />
+      <span aria-hidden="true" style={{ position: 'absolute', inset: 1, borderRadius: 33, pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.055)' }} />
+      {navItems.map(item => {
+        const selected = routeActive === item.key
+        return (
+          <button key={item.key} type="button" onClick={() => onChange(item.key)} aria-current={selected ? 'page' : undefined} aria-label={item.label} style={dockButton(selected, item.primary)}>
+            <span style={iconWrap(selected, item.primary)}><DockIcon icon={item.icon} active={selected} primary={item.primary} /></span>
+            <span>{item.label}</span>
+            {selected && <span aria-hidden="true" style={{ width: item.primary ? 16 : 10, height: item.primary ? 3 : 2, borderRadius: 999, background: item.primary ? '#030500' : '#c8ff2f', boxShadow: item.primary ? '0 0 12px rgba(3,5,0,0.35)' : '0 0 10px rgba(200,255,47,0.74)' }} />}
+          </button>
+        )
+      })}
     </nav>
   )
 }
@@ -5320,6 +5293,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
+  const [mobileDockTab, setMobileDockTab] = useState<BottomDockTab>('edge')
   const [provider, setProvider] = useState<MarketProvider>('kalshi')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
@@ -5485,16 +5459,33 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   }, [])
   const logBet = (b: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) =>
     saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])
-  const handleSubtabChange = (nextSubtab: SportSubtab) => {
-    setSubtab(nextSubtab)
+  const scrollMarketTop = () => {
     requestAnimationFrame(() => {
       document.getElementById('market-content-top')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
+  const handleSubtabChange = (nextSubtab: SportSubtab) => {
+    setSubtab(nextSubtab)
+    setMobileDockTab(nextSubtab === 'playerSignals' ? 'trends' : 'edge')
+    scrollMarketTop()
+  }
+  const handleDockChange = (nextTab: BottomDockTab) => {
+    setMobileDockTab(nextTab)
+    if (nextTab === 'bot') {
+      window.location.href = '/bot'
+      return
+    }
+    if (nextTab === 'trends') {
+      setSubtab('playerSignals')
+    } else {
+      setSubtab('slate')
+    }
+    scrollMarketTop()
+  }
   const header = (
     <AIAthleteHeader
       sport={sport}
-      setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
+      setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setMobileDockTab('edge'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
       days={days}
       date={date}
       setDate={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}
@@ -5521,7 +5512,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         {header}
       </div>
 
-      <div id="market-content-top" style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 16px 132px' : '0 16px 80px', scrollMarginTop: 12 }}>
+      <div id="market-content-top" style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 16px calc(148px + env(safe-area-inset-bottom, 0px))' : '0 16px 80px', scrollMarginTop: 12 }}>
 
         <MarketModeDock />
 
@@ -5636,15 +5627,9 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       </div>
 
       {isMobile && provider === 'kalshi' && (
-        <MobileBottomDock
-          active={subtab}
-          onChange={handleSubtabChange}
-          sport={sport}
-          onSportChange={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
-          days={days}
-          date={date}
-          onDateChange={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}
-          accountEnabled={clerkEnabled}
+        <BottomDock
+          active={subtab === 'playerSignals' ? 'trends' : mobileDockTab}
+          onChange={handleDockChange}
         />
       )}
 
