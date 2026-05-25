@@ -5346,8 +5346,8 @@ function DockIcon({ icon, active, primary }: { icon: MobileDockIcon; active: boo
 
   if (icon === 'sport') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="12" cy="12" r="7.5" /><path {...common} d="M12 4.5v15M4.5 12h15M7.3 6.8c2.5 2 6.9 2 9.4 0M7.3 17.2c2.5-2 6.9-2 9.4 0" /></svg>
   if (icon === 'teams') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="8.5" cy="8" r="3" /><circle {...common} cx="16" cy="9" r="2.5" /><path {...common} d="M3.8 19c0-3.3 1.9-5.2 4.7-5.2s4.7 1.9 4.7 5.2" /><path {...common} d="M12.8 16.8c.7-1.4 1.8-2.1 3.2-2.1 2.4 0 4 1.6 4.2 4.3" /></svg>
+  if (icon === 'slate') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><rect {...common} x="4.5" y="5.5" width="15" height="13" rx="3" /><path {...common} d="M8 9h8M8 13h5.5" /><circle cx="16.5" cy="13.5" r="1.2" fill={stroke} /></svg>
   if (icon === 'signals') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><path {...common} d="M4 18h16" /><path {...common} d="M6.5 15.5l4.1-4.4 3.2 2.8 4.8-6.1" /><circle cx="18.6" cy="7.8" r="1.35" fill={stroke} /></svg>
-  if (icon === 'dates') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><rect {...common} x="5" y="6" width="14" height="13" rx="3" /><path {...common} d="M8 4v4M16 4v4M5 10h14" /><circle cx="9" cy="14" r="1" fill={stroke} /><circle cx="13" cy="14" r="1" fill={stroke} /><circle cx="17" cy="14" r="1" fill={stroke} /></svg>
   return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="12" cy="8.5" r="3.5" /><path {...common} d="M5.5 19c1.2-3.4 3.4-5.1 6.5-5.1s5.3 1.7 6.5 5.1" /></svg>
 }
 
@@ -5476,12 +5476,10 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
         {dateOptions.map(option => <button key={option.value} type="button" onClick={() => onDateChange(option.value)} style={optionButtonStyle(date === option.value)}>{option.label}</button>)}
       </div>}
       {navItems.map(item => {
-        const selected = active === item.key || openPanel === item.key
+        const selected = active === item.key || (item.key === 'sport' && openPanel === 'sport')
         const click = item.key === 'sport'
           ? () => onTogglePanel('sport')
-          : item.key === 'dates'
-            ? () => onTogglePanel('dates')
-            : () => onChange(item.key)
+          : () => onChange(item.key)
         return (
           <button key={item.key} type="button" onClick={click} aria-current={selected ? 'page' : undefined} aria-label={item.label} style={dockButton(selected, item.primary)}>
             <span style={iconWrap(selected, item.primary)}><DockIcon icon={item.icon} active={selected} primary={item.primary} /></span>
@@ -5521,7 +5519,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
-  const [mobileDockTab, setMobileDockTab] = useState<MobileDockTab>('signals')
+  const [mobileDockTab, setMobileDockTab] = useState<MobileDockTab>('slate')
   const [mobileDockPanel, setMobileDockPanel] = useState<'sport' | 'dates' | null>(null)
   const [openMobileProfile, setOpenMobileProfile] = useState(false)
   const [provider, setProvider] = useState<MarketProvider>('kalshi')
@@ -5701,14 +5699,14 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
     scrollMarketTop()
   }
   const handleDockPanelToggle = (panel: 'sport' | 'dates') => {
-    setMobileDockTab(panel)
+    if (panel === 'sport') setMobileDockTab('sport')
     setMobileDockPanel(prev => prev === panel ? null : panel)
   }
   const handleDockSportChange = (nextSport: SupportedSport | 'ufc') => {
     setSport(nextSport)
     setDate(chicagoYmd())
     setSubtab('slate')
-    setMobileDockTab('signals')
+    setMobileDockTab('slate')
     setMobileDockPanel(null)
     setProvider('kalshi')
     setFeedError(null)
@@ -5718,7 +5716,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const handleDockDateChange = (nextDate: string) => {
     setDate(nextDate)
     setSubtab('slate')
-    setMobileDockTab('signals')
+    setMobileDockTab('slate')
     setMobileDockPanel(null)
     setFeedError(null)
     setLoading(true)
@@ -5743,7 +5741,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const header = (
     <AIAthleteHeader
       sport={sport}
-      setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setMobileDockTab('signals'); setMobileDockPanel(null); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
+      setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setMobileDockTab('slate'); setMobileDockPanel(null); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
       days={days}
       date={date}
       setDate={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}

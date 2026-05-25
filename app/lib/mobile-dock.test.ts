@@ -2,14 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions } from './mobile-dock'
 
 describe('mobile bottom dock configuration', () => {
-  it('uses the requested five bottom tabs with Signals centered and Teams beside Sport', () => {
-    expect(buildMobileDockTabs().map(tab => tab.label)).toEqual(['Sport', 'Teams', 'Signals', 'Dates', 'Profile'])
+  it('keeps Slate as the centered primary tab and adds Signals as its own tab', () => {
+    expect(buildMobileDockTabs().map(tab => tab.label)).toEqual(['Sport', 'Teams', 'Slate', 'Signals', 'Profile'])
     expect(buildMobileDockTabs()[1]).toMatchObject({ key: 'teams', label: 'Teams' })
-    expect(buildMobileDockTabs()[2]).toMatchObject({ key: 'signals', label: 'Signals', primary: true })
+    expect(buildMobileDockTabs()[2]).toMatchObject({ key: 'slate', label: 'Slate', primary: true })
+    expect(buildMobileDockTabs()[3]).toMatchObject({ key: 'signals', label: 'Signals' })
   })
 
-  it('maps app subtab state to dock active tabs', () => {
-    expect(getMobileDockActiveTab('slate')).toBe('signals')
+  it('maps app subtab state to dock active tabs without replacing Slate with Signals', () => {
+    expect(getMobileDockActiveTab('slate')).toBe('slate')
     expect(getMobileDockActiveTab('teams')).toBe('teams')
     expect(getMobileDockActiveTab('playerSignals')).toBe('signals')
   })
@@ -18,7 +19,7 @@ describe('mobile bottom dock configuration', () => {
     expect(mobileDockSportOptions.map(option => option.label)).toEqual(['NBA', 'MLB', 'UFC', 'NFL'])
   })
 
-  it('keeps all five available day options in the Dates vertical dock', () => {
+  it('keeps all five available day options in the Dates helper for non-dock consumers', () => {
     const days = [
       { label: 'May 23', value: '20260523' },
       { label: 'Yest', value: '20260524' },
