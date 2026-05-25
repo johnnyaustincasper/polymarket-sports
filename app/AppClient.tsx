@@ -3206,7 +3206,19 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
     }
   }
 
-  if (!supported || loading || !activeGames.length) return null
+  if (!supported || loading || !activeGames.length) {
+    const title = !supported ? 'Player Signals are not available for this sport yet.' : loading ? 'Loading slate before Player Signals…' : 'No active games available for Player Signals.'
+    const detail = !supported ? 'Switch to NBA, MLB, or NFL from the Sport dock to run player signals.' : loading ? 'The model will appear as soon as the slate finishes loading.' : 'Pick another date or sport with upcoming/live games to run the model.'
+    return (
+      <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.34), rgba(168,240,255,0.12), rgba(255,255,255,0.06))', boxShadow: '0 18px 54px rgba(0,0,0,0.30)' }}>
+        <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 14 : 18, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Player Signals</div>
+          <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, letterSpacing: '-0.03em' }}>{title}</div>
+          <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45, marginTop: 6 }}>{detail}</div>
+        </div>
+      </section>
+    )
+  }
 
   const topSignals = (data?.signals || []).map(signal => signalToTerminalSignal(signal))
   const watchedKeys = new Set(watchlist.filter(item => item.active).map(item => item.key))
@@ -5473,6 +5485,12 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   }, [])
   const logBet = (b: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) =>
     saveBets([...bets, { ...b, id: crypto.randomUUID(), stake: 0, result: 'pending', createdAt: new Date().toISOString() }])
+  const handleSubtabChange = (nextSubtab: SportSubtab) => {
+    setSubtab(nextSubtab)
+    requestAnimationFrame(() => {
+      document.getElementById('market-content-top')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
   const header = (
     <AIAthleteHeader
       sport={sport}
@@ -5503,15 +5521,15 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         {header}
       </div>
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 16px 132px' : '0 16px 80px' }}>
+      <div id="market-content-top" style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '0 16px 132px' : '0 16px 80px', scrollMarginTop: 12 }}>
 
         <MarketModeDock />
 
         {sport !== 'ufc' && provider === 'kalshi' && !isMobile && (
-          <SportSubtabBar active={subtab} onChange={setSubtab} isMobile={false} />
+          <SportSubtabBar active={subtab} onChange={handleSubtabChange} isMobile={false} />
         )}
 
-        {!loading && sport !== 'ufc' && subtab !== 'slate' && (
+        {sport !== 'ufc' && subtab !== 'slate' && (
           <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr',
@@ -5620,7 +5638,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       {isMobile && provider === 'kalshi' && (
         <MobileBottomDock
           active={subtab}
-          onChange={setSubtab}
+          onChange={handleSubtabChange}
           sport={sport}
           onSportChange={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
           days={days}
