@@ -1,7 +1,6 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { usePathname } from 'next/navigation'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import AccountMenu from './components/AccountMenu'
 import LoadingMarketCards from './components/LoadingMarketCards'
@@ -14,6 +13,7 @@ import type { LineupInjuryFlagItem, SignalTerminalSignal, SportsbookConsensus } 
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
 import { resolveStartupSport } from './lib/startup-sport'
+import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, type MobileDockIcon, type MobileDockTab } from './lib/mobile-dock'
 import { resetInitialSlateScroll } from './lib/startup-scroll'
 import { detectCorrelationWarnings, type CorrelationInputItem, type CorrelationWarning } from './lib/parlays/correlation'
 import { getLivePropProgress as getLivePropProgressPure } from './lib/live/prop-progress'
@@ -5151,35 +5151,32 @@ function MarketToggleButton({ active, accent, children, onClick, minWidth }: {
   )
 }
 
-type BottomDockTab = 'feed' | 'games' | 'edge' | 'trends' | 'bot'
-
-type BottomDockIcon = 'feed' | 'games' | 'edge' | 'trends' | 'bot'
-
-function DockIcon({ icon, active, primary }: { icon: BottomDockIcon; active: boolean; primary?: boolean }) {
+function DockIcon({ icon, active, primary }: { icon: MobileDockIcon; active: boolean; primary?: boolean }) {
   const stroke = active ? '#030500' : 'currentColor'
   const strokeWidth = primary ? 2.4 : 2.1
   const common = { fill: 'none', stroke, strokeWidth, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
 
-  if (icon === 'feed') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><path {...common} d="M5 7h14M5 12h10M5 17h7" /><circle cx="18" cy="17" r="1.4" fill={stroke} /></svg>
-  if (icon === 'games') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="12" cy="12" r="7.5" /><path {...common} d="M12 4.5v15M4.5 12h15M7.3 6.8c2.5 2 6.9 2 9.4 0M7.3 17.2c2.5-2 6.9-2 9.4 0" /></svg>
-  if (icon === 'edge') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="12" cy="12" r="7.5" /><circle {...common} cx="12" cy="12" r="3.2" /><path {...common} d="M12 1.8v3.1M12 19.1v3.1M1.8 12h3.1M19.1 12h3.1" /></svg>
-  if (icon === 'trends') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><path {...common} d="M4 18h16" /><path {...common} d="M6.5 15.5l4.1-4.4 3.2 2.8 4.8-6.1" /><circle cx="18.6" cy="7.8" r="1.35" fill={stroke} /></svg>
-  return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><rect {...common} x="5.5" y="8" width="13" height="9.5" rx="3" /><path {...common} d="M12 5v3M9 5h6" /><circle cx="10" cy="12.5" r="1.1" fill={stroke} /><circle cx="14" cy="12.5" r="1.1" fill={stroke} /><path {...common} d="M9.5 15h5" /></svg>
+  if (icon === 'sport') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="12" cy="12" r="7.5" /><path {...common} d="M12 4.5v15M4.5 12h15M7.3 6.8c2.5 2 6.9 2 9.4 0M7.3 17.2c2.5-2 6.9-2 9.4 0" /></svg>
+  if (icon === 'signals') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><path {...common} d="M4 18h16" /><path {...common} d="M6.5 15.5l4.1-4.4 3.2 2.8 4.8-6.1" /><circle cx="18.6" cy="7.8" r="1.35" fill={stroke} /></svg>
+  if (icon === 'slate') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><rect {...common} x="5" y="4.5" width="14" height="15" rx="3" /><path {...common} d="M8.5 9h7M8.5 13h7M8.5 17h4" /></svg>
+  if (icon === 'dates') return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><rect {...common} x="5" y="6" width="14" height="13" rx="3" /><path {...common} d="M8 4v4M16 4v4M5 10h14" /><circle cx="9" cy="14" r="1" fill={stroke} /><circle cx="13" cy="14" r="1" fill={stroke} /><circle cx="17" cy="14" r="1" fill={stroke} /></svg>
+  return <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: '100%', height: '100%' }}><circle {...common} cx="12" cy="8.5" r="3.5" /><path {...common} d="M5.5 19c1.2-3.4 3.4-5.1 6.5-5.1s5.3 1.7 6.5 5.1" /></svg>
 }
 
-function BottomDock({ active, onChange }: {
-  active: BottomDockTab
-  onChange: (tab: BottomDockTab) => void
+function BottomDock({ active, openPanel, sport, sports, days, date, onChange, onTogglePanel, onSportChange, onDateChange }: {
+  active: MobileDockTab
+  openPanel: 'sport' | 'dates' | null
+  sport: SupportedSport | 'ufc'
+  sports: { value: SupportedSport | 'ufc'; label: string }[]
+  days: DayOption[]
+  date: string
+  onChange: (tab: MobileDockTab) => void
+  onTogglePanel: (panel: 'sport' | 'dates') => void
+  onSportChange: (sport: SupportedSport | 'ufc') => void
+  onDateChange: (date: string) => void
 }) {
-  const pathname = usePathname()
-  const routeActive: BottomDockTab = pathname?.startsWith('/bot') ? 'bot' : active
-  const navItems: { key: BottomDockTab; label: string; icon: BottomDockIcon; primary?: boolean; href?: string }[] = [
-    { key: 'feed', label: 'Feed', icon: 'feed' },
-    { key: 'games', label: 'Games', icon: 'games' },
-    { key: 'edge', label: 'Edge', icon: 'edge', primary: true },
-    { key: 'trends', label: 'Trends', icon: 'trends' },
-    { key: 'bot', label: 'Bot', icon: 'bot', href: '/bot' },
-  ]
+  const navItems = buildMobileDockTabs()
+  const dateOptions = mobileDockDateOptions(days)
 
   const dockButton = (selected: boolean, primary?: boolean): React.CSSProperties => ({
     appearance: 'none',
@@ -5230,6 +5227,38 @@ function BottomDock({ active, onChange }: {
     boxShadow: selected ? '0 0 16px rgba(200,255,47,0.22)' : 'none',
   })
 
+  const verticalDockStyle = (side: 'left' | 'right'): React.CSSProperties => ({
+    position: 'absolute',
+    bottom: 'calc(100% + 12px)',
+    [side]: 0,
+    width: 104,
+    display: 'grid',
+    gap: 7,
+    padding: 8,
+    borderRadius: 24,
+    border: '1px solid rgba(185,197,205,0.24)',
+    background: 'linear-gradient(180deg, rgba(23,28,31,0.96), rgba(2,4,6,0.94))',
+    boxShadow: '0 -14px 42px rgba(0,0,0,0.74), 0 0 26px rgba(200,255,47,0.11), inset 0 1px 0 rgba(255,255,255,0.12)',
+    backdropFilter: 'blur(20px) saturate(1.25)',
+    WebkitBackdropFilter: 'blur(20px) saturate(1.25)',
+  })
+
+  const optionButtonStyle = (selected: boolean): React.CSSProperties => ({
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    minHeight: 38,
+    borderRadius: 16,
+    border: `1px solid ${selected ? 'rgba(200,255,47,0.72)' : 'rgba(255,255,255,0.10)'}`,
+    background: selected ? 'linear-gradient(180deg, rgba(200,255,47,0.22), rgba(6,12,3,0.96))' : 'rgba(255,255,255,0.045)',
+    color: selected ? '#c8ff2f' : 'rgba(221,232,244,0.76)',
+    boxShadow: selected ? '0 0 18px rgba(200,255,47,0.16), inset 0 1px 0 rgba(255,255,255,0.10)' : 'inset 0 1px 0 rgba(255,255,255,0.05)',
+    fontSize: 10,
+    fontWeight: 950,
+    letterSpacing: '0.10em',
+    textTransform: 'uppercase',
+    cursor: 'pointer',
+  })
+
   return (
     <nav aria-label="Mobile bottom navigation" style={{
       position: 'fixed',
@@ -5252,10 +5281,21 @@ function BottomDock({ active, onChange }: {
     }}>
       <span aria-hidden="true" style={{ position: 'absolute', left: 28, right: 28, top: 0, height: 2, borderRadius: 999, background: 'linear-gradient(90deg, transparent, rgba(200,255,47,0.82), transparent)', boxShadow: '0 0 16px rgba(200,255,47,0.5)', opacity: 0.9 }} />
       <span aria-hidden="true" style={{ position: 'absolute', inset: 1, borderRadius: 33, pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.055)' }} />
+      {openPanel === 'sport' && <div aria-label="Choose sport" style={verticalDockStyle('left')}>
+        {sports.map(option => <button key={option.value} type="button" onClick={() => onSportChange(option.value)} style={optionButtonStyle(sport === option.value)}>{option.label}</button>)}
+      </div>}
+      {openPanel === 'dates' && <div aria-label="Choose date" style={verticalDockStyle('right')}>
+        {dateOptions.map(option => <button key={option.value} type="button" onClick={() => onDateChange(option.value)} style={optionButtonStyle(date === option.value)}>{option.label}</button>)}
+      </div>}
       {navItems.map(item => {
-        const selected = routeActive === item.key
+        const selected = active === item.key || openPanel === item.key
+        const click = item.key === 'sport'
+          ? () => onTogglePanel('sport')
+          : item.key === 'dates'
+            ? () => onTogglePanel('dates')
+            : () => onChange(item.key)
         return (
-          <button key={item.key} type="button" onClick={() => onChange(item.key)} aria-current={selected ? 'page' : undefined} aria-label={item.label} style={dockButton(selected, item.primary)}>
+          <button key={item.key} type="button" onClick={click} aria-current={selected ? 'page' : undefined} aria-label={item.label} style={dockButton(selected, item.primary)}>
             <span style={iconWrap(selected, item.primary)}><DockIcon icon={item.icon} active={selected} primary={item.primary} /></span>
             <span>{item.label}</span>
             {selected && <span aria-hidden="true" style={{ width: item.primary ? 16 : 10, height: item.primary ? 3 : 2, borderRadius: 999, background: item.primary ? '#030500' : '#c8ff2f', boxShadow: item.primary ? '0 0 12px rgba(3,5,0,0.35)' : '0 0 10px rgba(200,255,47,0.74)' }} />}
@@ -5293,7 +5333,9 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
-  const [mobileDockTab, setMobileDockTab] = useState<BottomDockTab>('edge')
+  const [mobileDockTab, setMobileDockTab] = useState<MobileDockTab>('slate')
+  const [mobileDockPanel, setMobileDockPanel] = useState<'sport' | 'dates' | null>(null)
+  const [openMobileProfile, setOpenMobileProfile] = useState(false)
   const [provider, setProvider] = useState<MarketProvider>('kalshi')
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
@@ -5466,16 +5508,42 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   }
   const handleSubtabChange = (nextSubtab: SportSubtab) => {
     setSubtab(nextSubtab)
-    setMobileDockTab(nextSubtab === 'playerSignals' ? 'trends' : 'edge')
+    setMobileDockPanel(null)
+    setMobileDockTab(getMobileDockActiveTab(nextSubtab))
     scrollMarketTop()
   }
-  const handleDockChange = (nextTab: BottomDockTab) => {
+  const handleDockPanelToggle = (panel: 'sport' | 'dates') => {
+    setMobileDockTab(panel)
+    setMobileDockPanel(prev => prev === panel ? null : panel)
+  }
+  const handleDockSportChange = (nextSport: SupportedSport | 'ufc') => {
+    setSport(nextSport)
+    setDate(chicagoYmd())
+    setSubtab('slate')
+    setMobileDockTab('slate')
+    setMobileDockPanel(null)
+    setProvider('kalshi')
+    setFeedError(null)
+    setLoading(true)
+    scrollMarketTop()
+  }
+  const handleDockDateChange = (nextDate: string) => {
+    setDate(nextDate)
+    setSubtab('slate')
+    setMobileDockTab('slate')
+    setMobileDockPanel(null)
+    setFeedError(null)
+    setLoading(true)
+    scrollMarketTop()
+  }
+  const handleDockChange = (nextTab: MobileDockTab) => {
     setMobileDockTab(nextTab)
-    if (nextTab === 'bot') {
-      window.location.href = '/bot'
+    setMobileDockPanel(null)
+    if (nextTab === 'profile') {
+      setOpenMobileProfile(true)
       return
     }
-    if (nextTab === 'trends') {
+    if (nextTab === 'signals') {
       setSubtab('playerSignals')
     } else {
       setSubtab('slate')
@@ -5485,7 +5553,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const header = (
     <AIAthleteHeader
       sport={sport}
-      setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setMobileDockTab('edge'); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
+      setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setMobileDockTab('slate'); setMobileDockPanel(null); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
       days={days}
       date={date}
       setDate={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}
@@ -5628,8 +5696,25 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
       {isMobile && provider === 'kalshi' && (
         <BottomDock
-          active={subtab === 'playerSignals' ? 'trends' : mobileDockTab}
+          active={getMobileDockActiveTab(subtab) === 'signals' ? 'signals' : mobileDockTab}
+          openPanel={mobileDockPanel}
+          sport={sport}
+          sports={mobileDockSportOptions}
+          days={days}
+          date={date}
           onChange={handleDockChange}
+          onTogglePanel={handleDockPanelToggle}
+          onSportChange={handleDockSportChange}
+          onDateChange={handleDockDateChange}
+        />
+      )}
+
+      {isMobile && clerkEnabled && (
+        <AccountMenu
+          isMobile
+          hideTrigger
+          forceOpen={openMobileProfile}
+          onForceOpenConsumed={() => setOpenMobileProfile(false)}
         />
       )}
 

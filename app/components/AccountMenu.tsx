@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useClerk, useUser } from '@clerk/nextjs'
 
 const C = {
@@ -41,7 +41,7 @@ function LogoutButton({ isMobile }: { isMobile: boolean }) {
   return <button onClick={logout} disabled={loggingOut} style={{ width: '100%', borderRadius: isMobile ? 13 : 16, border: '1px solid rgba(255,63,95,0.32)', background: 'rgba(255,63,95,0.08)', color: C.red, padding: isMobile ? '11px' : '14px', fontSize: 12, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: loggingOut ? 'wait' : 'pointer', marginBottom: isMobile ? 2 : 0 }}>{loggingOut ? 'Logging out…' : 'Logout'}</button>
 }
 
-export default function AccountMenu({ isMobile = false }: { isMobile?: boolean }) {
+export default function AccountMenu({ isMobile = false, forceOpen = false, onForceOpenConsumed, hideTrigger = false }: { isMobile?: boolean; forceOpen?: boolean; onForceOpenConsumed?: () => void; hideTrigger?: boolean }) {
   const { user } = useUser()
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [open, setOpen] = useState(false)
@@ -55,7 +55,7 @@ export default function AccountMenu({ isMobile = false }: { isMobile?: boolean }
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  async function loadAccount() {
+  const loadAccount = useCallback(async () => {
     try {
       const [accountRes, subRes] = await Promise.all([fetch('/api/account'), fetch('/api/account/subscription')])
       const accountData = await accountRes.json().catch(() => ({}))
@@ -70,11 +70,17 @@ export default function AccountMenu({ isMobile = false }: { isMobile?: boolean }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load account.')
     }
-  }
+  }, [])
 
-  useEffect(() => { loadAccount() }, [])
+  useEffect(() => { loadAccount() }, [loadAccount])
 
-  function openDrawer() { setMessage(''); setError(''); setOpen(true); loadAccount() }
+  const openDrawer = useCallback(() => { setMessage(''); setError(''); setOpen(true); loadAccount() }, [loadAccount])
+
+  useEffect(() => {
+    if (!forceOpen) return
+    openDrawer()
+    onForceOpenConsumed?.()
+  }, [forceOpen, onForceOpenConsumed, openDrawer])
 
   async function saveProfile() {
     setSaving(true); setMessage(''); setError('')
@@ -156,9 +162,9 @@ export default function AccountMenu({ isMobile = false }: { isMobile?: boolean }
   const inputCompact: React.CSSProperties = { width: '100%', boxSizing: 'border-box', borderRadius: isMobile ? 12 : 15, border: `1px solid ${C.border}`, background: 'rgba(0,0,0,0.28)', color: C.textPrimary, padding: isMobile ? '10px 12px' : '13px 14px', fontSize: isMobile ? 13 : 14, outline: 'none' }
 
   return <>
-    <button onClick={openDrawer} aria-label="Open account" style={{ width: isMobile ? 38 : 42, height: isMobile ? 38 : 42, borderRadius: isMobile ? 13 : 14, padding: 0, overflow: 'hidden', background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.borderHot}`, color: C.green, cursor: 'pointer', boxShadow: '0 0 18px rgba(166,255,63,0.12), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+    {!hideTrigger && <button onClick={openDrawer} aria-label="Open account" style={{ width: isMobile ? 38 : 42, height: isMobile ? 38 : 42, borderRadius: isMobile ? 13 : 14, padding: 0, overflow: 'hidden', background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.borderHot}`, color: C.green, cursor: 'pointer', boxShadow: '0 0 18px rgba(166,255,63,0.12), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
       {avatar ? <img src={avatar} alt="Account" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <span style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 12, fontWeight: 950 }}>{initials(label, profile?.email)}</span>}
-    </button>
+    </button>}
     {open && <div onClick={() => setOpen(false)} style={overlayStyle}>
       <aside onClick={e => e.stopPropagation()} style={panelStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: isMobile ? 10 : 20, position: 'sticky', top: 0, zIndex: 2, paddingBottom: isMobile ? 8 : 0, background: isMobile ? 'linear-gradient(180deg, rgba(6,10,3,1), rgba(6,10,3,0.88))' : 'transparent' }}><div><div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>{profile?.guest ? 'Guest Access' : 'Account Command'}</div><h2 style={{ margin: '5px 0 0', fontSize: isMobile ? 21 : 26, letterSpacing: '-0.04em' }}>Profile</h2></div><button onClick={() => setOpen(false)} aria-label="Close account" style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, cursor: 'pointer', fontSize: 18 }}>×</button></div>
