@@ -5163,7 +5163,6 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
   const roster = detail?.roster || []
   const injuries = detail?.injuries || []
   const stats = detail?.stats || []
-  const selectedTeam = teams.find(team => team.id === selectedTeamId) || detail?.team || null
   const selectTeam = (teamId: string) => {
     setSelectedTeamId(teamId)
     if (isMobile) {
@@ -5175,34 +5174,32 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
 
   return (
     <section style={{ display: 'grid', gap: isMobile ? 12 : 16 }}>
-      <div style={{ borderRadius: isMobile ? 18 : 22, padding: isMobile ? 12 : 14, background: 'linear-gradient(145deg, rgba(166,255,63,0.10), rgba(255,255,255,0.035))', border: `1px solid ${C.border}`, boxShadow: '0 18px 54px rgba(0,0,0,0.34)' }}>
+      <div style={{ borderRadius: isMobile ? 18 : 22, padding: isMobile ? 12 : 14, background: 'transparent', border: '1px solid transparent', boxShadow: 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
           <div>
             <p style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{sport.toUpperCase()} Teams</p>
             <p style={{ color: C.textSecondary, fontSize: 11, marginTop: 4 }}>Tap a team for roster, season stats, and injury report.</p>
-            {selectedTeam && <p style={{ color: accent, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 8 }}>Viewing {selectedTeam.abbr || selectedTeam.name}</p>}
           </div>
           {(loadingTeams || loadingDetail) && <span style={{ color: C.gold, fontSize: 10, fontWeight: 900 }}>Loading…</span>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : 'repeat(6, minmax(0, 1fr))', gap: 8 }}>
           {teams.map(team => {
             const selected = selectedTeamId === team.id
-            const teamAccent = team.color || accent
             return (
               <button key={team.id} type="button" aria-label={`View ${team.name} roster and injuries`} title={team.name} aria-pressed={selected} onClick={() => selectTeam(team.id)} style={{
                 minHeight: isMobile ? 64 : 68,
                 border: 0,
                 background: 'transparent',
-                color: selected ? C.textPrimary : C.textSecondary,
+                color: C.textSecondary,
                 cursor: 'pointer',
                 display: 'grid',
                 placeItems: 'center',
                 padding: isMobile ? '4px 2px' : '5px 4px',
               }}>
                 {team.logo ? (
-                  <img src={team.logo} alt="" loading="lazy" decoding="async" style={{ width: isMobile ? 54 : 60, height: isMobile ? 54 : 60, objectFit: 'contain', transform: selected ? 'scale(1.08)' : 'scale(1)', filter: selected ? `drop-shadow(0 0 10px ${teamAccent}88) drop-shadow(0 5px 12px rgba(0,0,0,0.42))` : 'drop-shadow(0 4px 10px rgba(0,0,0,0.38))', transition: 'transform 140ms ease, filter 140ms ease' }} />
+                  <img src={team.logo} alt="" loading="lazy" decoding="async" style={{ width: isMobile ? 54 : 60, height: isMobile ? 54 : 60, objectFit: 'contain', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.38))' }} />
                 ) : (
-                  <span style={{ color: selected ? teamAccent : C.textSecondary, fontSize: 12, fontWeight: 950 }}>{team.abbr}</span>
+                  <span style={{ color: C.textSecondary, fontSize: 12, fontWeight: 950 }}>{team.abbr}</span>
                 )}
               </button>
             )
