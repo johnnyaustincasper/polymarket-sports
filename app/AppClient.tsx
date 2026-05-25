@@ -21,6 +21,7 @@ import { buildPropLadder, buildStatDistribution, getMetricStatValue, type StatDi
 import { computeSignalDeltas, type SignalDelta, type SignalDeltaSnapshot } from './lib/signals/delta-feed'
 import type { LiquidityGrade } from './lib/signals/liquidity'
 import { buildAlertRulesForWatchItem, buildWatchKey, evaluateAlerts, watchlistReducer, type AlertEvent, type AlertRule, type WatchItem, type WatchSnapshot } from './lib/watchlist/alerts'
+import { getFighterPhotoUrl, isWeightClassOpenByDefault } from './lib/ufc/fighters-directory'
 
 const BetTracker = dynamic(() => import('./components/BetTracker'), { ssr: false })
 
@@ -5283,6 +5284,7 @@ function FightersDirectoryPanel({ isMobile }: { isMobile: boolean }) {
   const [weightClasses, setWeightClasses] = useState<FighterWeightClassGroup[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [openWeightClasses, setOpenWeightClasses] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -5320,57 +5322,78 @@ function FightersDirectoryPanel({ isMobile }: { isMobile: boolean }) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: isMobile ? 12 : 14, width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
-        {weightClasses.map(group => (
-          <section key={group.id} aria-label={`${group.name} fighters`} style={{
-            width: '100%',
-            maxWidth: '100%',
-            minWidth: 0,
-            overflow: 'hidden',
-            boxSizing: 'border-box',
-            borderRadius: isMobile ? 18 : 22,
-            padding: isMobile ? 12 : 14,
-            background: 'linear-gradient(160deg, rgba(255,255,255,0.052), rgba(3,5,0,0.92))',
-            border: '1px solid rgba(200,255,47,0.18)',
-            boxShadow: '0 18px 42px rgba(0,0,0,0.30)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 10, minWidth: 0 }}>
-              <div style={{ minWidth: 0 }}>
-                <h2 style={{ color: C.textPrimary, fontSize: isMobile ? 16 : 19, fontWeight: 950, margin: 0, lineHeight: 1.1, overflowWrap: 'anywhere' }}>{group.name}</h2>
-                <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>{group.limit ? `${group.limit} · ` : ''}{group.fighters.length} ranked</p>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9, width: '100%', maxWidth: '100%' }}>
-              {group.fighters.map(fighter => (
-                <a key={fighter.id} href={fighter.url || undefined} target={fighter.url ? '_blank' : undefined} rel={fighter.url ? 'noreferrer' : undefined} style={{
-                  textDecoration: 'none',
-                  display: 'grid',
-                  gridTemplateColumns: isMobile ? '38px minmax(0, 1fr) 42px' : '42px minmax(0, 1fr) 48px',
-                  gap: 8,
-                  alignItems: 'center',
-                  width: '100%',
-                  maxWidth: '100%',
-                  minWidth: 0,
-                  boxSizing: 'border-box',
-                  padding: '8px 9px',
-                  borderRadius: 14,
-                  background: 'rgba(0,0,0,0.22)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  color: C.textPrimary,
-                  overflow: 'hidden',
-                }}>
-                  <div style={{ width: isMobile ? 38 : 42, height: isMobile ? 38 : 42, borderRadius: '50%', overflow: 'hidden', background: fighter.color ? `${fighter.color}22` : 'rgba(255,255,255,0.06)', display: 'grid', placeItems: 'center', border: '1px solid rgba(255,255,255,0.10)', minWidth: 0 }}>
-                    {fighter.headshot ? <img src={fighter.headshot} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: C.green, fontSize: 10, fontWeight: 950 }}>{fighter.name.split(' ').map(part => part[0]).join('').slice(0, 2)}</span>}
-                  </div>
-                  <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                    <div style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 13, fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fighter.name}</div>
-                    <div style={{ color: C.textSecondary, fontSize: isMobile ? 9 : 10, marginTop: 2, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fighter.nickname ? `“${fighter.nickname}” · ` : ''}{fighter.record || 'Record unavailable'}{fighter.country ? ` · ${fighter.country}` : ''}</div>
-                  </div>
-                  <span style={{ justifySelf: 'end', color: fighter.champion ? C.gold : C.green, fontSize: isMobile ? 9 : 10, fontWeight: 950, whiteSpace: 'nowrap' }}>{fighter.champion ? 'CHAMP' : fighter.rank ? `#${fighter.rank}` : '—'}</span>
-                </a>
-              ))}
-            </div>
-          </section>
-        ))}
+        {weightClasses.map((group, groupIdx) => {
+          const isOpen = openWeightClasses[group.id] ?? isWeightClassOpenByDefault(groupIdx)
+          return (
+            <section key={group.id} aria-label={`${group.name} fighters`} style={{
+              width: '100%',
+              maxWidth: '100%',
+              minWidth: 0,
+              overflow: 'hidden',
+              boxSizing: 'border-box',
+              borderRadius: isMobile ? 18 : 22,
+              padding: 0,
+              background: 'linear-gradient(160deg, rgba(255,255,255,0.052), rgba(3,5,0,0.92))',
+              border: '1px solid rgba(200,255,47,0.18)',
+              boxShadow: '0 18px 42px rgba(0,0,0,0.30)',
+            }}>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                onClick={() => setOpenWeightClasses(prev => ({ ...prev, [group.id]: !isOpen }))}
+                style={{ width: '100%', border: 0, background: 'transparent', padding: isMobile ? 12 : 14, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, alignItems: 'center', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <h2 style={{ color: C.textPrimary, fontSize: isMobile ? 16 : 19, fontWeight: 950, margin: 0, lineHeight: 1.1, overflowWrap: 'anywhere' }}>{group.name}</h2>
+                  <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>{group.limit ? `${group.limit} · ` : ''}{group.fighters.length} ranked</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <span style={{ borderRadius: 999, padding: '3px 8px', background: isOpen ? 'rgba(166,255,63,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${isOpen ? C.borderHot : C.border}`, color: isOpen ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{isOpen ? 'Hide' : 'Show'}</span>
+                  <span aria-hidden="true" style={{ color: isOpen ? C.green : C.textSecondary, fontSize: 16, fontWeight: 950, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.16s ease' }}>⌄</span>
+                </div>
+              </button>
+              {isOpen && (
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9, width: '100%', maxWidth: '100%', padding: isMobile ? '0 12px 12px' : '0 14px 14px' }}>
+                  {group.fighters.map(fighter => {
+                    const photoUrl = getFighterPhotoUrl(fighter)
+                    return (
+                      <a key={fighter.id} href={fighter.url || undefined} target={fighter.url ? '_blank' : undefined} rel={fighter.url ? 'noreferrer' : undefined} style={{
+                        textDecoration: 'none',
+                        display: 'grid',
+                        gridTemplateColumns: isMobile ? '44px minmax(0, 1fr) 42px' : '52px minmax(0, 1fr) 48px',
+                        gap: 9,
+                        alignItems: 'center',
+                        width: '100%',
+                        maxWidth: '100%',
+                        minWidth: 0,
+                        boxSizing: 'border-box',
+                        padding: '8px 9px',
+                        borderRadius: 14,
+                        background: 'rgba(0,0,0,0.22)',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        color: C.textPrimary,
+                        overflow: 'hidden',
+                      }}>
+                        <div style={{ width: isMobile ? 44 : 52, height: isMobile ? 44 : 52, borderRadius: '50%', overflow: 'hidden', background: fighter.color ? `${fighter.color}22` : 'rgba(255,255,255,0.06)', display: 'grid', placeItems: 'center', border: '1px solid rgba(255,255,255,0.10)', minWidth: 0 }}>
+                          {photoUrl ? (
+                            <img src={photoUrl} alt={`${fighter.name} headshot`} loading="lazy" decoding="async" onError={e => { e.currentTarget.style.visibility = 'hidden' }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          ) : (
+                            <span aria-hidden="true" style={{ color: C.green, fontSize: 16, fontWeight: 950 }}>◌</span>
+                          )}
+                        </div>
+                        <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <div style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 13, fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fighter.name}</div>
+                          <div style={{ color: C.textSecondary, fontSize: isMobile ? 9 : 10, marginTop: 2, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fighter.nickname ? `“${fighter.nickname}” · ` : ''}{fighter.record || 'Record unavailable'}{fighter.country ? ` · ${fighter.country}` : ''}</div>
+                        </div>
+                        <span style={{ justifySelf: 'end', color: fighter.champion ? C.gold : C.green, fontSize: isMobile ? 9 : 10, fontWeight: 950, whiteSpace: 'nowrap' }}>{fighter.champion ? 'CHAMP' : fighter.rank ? `#${fighter.rank}` : '—'}</span>
+                      </a>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+          )
+        })}
       </div>
     </section>
   )
