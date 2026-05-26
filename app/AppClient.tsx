@@ -5153,7 +5153,7 @@ function SportSubtabBar({ active, onChange, isMobile }: { active: SportSubtab; o
             borderRadius: 16,
             padding: isMobile ? '9px 8px' : '11px 14px',
             border: `1px solid ${selected ? C.borderHot : C.border}`,
-            background: selected ? 'linear-gradient(145deg, rgba(125,246,255,0.18), rgba(6,12,3,0.98))' : 'rgba(255,255,255,0.035)',
+            background: selected ? 'linear-gradient(145deg, rgba(125,246,255,0.18), rgba(3,10,13,0.98))' : 'rgba(255,255,255,0.035)',
             color: selected ? C.green : C.textSecondary,
             boxShadow: selected ? '0 0 26px rgba(125,246,255,0.16), inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
             fontSize: isMobile ? 10 : 11,
@@ -5398,7 +5398,7 @@ function FightersDirectoryPanel({ isMobile }: { isMobile: boolean }) {
               borderRadius: isMobile ? 18 : 22,
               padding: 0,
               background: 'linear-gradient(160deg, rgba(255,255,255,0.052), rgba(3,5,0,0.92))',
-              border: '1px solid rgba(200,255,47,0.18)',
+              border: '1px solid rgba(125,246,255,0.18)',
               boxShadow: '0 18px 42px rgba(0,0,0,0.30)',
             }}>
               <button
@@ -5558,7 +5558,7 @@ function MarketToggleButton({ active, accent, children, onClick, minWidth }: {
 }
 
 function DockIcon({ icon, active, primary }: { icon: MobileDockIcon; active: boolean; primary?: boolean }) {
-  const stroke = active ? '#d7ff58' : 'currentColor'
+  const stroke = active ? '#b8fbff' : 'currentColor'
   const strokeWidth = primary ? 2.4 : 2.1
   const common = { fill: 'none', stroke, strokeWidth, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
 
@@ -5592,13 +5592,13 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
     minWidth: 0,
     minHeight: premiumMobileDockLayout.buttonMinHeight,
     borderRadius: 23,
-    border: selected ? '1px solid rgba(200,255,47,0.92)' : '1px solid rgba(255,255,255,0.10)',
+    border: selected ? '1px solid rgba(125,246,255,0.92)' : '1px solid rgba(255,255,255,0.10)',
     background: selected
-      ? 'linear-gradient(180deg, rgba(200,255,47,0.18) 0%, rgba(10,15,8,0.94) 48%, rgba(2,4,6,0.96) 100%)'
+      ? 'linear-gradient(180deg, rgba(125,246,255,0.18) 0%, rgba(5,14,17,0.94) 48%, rgba(2,4,6,0.96) 100%)'
       : 'linear-gradient(180deg, rgba(255,255,255,0.070), rgba(255,255,255,0.026))',
-    color: selected ? '#d7ff58' : 'rgba(238,246,255,0.76)',
+    color: selected ? '#b8fbff' : 'rgba(238,246,255,0.76)',
     boxShadow: selected
-      ? '0 0 0 1px rgba(200,255,47,0.12), 0 0 24px rgba(200,255,47,0.30), inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(200,255,47,0.18)'
+      ? '0 0 0 1px rgba(125,246,255,0.12), 0 0 24px rgba(125,246,255,0.30), inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(125,246,255,0.18)'
       : 'inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 16px rgba(0,0,0,0.18)',
     cursor: 'pointer',
     display: 'grid',
@@ -5623,9 +5623,9 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
     borderRadius: 999,
     display: 'grid',
     placeItems: 'center',
-    color: selected ? '#d7ff58' : 'rgba(238,246,255,0.86)',
+    color: selected ? '#b8fbff' : 'rgba(238,246,255,0.86)',
     background: selected
-      ? 'rgba(200,255,47,0.075)'
+      ? 'rgba(125,246,255,0.075)'
       : 'rgba(255,255,255,0.040)',
     boxShadow: selected ? 'inset 0 1px 0 rgba(255,255,255,0.10)' : 'inset 0 1px 0 rgba(255,255,255,0.08)',
   })
@@ -5641,7 +5641,7 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
     borderRadius: 24,
     border: '1px solid rgba(185,197,205,0.24)',
     background: 'linear-gradient(180deg, rgba(23,28,31,0.96), rgba(2,4,6,0.94))',
-    boxShadow: '0 -14px 42px rgba(0,0,0,0.74), 0 0 26px rgba(200,255,47,0.11), inset 0 1px 0 rgba(255,255,255,0.12)',
+    boxShadow: '0 -14px 42px rgba(0,0,0,0.74), 0 0 26px rgba(125,246,255,0.11), inset 0 1px 0 rgba(255,255,255,0.12)',
     backdropFilter: 'blur(20px) saturate(1.25)',
     WebkitBackdropFilter: 'blur(20px) saturate(1.25)',
   })
@@ -5651,10 +5651,10 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
     WebkitAppearance: 'none',
     minHeight: 38,
     borderRadius: 16,
-    border: `1px solid ${selected ? 'rgba(200,255,47,0.72)' : 'rgba(255,255,255,0.10)'}`,
-    background: selected ? 'linear-gradient(180deg, rgba(200,255,47,0.22), rgba(6,12,3,0.96))' : 'rgba(255,255,255,0.045)',
-    color: selected ? '#c8ff2f' : 'rgba(221,232,244,0.76)',
-    boxShadow: selected ? '0 0 18px rgba(200,255,47,0.16), inset 0 1px 0 rgba(255,255,255,0.10)' : 'inset 0 1px 0 rgba(255,255,255,0.05)',
+    border: `1px solid ${selected ? 'rgba(125,246,255,0.72)' : 'rgba(255,255,255,0.10)'}`,
+    background: selected ? 'linear-gradient(180deg, rgba(125,246,255,0.22), rgba(3,10,13,0.96))' : 'rgba(255,255,255,0.045)',
+    color: selected ? '#7df6ff' : 'rgba(221,232,244,0.76)',
+    boxShadow: selected ? '0 0 18px rgba(125,246,255,0.16), inset 0 1px 0 rgba(255,255,255,0.10)' : 'inset 0 1px 0 rgba(255,255,255,0.05)',
     fontSize: 10,
     fontWeight: 950,
     letterSpacing: '0.10em',
@@ -5677,19 +5677,19 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
       gap: 7,
       padding: '8px 9px',
       borderRadius: premiumMobileDockLayout.containerRadius,
-      border: '1px solid rgba(200,255,47,0.20)',
+      border: '1px solid rgba(125,246,255,0.20)',
       background: 'linear-gradient(180deg, rgba(25,30,29,0.88) 0%, rgba(7,10,10,0.88) 46%, rgba(0,0,0,0.94) 100%)',
-      boxShadow: '0 -20px 56px rgba(0,0,0,0.76), 0 0 34px rgba(200,255,47,0.14), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(200,255,47,0.18)',
+      boxShadow: '0 -20px 56px rgba(0,0,0,0.76), 0 0 34px rgba(125,246,255,0.14), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(125,246,255,0.18)',
       backdropFilter: 'blur(22px) saturate(1.25)',
       WebkitBackdropFilter: 'blur(22px) saturate(1.25)',
       overflow: 'visible',
     }}>
-      <span aria-hidden="true" style={{ position: 'absolute', left: 28, right: 28, top: 0, height: 2, borderRadius: 999, background: 'linear-gradient(90deg, transparent, rgba(200,255,47,0.82), transparent)', boxShadow: '0 0 16px rgba(200,255,47,0.5)', opacity: 0.9 }} />
+      <span aria-hidden="true" style={{ position: 'absolute', left: 28, right: 28, top: 0, height: 2, borderRadius: 999, background: 'linear-gradient(90deg, transparent, rgba(125,246,255,0.82), transparent)', boxShadow: '0 0 16px rgba(125,246,255,0.5)', opacity: 0.9 }} />
       <span aria-hidden="true" style={{ position: 'absolute', inset: 1, borderRadius: 33, pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.055)' }} />
       <style>{`
         @keyframes ${slateMainFeatureAnimation.ringAnimationName} {
-          0%, 100% { opacity: 0.58; transform: scale(0.96); box-shadow: 0 0 0 0 rgba(200,255,47,0.34), 0 0 18px rgba(200,255,47,0.24); }
-          50% { opacity: 1; transform: scale(1.04); box-shadow: 0 0 0 5px rgba(200,255,47,0.10), 0 0 30px rgba(200,255,47,0.48); }
+          0%, 100% { opacity: 0.58; transform: scale(0.96); box-shadow: 0 0 0 0 rgba(125,246,255,0.34), 0 0 18px rgba(125,246,255,0.24); }
+          50% { opacity: 1; transform: scale(1.04); box-shadow: 0 0 0 5px rgba(125,246,255,0.10), 0 0 30px rgba(125,246,255,0.48); }
         }
         @keyframes ${slateMainFeatureAnimation.shimmerAnimationName} {
           0% { transform: translateX(-145%) rotate(18deg); opacity: 0; }
@@ -5730,7 +5730,7 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
                 position: 'absolute',
                 inset: -3,
                 borderRadius: 25,
-                border: '1px solid rgba(200,255,47,0.78)',
+                border: '1px solid rgba(125,246,255,0.78)',
                 pointerEvents: 'none',
                 animation: `${slateMainFeatureAnimation.ringAnimationName} 2.4s ease-in-out infinite`,
               }} />
@@ -5741,7 +5741,7 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
                   bottom: -12,
                   left: '42%',
                   width: 18,
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.38), rgba(200,255,47,0.26), transparent)',
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.38), rgba(125,246,255,0.26), transparent)',
                   filter: 'blur(0.5px)',
                   animation: `${slateMainFeatureAnimation.shimmerAnimationName} 3.2s ease-in-out infinite`,
                 }} />
@@ -5749,7 +5749,7 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
             </>}
             <span style={iconWrap(selected)}><DockIcon icon={item.icon} active={selected} primary={false} /></span>
             <span style={{ position: 'relative', zIndex: 1 }}>{item.label}</span>
-            {selected && <span aria-hidden="true" style={{ position: 'relative', zIndex: 1, width: 14, height: 2, borderRadius: 999, background: '#d7ff58', boxShadow: '0 0 11px rgba(200,255,47,0.82)' }} />}
+            {selected && <span aria-hidden="true" style={{ position: 'relative', zIndex: 1, width: 14, height: 2, borderRadius: 999, background: '#b8fbff', boxShadow: '0 0 11px rgba(125,246,255,0.82)' }} />}
           </button>
         )
       })}
