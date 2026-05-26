@@ -78,7 +78,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: { eyeb
       <section className="auth-card">
         <div className="auth-head">
           <div className="auth-logo">
-            <img src="/brand/ai-athlete-intelligence-logo.jpg" alt="AI Athlete Intelligence" />
+            <img src="/brand/ai-athlete-intelligence-logo.jpg?v=cyan-20260525" alt="AI Athlete Intelligence" />
           </div>
           <p className="auth-eyebrow">{eyebrow}</p>
           <h1 className="auth-title">{title}</h1>

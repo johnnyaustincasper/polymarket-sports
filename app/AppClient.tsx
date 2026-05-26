@@ -5487,7 +5487,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
   ]
   const sportLabel = sport === 'ncaaf' || sport === 'ncaab' ? 'NCAA' : sport.toUpperCase()
   const switchSport = (s: SupportedSport | 'ufc') => { setSport(s); if (isMobile) setSportsOpen(false) }
-  const logoSrc = isMobile ? '/brand/ai-athlete-intelligence-mobile-logo.jpg' : '/brand/ai-athlete-intelligence-wordmark.jpg'
+  const logoSrc = isMobile ? '/brand/ai-athlete-intelligence-mobile-logo.jpg?v=cyan-20260525' : '/brand/ai-athlete-intelligence-wordmark.jpg?v=cyan-20260525'
 
   return (
     <header style={{
