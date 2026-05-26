@@ -5493,7 +5493,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
     <header style={{
       position: 'relative',
       zIndex: 100,
-      marginBottom: 26,
+      marginBottom: isMobile ? 16 : 26,
       padding: 0,
       borderRadius: 0,
       background: 'transparent',
@@ -6029,7 +6029,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(125,246,255,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(125,246,255,0.05) 0%, transparent 70%)',
       }} />
 
-      <div style={{ position: 'relative', zIndex: 5, maxWidth: 1200, margin: '0 auto', padding: '32px 16px 0' }}>
+      <div style={{ position: 'relative', zIndex: 5, maxWidth: 1200, margin: '0 auto', padding: isMobile ? '14px 16px 0' : '32px 16px 0' }}>
         {header}
       </div>
 
