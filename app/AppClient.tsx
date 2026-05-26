@@ -5502,8 +5502,8 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
     }}>
       <div style={{ display: 'grid', gap: isMobile ? 8 : 12 }}>
         <div style={{ position: 'relative', overflow: 'hidden', borderRadius: isMobile ? 18 : 24, border: '1px solid rgba(125,246,255,0.22)', background: '#000', boxShadow: '0 0 26px rgba(125,246,255,0.10), 0 18px 48px rgba(0,0,0,0.34)' }}>
-          <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: isMobile ? 126 : 132, display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '16px 14px 14px' : '18px 260px 18px 22px', border: 0, background: '#000', cursor: 'pointer', textAlign: isMobile ? 'center' : 'left' }}>
-            <img src={logoSrc} alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: isMobile ? 340 : 500, height: isMobile ? 96 : 96, objectFit: 'contain', objectPosition: isMobile ? 'center center' : 'left center', display: 'block' }} />
+          <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: isMobile ? 144 : 132, display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '14px 10px 12px' : '18px 260px 18px 22px', border: 0, background: '#000', cursor: 'pointer', textAlign: isMobile ? 'center' : 'left' }}>
+            <img src={logoSrc} alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: isMobile ? 384 : 500, height: isMobile ? 118 : 96, objectFit: 'contain', objectPosition: isMobile ? 'center center' : 'left center', display: 'block' }} />
           </button>
           {!isMobile && <div style={{ position: 'absolute', top: 18, right: 18, display: 'flex', gap: 7, alignItems: 'center' }}>
             <div style={{ color: C.textSecondary, fontSize: 11, whiteSpace: 'nowrap', padding: '9px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}38`, backdropFilter: 'blur(10px)' }}>{loading ? 'Syncing…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
