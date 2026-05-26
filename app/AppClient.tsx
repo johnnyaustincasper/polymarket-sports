@@ -14,6 +14,7 @@ import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap 
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
 import { resolveStartupSport } from './lib/startup-sport'
 import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mobileDockSportOptions, premiumMobileDockLayout, slateMainFeatureAnimation, type MobileDockIcon, type MobileDockTab } from './lib/mobile-dock'
+import { getLoadInAnimationStyle } from './lib/load-animation'
 import { resetInitialSlateScroll } from './lib/startup-scroll'
 import { expandTeamStatLabel } from './lib/team-stat-labels'
 import { getTeamBadgeText, getTeamBadgeTone, getTeamLeagueCardLabel, type TeamBadgeSport } from './lib/team-badge'
@@ -5267,7 +5268,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
           {(loadingTeams || loadingDetail) && <span style={{ color: C.gold, fontSize: 10, fontWeight: 900 }}>Loading…</span>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : 'repeat(8, minmax(0, 1fr))', gap: isMobile ? 7 : 9 }}>
-          {teams.map(team => {
+          {teams.map((team, teamIdx) => {
             const selected = selectedTeamId === team.id
             return (
               <button key={team.id} type="button" aria-label={`View ${team.name} roster and injuries`} title={team.name} aria-pressed={selected} onClick={() => selectTeam(team.id)} style={{
@@ -5279,6 +5280,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
                 display: 'grid',
                 placeItems: 'center',
                 padding: 0,
+                ...getLoadInAnimationStyle(teamIdx, { durationMs: 720, delayStepMs: 28, maxDelayMs: 420 }),
               }}>
                 <TeamLeagueCard abbr={team.abbr} name={team.name} sport={sport} selected={selected} />
               </button>
@@ -5289,7 +5291,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
       </div>
 
       {detail && (
-        <div ref={detailRef} style={{ scrollMarginTop: isMobile ? 12 : 18, borderRadius: isMobile ? 20 : 24, padding: isMobile ? 14 : 18, background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(3,5,0,0.94))', border: `1px solid ${accent}55`, boxShadow: `0 0 34px ${accent}18, 0 20px 60px rgba(0,0,0,0.44)` }}>
+        <div key={detail.team.id} ref={detailRef} style={{ scrollMarginTop: isMobile ? 12 : 18, borderRadius: isMobile ? 20 : 24, padding: isMobile ? 14 : 18, background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(3,5,0,0.94))', border: `1px solid ${accent}55`, boxShadow: `0 0 34px ${accent}18, 0 20px 60px rgba(0,0,0,0.44)`, ...getLoadInAnimationStyle(0, { durationMs: 760 }) }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
             <span style={{ width: isMobile ? 74 : 88, flexShrink: 0 }}>
               <TeamLeagueCard abbr={detail.team.abbr} name={detail.team.name} sport={sport} selected compact />
@@ -5301,10 +5303,10 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))', gap: 8, marginBottom: 14 }}>
-            {(stats.length ? stats : [{ label: 'Roster', value: String(roster.length) }]).map(stat => {
+            {(stats.length ? stats : [{ label: 'Roster', value: String(roster.length) }]).map((stat, statIdx) => {
               const expandedLabel = expandTeamStatLabel(stat.label)
               return (
-                <div key={`${stat.label}-${stat.value}`} style={{ borderRadius: 14, padding: '10px 9px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div key={`${stat.label}-${stat.value}`} style={{ borderRadius: 14, padding: '10px 9px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.08)', ...getLoadInAnimationStyle(statIdx + 1, { durationMs: 760, delayStepMs: 55, maxDelayMs: 520 }) }}>
                   <div style={{ color: C.textPrimary, fontSize: 17, fontWeight: 950 }}>{stat.value}</div>
                   <div style={{ color: C.textSecondary, fontSize: isMobile ? 9 : 10, fontWeight: 900, letterSpacing: '0.03em', textTransform: 'none', marginTop: 3, lineHeight: 1.18 }}>{expandedLabel}</div>
                 </div>
@@ -5316,8 +5318,8 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
             <div style={{ borderRadius: 18, padding: 12, background: 'rgba(0,0,0,0.26)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <p style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>Roster</p>
               <div style={{ display: 'grid', gap: 7 }}>
-                {roster.slice(0, 18).map(player => (
-                  <div key={player.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.055)' }}>
+                {roster.slice(0, 18).map((player, playerIdx) => (
+                  <div key={player.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.055)', ...getLoadInAnimationStyle(playerIdx + 2, { durationMs: 720, delayStepMs: 45, maxDelayMs: 520 }) }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{player.name}</div>
                       <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 2 }}>{player.position}{player.jersey ? ` · #${player.jersey}` : ''}{player.height ? ` · ${player.height}` : ''}</div>
@@ -5329,8 +5331,8 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
             </div>
             <div style={{ borderRadius: 18, padding: 12, background: 'rgba(0,0,0,0.26)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <p style={{ color: injuries.length ? C.gold : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 10 }}>Injury Report</p>
-              {injuries.length ? injuries.slice(0, 10).map((injury, idx) => (
-                <div key={`${injury.player}-${idx}`} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.055)' }}>
+              {injuries.length ? injuries.slice(0, 10).map((injury, injuryIdx) => (
+                <div key={`${injury.player}-${injuryIdx}`} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.055)', ...getLoadInAnimationStyle(injuryIdx + 2, { durationMs: 720, delayStepMs: 45, maxDelayMs: 420 }) }}>
                   <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 850 }}>{injury.player}</div>
                   <div style={{ color: C.gold, fontSize: 10, marginTop: 2 }}>{injury.status}{injury.detail ? ` · ${injury.detail}` : ''}</div>
                 </div>
@@ -6044,6 +6046,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
             gap: isMobile ? 10 : 12,
             marginBottom: isMobile ? 14 : 18,
             alignItems: 'start',
+            ...getLoadInAnimationStyle(0, { durationMs: 760 }),
           }}>
             {subtab === 'teams' && (sport === 'ufc' ? <FightersDirectoryPanel isMobile={isMobile} /> : <TeamsDirectoryPanel sport={sport} isMobile={isMobile} />)}
             {sport !== 'ufc' && subtab === 'playerSignals' && <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} autoRun />}
@@ -6076,19 +6079,21 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 </div>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
-                    {live.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
+                    {live.map((g, idx) => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined, ...getLoadInAnimationStyle(idx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 }) }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {chunkArray(live, cols).map((row, i) => (
-                      <RowGroup key={i} games={row} cols={cols}
-                        activeGame={activeIntelGame || activeAnalysisGame}
-                        panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
-                        analysisLoadingGameId={analysisLoadingGameId}
-                        onAnalysisDone={() => setAnalysisLoadingGameId(null)}
-                        onLogBet={logBet} drift={oddsDrift}
-                        onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
-                        onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
+                    {chunkArray(live, cols).map((row, rowIdx) => (
+                      <div key={rowIdx} style={getLoadInAnimationStyle(rowIdx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 })}>
+                        <RowGroup games={row} cols={cols}
+                          activeGame={activeIntelGame || activeAnalysisGame}
+                          panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
+                          analysisLoadingGameId={analysisLoadingGameId}
+                          onAnalysisDone={() => setAnalysisLoadingGameId(null)}
+                          onLogBet={logBet} drift={oddsDrift}
+                          onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
+                          onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
+                      </div>
                     ))}
                   </div>
                 )}
@@ -6099,19 +6104,21 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Upcoming</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
-                    {upcoming.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
+                    {upcoming.map((g, idx) => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined, ...getLoadInAnimationStyle(idx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 }) }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {chunkArray(upcoming, cols).map((row, i) => (
-                      <RowGroup key={i} games={row} cols={cols}
-                        activeGame={activeIntelGame || activeAnalysisGame}
-                        panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
-                        analysisLoadingGameId={analysisLoadingGameId}
-                        onAnalysisDone={() => setAnalysisLoadingGameId(null)}
-                        onLogBet={logBet} drift={oddsDrift}
-                        onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
-                        onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
+                    {chunkArray(upcoming, cols).map((row, rowIdx) => (
+                      <div key={rowIdx} style={getLoadInAnimationStyle(rowIdx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 })}>
+                        <RowGroup games={row} cols={cols}
+                          activeGame={activeIntelGame || activeAnalysisGame}
+                          panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
+                          analysisLoadingGameId={analysisLoadingGameId}
+                          onAnalysisDone={() => setAnalysisLoadingGameId(null)}
+                          onLogBet={logBet} drift={oddsDrift}
+                          onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
+                          onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
+                      </div>
                     ))}
                   </div>
                 )}
@@ -6122,19 +6129,21 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Final</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
-                    {final.map(g => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
+                    {final.map((g, idx) => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined, ...getLoadInAnimationStyle(idx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 }) }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {chunkArray(final, cols).map((row, i) => (
-                      <RowGroup key={i} games={row} cols={cols}
-                        activeGame={activeIntelGame || activeAnalysisGame}
-                        panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
-                        analysisLoadingGameId={analysisLoadingGameId}
-                        onAnalysisDone={() => setAnalysisLoadingGameId(null)}
-                        onLogBet={logBet} drift={oddsDrift}
-                        onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
-                        onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
+                    {chunkArray(final, cols).map((row, rowIdx) => (
+                      <div key={rowIdx} style={getLoadInAnimationStyle(rowIdx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 })}>
+                        <RowGroup games={row} cols={cols}
+                          activeGame={activeIntelGame || activeAnalysisGame}
+                          panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
+                          analysisLoadingGameId={analysisLoadingGameId}
+                          onAnalysisDone={() => setAnalysisLoadingGameId(null)}
+                          onLogBet={logBet} drift={oddsDrift}
+                          onOpenIntel={(g) => { setActiveIntelGame(prev => prev?.id === g.id ? null : g); setActiveAnalysisGame(null) }}
+                          onOpenAnalysis={(g) => { setActiveAnalysisGame(prev => { const next = prev?.id === g.id ? null : g; setAnalysisLoadingGameId(next ? next.id : null); return next }); setActiveIntelGame(null) }} />
+                      </div>
                     ))}
                   </div>
                 )}
