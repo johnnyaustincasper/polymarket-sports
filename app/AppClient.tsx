@@ -17,6 +17,7 @@ import { buildMobileDockTabs, getMobileDockActiveTab, mobileDockDateOptions, mob
 import { resetInitialSlateScroll } from './lib/startup-scroll'
 import { expandTeamStatLabel } from './lib/team-stat-labels'
 import { getTeamBadgeText, getTeamBadgeTone, getTeamLeagueCardLabel, type TeamBadgeSport } from './lib/team-badge'
+import { appPalette } from './lib/app-palette'
 import { detectCorrelationWarnings, type CorrelationInputItem, type CorrelationWarning } from './lib/parlays/correlation'
 import { getLivePropProgress as getLivePropProgressPure } from './lib/live/prop-progress'
 import { buildPropLadder, buildStatDistribution, getMetricStatValue, type StatDistribution } from './lib/props/distributions'
@@ -342,30 +343,31 @@ interface FootballIntelData {
 }
 
 // ─── UFC accent ───────────────────────────────────────────────────────────────
-const UFC_RED = '#a6ff3f'
-const MLB_ORANGE = '#a6ff3f'
+const UFC_RED = appPalette.primary
+const MLB_ORANGE = appPalette.primary
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  cyan:    '#a6ff3f',
-  purple:  '#e7eee2',
-  green:   '#a6ff3f',
-  red:     '#ff3f5f',
-  gold:    '#f8d94a',
-  bg:      '#030500',
-  card:    'rgba(7,11,5,0.88)',
-  border:  'rgba(166,255,63,0.14)',
-  borderHot: 'rgba(166,255,63,0.52)',
-  textPrimary: '#f7fff0',
-  textSecondary: 'rgba(219,255,191,0.54)',
+  cyan:    appPalette.primary,
+  purple:  appPalette.textPrimary,
+  green:   appPalette.primary,
+  lime:    appPalette.power,
+  red:     appPalette.danger,
+  gold:    appPalette.warning,
+  bg:      appPalette.background,
+  card:    appPalette.card,
+  border:  appPalette.primarySoft,
+  borderHot: appPalette.primaryBorderStrong,
+  textPrimary: appPalette.textPrimary,
+  textSecondary: appPalette.textSecondary,
 }
 
 const SURFACE = {
-  panel: 'linear-gradient(145deg, rgba(10,16,7,0.96), rgba(3,5,0,0.94) 58%, rgba(16,22,11,0.9))',
-  panelSoft: 'linear-gradient(145deg, rgba(255,255,255,0.045), rgba(166,255,63,0.028))',
-  tactical: 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.08), rgba(3,5,0,0.2))',
-  border: 'rgba(166,255,63,0.18)',
-  borderStrong: 'rgba(166,255,63,0.42)',
+  panel: 'linear-gradient(145deg, rgba(4,14,17,0.96), rgba(3,7,10,0.94) 58%, rgba(6,24,28,0.9))',
+  panelSoft: 'linear-gradient(145deg, rgba(255,255,255,0.045), rgba(0,212,255,0.035))',
+  tactical: 'linear-gradient(135deg, rgba(0,212,255,0.18), rgba(255,255,255,0.08), rgba(3,7,10,0.2))',
+  border: appPalette.primarySoft,
+  borderStrong: appPalette.primaryBorder,
   shadow: '0 18px 60px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 

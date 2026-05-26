@@ -1,4 +1,5 @@
 import type { SupportedSport } from './sports-utils'
+import { appPalette } from './app-palette'
 
 export type TeamBadgeSport = SupportedSport | 'ufc'
 
@@ -9,43 +10,20 @@ export type TeamBadgeTone = {
   glow: string
 }
 
+const TEAM_BADGE_TONE: TeamBadgeTone = {
+  accent: appPalette.primaryBright,
+  background: 'linear-gradient(145deg, rgba(0,212,255,0.15), rgba(3,7,10,0.94))',
+  border: appPalette.primaryBorder,
+  glow: `0 0 18px ${appPalette.primaryGlow}`,
+}
+
 const SPORT_BADGE_TONES: Record<TeamBadgeSport, TeamBadgeTone> = {
-  nba: {
-    accent: '#a6ff3f',
-    background: 'linear-gradient(145deg, rgba(166,255,63,0.16), rgba(3,5,0,0.94))',
-    border: 'rgba(166,255,63,0.42)',
-    glow: '0 0 18px rgba(166,255,63,0.18)',
-  },
-  ncaab: {
-    accent: '#a6ff3f',
-    background: 'linear-gradient(145deg, rgba(166,255,63,0.16), rgba(3,5,0,0.94))',
-    border: 'rgba(166,255,63,0.42)',
-    glow: '0 0 18px rgba(166,255,63,0.18)',
-  },
-  nfl: {
-    accent: '#a8f0ff',
-    background: 'linear-gradient(145deg, rgba(168,240,255,0.14), rgba(3,5,0,0.94))',
-    border: 'rgba(168,240,255,0.38)',
-    glow: '0 0 18px rgba(168,240,255,0.16)',
-  },
-  ncaaf: {
-    accent: '#a8f0ff',
-    background: 'linear-gradient(145deg, rgba(168,240,255,0.14), rgba(3,5,0,0.94))',
-    border: 'rgba(168,240,255,0.38)',
-    glow: '0 0 18px rgba(168,240,255,0.16)',
-  },
-  mlb: {
-    accent: '#f8d94a',
-    background: 'linear-gradient(145deg, rgba(248,217,74,0.15), rgba(3,5,0,0.94))',
-    border: 'rgba(248,217,74,0.40)',
-    glow: '0 0 18px rgba(248,217,74,0.16)',
-  },
-  ufc: {
-    accent: '#ff3f5f',
-    background: 'linear-gradient(145deg, rgba(255,63,95,0.14), rgba(3,5,0,0.94))',
-    border: 'rgba(255,63,95,0.34)',
-    glow: '0 0 18px rgba(255,63,95,0.14)',
-  },
+  nba: TEAM_BADGE_TONE,
+  ncaab: TEAM_BADGE_TONE,
+  nfl: TEAM_BADGE_TONE,
+  ncaaf: TEAM_BADGE_TONE,
+  mlb: TEAM_BADGE_TONE,
+  ufc: TEAM_BADGE_TONE,
 }
 
 export function getTeamBadgeText(abbr: string | null | undefined, fallback = 'AI'): string {
