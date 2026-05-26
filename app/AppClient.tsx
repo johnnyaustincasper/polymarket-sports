@@ -5487,7 +5487,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
   ]
   const sportLabel = sport === 'ncaaf' || sport === 'ncaab' ? 'NCAA' : sport.toUpperCase()
   const switchSport = (s: SupportedSport | 'ufc') => { setSport(s); if (isMobile) setSportsOpen(false) }
-  const logoSrc = isMobile ? '/brand/ai-athlete-intelligence-mobile-logo.jpg?v=cyan-20260525' : '/brand/ai-athlete-intelligence-wordmark.jpg?v=cyan-20260525'
+  const logoSrc = isMobile ? '/brand/ai-athlete-intelligence-mobile-logo.png?v=transparent-20260525' : '/brand/ai-athlete-intelligence-wordmark.png?v=transparent-20260525'
 
   return (
     <header style={{
@@ -5501,8 +5501,8 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
       boxShadow: 'none',
     }}>
       <div style={{ display: 'grid', gap: isMobile ? 8 : 12 }}>
-        <div style={{ position: 'relative', overflow: 'hidden', borderRadius: isMobile ? 18 : 24, border: '1px solid rgba(125,246,255,0.22)', background: '#000', boxShadow: '0 0 26px rgba(125,246,255,0.10), 0 18px 48px rgba(0,0,0,0.34)' }}>
-          <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: isMobile ? 144 : 132, display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '14px 10px 12px' : '18px 260px 18px 22px', border: 0, background: '#000', cursor: 'pointer', textAlign: isMobile ? 'center' : 'left' }}>
+        <div style={{ position: 'relative', overflow: 'visible', borderRadius: isMobile ? 18 : 24, border: 'none', background: 'transparent', boxShadow: 'none' }}>
+          <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: isMobile ? 144 : 132, display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '14px 10px 12px' : '18px 260px 18px 22px', border: 0, background: 'transparent', cursor: 'pointer', textAlign: isMobile ? 'center' : 'left' }}>
             <img src={logoSrc} alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: isMobile ? 384 : 500, height: isMobile ? 118 : 96, objectFit: 'contain', objectPosition: isMobile ? 'center center' : 'left center', display: 'block' }} />
           </button>
           {!isMobile && <div style={{ position: 'absolute', top: 18, right: 18, display: 'flex', gap: 7, alignItems: 'center' }}>

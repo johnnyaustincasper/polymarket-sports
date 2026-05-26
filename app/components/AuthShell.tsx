@@ -37,8 +37,8 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: { eyeb
         }
         .auth-card::-webkit-scrollbar { width: 0; height: 0; }
         .auth-head { text-align: center; margin-bottom: 24px; }
-        .auth-logo { width: 118px; height: 118px; border-radius: 30px; margin: 0 auto 16px; overflow: hidden; border: 1px solid rgba(125,246,255,0.35); box-shadow: 0 0 42px rgba(125,246,255,0.18); }
-        .auth-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .auth-logo { width: 118px; height: 118px; border-radius: 0; margin: 0 auto 16px; overflow: visible; border: 0; background: transparent; box-shadow: none; }
+        .auth-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .auth-eyebrow { color: #7df6ff; font-weight: 900; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; margin: 0; }
         .auth-title { margin: 8px 0 6px; font-size: 30px; letter-spacing: -0.04em; }
         .auth-subtitle { margin: 0; color: rgba(226,255,204,0.58); font-size: 13px; line-height: 1.45; }
@@ -78,7 +78,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: { eyeb
       <section className="auth-card">
         <div className="auth-head">
           <div className="auth-logo">
-            <img src="/brand/ai-athlete-intelligence-logo.jpg?v=cyan-20260525" alt="AI Athlete Intelligence" />
+            <img src="/brand/ai-athlete-intelligence-logo.png?v=transparent-20260525" alt="AI Athlete Intelligence" />
           </div>
           <p className="auth-eyebrow">{eyebrow}</p>
           <h1 className="auth-title">{title}</h1>
