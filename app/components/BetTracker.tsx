@@ -13,12 +13,12 @@ interface BetLog {
 }
 
 const C = {
-  cyan: '#a6ff3f',
-  green: '#a6ff3f',
+  cyan: '#7df6ff',
+  green: '#7df6ff',
   red: '#ff3f5f',
   textPrimary: '#f7fff0',
   textSecondary: 'rgba(219,255,191,0.54)',
-  border: 'rgba(166,255,63,0.14)',
+  border: 'rgba(125,246,255,0.14)',
 }
 
 export default function BetTracker({ bets, onUpdate, onClose }: {
@@ -37,13 +37,13 @@ export default function BetTracker({ bets, onUpdate, onClose }: {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(2,2,15,0.96)', backdropFilter: 'blur(24px)' }}>
-      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(166,255,63,0.015) 2px, rgba(166,255,63,0.015) 4px)' }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(125,246,255,0.015) 2px, rgba(125,246,255,0.015) 4px)' }} />
       <div className="flex-1 overflow-y-auto max-w-lg w-full mx-auto px-5 py-8" style={{ position: 'relative', zIndex: 1 }}>
         <button onClick={onClose} style={{ color: C.textSecondary, fontSize: 12, letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20 }}>← CLOSE</button>
         <h3 style={{ color: C.cyan, fontWeight: 900, fontSize: 20, letterSpacing: '-0.02em', textShadow: `0 0 20px ${C.cyan}55` }}>◈ BET TRACKER</h3>
 
         {settled.length > 0 && (
-          <div className="mt-4 mb-6 rounded-2xl p-4 grid grid-cols-3 text-center" style={{ background: 'rgba(166,255,63,0.04)', border: `1px solid ${C.border}` }}>
+          <div className="mt-4 mb-6 rounded-2xl p-4 grid grid-cols-3 text-center" style={{ background: 'rgba(125,246,255,0.04)', border: `1px solid ${C.border}` }}>
             {([['BETS', settled.length, C.textPrimary], ['STAKED', `$${totalStaked.toFixed(0)}`, C.textPrimary], ['P&L', `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, totalPnl >= 0 ? C.green : C.red]] as const).map(([label, val, color]) => (
               <div key={String(label)}>
                 <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</p>
@@ -66,7 +66,7 @@ export default function BetTracker({ bets, onUpdate, onClose }: {
                   <button onClick={() => remove(b.id)} style={{ color: C.textSecondary, fontSize: 12 }}>✕</button>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setResult(b.id, 'win')} className="flex-1 py-2 rounded-xl font-bold transition-all" style={{ background: 'rgba(166,255,63,0.1)', border: '1px solid rgba(166,255,63,0.3)', color: C.green, fontSize: 12 }}>WIN</button>
+                  <button onClick={() => setResult(b.id, 'win')} className="flex-1 py-2 rounded-xl font-bold transition-all" style={{ background: 'rgba(125,246,255,0.1)', border: '1px solid rgba(125,246,255,0.3)', color: C.green, fontSize: 12 }}>WIN</button>
                   <button onClick={() => setResult(b.id, 'loss')} className="flex-1 py-2 rounded-xl font-bold transition-all" style={{ background: 'rgba(255,68,102,0.1)', border: '1px solid rgba(255,68,102,0.3)', color: C.red, fontSize: 12 }}>LOSS</button>
                 </div>
               </div>

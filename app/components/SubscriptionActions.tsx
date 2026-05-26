@@ -27,10 +27,10 @@ export default function SubscriptionActions({ mode = 'checkout' }: { mode?: 'che
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       <button onClick={go} disabled={loading} style={{
-        width: '100%', padding: '16px', borderRadius: 18, border: '1px solid rgba(166,255,63,0.52)',
-        background: 'linear-gradient(135deg, rgba(166,255,63,0.95), rgba(197,255,93,0.78))', color: '#071005',
+        width: '100%', padding: '16px', borderRadius: 18, border: '1px solid rgba(125,246,255,0.52)',
+        background: 'linear-gradient(135deg, rgba(125,246,255,0.95), rgba(197,255,93,0.78))', color: '#071005',
         fontSize: 13, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: loading ? 'wait' : 'pointer',
-        boxShadow: '0 0 28px rgba(166,255,63,0.2)',
+        boxShadow: '0 0 28px rgba(125,246,255,0.2)',
       }}>
         {loading ? 'Opening Stripe…' : mode === 'portal' ? 'Manage Subscription' : 'Subscribe — $25 / Month'}
       </button>

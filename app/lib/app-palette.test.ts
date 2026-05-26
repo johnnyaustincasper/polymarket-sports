@@ -2,16 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { appColorContract, appPalette } from './app-palette'
 
 describe('app palette', () => {
-  it('uses soft cyan/teal as the default app accent', () => {
-    expect(appColorContract.defaultAccent).toBe('cyan-teal')
-    expect(appPalette.primary).toBe('#00d4ff')
-    expect(appPalette.primaryBright).toBe('#00e8f8')
-    expect(appPalette.primaryBorder).toContain('0,212,255')
+  it('uses lighter cyan as the whole-app default accent', () => {
+    expect(appColorContract.defaultAccent).toBe('light-cyan')
+    expect(appColorContract.wholeAppCyan).toBe(true)
+    expect(appPalette.primary).toBe('#7df6ff')
+    expect(appPalette.primaryBright).toBe('#b8fbff')
+    expect(appPalette.primaryBorder).toContain('125,246,255')
   })
 
-  it('keeps lime as a secondary power accent instead of the whole app default', () => {
-    expect(appColorContract.keepsLimeAsPowerAccent).toBe(true)
-    expect(appPalette.power).toBe('#a6ff3f')
-    expect(appPalette.primary).not.toBe(appPalette.power)
+  it('converts former power accents to the same lighter cyan family', () => {
+    expect(appPalette.power).toBe('#7df6ff')
+    expect(appPalette.powerSoft).toContain('125,246,255')
+    expect(appPalette.powerBorder).toContain('125,246,255')
   })
 })

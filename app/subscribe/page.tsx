@@ -32,13 +32,13 @@ function SubscribeShell({ title, subtitle, email }: { title: string; subtitle: s
 
   return (
     <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#030502', color: '#f7fff0', padding: 18, fontFamily: 'system-ui, -apple-system, sans-serif', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'fixed', inset: 0, backgroundImage: 'linear-gradient(rgba(166,255,63,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(166,255,63,0.04) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
-      <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(ellipse 60% 60% at 50% 35%, rgba(166,255,63,0.15), transparent 72%)' }} />
-      <section style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 520, borderRadius: 34, border: '1px solid rgba(166,255,63,0.24)', background: 'linear-gradient(135deg, rgba(8,12,6,0.98), rgba(0,0,0,0.92))', boxShadow: '0 0 70px rgba(166,255,63,0.12), 0 24px 90px rgba(0,0,0,0.82)', padding: 30 }}>
-        <p style={{ color: '#a6ff3f', fontWeight: 950, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', margin: 0 }}>Premium Required</p>
+      <div style={{ position: 'fixed', inset: 0, backgroundImage: 'linear-gradient(rgba(125,246,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(125,246,255,0.04) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+      <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(ellipse 60% 60% at 50% 35%, rgba(125,246,255,0.15), transparent 72%)' }} />
+      <section style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 520, borderRadius: 34, border: '1px solid rgba(125,246,255,0.24)', background: 'linear-gradient(135deg, rgba(8,12,6,0.98), rgba(0,0,0,0.92))', boxShadow: '0 0 70px rgba(125,246,255,0.12), 0 24px 90px rgba(0,0,0,0.82)', padding: 30 }}>
+        <p style={{ color: '#7df6ff', fontWeight: 950, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', margin: 0 }}>Premium Required</p>
         <h1 style={{ margin: '10px 0 8px', fontSize: 36, letterSpacing: '-0.05em' }}>{title}</h1>
         <p style={{ margin: '0 0 22px', color: 'rgba(226,255,204,0.62)', fontSize: 15, lineHeight: 1.5 }}>{subtitle}</p>
-        <div style={{ border: '1px solid rgba(166,255,63,0.18)', borderRadius: 24, padding: 20, background: 'rgba(166,255,63,0.055)', marginBottom: 18 }}>
+        <div style={{ border: '1px solid rgba(125,246,255,0.18)', borderRadius: 24, padding: 20, background: 'rgba(125,246,255,0.055)', marginBottom: 18 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <strong style={{ fontSize: 42, letterSpacing: '-0.06em' }}>$25</strong>
             <span style={{ color: 'rgba(226,255,204,0.58)', fontWeight: 800 }}>/ month</span>

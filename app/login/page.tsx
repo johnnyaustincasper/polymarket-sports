@@ -49,9 +49,9 @@ function GuestButton() {
   return (
     <div style={{ width: '100%', display: 'grid', gap: 8, marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ height: 1, flex: 1, background: 'rgba(166,255,63,0.14)' }} />
+        <span style={{ height: 1, flex: 1, background: 'rgba(125,246,255,0.14)' }} />
         <span style={{ color: 'rgba(226,255,204,0.48)', fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Testing access</span>
-        <span style={{ height: 1, flex: 1, background: 'rgba(166,255,63,0.14)' }} />
+        <span style={{ height: 1, flex: 1, background: 'rgba(125,246,255,0.14)' }} />
       </div>
       <button type="button" onClick={continueAsGuest} disabled={loading} style={guestButton(loading)}>{loading ? 'Opening…' : 'Continue as Guest'}</button>
       {error && <p style={{ color: '#ff4466', fontSize: 11, textAlign: 'center', fontWeight: 800 }}>{error}</p>}
@@ -116,16 +116,16 @@ function LegacyLogin() {
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '15px 16px', borderRadius: 16, fontSize: 15,
-  background: 'rgba(166,255,63,0.055)', border: '1px solid rgba(166,255,63,0.22)',
-  color: '#eaffd6', outline: 'none', boxSizing: 'border-box', caretColor: '#a6ff3f',
+  background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.22)',
+  color: '#eaffd6', outline: 'none', boxSizing: 'border-box', caretColor: '#7df6ff',
 }
 
 function tabStyle(active: boolean): React.CSSProperties {
   return {
     padding: '12px 10px', borderRadius: 15, cursor: 'pointer',
-    border: `1px solid ${active ? 'rgba(166,255,63,0.48)' : 'rgba(255,255,255,0.08)'}`,
-    background: active ? 'rgba(166,255,63,0.13)' : 'rgba(255,255,255,0.035)',
-    color: active ? '#a6ff3f' : 'rgba(226,255,204,0.55)', fontWeight: 900, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
+    border: `1px solid ${active ? 'rgba(125,246,255,0.48)' : 'rgba(255,255,255,0.08)'}`,
+    background: active ? 'rgba(125,246,255,0.13)' : 'rgba(255,255,255,0.035)',
+    color: active ? '#7df6ff' : 'rgba(226,255,204,0.55)', fontWeight: 900, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
   }
 }
 
@@ -133,9 +133,9 @@ function primaryButton(disabled: boolean): React.CSSProperties {
   return {
     width: '100%', padding: '15px', borderRadius: 17, fontSize: 12, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase',
     cursor: disabled ? 'not-allowed' : 'pointer',
-    background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(166,255,63,0.26), rgba(166,255,63,0.13))',
-    border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(166,255,63,0.48)'}`,
-    color: disabled ? 'rgba(226,255,204,0.3)' : '#a6ff3f', boxShadow: !disabled ? '0 0 26px rgba(166,255,63,0.18)' : 'none',
+    background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(125,246,255,0.26), rgba(125,246,255,0.13))',
+    border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(125,246,255,0.48)'}`,
+    color: disabled ? 'rgba(226,255,204,0.3)' : '#7df6ff', boxShadow: !disabled ? '0 0 26px rgba(125,246,255,0.18)' : 'none',
   }
 }
 
@@ -143,8 +143,8 @@ function guestButton(disabled: boolean): React.CSSProperties {
   return {
     width: '100%', padding: '14px 15px', borderRadius: 17, fontSize: 12, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase',
     cursor: disabled ? 'not-allowed' : 'pointer',
-    background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(255,255,255,0.075), rgba(166,255,63,0.08))',
-    border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(166,255,63,0.30)'}`,
+    background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(255,255,255,0.075), rgba(125,246,255,0.08))',
+    border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(125,246,255,0.30)'}`,
     color: disabled ? 'rgba(226,255,204,0.3)' : '#f7fff0',
     boxShadow: !disabled ? 'inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
   }
@@ -152,9 +152,9 @@ function guestButton(disabled: boolean): React.CSSProperties {
 
 const clerkAppearance = {
   variables: {
-    colorPrimary: '#a6ff3f',
+    colorPrimary: '#7df6ff',
     colorBackground: '#050805',
-    colorInputBackground: 'rgba(166,255,63,0.055)',
+    colorInputBackground: 'rgba(125,246,255,0.055)',
     colorInputText: '#f7fff0',
     colorText: '#f7fff0',
     colorTextSecondary: 'rgba(226,255,204,0.62)',
@@ -164,8 +164,8 @@ const clerkAppearance = {
     card: { background: 'transparent', boxShadow: 'none', border: 'none', width: '100%' },
     headerTitle: { display: 'none' },
     headerSubtitle: { display: 'none' },
-    socialButtonsBlockButton: { borderColor: 'rgba(166,255,63,0.22)', color: '#f7fff0' },
+    socialButtonsBlockButton: { borderColor: 'rgba(125,246,255,0.22)', color: '#f7fff0' },
     formButtonPrimary: { color: '#051005', fontWeight: 900 },
-    footerActionLink: { color: '#a6ff3f' },
+    footerActionLink: { color: '#7df6ff' },
   },
 } as const

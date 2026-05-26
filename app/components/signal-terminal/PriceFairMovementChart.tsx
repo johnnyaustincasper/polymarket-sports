@@ -4,7 +4,7 @@ import { type CSSProperties, useId } from 'react'
 import type { SignalMovementPoint } from './types'
 
 const C = {
-  green: '#a6ff3f',
+  green: '#7df6ff',
   amber: '#ffd166',
   red: '#ff4d6d',
   cyan: '#8df7ff',
@@ -12,7 +12,7 @@ const C = {
   muted: 'rgba(244,255,232,0.62)',
   faint: 'rgba(244,255,232,0.36)',
   border: 'rgba(255,255,255,0.10)',
-  borderHot: 'rgba(166,255,63,0.34)',
+  borderHot: 'rgba(125,246,255,0.34)',
 }
 
 export interface PriceFairMovementChartProps {
@@ -107,7 +107,7 @@ export default function PriceFairMovementChart({
       </div>
 
       {normalized.length < 2 ? (
-        <div style={{ height: chartHeight, borderRadius: 12, display: 'grid', placeItems: 'center', color: C.faint, fontSize: 10, fontWeight: 800, background: 'linear-gradient(135deg, rgba(166,255,63,0.045), rgba(255,255,255,0.025))', border: '1px dashed rgba(166,255,63,0.18)' }}>
+        <div style={{ height: chartHeight, borderRadius: 12, display: 'grid', placeItems: 'center', color: C.faint, fontSize: 10, fontWeight: 800, background: 'linear-gradient(135deg, rgba(125,246,255,0.045), rgba(255,255,255,0.025))', border: '1px dashed rgba(125,246,255,0.18)' }}>
           {emptyLabel}
         </div>
       ) : (
@@ -118,7 +118,7 @@ export default function PriceFairMovementChart({
               <stop offset="1" stopColor={C.amber} />
             </linearGradient>
             <linearGradient id={fairGradientId} x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0" stopColor="rgba(166,255,63,0.30)" />
+              <stop offset="0" stopColor="rgba(125,246,255,0.30)" />
               <stop offset="1" stopColor={C.green} />
             </linearGradient>
           </defs>

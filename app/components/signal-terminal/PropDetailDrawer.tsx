@@ -8,7 +8,7 @@ import SportsbookConsensusPanel from './SportsbookConsensusPanel'
 import type { PropDetailDrawerProps } from './types'
 
 const C = {
-  green: '#a6ff3f',
+  green: '#7df6ff',
   amber: '#ffd166',
   cyan: '#8df7ff',
   text: '#f4ffe8',
@@ -43,7 +43,7 @@ export default function PropDetailDrawer(props: PropDetailDrawerProps) {
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
-      <div style={{ borderRadius: 18, padding: 1, background: 'linear-gradient(135deg, rgba(141,247,255,0.36), rgba(166,255,63,0.24), rgba(255,255,255,0.08))' }}>
+      <div style={{ borderRadius: 18, padding: 1, background: 'linear-gradient(135deg, rgba(141,247,255,0.36), rgba(125,246,255,0.24), rgba(255,255,255,0.08))' }}>
         <div style={{ borderRadius: 17, padding: 13, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: `1px solid ${C.border}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0 }}>

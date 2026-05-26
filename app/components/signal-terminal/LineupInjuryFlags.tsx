@@ -3,7 +3,7 @@
 import type { LineupInjuryFlagItem } from './types'
 
 const C = {
-  green: '#a6ff3f',
+  green: '#7df6ff',
   amber: '#ffd166',
   red: '#ff4d6d',
   text: '#f4ffe8',
@@ -52,7 +52,7 @@ export default function LineupInjuryFlags({
             const color = colorFor(flag.severity)
             const key = flag.id ?? `${flag.team ?? 'team'}-${flag.player ?? 'flag'}-${index}`
             return (
-              <div key={key} style={{ borderRadius: 11, padding: compact ? '7px 8px' : '8px 9px', background: flag.severity === 'danger' ? 'rgba(255,77,109,0.08)' : flag.severity === 'watch' ? 'rgba(255,209,102,0.07)' : 'rgba(166,255,63,0.055)', border: `1px solid ${flag.severity === 'danger' ? 'rgba(255,77,109,0.22)' : 'rgba(166,255,63,0.13)'}` }}>
+              <div key={key} style={{ borderRadius: 11, padding: compact ? '7px 8px' : '8px 9px', background: flag.severity === 'danger' ? 'rgba(255,77,109,0.08)' : flag.severity === 'watch' ? 'rgba(255,209,102,0.07)' : 'rgba(125,246,255,0.055)', border: `1px solid ${flag.severity === 'danger' ? 'rgba(255,77,109,0.22)' : 'rgba(125,246,255,0.13)'}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
                   <div style={{ minWidth: 0, color, fontSize: compact ? 9 : 10, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{labelFor(flag)}</div>
                   <div style={{ color: C.muted, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', flexShrink: 0 }}>{flag.team || flag.impact || 'note'}</div>

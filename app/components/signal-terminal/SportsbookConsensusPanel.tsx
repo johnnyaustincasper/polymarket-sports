@@ -3,7 +3,7 @@
 import type { SportsbookConsensus, SportsbookConsensusBook } from './types'
 
 const C = {
-  green: '#a6ff3f',
+  green: '#7df6ff',
   amber: '#ffd166',
   red: '#ff4d6d',
   cyan: '#8df7ff',
@@ -11,7 +11,7 @@ const C = {
   muted: 'rgba(244,255,232,0.62)',
   faint: 'rgba(244,255,232,0.36)',
   border: 'rgba(255,255,255,0.10)',
-  borderHot: 'rgba(166,255,63,0.30)',
+  borderHot: 'rgba(125,246,255,0.30)',
 }
 
 export interface SportsbookConsensusPanelProps {
@@ -82,7 +82,7 @@ export default function SportsbookConsensusPanel({
           {rows.slice(0, 6).map((book) => {
             const isBest = consensus?.bestBook && book.name.toLowerCase() === consensus.bestBook.toLowerCase()
             return (
-              <div key={book.name} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 52px 60px', gap: 8, alignItems: 'center', borderRadius: 10, padding: '7px 8px', background: isBest ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.03)', border: `1px solid ${isBest ? C.borderHot : C.border}` }}>
+              <div key={book.name} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 52px 60px', gap: 8, alignItems: 'center', borderRadius: 10, padding: '7px 8px', background: isBest ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.03)', border: `1px solid ${isBest ? C.borderHot : C.border}` }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ color: isBest ? C.green : C.text, fontSize: 10, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book.name}</div>
                   <div style={{ color: C.faint, fontSize: 8, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book.lean || book.lastUpdated || 'book feed'}</div>

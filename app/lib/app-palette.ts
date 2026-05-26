@@ -1,13 +1,13 @@
 export const appPalette = {
-  primary: '#00d4ff',
-  primaryBright: '#00e8f8',
-  primarySoft: 'rgba(0,212,255,0.16)',
-  primaryBorder: 'rgba(0,212,255,0.42)',
-  primaryBorderStrong: 'rgba(0,212,255,0.56)',
-  primaryGlow: 'rgba(0,212,255,0.20)',
-  power: '#a6ff3f',
-  powerSoft: 'rgba(166,255,63,0.14)',
-  powerBorder: 'rgba(166,255,63,0.40)',
+  primary: '#7df6ff',
+  primaryBright: '#b8fbff',
+  primarySoft: 'rgba(125,246,255,0.16)',
+  primaryBorder: 'rgba(125,246,255,0.42)',
+  primaryBorderStrong: 'rgba(125,246,255,0.56)',
+  primaryGlow: 'rgba(125,246,255,0.20)',
+  power: '#7df6ff',
+  powerSoft: 'rgba(125,246,255,0.14)',
+  powerBorder: 'rgba(125,246,255,0.40)',
   warning: '#f8d94a',
   danger: '#ff3f5f',
   background: '#03070a',
@@ -17,8 +17,8 @@ export const appPalette = {
 } as const
 
 export const appColorContract = {
-  defaultAccent: 'cyan-teal',
+  defaultAccent: 'light-cyan',
   primaryHex: appPalette.primary,
-  keepsLimeAsPowerAccent: true,
+  wholeAppCyan: true,
   softOnDarkBackground: true,
 } as const

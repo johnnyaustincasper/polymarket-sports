@@ -3,14 +3,14 @@
 import type { SignalTerminalSignal } from './types'
 
 const C = {
-  green: '#a6ff3f',
+  green: '#7df6ff',
   amber: '#ffd166',
   red: '#ff4d6d',
   text: '#f4ffe8',
   muted: 'rgba(244,255,232,0.62)',
   faint: 'rgba(244,255,232,0.36)',
   border: 'rgba(255,255,255,0.10)',
-  borderHot: 'rgba(166,255,63,0.34)',
+  borderHot: 'rgba(125,246,255,0.34)',
 }
 
 export interface WatchlistControlsProps {
@@ -50,7 +50,7 @@ function ControlButton({
         borderRadius: 999,
         padding: '8px 10px',
         border: `1px solid ${active ? C.borderHot : danger ? 'rgba(255,77,109,0.30)' : C.border}`,
-        background: active ? 'rgba(166,255,63,0.13)' : danger ? 'rgba(255,77,109,0.08)' : 'rgba(255,255,255,0.035)',
+        background: active ? 'rgba(125,246,255,0.13)' : danger ? 'rgba(255,77,109,0.08)' : 'rgba(255,255,255,0.035)',
         color: disabled ? C.faint : color,
         fontSize: 8,
         fontWeight: 950,

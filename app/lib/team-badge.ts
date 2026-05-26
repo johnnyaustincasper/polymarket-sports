@@ -12,7 +12,7 @@ export type TeamBadgeTone = {
 
 const TEAM_BADGE_TONE: TeamBadgeTone = {
   accent: appPalette.primaryBright,
-  background: 'linear-gradient(145deg, rgba(0,212,255,0.15), rgba(3,7,10,0.94))',
+  background: 'linear-gradient(145deg, rgba(125,246,255,0.15), rgba(3,7,10,0.94))',
   border: appPalette.primaryBorder,
   glow: `0 0 18px ${appPalette.primaryGlow}`,
 }

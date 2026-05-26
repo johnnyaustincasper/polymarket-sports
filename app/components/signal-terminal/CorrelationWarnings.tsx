@@ -4,7 +4,7 @@ import { detectCorrelationWarnings } from '../../lib/parlays/correlation'
 import type { CorrelationInputItem, CorrelationWarning } from '../../lib/parlays/correlation'
 
 const C = {
-  green: '#a6ff3f',
+  green: '#7df6ff',
   amber: '#ffd166',
   red: '#ff4d6d',
   cyan: '#8df7ff',

@@ -3,7 +3,7 @@
 import type { SignalDelta } from '../../lib/signals/delta-feed'
 
 const C = {
-  green: '#a6ff3f',
+  green: '#7df6ff',
   amber: '#ffd166',
   red: '#ff4d6d',
   cyan: '#8df7ff',
@@ -79,7 +79,7 @@ export default function ChangedSinceRefreshFeed({
                   textAlign: 'left',
                   borderRadius: 11,
                   padding: '8px 9px',
-                  border: `1px solid ${change.type === 'removed' ? 'rgba(255,77,109,0.20)' : 'rgba(166,255,63,0.14)'}`,
+                  border: `1px solid ${change.type === 'removed' ? 'rgba(255,77,109,0.20)' : 'rgba(125,246,255,0.14)'}`,
                   background: 'rgba(255,255,255,0.032)',
                   cursor: clickable ? 'pointer' : 'default',
                 }}

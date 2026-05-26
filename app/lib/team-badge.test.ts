@@ -17,10 +17,10 @@ describe('team badge logo replacement', () => {
   })
 
   it('uses the soft cyan app palette for team tones without official team colors', () => {
-    expect(getTeamBadgeTone('nba').accent).toBe('#00e8f8')
-    expect(getTeamBadgeTone('mlb').accent).toBe('#00e8f8')
-    expect(getTeamBadgeTone('nfl').accent).toBe('#00e8f8')
-    expect(getTeamBadgeTone('ufc').accent).toBe('#00e8f8')
+    expect(getTeamBadgeTone('nba').accent).toBe('#b8fbff')
+    expect(getTeamBadgeTone('mlb').accent).toBe('#b8fbff')
+    expect(getTeamBadgeTone('nfl').accent).toBe('#b8fbff')
+    expect(getTeamBadgeTone('ufc').accent).toBe('#b8fbff')
   })
 
   it('frames logo-free teams as compact league-card badges', () => {

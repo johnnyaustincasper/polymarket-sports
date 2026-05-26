@@ -364,8 +364,8 @@ const C = {
 
 const SURFACE = {
   panel: 'linear-gradient(145deg, rgba(4,14,17,0.96), rgba(3,7,10,0.94) 58%, rgba(6,24,28,0.9))',
-  panelSoft: 'linear-gradient(145deg, rgba(255,255,255,0.045), rgba(0,212,255,0.035))',
-  tactical: 'linear-gradient(135deg, rgba(0,212,255,0.18), rgba(255,255,255,0.08), rgba(3,7,10,0.2))',
+  panelSoft: 'linear-gradient(145deg, rgba(255,255,255,0.045), rgba(125,246,255,0.035))',
+  tactical: 'linear-gradient(135deg, rgba(125,246,255,0.18), rgba(255,255,255,0.08), rgba(3,7,10,0.2))',
   border: appPalette.primarySoft,
   borderStrong: appPalette.primaryBorder,
   shadow: '0 18px 60px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -456,12 +456,12 @@ const GLOBAL_STYLES = `
   }
   @keyframes liveBorderPulse {
     0%, 100% {
-      box-shadow: 0 0 24px rgba(166,255,63,0.25), 0 4px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
-      border-color: rgba(166,255,63,0.35);
+      box-shadow: 0 0 24px rgba(125,246,255,0.25), 0 4px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
+      border-color: rgba(125,246,255,0.35);
     }
     50% {
-      box-shadow: 0 0 52px rgba(166,255,63,0.55), 0 8px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06);
-      border-color: rgba(166,255,63,0.75);
+      box-shadow: 0 0 52px rgba(125,246,255,0.55), 0 8px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06);
+      border-color: rgba(125,246,255,0.75);
     }
   }
   @keyframes liveDotPulse {
@@ -473,14 +473,14 @@ const GLOBAL_STYLES = `
     50% { color: #ff123f; opacity: 0.55; transform: scale(1.22); text-shadow: 0 0 12px rgba(255,68,102,1); }
   }
   @keyframes safePropThrob {
-    0%, 100% { transform: scale(1); border-color: rgba(166,255,63,0.58); box-shadow: 0 0 0 rgba(166,255,63,0), inset 0 1px 0 rgba(255,255,255,0.10); }
-    50% { transform: scale(1.045); border-color: rgba(166,255,63,0.98); box-shadow: 0 0 18px rgba(166,255,63,0.42), 0 0 34px rgba(166,255,63,0.16), inset 0 1px 0 rgba(255,255,255,0.16); }
+    0%, 100% { transform: scale(1); border-color: rgba(125,246,255,0.58); box-shadow: 0 0 0 rgba(125,246,255,0), inset 0 1px 0 rgba(255,255,255,0.10); }
+    50% { transform: scale(1.045); border-color: rgba(125,246,255,0.98); box-shadow: 0 0 18px rgba(125,246,255,0.42), 0 0 34px rgba(125,246,255,0.16), inset 0 1px 0 rgba(255,255,255,0.16); }
   }
   @keyframes dominoFadeIn {
-    0% { opacity: 0; transform: translateY(-34px) scale(0.965); filter: blur(12px); box-shadow: 0 0 0 rgba(166,255,63,0); }
-    45% { opacity: 1; transform: translateY(7px) scale(1.012); filter: blur(2px); box-shadow: 0 0 34px rgba(166,255,63,0.20); }
+    0% { opacity: 0; transform: translateY(-34px) scale(0.965); filter: blur(12px); box-shadow: 0 0 0 rgba(125,246,255,0); }
+    45% { opacity: 1; transform: translateY(7px) scale(1.012); filter: blur(2px); box-shadow: 0 0 34px rgba(125,246,255,0.20); }
     72% { transform: translateY(-2px) scale(1.003); filter: blur(0); }
-    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); box-shadow: 0 0 0 rgba(166,255,63,0); }
+    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); box-shadow: 0 0 0 rgba(125,246,255,0); }
   }
   @keyframes driftFadeOut {
     0%   { opacity: 1; }
@@ -488,7 +488,7 @@ const GLOBAL_STYLES = `
     100% { opacity: 0; }
   }
   @keyframes flashGreen {
-    0%   { background: rgba(166,255,63,0.35); }
+    0%   { background: rgba(125,246,255,0.35); }
     100% { background: transparent; }
   }
   @keyframes flashRed {
@@ -520,8 +520,8 @@ const GLOBAL_STYLES = `
     100% { transform: translateX(140%); }
   }
   @keyframes loadBoardPulse {
-    0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 14px 38px rgba(0,0,0,0.42), 0 0 12px rgba(166,255,63,0.16); filter: brightness(1); }
-    50% { transform: translateY(-2px) scale(1.006); box-shadow: 0 20px 54px rgba(0,0,0,0.52), 0 0 24px rgba(166,255,63,0.26); filter: brightness(1.04); }
+    0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 14px 38px rgba(0,0,0,0.42), 0 0 12px rgba(125,246,255,0.16); filter: brightness(1); }
+    50% { transform: translateY(-2px) scale(1.006); box-shadow: 0 20px 54px rgba(0,0,0,0.52), 0 0 24px rgba(125,246,255,0.26); filter: brightness(1.04); }
   }
   @keyframes loadBoardSweep {
     0% { --load-board-angle: 0deg; }
@@ -531,7 +531,7 @@ const GLOBAL_STYLES = `
     --load-board-angle: 0deg;
     position: relative;
     transform: translateZ(0);
-    background: conic-gradient(from var(--load-board-angle), rgba(166,255,63,0.18) 0deg, rgba(166,255,63,0.95) 24deg, rgba(168,240,255,0.52) 40deg, rgba(166,255,63,0.22) 66deg, rgba(166,255,63,0.10) 124deg, rgba(166,255,63,0.18) 360deg) !important;
+    background: conic-gradient(from var(--load-board-angle), rgba(125,246,255,0.18) 0deg, rgba(125,246,255,0.95) 24deg, rgba(168,240,255,0.52) 40deg, rgba(125,246,255,0.22) 66deg, rgba(125,246,255,0.10) 124deg, rgba(125,246,255,0.18) 360deg) !important;
     animation: loadBoardPulse 2.2s ease-in-out infinite, loadBoardSweep 2.45s linear infinite;
     transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
   }
@@ -657,7 +657,7 @@ function OddsChip({ top, bottom, hot, href, onClick, delta, flashDir }: {
   delta?: number | null
   flashDir?: 'up' | 'down' | null
 }) {
-  const bg = hot ? 'linear-gradient(180deg, rgba(166,255,63,0.13), rgba(166,255,63,0.035))' : 'rgba(255,255,255,0.025)'
+  const bg = hot ? 'linear-gradient(180deg, rgba(125,246,255,0.13), rgba(125,246,255,0.035))' : 'rgba(255,255,255,0.025)'
   const border = hot ? C.borderHot : SURFACE.border
   const textColor = hot ? C.cyan : 'rgba(247,255,240,0.82)'
   const glow = hot ? `0 0 22px ${C.cyan}35, inset 0 1px 0 rgba(255,255,255,0.06)` : 'inset 0 1px 0 rgba(255,255,255,0.035)'
@@ -719,7 +719,7 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
   }
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(2,2,15,0.85)', backdropFilter: 'blur(12px)' }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-t-3xl p-6" style={{ background: 'rgba(8,12,5,0.98)', border: `1px solid ${C.border}`, borderBottom: 'none', boxShadow: `0 -20px 60px rgba(166,255,63,0.08)` }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-t-3xl p-6" style={{ background: 'rgba(8,12,5,0.98)', border: `1px solid ${C.border}`, borderBottom: 'none', boxShadow: `0 -20px 60px rgba(125,246,255,0.08)` }} onClick={e => e.stopPropagation()}>
         <div className="w-8 h-0.5 rounded-full mx-auto mb-5" style={{ background: C.border }} />
         <p style={{ color: C.textSecondary, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
         <h3 style={{ color: C.textPrimary, fontWeight: 800, fontSize: 18, marginTop: 4 }}>{betLabel}</h3>
@@ -729,7 +729,7 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
           <input
             type="number" value={stake} onChange={e => setStake(e.target.value)}
             className="w-full mt-2 text-center text-2xl font-bold focus:outline-none"
-            style={{ background: 'rgba(166,255,63,0.05)', border: `1px solid ${C.border}`, borderRadius: 16, padding: '12px', color: C.cyan, caretColor: C.cyan }}
+            style={{ background: 'rgba(125,246,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 16, padding: '12px', color: C.cyan, caretColor: C.cyan }}
           />
         </div>
         <div className="flex justify-between mb-6" style={{ fontSize: 12, color: C.textSecondary }}>
@@ -738,7 +738,7 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
         </div>
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-3 rounded-2xl font-semibold transition-all" style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, color: C.textSecondary }}>Cancel</button>
-          <button onClick={save} className="flex-1 py-3 rounded-2xl font-bold transition-all" style={{ background: `linear-gradient(135deg, rgba(166,255,63,0.2), rgba(231,238,226,0.2))`, border: `1px solid ${C.borderHot}`, color: C.cyan, boxShadow: `0 0 20px ${C.cyan}22` }}>Log Bet</button>
+          <button onClick={save} className="flex-1 py-3 rounded-2xl font-bold transition-all" style={{ background: `linear-gradient(135deg, rgba(125,246,255,0.2), rgba(231,238,226,0.2))`, border: `1px solid ${C.borderHot}`, color: C.cyan, boxShadow: `0 0 20px ${C.cyan}22` }}>Log Bet</button>
         </div>
       </div>
     </div>
@@ -767,28 +767,28 @@ function AnalyzingLoader({ title = 'Analyzing matchup', subtitle = 'XAI is scann
   return (
     <div style={{
       maxWidth: 900, margin: '0 auto', borderRadius: 22, padding: '26px 22px',
-      background: 'linear-gradient(145deg, rgba(166,255,63,0.075), rgba(3,5,0,0.96))',
+      background: 'linear-gradient(145deg, rgba(125,246,255,0.075), rgba(3,5,0,0.96))',
       border: `1px solid ${C.borderHot}`,
-      boxShadow: '0 0 46px rgba(166,255,63,0.16), 0 18px 60px rgba(0,0,0,0.52)',
+      boxShadow: '0 0 46px rgba(125,246,255,0.16), 0 18px 60px rgba(0,0,0,0.52)',
       overflow: 'hidden', position: 'relative',
     }}>
-      <div style={{ position: 'absolute', inset: 0, opacity: 0.42, background: 'radial-gradient(circle at 50% 0%, rgba(166,255,63,0.22), transparent 46%)' }} />
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.42, background: 'radial-gradient(circle at 50% 0%, rgba(125,246,255,0.22), transparent 46%)' }} />
       <div style={{
         position: 'absolute', left: 0, right: 0, top: 0, height: 2,
-        background: 'linear-gradient(90deg, transparent, rgba(166,255,63,0.95), transparent)',
+        background: 'linear-gradient(90deg, transparent, rgba(125,246,255,0.95), transparent)',
         animation: 'aiAnalyzeSweep 1.15s linear infinite',
       }} />
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center' }}>
         <div style={{ position: 'relative', width: 74, height: 74, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{
             position: 'absolute', inset: 0, borderRadius: '50%',
-            border: '2px solid rgba(166,255,63,0.18)', borderTopColor: C.green, borderRightColor: 'rgba(166,255,63,0.65)',
+            border: '2px solid rgba(125,246,255,0.18)', borderTopColor: C.green, borderRightColor: 'rgba(125,246,255,0.65)',
             animation: 'aiAnalyzeOrbit 0.82s linear infinite',
-            boxShadow: '0 0 24px rgba(166,255,63,0.22)',
+            boxShadow: '0 0 24px rgba(125,246,255,0.22)',
           }} />
           <div style={{
             width: 42, height: 42, borderRadius: 14,
-            background: 'rgba(166,255,63,0.12)', border: '1px solid rgba(166,255,63,0.38)',
+            background: 'rgba(125,246,255,0.12)', border: '1px solid rgba(125,246,255,0.38)',
             color: C.green, fontSize: 20, fontWeight: 950, display: 'flex', alignItems: 'center', justifyContent: 'center',
             animation: 'aiAnalyzePulse 1.05s ease-in-out infinite',
           }}>◈</div>
@@ -802,8 +802,8 @@ function AnalyzingLoader({ title = 'Analyzing matchup', subtitle = 'XAI is scann
           {['Market signal', 'Team context', 'Edge verdict'].map((label, i) => (
             <div key={label} style={{ display: 'grid', gridTemplateColumns: '110px 1fr', alignItems: 'center', gap: 10 }}>
               <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', textAlign: 'right' }}>{label}</span>
-              <span style={{ height: 8, borderRadius: 999, background: 'rgba(166,255,63,0.08)', overflow: 'hidden', border: '1px solid rgba(166,255,63,0.12)' }}>
-                <span style={{ display: 'block', width: `${55 + i * 14}%`, height: '100%', borderRadius: 999, background: 'linear-gradient(90deg, rgba(166,255,63,0.18), rgba(166,255,63,0.86))', animation: `aiAnalyzePulse ${0.9 + i * 0.18}s ease-in-out infinite` }} />
+              <span style={{ height: 8, borderRadius: 999, background: 'rgba(125,246,255,0.08)', overflow: 'hidden', border: '1px solid rgba(125,246,255,0.12)' }}>
+                <span style={{ display: 'block', width: `${55 + i * 14}%`, height: '100%', borderRadius: 999, background: 'linear-gradient(90deg, rgba(125,246,255,0.18), rgba(125,246,255,0.86))', animation: `aiAnalyzePulse ${0.9 + i * 0.18}s ease-in-out infinite` }} />
               </span>
             </div>
           ))}
@@ -836,13 +836,13 @@ function AnalysisPanel({ game, onClose, onDone }: { game: Game; onClose: () => v
   const sections = analysis ? parseAnalysis(analysis) : []
 
   return (
-    <div style={{ width: '100%', background: 'rgba(2,2,15,0.98)', borderTop: `1px solid rgba(166,255,63,0.2)`, borderBottom: `1px solid rgba(166,255,63,0.2)`, padding: '16px 20px 24px' }}>
+    <div style={{ width: '100%', background: 'rgba(2,2,15,0.98)', borderTop: `1px solid rgba(125,246,255,0.2)`, borderBottom: `1px solid rgba(125,246,255,0.2)`, padding: '16px 20px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, maxWidth: 900, margin: '0 auto 16px' }}>
         <div>
           <p style={{ color: C.textSecondary, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' as const }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</p>
           <h3 style={{ color: C.cyan, fontWeight: 900, fontSize: 16, letterSpacing: '-0.02em', textShadow: `0 0 20px ${C.cyan}55` }}>◈ INTELLIGENCE BRIEF</h3>
         </div>
-        <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(166,255,63,0.07)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
+        <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(125,246,255,0.07)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>×</button>
       </div>
 
       {loading ? (
@@ -855,7 +855,7 @@ function AnalysisPanel({ game, onClose, onDone }: { game: Game; onClose: () => v
             return (
               <div key={i} style={{
                 borderRadius: 14, overflow: 'hidden',
-                background: isPick ? 'rgba(166,255,63,0.06)' : isOpen ? 'rgba(231,238,226,0.06)' : 'rgba(255,255,255,0.02)',
+                background: isPick ? 'rgba(125,246,255,0.06)' : isOpen ? 'rgba(231,238,226,0.06)' : 'rgba(255,255,255,0.02)',
                 border: `1px solid ${isPick ? C.borderHot : isOpen ? 'rgba(231,238,226,0.3)' : C.border}`,
                 boxShadow: isPick ? `0 0 20px ${C.cyan}15` : 'none',
               }}>
@@ -929,11 +929,11 @@ function StreakPanel() {
               <p style={{ color: C.green, fontSize: 9, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>🔥 Hot Streaks ({hot.length})</p>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {hot.map(team => (
-                  <div key={team.abbr} style={{ flexShrink: 0, width: expanded === team.abbr ? 280 : 140, transition: 'width 0.3s ease', borderRadius: 16, background: 'rgba(166,255,63,0.06)', border: `1px solid rgba(166,255,63,0.25)`, padding: '12px', cursor: 'pointer' }}
+                  <div key={team.abbr} style={{ flexShrink: 0, width: expanded === team.abbr ? 280 : 140, transition: 'width 0.3s ease', borderRadius: 16, background: 'rgba(125,246,255,0.06)', border: `1px solid rgba(125,246,255,0.25)`, padding: '12px', cursor: 'pointer' }}
                     onClick={() => setExpanded(prev => prev === team.abbr ? null : team.abbr)}>
                     <div className="flex items-center justify-between">
                       <span style={{ color: C.textPrimary, fontWeight: 800, fontSize: 13 }}>{team.abbr}</span>
-                      <span style={{ background: 'rgba(166,255,63,0.15)', border: '1px solid rgba(166,255,63,0.4)', borderRadius: 8, padding: '2px 6px', color: C.green, fontSize: 11, fontWeight: 800 }}>{team.streakLabel}</span>
+                      <span style={{ background: 'rgba(125,246,255,0.15)', border: '1px solid rgba(125,246,255,0.4)', borderRadius: 8, padding: '2px 6px', color: C.green, fontSize: 11, fontWeight: 800 }}>{team.streakLabel}</span>
                     </div>
                     <div className="flex gap-1 mt-2">
                       {[...team.lastGames].reverse().map((r, i) => (
@@ -1023,7 +1023,7 @@ function BettingTrendsPanel() {
           {teams.map(team => {
             const trendColor = team.scoringTrend === 'over' ? C.green : team.scoringTrend === 'under' ? C.red : C.gold
             return (
-              <div key={team.team} style={{ borderRadius: 16, padding: 14, background: 'rgba(166,255,63,0.035)', border: '1px solid rgba(166,255,63,0.16)' }}>
+              <div key={team.team} style={{ borderRadius: 16, padding: 14, background: 'rgba(125,246,255,0.035)', border: '1px solid rgba(125,246,255,0.16)' }}>
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div>
                     <p style={{ color: C.textPrimary, fontSize: 14, fontWeight: 900 }}>{team.team}</p>
@@ -1056,7 +1056,7 @@ function SectionHeader({ icon, label }: { icon: string; label: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
       <span style={{ fontSize: 12 }}>{icon}</span>
-      <span style={{ color: 'rgba(166,255,63,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' as const, fontVariant: 'small-caps' }}>{label}</span>
+      <span style={{ color: 'rgba(125,246,255,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' as const, fontVariant: 'small-caps' }}>{label}</span>
     </div>
   )
 }
@@ -1128,7 +1128,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
     <div style={{
       width: '100%',
       background: 'rgba(2,2,15,0.97)',
-      borderTop: '1px solid rgba(166,255,63,0.2)',
+      borderTop: '1px solid rgba(125,246,255,0.2)',
       padding: '20px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -1252,7 +1252,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
                             <span style={{ color: C.textSecondary, fontSize: 8, fontFamily: 'monospace', width: 16, textAlign: 'right', flexShrink: 0 }}>#{p.jersey}</span>
                             <span style={{ color: isOut ? 'rgba(255,68,102,0.55)' : C.textPrimary, fontSize: 11, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: isOut ? 'line-through' : 'none' }}>{p.name}</span>
-                            <span style={{ background: 'rgba(166,255,63,0.08)', border: `1px solid ${C.border}`, borderRadius: 4, padding: '1px 5px', color: C.cyan, fontSize: 8, fontWeight: 700, flexShrink: 0 }}>{p.position}</span>
+                            <span style={{ background: 'rgba(125,246,255,0.08)', border: `1px solid ${C.border}`, borderRadius: 4, padding: '1px 5px', color: C.cyan, fontSize: 8, fontWeight: 700, flexShrink: 0 }}>{p.position}</span>
                             {isOut && <span style={{ background: '#ff4466', borderRadius: 4, padding: '1px 5px', color: '#fff', fontSize: 8, fontWeight: 900, flexShrink: 0, minWidth: 14, textAlign: 'center' }}>O</span>}
                             {isQ && <span style={{ background: '#c8960c', borderRadius: 4, padding: '1px 5px', color: '#fff', fontSize: 8, fontWeight: 900, flexShrink: 0, minWidth: 14, textAlign: 'center' }}>Q</span>}
                           </div>
@@ -1288,7 +1288,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
                             <span style={{ color: C.textSecondary, fontSize: 8, fontFamily: 'monospace', width: 16, textAlign: 'right', flexShrink: 0 }}>{p.jersey && p.jersey !== '?' ? `#${p.jersey}` : '—'}</span>
                             <span style={{ color: p.warning ? C.gold : C.textPrimary, fontSize: 11, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>{p.name}</span>
-                            <span style={{ background: 'rgba(166,255,63,0.08)', border: `1px solid ${C.border}`, borderRadius: 4, padding: '1px 5px', color: C.cyan, fontSize: 8, fontWeight: 700, flexShrink: 0 }}>{p.position || '?'}</span>
+                            <span style={{ background: 'rgba(125,246,255,0.08)', border: `1px solid ${C.border}`, borderRadius: 4, padding: '1px 5px', color: C.cyan, fontSize: 8, fontWeight: 700, flexShrink: 0 }}>{p.position || '?'}</span>
                             <span style={{ color: p.fatigueFlag === 'high' ? C.red : p.fatigueFlag === 'moderate' ? C.gold : C.textSecondary, fontSize: 8, fontWeight: 900, flexShrink: 0 }}>{p.minutes < 0 ? 'DNP' : `${p.minutes}m`}</span>
                           </div>
                         )) : players.length === 0 ? (
@@ -1332,7 +1332,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                             <div key={i} style={{ borderRadius: 8, padding: '6px 7px', background: p.warning ? 'rgba(255,215,0,0.055)' : 'rgba(255,255,255,0.025)', border: `1px solid ${p.warning ? 'rgba(255,215,0,0.22)' : 'rgba(255,255,255,0.06)'}` }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{ color: p.restingStarter ? C.red : p.criticalFatigue ? C.gold : p.isStarter ? C.textPrimary : C.textSecondary, fontSize: 9, fontWeight: p.isStarter ? 800 : 500, width: 66, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
-                                <span style={{ background: p.isStarter ? 'rgba(166,255,63,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 4, padding: '1px 4px', color: p.isStarter ? C.green : C.textSecondary, fontSize: 7, fontWeight: 900, flexShrink: 0 }}>{role}</span>
+                                <span style={{ background: p.isStarter ? 'rgba(125,246,255,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${C.border}`, borderRadius: 4, padding: '1px 4px', color: p.isStarter ? C.green : C.textSecondary, fontSize: 7, fontWeight: 900, flexShrink: 0 }}>{role}</span>
                                 {isDnp ? (
                                   <span style={{ color: p.restingStarter ? C.red : C.textSecondary, fontSize: 8, fontWeight: p.restingStarter ? 800 : 400 }}>{p.restingStarter ? '⚠️ REST' : '💤 DNP'}</span>
                                 ) : (
@@ -1363,21 +1363,21 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
               <SectionHeader icon="🔄" label="Season Series + Arena" />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <p style={{ color: 'rgba(166,255,63,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>H2H Record</p>
+                  <p style={{ color: 'rgba(125,246,255,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>H2H Record</p>
                   <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 700 }}>{intel.h2h}</p>
                   {intel.h2hLastMeeting && (
                     <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>Last: {intel.h2hLastMeeting}</p>
                   )}
                   {intel.refs && intel.refs.length > 0 && (
                     <div style={{ marginTop: 10 }}>
-                      <p style={{ color: 'rgba(166,255,63,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 4 }}>🦺 Refs</p>
+                      <p style={{ color: 'rgba(125,246,255,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 4 }}>🦺 Refs</p>
                       <p style={{ color: C.textPrimary, fontSize: 10 }}>{intel.refs.join(', ')}</p>
                       <p style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>High-foul crew → O/U leans over</p>
                     </div>
                   )}
                 </div>
                 <div>
-                  <p style={{ color: 'rgba(166,255,63,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>🏟️ Arena</p>
+                  <p style={{ color: 'rgba(125,246,255,0.5)', fontSize: 9, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>🏟️ Arena</p>
                   <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 10, padding: '10px 12px', border: `1px solid ${C.border}` }}>
                     {venue ? (
                       <>
@@ -1447,7 +1447,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                     ['Executable asks', props.marketSummary.executableMatched ?? props.marketSummary.gameMatched],
                     ['Value-priced', props.marketSummary.playableMatched],
                   ].map(([label, value]) => (
-                    <span key={label} style={{ background: 'rgba(166,255,63,0.055)', border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 8px', color: label === 'Value-priced' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    <span key={label} style={{ background: 'rgba(125,246,255,0.055)', border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 8px', color: label === 'Value-priced' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                       {label}: <span style={{ color: C.textPrimary }}>{value}</span>
                     </span>
                   ))}
@@ -1473,7 +1473,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                           const logs = p.last12 || []
                           const lastGameMinutes = formatLastGameMinutes(p)
                           return (
-                            <div key={i} style={{ background: best?.quality === 'bet' ? 'rgba(166,255,63,0.055)' : 'rgba(255,255,255,0.02)', border: `1px solid ${best?.quality === 'bet' ? 'rgba(166,255,63,0.28)' : C.border}`, borderRadius: 12, padding: '11px 12px' }}>
+                            <div key={i} style={{ background: best?.quality === 'bet' ? 'rgba(125,246,255,0.055)' : 'rgba(255,255,255,0.02)', border: `1px solid ${best?.quality === 'bet' ? 'rgba(125,246,255,0.28)' : C.border}`, borderRadius: 12, padding: '11px 12px' }}>
                               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                                   {p.headshot && <img src={p.headshot} alt={p.player} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${C.border}` }} />}
@@ -1484,7 +1484,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                                   </div>
                                 </div>
                                 {best && (
-                                  <div style={{ borderRadius: 10, padding: '5px 8px', background: best.quality === 'bet' ? 'rgba(166,255,63,0.12)' : 'rgba(255,215,0,0.10)', border: `1px solid ${best.quality === 'bet' ? 'rgba(166,255,63,0.38)' : 'rgba(255,215,0,0.28)'}`, textAlign: 'right' }}>
+                                  <div style={{ borderRadius: 10, padding: '5px 8px', background: best.quality === 'bet' ? 'rgba(125,246,255,0.12)' : 'rgba(255,215,0,0.10)', border: `1px solid ${best.quality === 'bet' ? 'rgba(125,246,255,0.38)' : 'rgba(255,215,0,0.28)'}`, textAlign: 'right' }}>
                                     <div style={{ color: best.quality === 'bet' ? C.green : C.gold, fontSize: 11, fontWeight: 950 }}>{best.label}</div>
                                     <div style={{ color: C.textSecondary, fontSize: 8 }}>{best.hits}/{best.games} hit · C{best.confidence}</div>
                                     <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900 }}>Kalshi ask {best.kalshi?.yesAsk ?? '—'}¢ · max {best.maxYesPrice}¢</div>
@@ -1496,7 +1496,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                               {best?.kalshi && <ExactKalshiBetButton player={p.player} bet={best} />}
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))', gap: 6, marginBottom: logs.length ? 9 : 0 }}>
                                 {(p.recommendations || []).slice(0, 4).map((r: any) => (
-                                  <div key={`${p.player}-${r.label}`} style={{ background: 'rgba(0,0,0,0.22)', borderRadius: 8, padding: '6px 7px', textAlign: 'center', border: `1px solid ${r.quality === 'bet' ? 'rgba(166,255,63,0.22)' : 'rgba(255,255,255,0.06)'}` }}>
+                                  <div key={`${p.player}-${r.label}`} style={{ background: 'rgba(0,0,0,0.22)', borderRadius: 8, padding: '6px 7px', textAlign: 'center', border: `1px solid ${r.quality === 'bet' ? 'rgba(125,246,255,0.22)' : 'rgba(255,255,255,0.06)'}` }}>
                                     <p style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>{r.metric}</p>
                                     <p style={{ color: r.quality === 'bet' ? C.green : C.textPrimary, fontWeight: 900, fontSize: 13, lineHeight: 1 }}>{r.line}+</p>
                                     <p style={{ color: C.textSecondary, fontSize: 8, marginTop: 3 }}>{r.hitRate}% · avg {r.avg}</p>
@@ -1511,7 +1511,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                                     const hit = best ? val >= best.line : false
                                     const gameMinutes = Number(g?.stats?.minutes)
                                     const minuteText = Number.isFinite(gameMinutes) && gameMinutes > 0 ? ` · ${Math.round(gameMinutes)} min` : ''
-                                    return <div key={`${g.eventId}-${idx}`} title={`${g.opponent || ''} ${val}${minuteText}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.13)' : 'rgba(255,255,255,0.04)', border: `1px solid ${hit ? 'rgba(166,255,63,0.28)' : 'rgba(255,255,255,0.06)'}`, color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}><div>{val}</div>{Number.isFinite(gameMinutes) && gameMinutes > 0 && <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, marginTop: 1 }}>{Math.round(gameMinutes)}m</div>}</div>
+                                    return <div key={`${g.eventId}-${idx}`} title={`${g.opponent || ''} ${val}${minuteText}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(125,246,255,0.13)' : 'rgba(255,255,255,0.04)', border: `1px solid ${hit ? 'rgba(125,246,255,0.28)' : 'rgba(255,255,255,0.06)'}`, color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}><div>{val}</div>{Number.isFinite(gameMinutes) && gameMinutes > 0 && <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, marginTop: 1 }}>{Math.round(gameMinutes)}m</div>}</div>
                                   })}
                                 </div>
                               )}
@@ -1539,9 +1539,9 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
 
 // ─── Prediction Badge ─────────────────────────────────────────────────────────
 function PredictionBadge({ winPct, team, confidence }: { winPct: number; team: string; confidence: number }) {
-  const color = confidence >= 65 ? '#a6ff3f' : confidence >= 55 ? '#ffd700' : 'rgba(166,255,63,0.4)'
-  const bg = confidence >= 65 ? 'rgba(166,255,63,0.08)' : confidence >= 55 ? 'rgba(255,215,0,0.08)' : 'rgba(166,255,63,0.04)'
-  const border = confidence >= 65 ? 'rgba(166,255,63,0.35)' : confidence >= 55 ? 'rgba(255,215,0,0.35)' : 'rgba(166,255,63,0.15)'
+  const color = confidence >= 65 ? '#7df6ff' : confidence >= 55 ? '#ffd700' : 'rgba(125,246,255,0.4)'
+  const bg = confidence >= 65 ? 'rgba(125,246,255,0.08)' : confidence >= 55 ? 'rgba(255,215,0,0.08)' : 'rgba(125,246,255,0.04)'
+  const border = confidence >= 65 ? 'rgba(125,246,255,0.35)' : confidence >= 55 ? 'rgba(255,215,0,0.35)' : 'rgba(125,246,255,0.15)'
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, background: bg, border: `1px solid ${border}` }}>
       <span style={{ fontSize: 8 }}>🎯</span>
@@ -1569,9 +1569,9 @@ function InlineGameScore({ game, compact = false }: { game: Game; compact?: bool
       maxWidth: '100%',
       borderRadius: 999,
       padding: compact ? '4px 7px' : '5px 9px',
-      background: isLive ? 'rgba(255,63,95,0.16)' : 'rgba(166,255,63,0.13)',
-      border: isLive ? '1px solid rgba(255,63,95,0.42)' : '1px solid rgba(166,255,63,0.36)',
-      boxShadow: isLive ? '0 0 18px rgba(255,63,95,0.12)' : '0 0 18px rgba(166,255,63,0.10)',
+      background: isLive ? 'rgba(255,63,95,0.16)' : 'rgba(125,246,255,0.13)',
+      border: isLive ? '1px solid rgba(255,63,95,0.42)' : '1px solid rgba(125,246,255,0.36)',
+      boxShadow: isLive ? '0 0 18px rgba(255,63,95,0.12)' : '0 0 18px rgba(125,246,255,0.10)',
       color: C.textPrimary,
       fontSize: compact ? 10 : 12,
       fontWeight: 950,
@@ -1683,9 +1683,9 @@ function LiveScoreStrip({ game, compact = false }: { game: Game; compact?: boole
       gap: compact ? 5 : 8,
       borderRadius: compact ? 9 : 12,
       padding: compact ? '5px 6px' : '8px 10px',
-      background: isLive ? 'rgba(255,63,95,0.10)' : 'rgba(166,255,63,0.10)',
-      border: isLive ? '1px solid rgba(255,63,95,0.34)' : '1px solid rgba(166,255,63,0.32)',
-      boxShadow: isLive ? '0 0 18px rgba(255,63,95,0.08)' : '0 0 18px rgba(166,255,63,0.08)',
+      background: isLive ? 'rgba(255,63,95,0.10)' : 'rgba(125,246,255,0.10)',
+      border: isLive ? '1px solid rgba(255,63,95,0.34)' : '1px solid rgba(125,246,255,0.32)',
+      boxShadow: isLive ? '0 0 18px rgba(255,63,95,0.08)' : '0 0 18px rgba(125,246,255,0.08)',
       minWidth: 0,
     }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: isLive ? C.red : C.green, fontSize: compact ? 7 : 9, fontWeight: 950, letterSpacing: compact ? '0.08em' : '0.12em', textTransform: 'uppercase', flexShrink: 0 }}>
@@ -2324,14 +2324,14 @@ function ExactKalshiBetButton({ player, bet, compact = false }: { player: string
             </div>
 
             {bet.explanation && <p style={{ color: 'rgba(247,255,240,0.78)', fontSize: 11, lineHeight: 1.5, marginBottom: 12 }}>{bet.explanation}</p>}
-            <div style={{ borderRadius: 12, padding: 10, background: 'rgba(166,255,63,0.055)', border: `1px solid ${C.border}`, marginBottom: 12 }}>
+            <div style={{ borderRadius: 12, padding: 10, background: 'rgba(125,246,255,0.055)', border: `1px solid ${C.border}`, marginBottom: 12 }}>
               <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Ticker to verify in Kalshi</p>
               <p style={{ color: C.green, fontSize: 10, lineHeight: 1.35, fontWeight: 900, wordBreak: 'break-all' }}>{ticker}</p>
               <p style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 7 }}>On iOS, Kalshi may open the game page instead of this exact card. Use this ticker/title to confirm the contract.</p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <button onClick={copyTicker} style={{ borderRadius: 12, padding: '12px 10px', border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.04)', color: C.textPrimary, fontSize: 11, fontWeight: 950, cursor: 'pointer' }}>Copy ticker</button>
-              <button onClick={openKalshi} style={{ borderRadius: 12, padding: '12px 10px', border: `1px solid ${C.borderHot}`, background: 'rgba(166,255,63,0.14)', color: C.green, fontSize: 11, fontWeight: 950, cursor: 'pointer' }}>Open Kalshi</button>
+              <button onClick={openKalshi} style={{ borderRadius: 12, padding: '12px 10px', border: `1px solid ${C.borderHot}`, background: 'rgba(125,246,255,0.14)', color: C.green, fontSize: 11, fontWeight: 950, cursor: 'pointer' }}>Open Kalshi</button>
             </div>
           </div>
         </div>
@@ -2557,7 +2557,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
           borderRadius: isMobile ? 16 : 22,
           padding: 1,
           border: 'none',
-          background: feedLive ? 'linear-gradient(135deg, rgba(255,63,95,0.70), rgba(255,255,255,0.12), rgba(255,63,95,0.26))' : 'linear-gradient(135deg, rgba(166,255,63,0.62), rgba(255,255,255,0.12), rgba(166,255,63,0.24))',
+          background: feedLive ? 'linear-gradient(135deg, rgba(255,63,95,0.70), rgba(255,255,255,0.12), rgba(255,63,95,0.26))' : 'linear-gradient(135deg, rgba(125,246,255,0.62), rgba(255,255,255,0.12), rgba(125,246,255,0.24))',
           cursor: 'pointer',
           overflow: 'hidden',
         }}>
@@ -2573,7 +2573,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
             alignItems: 'center',
             overflow: 'hidden',
           }}>
-            <div style={{ position: 'absolute', inset: 0, background: feedLive ? 'radial-gradient(circle at 18% 50%, rgba(255,63,95,0.13), transparent 34%), radial-gradient(circle at 82% 50%, rgba(255,255,255,0.06), transparent 36%)' : 'radial-gradient(circle at 18% 50%, rgba(166,255,63,0.10), transparent 34%), radial-gradient(circle at 82% 50%, rgba(255,255,255,0.05), transparent 36%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', inset: 0, background: feedLive ? 'radial-gradient(circle at 18% 50%, rgba(255,63,95,0.13), transparent 34%), radial-gradient(circle at 82% 50%, rgba(255,255,255,0.06), transparent 36%)' : 'radial-gradient(circle at 18% 50%, rgba(125,246,255,0.10), transparent 34%), radial-gradient(circle at 82% 50%, rgba(255,255,255,0.05), transparent 36%)', pointerEvents: 'none' }} />
             <div style={{ position: 'relative', display: 'grid', gap: isMobile ? 7 : 9, minWidth: 0 }}>
               {[
                 { team: game.awayTeam, score: awayScore, leading: awayLeading },
@@ -2585,7 +2585,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                 <div key={'score-button-' + team.abbr} style={{ display: 'grid', gridTemplateColumns: `${isMobile ? 30 : 38}px minmax(0,1fr) auto`, alignItems: 'center', gap: isMobile ? 7 : 10, minWidth: 0 }}>
                   <TeamBadge abbr={team.abbr} name={team.name} sport={sport} size={isMobile ? 30 : 38} selected={winner} />
                   <span style={{ color: winner ? C.green : leading ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 17 : 22, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
-                  <span style={{ color: scoreColor, fontSize: isMobile ? 32 : 44, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: winner ? '0 0 22px rgba(166,255,63,0.25)' : leading ? '0 0 20px rgba(255,255,255,0.16)' : 'none' }}>{score}</span>
+                  <span style={{ color: scoreColor, fontSize: isMobile ? 32 : 44, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: winner ? '0 0 22px rgba(125,246,255,0.25)' : leading ? '0 0 20px rgba(255,255,255,0.16)' : 'none' }}>{score}</span>
                 </div>
               )})}
             </div>
@@ -2601,12 +2601,12 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
         borderRadius: isMobile ? 16 : 22,
         padding: 1,
         border: 'none',
-        background: 'linear-gradient(135deg, rgba(166,255,63,0.56), rgba(255,255,255,0.10), rgba(168,240,255,0.18), rgba(166,255,63,0.22))',
+        background: 'linear-gradient(135deg, rgba(125,246,255,0.56), rgba(255,255,255,0.10), rgba(168,240,255,0.18), rgba(125,246,255,0.22))',
         cursor: 'pointer',
         overflow: 'hidden',
       }}>
         <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 132 : 158, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(166,255,63,0.055), transparent 34%, rgba(168,240,255,0.035) 68%, transparent)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(125,246,255,0.055), transparent 34%, rgba(168,240,255,0.035) 68%, transparent)', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: hasScore ? '1fr auto' : '1fr', gap: 10, alignItems: 'start' }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi</div>
@@ -2620,7 +2620,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               </div>
             </div>
             {hasScore && (
-              <div style={{ minWidth: isMobile ? 66 : 78, borderRadius: 13, padding: isMobile ? '8px 9px' : '10px 11px', background: feedLive ? 'rgba(255,63,95,0.14)' : 'rgba(166,255,63,0.12)', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.38)' : 'rgba(166,255,63,0.34)'), boxShadow: feedLive ? '0 0 18px rgba(255,63,95,0.10)' : '0 0 18px rgba(166,255,63,0.10)' }}>
+              <div style={{ minWidth: isMobile ? 66 : 78, borderRadius: 13, padding: isMobile ? '8px 9px' : '10px 11px', background: feedLive ? 'rgba(255,63,95,0.14)' : 'rgba(125,246,255,0.12)', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.38)' : 'rgba(125,246,255,0.34)'), boxShadow: feedLive ? '0 0 18px rgba(255,63,95,0.10)' : '0 0 18px rgba(125,246,255,0.10)' }}>
                 {[
                   { team: game.awayTeam, score: awayScore, leading: awayLeading },
                   { team: game.homeTeam, score: homeScore, leading: homeLeading },
@@ -2650,8 +2650,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     <div style={{
       borderRadius: 22,
       padding: 1,
-      background: hasVisibleContracts ? 'linear-gradient(135deg, rgba(166,255,63,0.64), rgba(255,255,255,0.14), rgba(166,255,63,0.12))' : 'linear-gradient(135deg, rgba(166,255,63,0.18), rgba(255,255,255,0.06))',
-      boxShadow: scanActive ? '0 0 34px rgba(166,255,63,0.18), 0 18px 58px rgba(0,0,0,0.58)' : hasVisibleContracts ? '0 0 30px rgba(166,255,63,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)',
+      background: hasVisibleContracts ? 'linear-gradient(135deg, rgba(125,246,255,0.64), rgba(255,255,255,0.14), rgba(125,246,255,0.12))' : 'linear-gradient(135deg, rgba(125,246,255,0.18), rgba(255,255,255,0.06))',
+      boxShadow: scanActive ? '0 0 34px rgba(125,246,255,0.18), 0 18px 58px rgba(0,0,0,0.58)' : hasVisibleContracts ? '0 0 30px rgba(125,246,255,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)',
       position: 'relative',
       overflow: 'hidden',
     }}>
@@ -2682,7 +2682,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
         </button>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, alignItems: 'stretch', marginBottom: 12 }}>
-          <div style={{ borderRadius: 18, padding: isMobile ? 12 : 13, background: feedLive ? 'linear-gradient(145deg, rgba(20,5,9,0.98), rgba(4,4,2,0.97))' : 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.34)' : 'rgba(166,255,63,0.30)'), display: 'grid', gap: isMobile ? 10 : 12, alignContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(166,255,63,0.08)' }}>
+          <div style={{ borderRadius: 18, padding: isMobile ? 12 : 13, background: feedLive ? 'linear-gradient(145deg, rgba(20,5,9,0.98), rgba(4,4,2,0.97))' : 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid ' + (feedLive ? 'rgba(255,63,95,0.34)' : 'rgba(125,246,255,0.30)'), display: 'grid', gap: isMobile ? 10 : 12, alignContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 24px rgba(125,246,255,0.08)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? 8 : 12 }}>
               {[
               { team: game.awayTeam, score: awayScore, leading: awayLeading },
@@ -2694,7 +2694,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                 <div key={'expanded-score-' + team.abbr} style={{ display: 'grid', gridTemplateColumns: `${isMobile ? 40 : 32}px minmax(0,1fr) auto`, gap: 10, alignItems: 'center', minWidth: 0 }}>
                   <TeamBadge abbr={team.abbr} name={team.name} sport={sport} size={isMobile ? 40 : 32} />
                   <span style={{ color: winner ? C.green : leading ? C.textPrimary : C.textSecondary, fontSize: isMobile ? 21 : 17, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.abbr}</span>
-                  <span style={{ color: scoreColor, fontSize: isMobile ? 44 : 34, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: winner ? '0 0 20px rgba(166,255,63,0.24)' : 'none' }}>{hasScore ? score : '-'}</span>
+                  <span style={{ color: scoreColor, fontSize: isMobile ? 44 : 34, fontWeight: 950, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums', textShadow: winner ? '0 0 20px rgba(125,246,255,0.24)' : 'none' }}>{hasScore ? score : '-'}</span>
                 </div>
               )
             })}
@@ -2709,7 +2709,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                 ].map(tab => {
                   const active = activeLiveTab === tab.key
                   return (
-                    <button key={tab.key} onClick={() => setActiveLiveTab(tab.key)} style={{ borderRadius: 12, minHeight: 36, padding: '8px 6px', border: '1px solid ' + (active ? C.borderHot : C.border), background: active ? 'rgba(166,255,63,0.16)' : 'rgba(255,255,255,0.04)', color: active ? C.green : C.textPrimary, fontSize: isMobile ? 8 : 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                    <button key={tab.key} onClick={() => setActiveLiveTab(tab.key)} style={{ borderRadius: 12, minHeight: 36, padding: '8px 6px', border: '1px solid ' + (active ? C.borderHot : C.border), background: active ? 'rgba(125,246,255,0.16)' : 'rgba(255,255,255,0.04)', color: active ? C.green : C.textPrimary, fontSize: isMobile ? 8 : 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
                       {tab.label}
                     </button>
                   )
@@ -2718,7 +2718,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
             )}
           </div>
           {sport === 'mlb' && activeLiveTab === 'lineups' && (
-            <div style={{ borderRadius: 18, padding: isMobile ? 10 : 12, background: 'linear-gradient(145deg, rgba(166,255,63,0.070), rgba(255,255,255,0.026))', border: `1px solid ${C.borderHot}`, minWidth: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+            <div style={{ borderRadius: 18, padding: isMobile ? 10 : 12, background: 'linear-gradient(145deg, rgba(125,246,255,0.070), rgba(255,255,255,0.026))', border: `1px solid ${C.borderHot}`, minWidth: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 10 }}>
                 <span style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Game Intel</span>
                 <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>{lineupsLoading ? 'loading' : lineups?.available ? 'ESPN' : 'pending'}</span>
@@ -2782,7 +2782,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
         )}
 
         {sport === 'mlb' && activeLiveTab === 'props' && (game.status === 'in' || liveGame || liveError) && (
-          <div style={{ borderRadius: 15, padding: 10, background: 'linear-gradient(145deg, rgba(255,63,95,0.070), rgba(166,255,63,0.030))', border: '1px solid rgba(255,255,255,0.12)', marginBottom: 12 }}>
+          <div style={{ borderRadius: 15, padding: 10, background: 'linear-gradient(145deg, rgba(255,63,95,0.070), rgba(125,246,255,0.030))', border: '1px solid rgba(255,255,255,0.12)', marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
               <div style={{ color: feedLive ? C.red : C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Live game state</div>
               <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}><UpdatedAgeLabel updatedAt={liveUpdatedAt} prefix="refreshed" empty={liveLoading ? 'refreshing' : 'waiting'} /></div>
@@ -2819,7 +2819,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                   {liveBaseSlots.map(base => {
                     const runner = compactText(base.runner?.name || base.runner)
                     return (
-                      <div key={'props-live-' + base.label} style={{ minWidth: 0, borderRadius: 9, padding: '6px 7px', background: base.occupied ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.035)', border: '1px solid ' + (base.occupied ? C.borderHot : C.border) }}>
+                      <div key={'props-live-' + base.label} style={{ minWidth: 0, borderRadius: 9, padding: '6px 7px', background: base.occupied ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.035)', border: '1px solid ' + (base.occupied ? C.borderHot : C.border) }}>
                         <div style={{ color: base.occupied ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950 }}>{base.label}</div>
                         <div style={{ color: base.occupied ? C.textPrimary : C.textSecondary, fontSize: 9, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{base.occupied ? (runner || 'Occupied') : 'Empty'}</div>
                       </div>
@@ -2915,7 +2915,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               {categoryGroups.map(group => {
                 const active = group.metric === currentTab
                 const label = formatPropMetricShort(group.metric)
-                return <button key={group.metric} title={formatPropMetricLabel(group.metric)} onClick={() => setActivePropTab(group.metric)} style={{ flex: '0 0 auto', borderRadius: 999, padding: '7px 10px', border: `1px solid ${active ? C.borderHot : C.border}`, background: active ? 'rgba(166,255,63,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                return <button key={group.metric} title={formatPropMetricLabel(group.metric)} onClick={() => setActivePropTab(group.metric)} style={{ flex: '0 0 auto', borderRadius: 999, padding: '7px 10px', border: `1px solid ${active ? C.borderHot : C.border}`, background: active ? 'rgba(125,246,255,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
                   {label} · {group.items.length}
                 </button>
               })}
@@ -2928,15 +2928,15 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
         ) : scanActive ? (
           <div style={{ display: 'grid', gap: 9 }}>
             {[0, 1, 2].map(i => (
-              <div key={i} style={{ borderRadius: 15, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.58), rgba(255,255,255,0.10), rgba(166,255,63,0.14))', boxShadow: '0 0 24px rgba(166,255,63,0.13)', animation: `scanCardGlow ${1.02 + i * 0.14}s ease-in-out infinite`, overflow: 'hidden' }}>
+              <div key={i} style={{ borderRadius: 15, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.58), rgba(255,255,255,0.10), rgba(125,246,255,0.14))', boxShadow: '0 0 24px rgba(125,246,255,0.13)', animation: `scanCardGlow ${1.02 + i * 0.14}s ease-in-out infinite`, overflow: 'hidden' }}>
                 <div style={{ borderRadius: 14, padding: 11, background: 'linear-gradient(145deg, rgba(10,16,7,0.96), rgba(3,5,0,0.96))', position: 'relative', overflow: 'hidden', minHeight: 58 }}>
-                  <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(166,255,63,0.95), transparent)', animation: `scanCardSweep ${1 + (i % 2) * 0.2}s linear infinite` }} />
+                  <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 2, background: 'linear-gradient(90deg, transparent, rgba(125,246,255,0.95), transparent)', animation: `scanCardSweep ${1 + (i % 2) * 0.2}s linear infinite` }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ width: i === 0 ? '48%' : i === 1 ? '38%' : '44%', height: 11, borderRadius: 999, background: 'rgba(247,255,240,0.12)', marginBottom: 8 }} />
-                      <div style={{ width: i === 0 ? '62%' : i === 1 ? '52%' : '58%', height: 8, borderRadius: 999, background: 'rgba(166,255,63,0.12)' }} />
+                      <div style={{ width: i === 0 ? '62%' : i === 1 ? '52%' : '58%', height: 8, borderRadius: 999, background: 'rgba(125,246,255,0.12)' }} />
                     </div>
-                    <div style={{ width: 62, height: 24, borderRadius: 999, background: 'rgba(166,255,63,0.10)', border: '1px solid rgba(166,255,63,0.16)' }} />
+                    <div style={{ width: 62, height: 24, borderRadius: 999, background: 'rgba(125,246,255,0.10)', border: '1px solid rgba(125,246,255,0.16)' }} />
                   </div>
                 </div>
               </div>
@@ -2956,13 +2956,13 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               const lastGameMinutes = formatLastGameMinutes(p)
               const playerSignalTags = Array.from(new Set(bets.flatMap((bet: any) => bet.signalTags || [])))
               return (
-                <div key={`${game.id}-${p.team}-${p.player}-${activeGroup.metric}`} style={{ borderRadius: 14, padding: 11, background: 'rgba(166,255,63,0.045)', border: '1px solid rgba(255,255,255,0.10)', opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(playerIdx * 150, 1350)}ms` }}>
+                <div key={`${game.id}-${p.team}-${p.player}-${activeGroup.metric}`} style={{ borderRadius: 14, padding: 11, background: 'rgba(125,246,255,0.045)', border: '1px solid rgba(255,255,255,0.10)', opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(playerIdx * 150, 1350)}ms` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
                     <div>
                       <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950 }}>{p.player}</div>
                       <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>{p.team} · {p.position || (activeGroup.metric === 'all' ? 'props' : activeGroup.metric)}</div>
                       {lastGameMinutes && <div style={{ color: C.green, fontSize: 8, fontWeight: 950, marginTop: 3, letterSpacing: '0.04em' }}>⏱ {lastGameMinutes}</div>}
-                      {playerSignalTags.length > 0 && <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 5 }}>{playerSignalTags.map((tag: any) => <span key={String(tag)} style={{ borderRadius: 999, padding: '3px 6px', background: 'rgba(166,255,63,0.14)', border: '1px solid ' + C.borderHot, color: C.green, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{String(tag)}</span>)}</div>}
+                      {playerSignalTags.length > 0 && <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 5 }}>{playerSignalTags.map((tag: any) => <span key={String(tag)} style={{ borderRadius: 999, padding: '3px 6px', background: 'rgba(125,246,255,0.14)', border: '1px solid ' + C.borderHot, color: C.green, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{String(tag)}</span>)}</div>}
                     </div>
                     <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{bets.length} lines</div>
                   </div>
@@ -2975,7 +2975,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                       const liveProgress = sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, bet) : null
                       const signalLabel = Array.isArray(bet.signalTags) && bet.signalTags.length ? ' · ' + bet.signalTags.join(' + ') : ''
                       return (
-                        <button key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ borderRadius: 999, padding: '7px 9px', border: '1px solid ' + (open || safeHit || signalLabel ? C.borderHot : selected ? 'rgba(166,255,63,0.45)' : C.border), background: open ? 'rgba(166,255,63,0.18)' : safeHit || signalLabel ? 'rgba(166,255,63,0.13)' : selected ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || safeHit || signalLabel ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', animation: safeHit ? 'safePropThrob 1.25s ease-in-out infinite' : undefined, willChange: safeHit ? 'transform, box-shadow' : undefined }}>
+                        <button key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ borderRadius: 999, padding: '7px 9px', border: '1px solid ' + (open || safeHit || signalLabel ? C.borderHot : selected ? 'rgba(125,246,255,0.45)' : C.border), background: open ? 'rgba(125,246,255,0.18)' : safeHit || signalLabel ? 'rgba(125,246,255,0.13)' : selected ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || safeHit || signalLabel ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', animation: safeHit ? 'safePropThrob 1.25s ease-in-out infinite' : undefined, willChange: safeHit ? 'transform, box-shadow' : undefined }}>
                           {bet.line}+ {formatPropMetricShort(activeGroup.metric === 'all' ? bet.metric : activeGroup.metric)} · {bet.kalshi?.yesAsk ?? '—'}¢{safeHit ? ` · ${bet.hits}/${bet.games}` : ''}{signalLabel}{liveProgress ? ' · LIVE ' + liveProgress.label : ''}
                         </button>
                       )
@@ -2995,7 +2995,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                           <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, textAlign: 'right' }}>{expandedBet.hits}/{expandedBet.games}<br />hit</div>
                         </div>
                         {liveProgress && (
-                          <div style={{ marginTop: 8, borderRadius: 11, padding: '8px 9px', background: liveProgress.hit ? 'rgba(166,255,63,0.13)' : 'rgba(255,215,0,0.075)', border: '1px solid ' + (liveProgress.hit ? C.borderHot : 'rgba(255,215,0,0.24)'), color: liveProgress.hit ? C.green : C.gold, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                          <div style={{ marginTop: 8, borderRadius: 11, padding: '8px 9px', background: liveProgress.hit ? 'rgba(125,246,255,0.13)' : 'rgba(255,215,0,0.075)', border: '1px solid ' + (liveProgress.hit ? C.borderHot : 'rgba(255,215,0,0.24)'), color: liveProgress.hit ? C.green : C.gold, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                             Live progress: {liveProgress.label}{liveProgress.hit ? ' · clearing' : ' · tracking'}
                           </div>
                         )}
@@ -3003,7 +3003,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                           const safeHit = Number(expandedBet.games || 0) >= 12 && Number(expandedBet.hits || 0) >= 9
                           const reads = buildPropEdgeRead(p, expandedBet, intel)
                           return (
-                            <div style={{ marginTop: 9, borderRadius: 12, padding: 10, background: safeHit ? 'linear-gradient(135deg, rgba(166,255,63,0.13), rgba(255,255,255,0.035))' : 'rgba(255,255,255,0.035)', border: `1px solid ${safeHit ? C.borderHot : C.border}` }}>
+                            <div style={{ marginTop: 9, borderRadius: 12, padding: 10, background: safeHit ? 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))' : 'rgba(255,255,255,0.035)', border: `1px solid ${safeHit ? C.borderHot : C.border}` }}>
                               <div style={{ color: safeHit ? C.green : C.textPrimary, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Edge read</div>
                               <div style={{ display: 'grid', gap: 5, marginTop: 6 }}>
                                 {reads.map((line: string, i: number) => (
@@ -3021,11 +3021,11 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                             const hit = val != null && val >= expandedBet.line
                             const gameMinutes = Number(g?.stats?.minutes)
                             const minuteText = Number.isFinite(gameMinutes) && gameMinutes > 0 ? ` · ${Math.round(gameMinutes)} min` : ''
-                            return <div key={`${g.eventId || idx}-${idx}`} title={`${g.date || ''} ${g.opponent || ''}${minuteText}`} style={{ borderRadius: 5, padding: '3px 1px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.15)' : 'rgba(255,255,255,0.05)', color: hit ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900 }}><div>{val ?? '—'}</div>{Number.isFinite(gameMinutes) && gameMinutes > 0 && <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, marginTop: 1 }}>{Math.round(gameMinutes)}m</div>}</div>
+                            return <div key={`${g.eventId || idx}-${idx}`} title={`${g.date || ''} ${g.opponent || ''}${minuteText}`} style={{ borderRadius: 5, padding: '3px 1px', textAlign: 'center', background: hit ? 'rgba(125,246,255,0.15)' : 'rgba(255,255,255,0.05)', color: hit ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900 }}><div>{val ?? '—'}</div>{Number.isFinite(gameMinutes) && gameMinutes > 0 && <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, marginTop: 1 }}>{Math.round(gameMinutes)}m</div>}</div>
                           })}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
-                          <button onClick={() => setSelectedContracts(prev => ({ ...prev, [key]: !prev[key] }))} style={{ borderRadius: 999, padding: '7px 10px', border: `1px solid ${selected ? C.borderHot : C.border}`, background: selected ? 'rgba(166,255,63,0.16)' : 'rgba(255,255,255,0.035)', color: selected ? C.green : C.textPrimary, fontSize: 9, fontWeight: 950, cursor: 'pointer' }}>{selected ? 'Selected ✓' : 'Select contract +'}</button>
+                          <button onClick={() => setSelectedContracts(prev => ({ ...prev, [key]: !prev[key] }))} style={{ borderRadius: 999, padding: '7px 10px', border: `1px solid ${selected ? C.borderHot : C.border}`, background: selected ? 'rgba(125,246,255,0.16)' : 'rgba(255,255,255,0.035)', color: selected ? C.green : C.textPrimary, fontSize: 9, fontWeight: 950, cursor: 'pointer' }}>{selected ? 'Selected ✓' : 'Select contract +'}</button>
                           <button onClick={() => setActivePropDetail(buildPropDetailSignal({ game, sport, player: p, bet: expandedBet, selectedItems, liveGame, intel, lineups }))} style={{ borderRadius: 999, padding: '7px 10px', border: `1px solid ${C.borderHot}`, background: 'rgba(141,247,255,0.10)', color: C.cyan, fontSize: 9, fontWeight: 950, cursor: 'pointer' }}>Details</button>
                           {expandedBet.kalshi?.url && <ExactKalshiBetButton player={p.player} bet={expandedBet} compact />}
                         </div>
@@ -3046,7 +3046,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={copySelected} style={{ flex: 1, borderRadius: 12, padding: '10px 9px', border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.04)', color: C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer' }}>Copy selected</button>
-                  <button onClick={openSelectedInKalshi} style={{ flex: 1, borderRadius: 12, padding: '10px 9px', border: `1px solid ${C.borderHot}`, background: 'rgba(166,255,63,0.14)', color: C.green, fontSize: 10, fontWeight: 950, cursor: 'pointer' }}>Open Kalshi</button>
+                  <button onClick={openSelectedInKalshi} style={{ flex: 1, borderRadius: 12, padding: '10px 9px', border: `1px solid ${C.borderHot}`, background: 'rgba(125,246,255,0.14)', color: C.green, fontSize: 10, fontWeight: 950, cursor: 'pointer' }}>Open Kalshi</button>
                 </div>
               </div>
             )}
@@ -3144,7 +3144,7 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
           {[0, 1, 2].map(i => (
             <div key={i} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, opacity: 0, animation: 'dominoFadeIn 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${i * 140}ms` }}>
               <div style={{ height: 11, width: i === 0 ? '62%' : i === 1 ? '48%' : '56%', borderRadius: 999, background: 'rgba(247,255,240,0.12)', marginBottom: 8 }} />
-              <div style={{ height: 9, width: i === 0 ? '84%' : i === 1 ? '70%' : '78%', borderRadius: 999, background: 'rgba(166,255,63,0.12)' }} />
+              <div style={{ height: 9, width: i === 0 ? '84%' : i === 1 ? '70%' : '78%', borderRadius: 999, background: 'rgba(125,246,255,0.12)' }} />
             </div>
           ))}
         </div>
@@ -3161,7 +3161,7 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
                             <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{ticket.size}-leg slate ticket</div>
                             <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>avg ask {avgAsk}c · screened value legs</div>
                           </div>
-                          <button onClick={() => copyTicket(ticket.items)} style={{ borderRadius: 999, padding: '6px 9px', border: `1px solid ${C.borderHot}`, background: 'rgba(166,255,63,0.14)', color: C.green, fontSize: 8, fontWeight: 950, cursor: 'pointer' }}>Copy</button>
+                          <button onClick={() => copyTicket(ticket.items)} style={{ borderRadius: 999, padding: '6px 9px', border: `1px solid ${C.borderHot}`, background: 'rgba(125,246,255,0.14)', color: C.green, fontSize: 8, fontWeight: 950, cursor: 'pointer' }}>Copy</button>
                         </div>
                         <div style={{ display: 'grid', gap: 5 }}>
                           {ticket.items.map(item => (
@@ -3169,7 +3169,7 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ color: C.textPrimary, fontSize: 9, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.game?.awayTeam.abbr}@{item.game?.homeTeam.abbr} · {item.player.player}</div>
                                 <div style={{ color: C.textSecondary, fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.bet.label}{item.matchup ? ` · matchup ${item.matchup.score}/100` : ''}</div>
-                                {item.matchup && <div style={{ marginTop: 4, borderRadius: 8, padding: '5px 6px', background: item.matchup.grade === 'green' ? 'rgba(166,255,63,0.10)' : item.matchup.grade === 'neutral' ? 'rgba(255,215,0,0.09)' : 'rgba(255,68,102,0.08)', border: `1px solid ${item.matchup.grade === 'green' ? 'rgba(166,255,63,0.26)' : item.matchup.grade === 'neutral' ? 'rgba(255,215,0,0.22)' : 'rgba(255,68,102,0.20)'}`, color: item.matchup.grade === 'green' ? C.green : item.matchup.grade === 'neutral' ? C.gold : C.red, fontSize: 9, fontWeight: 900, lineHeight: 1.25 }}>
+                                {item.matchup && <div style={{ marginTop: 4, borderRadius: 8, padding: '5px 6px', background: item.matchup.grade === 'green' ? 'rgba(125,246,255,0.10)' : item.matchup.grade === 'neutral' ? 'rgba(255,215,0,0.09)' : 'rgba(255,68,102,0.08)', border: `1px solid ${item.matchup.grade === 'green' ? 'rgba(125,246,255,0.26)' : item.matchup.grade === 'neutral' ? 'rgba(255,215,0,0.22)' : 'rgba(255,68,102,0.20)'}`, color: item.matchup.grade === 'green' ? C.green : item.matchup.grade === 'neutral' ? C.gold : C.red, fontSize: 9, fontWeight: 900, lineHeight: 1.25 }}>
                                   Matchup {item.matchup.score}/100
                                   <span style={{ color: C.textSecondary, fontWeight: 800 }}> · {item.matchup.note}</span>
                                 </div>}
@@ -3331,7 +3331,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
     const title = !supported ? 'Player Signals are not available for this sport yet.' : loading ? 'Loading slate before Player Signals…' : 'No active games available for Player Signals.'
     const detail = !supported ? 'Switch to NBA, MLB, or NFL from the Sport dock to run player signals.' : loading ? 'The model will appear as soon as the slate finishes loading.' : 'Pick another date or sport with upcoming/live games to run the model.'
     return (
-      <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.34), rgba(168,240,255,0.12), rgba(255,255,255,0.06))', boxShadow: '0 18px 54px rgba(0,0,0,0.30)' }}>
+      <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.34), rgba(168,240,255,0.12), rgba(255,255,255,0.06))', boxShadow: '0 18px 54px rgba(0,0,0,0.30)' }}>
         <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 14 : 18, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Player Signals</div>
           <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, letterSpacing: '-0.03em' }}>{title}</div>
@@ -3357,9 +3357,9 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   }
 
   return (
-    <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.36)' }}>
+    <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.46), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.36)' }}>
       <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 12 : 15, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => runSignals(Boolean(data))} disabled={scanning} style={{ width: '100%', borderRadius: 999, padding: isMobile ? '12px 14px' : '10px 16px', border: '1px solid ' + C.borderHot, background: scanning ? 'rgba(255,255,255,0.05)' : 'rgba(166,255,63,0.14)', color: scanning ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: scanning ? 'default' : 'pointer' }}>
+        <button onClick={() => runSignals(Boolean(data))} disabled={scanning} style={{ width: '100%', borderRadius: 999, padding: isMobile ? '12px 14px' : '10px 16px', border: '1px solid ' + C.borderHot, background: scanning ? 'rgba(255,255,255,0.05)' : 'rgba(125,246,255,0.14)', color: scanning ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: scanning ? 'default' : 'pointer' }}>
           {scanning ? 'Scoring' : data ? 'Rescore' : 'Run model'}
         </button>
 
@@ -3370,7 +3370,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
             {[0, 1, 2].map(i => (
               <div key={i} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, opacity: 0, animation: 'dominoFadeIn 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${i * 140}ms` }}>
                 <div style={{ height: 11, width: i === 0 ? '58%' : i === 1 ? '46%' : '66%', borderRadius: 999, background: 'rgba(247,255,240,0.12)', marginBottom: 8 }} />
-                <div style={{ height: 9, width: i === 0 ? '82%' : i === 1 ? '74%' : '64%', borderRadius: 999, background: 'rgba(166,255,63,0.12)' }} />
+                <div style={{ height: 9, width: i === 0 ? '82%' : i === 1 ? '74%' : '64%', borderRadius: 999, background: 'rgba(125,246,255,0.12)' }} />
               </div>
             ))}
           </div>
@@ -3546,14 +3546,14 @@ function GameMarketFallback({ game }: { game: Game }) {
         <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>player props not listed yet</div>
       </div>
       {markets.map(market => (
-        <a key={market.label} href={market.url || undefined} target="_blank" rel="noopener noreferrer" onClick={e => { if (!market.url) e.preventDefault() }} style={{ display: 'block', textDecoration: 'none', borderRadius: 14, padding: 11, background: 'rgba(166,255,63,0.045)', border: `1px solid ${market.url ? C.borderHot : C.border}`, cursor: market.url ? 'pointer' : 'default' }}>
+        <a key={market.label} href={market.url || undefined} target="_blank" rel="noopener noreferrer" onClick={e => { if (!market.url) e.preventDefault() }} style={{ display: 'block', textDecoration: 'none', borderRadius: 14, padding: 11, background: 'rgba(125,246,255,0.045)', border: `1px solid ${market.url ? C.borderHot : C.border}`, cursor: market.url ? 'pointer' : 'default' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8 }}>
             <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{market.label}</div>
             <div style={{ color: market.url ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{market.url ? 'Open market' : 'No link'}</div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
             {market.rows.map(row => (
-              <div key={`${market.label}-${row.team}-${row.bet}`} style={{ borderRadius: 11, padding: '8px 9px', background: row.hot ? 'rgba(166,255,63,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${row.hot ? C.borderHot : C.border}` }}>
+              <div key={`${market.label}-${row.team}-${row.bet}`} style={{ borderRadius: 11, padding: '8px 9px', background: row.hot ? 'rgba(125,246,255,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${row.hot ? C.borderHot : C.border}` }}>
                 <div style={{ color: row.hot ? C.green : C.textPrimary, fontSize: 11, fontWeight: 950 }}>{row.team} {row.bet}</div>
                 <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, marginTop: 2 }}>{row.price}%</div>
               </div>
@@ -3683,7 +3683,7 @@ function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTa
   }
 
   return (
-    <div style={{ borderRadius: 16, padding: 12, background: 'linear-gradient(145deg, rgba(255,63,95,0.075), rgba(166,255,63,0.035))', border: '1px solid rgba(255,255,255,0.12)', marginBottom: 12 }}>
+    <div style={{ borderRadius: 16, padding: 12, background: 'linear-gradient(145deg, rgba(255,63,95,0.075), rgba(125,246,255,0.035))', border: '1px solid rgba(255,255,255,0.12)', marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -3696,7 +3696,7 @@ function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTa
         <div style={{ display: 'none', gap: 6, flexWrap: 'wrap' }}>
           {tabs.map(tab => {
             const active = activeTab === tab.key
-            return <button key={tab.key} onClick={() => onTabChange(tab.key)} style={{ borderRadius: 999, padding: '7px 9px', border: '1px solid ' + (active ? C.borderHot : C.border), background: active ? 'rgba(166,255,63,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>{tab.label}</button>
+            return <button key={tab.key} onClick={() => onTabChange(tab.key)} style={{ borderRadius: 999, padding: '7px 9px', border: '1px solid ' + (active ? C.borderHot : C.border), background: active ? 'rgba(125,246,255,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>{tab.label}</button>
           })}
         </div>
       </div>
@@ -3705,7 +3705,7 @@ function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTa
         <div style={{ color: C.gold, fontSize: 10, lineHeight: 1.45 }}>Live drawer waiting on /api/game-live: {error}</div>
       ) : activeTab === 'feed' ? (
         <div style={{ display: 'grid', gap: 6 }}>
-          <div style={{ borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.24)', border: '1px solid rgba(166,255,63,0.18)' }}>
+          <div style={{ borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.24)', border: '1px solid rgba(125,246,255,0.18)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8, marginBottom: 9 }}>
               {(sport === 'nba'
                 ? [{ label: 'Quarter', value: inningText || '-' }, { label: 'Clock', value: live?.clock || '-' }, { label: 'Status', value: live?.statusLabel || live?.status || '-' }]
@@ -3733,7 +3733,7 @@ function LiveGameDrawer({ game, sport, live, loading, error, updatedAt, activeTa
               {baseSlots.map(base => {
                 const runner = compactText(base.runner?.name || base.runner)
                 return (
-                  <div key={base.label} style={{ minWidth: 0, borderRadius: 9, padding: '6px 7px', background: base.occupied ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.035)', border: '1px solid ' + (base.occupied ? C.borderHot : C.border) }}>
+                  <div key={base.label} style={{ minWidth: 0, borderRadius: 9, padding: '6px 7px', background: base.occupied ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.035)', border: '1px solid ' + (base.occupied ? C.borderHot : C.border) }}>
                     <div style={{ color: base.occupied ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950 }}>{base.label}</div>
                     <div style={{ color: base.occupied ? C.textPrimary : C.textSecondary, fontSize: 9, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{base.occupied ? (runner || 'Occupied') : 'Empty'}</div>
                   </div>
@@ -3889,7 +3889,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 16 }}>
           {items.map(item => (
-            <div key={item.label} style={{ borderRadius: 14, padding: 12, background: 'rgba(166,255,63,0.045)', border: '1px solid rgba(166,255,63,0.14)' }}>
+            <div key={item.label} style={{ borderRadius: 14, padding: 12, background: 'rgba(125,246,255,0.045)', border: '1px solid rgba(125,246,255,0.14)' }}>
               <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{item.label}</div>
               <div style={{ color: item.color, fontSize: 14, fontWeight: 900, marginTop: 5 }}>{item.value}</div>
             </div>
@@ -3897,14 +3897,14 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
         </div>
 
         {intel && (
-          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(166,255,63,0.035)', border: '1px solid rgba(166,255,63,0.16)', marginBottom: 12 }}>
+          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(125,246,255,0.035)', border: '1px solid rgba(125,246,255,0.16)', marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
               <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>NFL Prep Score</div>
               <div style={{ color: intel.prepScore >= 70 ? C.green : C.gold, fontSize: 20, fontWeight: 950 }}>{intel.prepScore}</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 8 }}>
               {intel.checklist.map(item => (
-                <div key={item.label} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${item.status === 'edge' ? 'rgba(166,255,63,0.35)' : C.border}` }}>
+                <div key={item.label} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${item.status === 'edge' ? 'rgba(125,246,255,0.35)' : C.border}` }}>
                   <div style={{ color: item.status === 'edge' ? C.green : item.status === 'ready' ? C.cyan : C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{item.label}</div>
                   <div style={{ color: 'rgba(247,255,240,0.84)', fontSize: 11, marginTop: 4, lineHeight: 1.35 }}>{item.value}</div>
                 </div>
@@ -3919,17 +3919,17 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
         {props?.marketSummary && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             {[['Kalshi scanned', props.marketSummary.scanned], ['Game markets', props.marketSummary.gameMatched], ['Executable asks', props.marketSummary.executableMatched ?? props.marketSummary.gameMatched], ['Value-priced', props.marketSummary.playableMatched]].map(([label, value]) => (
-              <span key={label} style={{ background: 'rgba(166,255,63,0.055)', border: '1px solid rgba(166,255,63,0.16)', borderRadius: 999, padding: '4px 9px', color: label === 'Value-priced' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}: <span style={{ color: C.textPrimary }}>{value}</span></span>
+              <span key={label} style={{ background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.16)', borderRadius: 999, padding: '4px 9px', color: label === 'Value-priced' && Number(value) > 0 ? C.green : C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}: <span style={{ color: C.textPrimary }}>{value}</span></span>
             ))}
           </div>
         )}
 
         {props?.available && (
-          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(166,255,63,0.035)', border: '1px solid rgba(166,255,63,0.16)', marginBottom: 12 }}>
+          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(125,246,255,0.035)', border: '1px solid rgba(125,246,255,0.16)', marginBottom: 12 }}>
             <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>NFL Player Prop Reads</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
               {[...(props.away || []), ...(props.home || [])].filter((p: any) => p.bestBet).slice(0, 8).map((p: any) => (
-                <div key={`${p.team}-${p.player}`} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${p.bestBet?.quality === 'bet' ? 'rgba(166,255,63,0.32)' : C.border}` }}>
+                <div key={`${p.team}-${p.player}`} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${p.bestBet?.quality === 'bet' ? 'rgba(125,246,255,0.32)' : C.border}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 900 }}>{p.player}</div>
@@ -3947,7 +3947,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
                       const metric = p.bestBet?.metric
                       const val = metric === 'passing yards' ? g.stats.passingYards : metric === 'passing TDs' ? g.stats.passingTouchdowns : metric === 'rushing yards' ? g.stats.rushingYards : metric === 'receptions' ? g.stats.receptions : g.stats.receivingYards
                       const hit = val >= p.bestBet?.line
-                      return <div key={`${g.eventId}-${idx}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.13)' : 'rgba(255,255,255,0.04)', color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}>{val}</div>
+                      return <div key={`${g.eventId}-${idx}`} style={{ borderRadius: 6, padding: '4px 2px', textAlign: 'center', background: hit ? 'rgba(125,246,255,0.13)' : 'rgba(255,255,255,0.04)', color: hit ? C.green : C.textSecondary, fontSize: 9, fontWeight: 800 }}>{val}</div>
                     })}
                   </div>
                 </div>
@@ -4092,7 +4092,7 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
     background: SURFACE.panel,
     border: `1px solid ${C.borderHot}`,
     borderRadius: 24,
-    boxShadow: `0 0 26px rgba(166,255,63,0.18), ${SURFACE.shadow}`,
+    boxShadow: `0 0 26px rgba(125,246,255,0.18), ${SURFACE.shadow}`,
     outline: 'none',
   } : {
     position: 'relative' as const,
@@ -4111,16 +4111,16 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
           ...cardStyle,
           animation: isAnalyzing ? 'analysisCardBlink 0.94s steps(1, end) infinite' : cardStyle.animation,
           border: isAnalyzing ? `1px solid ${C.green}` : cardStyle.border,
-          boxShadow: isAnalyzing ? `0 0 56px rgba(166,255,63,0.48), 0 18px 70px rgba(0,0,0,0.75), inset 0 0 28px rgba(166,255,63,0.10)` : cardStyle.boxShadow,
+          boxShadow: isAnalyzing ? `0 0 56px rgba(125,246,255,0.48), 0 18px 70px rgba(0,0,0,0.75), inset 0 0 28px rgba(125,246,255,0.10)` : cardStyle.boxShadow,
         }}>
           {isAnalyzing && (
             <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', borderRadius: 24, overflow: 'hidden', background: 'rgba(3,5,0,0.16)', mixBlendMode: 'screen' }}>
-              <div style={{ position: 'absolute', inset: 0, opacity: 0.55, backgroundImage: 'repeating-linear-gradient(0deg, rgba(166,255,63,0.16) 0px, rgba(166,255,63,0.16) 1px, transparent 1px, transparent 4px)' }} />
-              <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '34%', background: 'linear-gradient(180deg, transparent, rgba(166,255,63,0.28), transparent)', animation: 'tvStaticSweep 0.72s linear infinite' }} />
-              <div style={{ position: 'absolute', left: 0, right: 0, top: '28%', height: 22, background: 'rgba(166,255,63,0.18)', animation: 'tvGlitchSlice 0.94s steps(1, end) infinite' }} />
+              <div style={{ position: 'absolute', inset: 0, opacity: 0.55, backgroundImage: 'repeating-linear-gradient(0deg, rgba(125,246,255,0.16) 0px, rgba(125,246,255,0.16) 1px, transparent 1px, transparent 4px)' }} />
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '34%', background: 'linear-gradient(180deg, transparent, rgba(125,246,255,0.28), transparent)', animation: 'tvStaticSweep 0.72s linear infinite' }} />
+              <div style={{ position: 'absolute', left: 0, right: 0, top: '28%', height: 22, background: 'rgba(125,246,255,0.18)', animation: 'tvGlitchSlice 0.94s steps(1, end) infinite' }} />
               <div style={{ position: 'absolute', left: 0, right: 0, top: '61%', height: 14, background: 'rgba(255,255,255,0.16)', animation: 'tvGlitchSlice 0.71s steps(1, end) infinite reverse' }} />
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ padding: '8px 12px', borderRadius: 999, background: 'rgba(3,5,0,0.88)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', boxShadow: '0 0 24px rgba(166,255,63,0.42)' }}>Signal analyzing…</div>
+                <div style={{ padding: '8px 12px', borderRadius: 999, background: 'rgba(3,5,0,0.88)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', boxShadow: '0 0 24px rgba(125,246,255,0.42)' }}>Signal analyzing…</div>
               </div>
             </div>
           )}
@@ -4166,8 +4166,8 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
                   </div>
                 )}
                 <span style={{
-                  background: readinessTone === 'execute' ? 'rgba(166,255,63,0.10)' : readinessTone === 'watch' ? 'rgba(255,215,0,0.10)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${readinessTone === 'execute' ? 'rgba(166,255,63,0.32)' : readinessTone === 'watch' ? 'rgba(255,215,0,0.30)' : 'rgba(255,255,255,0.12)'}`,
+                  background: readinessTone === 'execute' ? 'rgba(125,246,255,0.10)' : readinessTone === 'watch' ? 'rgba(255,215,0,0.10)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${readinessTone === 'execute' ? 'rgba(125,246,255,0.32)' : readinessTone === 'watch' ? 'rgba(255,215,0,0.30)' : 'rgba(255,255,255,0.12)'}`,
                   borderRadius: 999, padding: '2px 8px',
                   color: readinessTone === 'execute' ? C.green : readinessTone === 'watch' ? C.gold : C.textSecondary,
                   fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase'
@@ -4178,7 +4178,7 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
                       display: 'flex', alignItems: 'center', gap: 4,
                       fontSize: 9, fontWeight: 800, letterSpacing: '0.1em',
                       padding: '3px 8px', borderRadius: 8,
-                      background: 'rgba(166,255,63,0.1)', border: `1px solid ${C.borderHot}`,
+                      background: 'rgba(125,246,255,0.1)', border: `1px solid ${C.borderHot}`,
                       color: C.cyan, textTransform: 'uppercase',
                       boxShadow: `0 0 12px ${C.cyan}22`, cursor: 'pointer'
                     }}>⚡ LINE GAP</button>
@@ -4187,7 +4187,7 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
                         position: 'absolute', left: 0, top: 30, zIndex: 30, width: 280,
                         background: 'rgba(8,12,5,0.98)', border: `1px solid ${C.borderHot}`,
                         borderRadius: 16, padding: 16,
-                        boxShadow: `0 0 40px rgba(166,255,63,0.15), 0 16px 40px rgba(0,0,0,0.8)`,
+                        boxShadow: `0 0 40px rgba(125,246,255,0.15), 0 16px 40px rgba(0,0,0,0.8)`,
                       }}>
                         <p style={{ color: C.cyan, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>⚡ POLYMARKET LINE DISCREPANCY</p>
                         <p style={{ color: C.textPrimary, fontSize: 12, lineHeight: 1.6, opacity: 0.8, marginBottom: 10 }}>Polymarket's line differs from the reference market. This gap is a potential edge.</p>
@@ -4212,8 +4212,8 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
                 <button onClick={() => onOpenIntel && onOpenIntel()} style={{
                   fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
                   padding: '4px 10px', borderRadius: 10, fontWeight: 700,
-                  background: isActive ? 'rgba(166,255,63,0.12)' : 'rgba(166,255,63,0.06)',
-                  border: `1px solid ${isActive ? C.borderHot : 'rgba(166,255,63,0.2)'}`,
+                  background: isActive ? 'rgba(125,246,255,0.12)' : 'rgba(125,246,255,0.06)',
+                  border: `1px solid ${isActive ? C.borderHot : 'rgba(125,246,255,0.2)'}`,
                   color: isActive ? C.cyan : C.textSecondary, cursor: 'pointer', transition: 'all 0.2s',
                 }}>📊 Intel</button>
                 <button onClick={() => onOpenAnalysis && onOpenAnalysis()} style={{
@@ -4294,7 +4294,7 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 5,
                         padding: '3px 10px', borderRadius: 8,
-                        background: 'rgba(166,255,63,0.07)', border: '1px solid rgba(166,255,63,0.25)',
+                        background: 'rgba(125,246,255,0.07)', border: '1px solid rgba(125,246,255,0.25)',
                       }}>
                         <span style={{ fontSize: 9 }}>📐</span>
                         <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 700 }}>Sizing hint · verify ask:</span>
@@ -4533,7 +4533,7 @@ Return this exact JSON:
   const { fighterA: a, fighterB: b } = fight
 
   return (
-    <div style={{ width: '100%', background: 'rgba(2,2,15,0.97)', borderTop: `1px solid rgba(166,255,63,0.3)`, padding: '20px' }}>
+    <div style={{ width: '100%', background: 'rgba(2,2,15,0.97)', borderTop: `1px solid rgba(125,246,255,0.3)`, padding: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, maxWidth: 900, margin: '0 auto 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ color: UFC_RED, fontSize: 11, fontWeight: 900, letterSpacing: '0.12em' }}>◈ FIGHT INTEL</span>
@@ -4545,10 +4545,10 @@ Return this exact JSON:
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, maxWidth: 1200, margin: '0 auto' }}>
 
         {/* Fighter comparison */}
-        <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(166,255,63,0.2)`, borderRadius: 16, padding: 20, gridColumn: '1 / -1' }}>
+        <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(125,246,255,0.2)`, borderRadius: 16, padding: 20, gridColumn: '1 / -1' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
             <span style={{ fontSize: 12 }}>⚔️</span>
-            <span style={{ color: 'rgba(166,255,63,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>Fighter Stats Comparison</span>
+            <span style={{ color: 'rgba(125,246,255,0.5)', fontSize: 10, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }}>Fighter Stats Comparison</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, alignItems: 'center', marginBottom: 20 }}>
             <div style={{ textAlign: 'center' }}>
@@ -4596,12 +4596,12 @@ Return this exact JSON:
           <>
             {/* Top row: Verdict + Method */}
             <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 12, alignItems: 'stretch', flexWrap: 'wrap' }}>
-              <div style={{ flex: 3, minWidth: 220, background: 'linear-gradient(135deg, rgba(166,255,63,0.1), rgba(231,238,226,0.05))', border: '1px solid rgba(166,255,63,0.3)', borderRadius: 14, padding: '14px 16px' }}>
+              <div style={{ flex: 3, minWidth: 220, background: 'linear-gradient(135deg, rgba(125,246,255,0.1), rgba(231,238,226,0.05))', border: '1px solid rgba(125,246,255,0.3)', borderRadius: 14, padding: '14px 16px' }}>
                 <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 6 }}>🎯 VERDICT</p>
                 <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 700, lineHeight: 1.55 }}>{intel.verdict}</p>
               </div>
               {intel.prediction && (
-                <div style={{ flex: 1, minWidth: 120, background: 'rgba(166,255,63,0.08)', border: '1px solid rgba(166,255,63,0.25)', borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                <div style={{ flex: 1, minWidth: 120, background: 'rgba(125,246,255,0.08)', border: '1px solid rgba(125,246,255,0.25)', borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                   <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>METHOD</p>
                   <p style={{ color: UFC_RED, fontSize: 14, fontWeight: 900 }}>{intel.prediction}</p>
                 </div>
@@ -4610,13 +4610,13 @@ Return this exact JSON:
 
             {/* Bottom row: Striking | Grappling | Key Factors | Watch For */}
             {intel.striking && (
-              <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(166,255,63,0.15)`, borderRadius: 14, padding: '14px 16px' }}>
+              <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(125,246,255,0.15)`, borderRadius: 14, padding: '14px 16px' }}>
                 <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>👊 STRIKING</p>
                 <p style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.6, opacity: 0.9 }}>{intel.striking}</p>
               </div>
             )}
             {intel.grappling && (
-              <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(166,255,63,0.15)`, borderRadius: 14, padding: '14px 16px' }}>
+              <div style={{ background: 'rgba(8,12,5,0.9)', border: `1px solid rgba(125,246,255,0.15)`, borderRadius: 14, padding: '14px 16px' }}>
                 <p style={{ color: C.textSecondary, fontSize: 8, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>🤼 GRAPPLING</p>
                 <p style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.6, opacity: 0.9 }}>{intel.grappling}</p>
               </div>
@@ -4679,13 +4679,13 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
   const boutLabel = getBoutLabel(fight, totalFights)
   const boutColor = fight.isMainEvent ? UFC_RED : fight.boutOrder === 2 ? C.gold : fight.boutOrder <= Math.ceil(totalFights / 2) ? C.purple : C.textSecondary
   const statusColor = fight.status === 'in' ? C.green : fight.status === 'post' ? C.textSecondary : C.gold
-  const statusBg = fight.status === 'in' ? 'rgba(166,255,63,0.10)' : fight.status === 'post' ? 'rgba(255,255,255,0.05)' : 'rgba(255,215,0,0.10)'
-  const statusBorder = fight.status === 'in' ? 'rgba(166,255,63,0.35)' : fight.status === 'post' ? 'rgba(255,255,255,0.12)' : 'rgba(255,215,0,0.35)'
+  const statusBg = fight.status === 'in' ? 'rgba(125,246,255,0.10)' : fight.status === 'post' ? 'rgba(255,255,255,0.05)' : 'rgba(255,215,0,0.10)'
+  const statusBorder = fight.status === 'in' ? 'rgba(125,246,255,0.35)' : fight.status === 'post' ? 'rgba(255,255,255,0.12)' : 'rgba(255,215,0,0.35)'
   const statusLabel = fight.status === 'in' ? (fight.statusDetail || 'LIVE / PRE-FIGHT') : fight.status === 'post' ? 'FINAL' : (fight.statusDetail || 'SCHEDULED')
   const { fighterA: a, fighterB: b, result } = fight
 
   const RankBadge = ({ r }: { r: number | null }) => r !== null ? (
-    <span style={{ background: 'rgba(166,255,63,0.15)', border: `1px solid rgba(166,255,63,0.4)`, borderRadius: 6, padding: '1px 6px', color: UFC_RED, fontSize: 9, fontWeight: 900 }}>
+    <span style={{ background: 'rgba(125,246,255,0.15)', border: `1px solid rgba(125,246,255,0.4)`, borderRadius: 6, padding: '1px 6px', color: UFC_RED, fontSize: 9, fontWeight: 900 }}>
       {r === 0 ? 'C' : `#${r}`}
     </span>
   ) : null
@@ -4709,9 +4709,9 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
   return (
     <div style={{
       borderRadius: isMobile ? 16 : 20, padding: isMobile ? '14px' : '20px',
-      background: isActive ? 'rgba(166,255,63,0.06)' : 'rgba(8,12,5,0.85)',
-      border: `1px solid ${isActive ? 'rgba(166,255,63,0.5)' : fight.isMainEvent ? 'rgba(166,255,63,0.3)' : C.border}`,
-      boxShadow: fight.isMainEvent ? `0 0 30px rgba(166,255,63,0.1)` : 'none',
+      background: isActive ? 'rgba(125,246,255,0.06)' : 'rgba(8,12,5,0.85)',
+      border: `1px solid ${isActive ? 'rgba(125,246,255,0.5)' : fight.isMainEvent ? 'rgba(125,246,255,0.3)' : C.border}`,
+      boxShadow: fight.isMainEvent ? `0 0 30px rgba(125,246,255,0.1)` : 'none',
       backdropFilter: 'blur(24px)',
       cursor: 'pointer',
       transition: 'all 0.2s',
@@ -4719,7 +4719,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
       {/* Bout header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
         <span style={{
-          background: fight.isMainEvent ? `rgba(166,255,63,0.15)` : 'rgba(255,255,255,0.06)',
+          background: fight.isMainEvent ? `rgba(125,246,255,0.15)` : 'rgba(255,255,255,0.06)',
           border: `1px solid ${boutColor}`,
           borderRadius: 8, padding: '2px 10px',
           color: boutColor, fontSize: 9, fontWeight: 900, letterSpacing: '0.12em',
@@ -4729,7 +4729,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
           {fight.isTitleFight && <span style={{ background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.4)', borderRadius: 6, padding: '1px 7px', color: C.gold, fontSize: 8, fontWeight: 900 }}>🏆 TITLE</span>}
           <span style={{ color: C.textSecondary, fontSize: 10 }}>{fight.weightClass}</span>
         </div>
-        <button onClick={e => { e.stopPropagation(); onOpenIntel() }} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 8, background: 'rgba(166,255,63,0.1)', border: `1px solid rgba(166,255,63,0.3)`, color: UFC_RED, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.08em' }}>📊 INTEL</button>
+        <button onClick={e => { e.stopPropagation(); onOpenIntel() }} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 8, background: 'rgba(125,246,255,0.1)', border: `1px solid rgba(125,246,255,0.3)`, color: UFC_RED, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.08em' }}>📊 INTEL</button>
       </div>
 
       {/* Fighters */}
@@ -4771,7 +4771,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
 
         return (
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8, padding: '7px 10px', borderRadius: 12, background: hasExecutableLink ? 'rgba(166,255,63,0.07)' : 'rgba(255,215,0,0.07)', border: `1px solid ${hasExecutableLink ? 'rgba(166,255,63,0.25)' : 'rgba(255,215,0,0.25)'}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8, padding: '7px 10px', borderRadius: 12, background: hasExecutableLink ? 'rgba(125,246,255,0.07)' : 'rgba(255,215,0,0.07)', border: `1px solid ${hasExecutableLink ? 'rgba(125,246,255,0.25)' : 'rgba(255,215,0,0.25)'}` }}>
               <span style={{ color: hasExecutableLink ? C.green : C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{hasExecutableLink ? 'Market ready · linked chips executable' : 'Watch only · no executable link'}</span>
               <span style={{ color: C.textSecondary, fontSize: 9 }}>Confirm price/liquidity before sizing</span>
             </div>
@@ -4783,7 +4783,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
             )}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 7 }}>
               {chips.map(chip => (
-                <a key={`${chip.label}-${chip.value}`} href={chip.href || undefined} target={chip.href ? '_blank' : undefined} rel={chip.href ? 'noreferrer' : undefined} onClick={e => chip.href ? e.stopPropagation() : e.preventDefault()} style={{ textDecoration: 'none', borderRadius: 12, padding: '8px 9px', background: chip.hot ? 'rgba(166,255,63,0.10)' : 'rgba(255,255,255,0.035)', border: `1px solid ${chip.hot ? 'rgba(166,255,63,0.35)' : 'rgba(255,255,255,0.08)'}` }}>
+                <a key={`${chip.label}-${chip.value}`} href={chip.href || undefined} target={chip.href ? '_blank' : undefined} rel={chip.href ? 'noreferrer' : undefined} onClick={e => chip.href ? e.stopPropagation() : e.preventDefault()} style={{ textDecoration: 'none', borderRadius: 12, padding: '8px 9px', background: chip.hot ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.035)', border: `1px solid ${chip.hot ? 'rgba(125,246,255,0.35)' : 'rgba(255,255,255,0.08)'}` }}>
                   <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{chip.label}</div>
                   <div style={{ color: chip.hot ? UFC_RED : C.textPrimary, fontSize: 15, fontWeight: 950, marginTop: 2 }}>{chip.value}</div>
                 </a>
@@ -4860,19 +4860,19 @@ function KalshiUFCSection() {
               borderRadius: isMobile ? 16 : 22,
               padding: 1,
               border: 'none',
-              background: 'linear-gradient(135deg, rgba(166,255,63,0.56), rgba(255,255,255,0.10), rgba(168,240,255,0.18), rgba(166,255,63,0.22))',
+              background: 'linear-gradient(135deg, rgba(125,246,255,0.56), rgba(255,255,255,0.10), rgba(168,240,255,0.18), rgba(125,246,255,0.22))',
               cursor: 'pointer',
               overflow: 'hidden',
             }}>
               <div style={{ position: 'relative', zIndex: 2, borderRadius: isMobile ? 15 : 21, padding: isMobile ? 10 : 16, minHeight: isMobile ? 112 : 150, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', alignContent: 'space-between', gap: isMobile ? 8 : 12, overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(166,255,63,0.055), transparent 34%, rgba(168,240,255,0.035) 68%, transparent)', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(125,246,255,0.055), transparent 34%, rgba(168,240,255,0.035) 68%, transparent)', pointerEvents: 'none' }} />
                 <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi UFC</div>
                     <div style={{ color: C.textPrimary, fontSize: isMobile ? 14 : 18, fontWeight: 950, marginTop: 4, lineHeight: 1.08, overflow: 'hidden', textOverflow: 'ellipsis' }}>{fight.fighterA}<br />vs {fight.fighterB}</div>
                     <div style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 800, marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fight.dateLabel || fight.eventKey}</div>
                   </div>
-                  <span style={{ flexShrink: 0, borderRadius: 999, padding: '3px 7px', background: 'rgba(166,255,63,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 8, fontWeight: 950 }}>{fight.markets.length}</span>
+                  <span style={{ flexShrink: 0, borderRadius: 999, padding: '3px 7px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 8, fontWeight: 950 }}>{fight.markets.length}</span>
                 </div>
                 <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', minWidth: 0 }}>
                   <span style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Load board</span>
@@ -4883,7 +4883,7 @@ function KalshiUFCSection() {
           )
         }
         return (
-          <div key={fight.id} style={{ gridColumn: '1 / -1', borderRadius: 22, padding: 1, background: 'linear-gradient(135deg, rgba(166,255,63,0.46), rgba(255,255,255,0.10), rgba(166,255,63,0.08))', boxShadow: '0 14px 42px rgba(0,0,0,0.42)', overflow: 'hidden' }}>
+          <div key={fight.id} style={{ gridColumn: '1 / -1', borderRadius: 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.46), rgba(255,255,255,0.10), rgba(125,246,255,0.08))', boxShadow: '0 14px 42px rgba(0,0,0,0.42)', overflow: 'hidden' }}>
             <div style={{ borderRadius: 21, padding: 14, background: SURFACE.panel, minHeight: 190 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
                 <div style={{ minWidth: 0 }}>
@@ -4892,7 +4892,7 @@ function KalshiUFCSection() {
                   <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 3 }}>{fight.dateLabel || fight.eventKey}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                  <span style={{ borderRadius: 999, padding: '3px 7px', background: 'rgba(166,255,63,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 8, fontWeight: 950 }}>{Math.round(totalSize).toLocaleString()} size</span>
+                  <span style={{ borderRadius: 999, padding: '3px 7px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 8, fontWeight: 950 }}>{Math.round(totalSize).toLocaleString()} size</span>
                   <button onClick={() => setLoadedFightIds(prev => { const next = { ...prev }; delete next[fight.id]; return next })} style={{ borderRadius: 999, padding: '7px 10px', border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.045)', color: C.textPrimary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>Minimize</button>
                 </div>
               </div>
@@ -4903,7 +4903,7 @@ function KalshiUFCSection() {
                   const open = openGroups[key] ?? group.category === 'Winner'
                   const best = group.markets.reduce((low, m) => (low == null || (m.yesAsk && m.yesAsk < low.yesAsk) ? m : low), null as KalshiUFCMarket | null)
                   return (
-                    <div key={group.category} style={{ borderRadius: 15, overflow: 'hidden', background: open ? 'rgba(166,255,63,0.045)' : 'rgba(255,255,255,0.03)', border: `1px solid ${open ? 'rgba(166,255,63,0.24)' : C.border}` }}>
+                    <div key={group.category} style={{ borderRadius: 15, overflow: 'hidden', background: open ? 'rgba(125,246,255,0.045)' : 'rgba(255,255,255,0.03)', border: `1px solid ${open ? 'rgba(125,246,255,0.24)' : C.border}` }}>
                       <button
                         onClick={() => setOpenGroups(prev => ({ ...prev, [key]: !open }))}
                         style={{ width: '100%', border: 'none', background: 'transparent', padding: '10px 11px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: 8, alignItems: 'center', cursor: 'pointer', textAlign: 'left' }}
@@ -5153,9 +5153,9 @@ function SportSubtabBar({ active, onChange, isMobile }: { active: SportSubtab; o
             borderRadius: 16,
             padding: isMobile ? '9px 8px' : '11px 14px',
             border: `1px solid ${selected ? C.borderHot : C.border}`,
-            background: selected ? 'linear-gradient(145deg, rgba(166,255,63,0.18), rgba(6,12,3,0.98))' : 'rgba(255,255,255,0.035)',
+            background: selected ? 'linear-gradient(145deg, rgba(125,246,255,0.18), rgba(6,12,3,0.98))' : 'rgba(255,255,255,0.035)',
             color: selected ? C.green : C.textSecondary,
-            boxShadow: selected ? '0 0 26px rgba(166,255,63,0.16), inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+            boxShadow: selected ? '0 0 26px rgba(125,246,255,0.16), inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
             fontSize: isMobile ? 10 : 11,
             fontWeight: 950,
             letterSpacing: '0.08em',
@@ -5412,7 +5412,7 @@ function FightersDirectoryPanel({ isMobile }: { isMobile: boolean }) {
                   <p style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>{group.limit ? `${group.limit} · ` : ''}{group.fighters.length} ranked</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                  <span style={{ borderRadius: 999, padding: '3px 8px', background: isOpen ? 'rgba(166,255,63,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${isOpen ? C.borderHot : C.border}`, color: isOpen ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{isOpen ? 'Hide' : 'Show'}</span>
+                  <span style={{ borderRadius: 999, padding: '3px 8px', background: isOpen ? 'rgba(125,246,255,0.12)' : 'rgba(255,255,255,0.05)', border: `1px solid ${isOpen ? C.borderHot : C.border}`, color: isOpen ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{isOpen ? 'Hide' : 'Show'}</span>
                   <span aria-hidden="true" style={{ color: isOpen ? C.green : C.textSecondary, fontSize: 16, fontWeight: 950, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.16s ease' }}>⌄</span>
                 </div>
               </button>
@@ -5501,7 +5501,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
       boxShadow: 'none',
     }}>
       <div style={{ display: 'grid', gap: isMobile ? 8 : 12 }}>
-        <div style={{ position: 'relative', overflow: 'hidden', borderRadius: isMobile ? 18 : 24, border: '1px solid rgba(166,255,63,0.22)', background: '#000', boxShadow: '0 0 26px rgba(166,255,63,0.10), 0 18px 48px rgba(0,0,0,0.34)' }}>
+        <div style={{ position: 'relative', overflow: 'hidden', borderRadius: isMobile ? 18 : 24, border: '1px solid rgba(125,246,255,0.22)', background: '#000', boxShadow: '0 0 26px rgba(125,246,255,0.10), 0 18px 48px rgba(0,0,0,0.34)' }}>
           <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: isMobile ? 126 : 132, display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '16px 14px 14px' : '18px 260px 18px 22px', border: 0, background: '#000', cursor: 'pointer', textAlign: isMobile ? 'center' : 'left' }}>
             <img src={logoSrc} alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: isMobile ? 340 : 500, height: isMobile ? 96 : 96, objectFit: 'contain', objectPosition: isMobile ? 'center center' : 'left center', display: 'block' }} />
           </button>
@@ -6026,7 +6026,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       {/* Soft logo glow background */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(166,255,63,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(166,255,63,0.05) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(125,246,255,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(125,246,255,0.05) 0%, transparent 70%)',
       }} />
 
       <div style={{ position: 'relative', zIndex: 5, maxWidth: 1200, margin: '0 auto', padding: '32px 16px 0' }}>
@@ -6060,7 +6060,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
             <p style={{ color: C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Feed error</p>
             <p style={{ color: C.textPrimary, fontSize: 15, fontWeight: 850, marginBottom: 8 }}>Market feed did not load.</p>
             <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45, marginBottom: 14 }}>{feedError}</p>
-            <button onClick={() => { setLoading(true); fetchGames() }} style={{ borderRadius: 999, padding: '10px 14px', border: `1px solid ${C.borderHot}`, background: 'rgba(166,255,63,0.14)', color: C.green, fontSize: 11, fontWeight: 950, cursor: 'pointer' }}>Retry feed</button>
+            <button onClick={() => { setLoading(true); fetchGames() }} style={{ borderRadius: 999, padding: '10px 14px', border: `1px solid ${C.borderHot}`, background: 'rgba(125,246,255,0.14)', color: C.green, fontSize: 11, fontWeight: 950, cursor: 'pointer' }}>Retry feed</button>
           </div>
         ) : games.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0' }}>

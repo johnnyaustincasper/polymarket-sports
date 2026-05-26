@@ -8,7 +8,7 @@ import SportsbookConsensusPanel from './SportsbookConsensusPanel'
 import type { SignalDrawerProps, SignalTerminalSignal, SignalTier } from './types'
 
 const C = {
-  green: '#a6ff3f',
+  green: '#7df6ff',
   amber: '#ffd166',
   red: '#ff4d6d',
   cyan: '#8df7ff',
@@ -16,7 +16,7 @@ const C = {
   muted: 'rgba(244,255,232,0.66)',
   faint: 'rgba(244,255,232,0.38)',
   border: 'rgba(255,255,255,0.10)',
-  borderHot: 'rgba(166,255,63,0.36)',
+  borderHot: 'rgba(125,246,255,0.36)',
 }
 
 function isFiniteNumber(value: unknown): value is number {

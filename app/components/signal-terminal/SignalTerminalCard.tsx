@@ -6,7 +6,7 @@ import PriceFairMovementChart from './PriceFairMovementChart'
 import type { SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
 
 const C = {
-  green: '#a6ff3f',
+  green: '#7df6ff',
   amber: '#ffd166',
   red: '#ff4d6d',
   cyan: '#8df7ff',
@@ -14,7 +14,7 @@ const C = {
   muted: 'rgba(244,255,232,0.66)',
   faint: 'rgba(244,255,232,0.38)',
   border: 'rgba(255,255,255,0.10)',
-  borderHot: 'rgba(166,255,63,0.38)',
+  borderHot: 'rgba(125,246,255,0.38)',
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -144,14 +144,14 @@ export default function SignalTerminalCard({
         borderRadius: 20,
         padding: 1,
         background: selected
-          ? `linear-gradient(135deg, ${hotColor}, rgba(255,255,255,0.13), rgba(166,255,63,0.15))`
+          ? `linear-gradient(135deg, ${hotColor}, rgba(255,255,255,0.13), rgba(125,246,255,0.15))`
           : `linear-gradient(135deg, ${tierColor(tier)}55, rgba(255,255,255,0.08), rgba(0,0,0,0.12))`,
         boxShadow: selected ? `0 0 34px ${hotColor}22, 0 18px 54px rgba(0,0,0,0.44)` : '0 16px 42px rgba(0,0,0,0.34)',
         cursor: onOpen ? 'pointer' : 'default',
         overflow: 'hidden',
       }}
     >
-      <div style={{ position: 'absolute', inset: 0, opacity: selected ? 0.18 : 0.10, background: 'radial-gradient(circle at 20% 0%, rgba(166,255,63,0.36), transparent 34%), radial-gradient(circle at 90% 12%, rgba(141,247,255,0.22), transparent 30%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', inset: 0, opacity: selected ? 0.18 : 0.10, background: 'radial-gradient(circle at 20% 0%, rgba(125,246,255,0.36), transparent 34%), radial-gradient(circle at 90% 12%, rgba(141,247,255,0.22), transparent 30%)', pointerEvents: 'none' }} />
       <div style={{ position: 'relative', borderRadius: 19, padding: compact ? 12 : 14, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: `1px solid ${selected ? C.borderHot : C.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
           <div style={{ minWidth: 0 }}>
@@ -204,7 +204,7 @@ export default function SignalTerminalCard({
                 const value = Number(game.value)
                 const hit = isFiniteNumber(signal.line) ? value >= signal.line : false
                 return (
-                  <div key={`${idx}-${value}-${String(game.opponent || '')}`} title={[game.date, game.opponent].filter(Boolean).join(' · ')} style={{ borderRadius: 8, padding: '5px 3px', textAlign: 'center', background: hit ? 'rgba(166,255,63,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${hit ? 'rgba(166,255,63,0.20)' : 'rgba(255,255,255,0.06)'}` }}>
+                  <div key={`${idx}-${value}-${String(game.opponent || '')}`} title={[game.date, game.opponent].filter(Boolean).join(' · ')} style={{ borderRadius: 8, padding: '5px 3px', textAlign: 'center', background: hit ? 'rgba(125,246,255,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${hit ? 'rgba(125,246,255,0.20)' : 'rgba(255,255,255,0.06)'}` }}>
                     <div style={{ color: hit ? C.green : C.text, fontSize: 10, fontWeight: 950 }}>{formatNumber(value)}</div>
                     <div style={{ color: C.faint, fontSize: 6, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(game.opponent || `G${idx + 1}`).replace(/^vs\s+|^@\s+/i, '')}</div>
                   </div>
