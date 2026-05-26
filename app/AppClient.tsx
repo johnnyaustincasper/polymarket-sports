@@ -5305,7 +5305,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
               const expandedLabel = expandTeamStatLabel(stat.label)
               return (
                 <div key={`${stat.label}-${stat.value}`} style={{ borderRadius: 14, padding: '10px 9px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <div style={{ color: accent, fontSize: 17, fontWeight: 950 }}>{stat.value}</div>
+                  <div style={{ color: C.textPrimary, fontSize: 17, fontWeight: 950 }}>{stat.value}</div>
                   <div style={{ color: C.textSecondary, fontSize: isMobile ? 9 : 10, fontWeight: 900, letterSpacing: '0.03em', textTransform: 'none', marginTop: 3, lineHeight: 1.18 }}>{expandedLabel}</div>
                 </div>
               )
