@@ -5,9 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import AccountMenu from './components/AccountMenu'
 import LoadingMarketCards from './components/LoadingMarketCards'
 import UpdatedAgeLabel from './components/UpdatedAgeLabel'
-import ChangedSinceRefreshFeed from './components/signal-terminal/ChangedSinceRefreshFeed'
 import PropDetailDrawer from './components/signal-terminal/PropDetailDrawer'
-import SignalDetailDrawer from './components/signal-terminal/SignalDetailDrawer'
 import SignalTerminalCard from './components/signal-terminal/SignalTerminalCard'
 import type { LineupInjuryFlagItem, SignalTerminalSignal, SportsbookConsensus } from './components/signal-terminal/types'
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
@@ -3378,129 +3376,18 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
         )}
 
         {data && (
-          <div style={{ marginTop: 13, display: 'grid', gap: isMobile ? 10 : 12 }}>
-            <div style={{
-              borderRadius: 16,
-              padding: isMobile ? '11px 12px' : '12px 14px',
-              background: 'rgba(0,0,0,0.20)',
-              border: `1px solid ${C.border}`,
-              display: 'grid',
-              gap: 9,
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                <div>
-                  <div style={{ color: C.textPrimary, fontSize: isMobile ? 13 : 14, fontWeight: 950, letterSpacing: '-0.02em' }}>Best available singles</div>
-                  <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 2 }}>Ranked by edge, price, and recent sample.</div>
-                </div>
-                <div style={{ color: C.green, fontSize: isMobile ? 18 : 20, fontWeight: 950, lineHeight: 1 }}>{topSignals.length}</div>
-              </div>
-              <div className="no-scrollbar" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 1 }}>
-                {[
-                  ['A', data.summary.a, C.green],
-                  ['B', data.summary.b, C.cyan],
-                  ['Watch', data.summary.watch, C.gold],
-                  ['Scored', data.contractsScored, C.textPrimary],
-                  ['Best', String(data.summary.bestEdge) + 'c', C.green],
-                ].map(([label, value, color]) => (
-                  <div key={String(label)} style={{ flex: '0 0 auto', minWidth: isMobile ? 70 : 82, borderRadius: 999, padding: '7px 10px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                    <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{label}</span>
-                    <span style={{ color: String(color), fontSize: 11, fontWeight: 950 }}>{value}</span>
+          <div style={{ marginTop: 13, display: 'grid', gap: isMobile ? 8 : 9 }}>
+            {topSignals.length ? (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9 }}>
+                {topSignals.slice(0, 8).map((signal, signalIdx) => (
+                  <div key={signal.id} style={{ opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 90, 540)}ms` }}>
+                    <SignalTerminalCard signal={signal} />
                   </div>
                 ))}
               </div>
-            </div>
-
-            {topSignals.length ? (
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) minmax(310px, 0.72fr)', gap: 12, alignItems: 'start' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9 }}>
-                  {topSignals.slice(0, 8).map((signal, signalIdx) => (
-                    <div key={signal.id} style={{ opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 90, 540)}ms` }}>
-                      <SignalTerminalCard
-                        signal={signal}
-                        selected={selectedSignal?.id === signal.id}
-                        watched={watchedKeys.has(watchKeyForSignal(signal))}
-                        onOpen={setSelectedSignal}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div style={{ position: isMobile ? 'static' : 'sticky', top: 12, display: selectedSignal || !isMobile ? 'grid' : 'none', gap: 10 }}>
-                  {selectedSignal ? (
-                    <>
-                      <SignalDetailDrawer
-                        signal={selectedSignal}
-                        open
-                        watched={watchedKeys.has(watchKeyForSignal(selectedSignal))}
-                        onClose={() => setSelectedSignal(null)}
-                        deltas={latestSignalDeltas.length ? latestSignalDeltas : signalDeltaFeed}
-                      />
-                    </>
-                  ) : (
-                    <div style={{ borderRadius: 16, padding: 13, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}>
-                      Tap a signal to open context, movement, last-12 stats, and risk notes.
-                    </div>
-                  )}
-                </div>
-              </div>
             ) : (
-              <div style={{ color: C.textSecondary, fontSize: 11 }}>No A/B/Watch calls passed the current model gate on this slate.</div>
+              <div style={{ color: C.textSecondary, fontSize: 11 }}>No clean signals passed the current model gate on this slate.</div>
             )}
-
-            <details style={{ borderRadius: 15, padding: isMobile ? '10px 11px' : '11px 12px', background: 'rgba(255,255,255,0.026)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <summary style={{ cursor: 'pointer', listStyle: 'none', display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                <span style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Model activity</span>
-                <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>Tap for ledger · {signalDeltaFeed.length} deltas · {performance?.pending ?? 0} pending ▾</span>
-              </summary>
-              <div style={{ marginTop: 10, display: 'grid', gap: 10 }}>
-                {performance && (
-                  <div style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
-                      <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Signal Ledger</div>
-                      <button onClick={settleSignals} disabled={settling || performance.pending === 0} style={{ border: 'none', background: 'transparent', color: settling ? C.textSecondary : C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: settling || performance.pending === 0 ? 'default' : 'pointer' }}>{settling ? 'Settling...' : `${performance.pending} pending · settle`}</button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 6 }}>
-                      {[
-                        ['Logged', performance.total],
-                        ['A', performance.aSignals],
-                        ['B', performance.bSignals],
-                        ['Win %', performance.winRate == null ? 'TBD' : String(performance.winRate) + '%'],
-                        ['Avg edge', String(performance.avgEdge) + 'c'],
-                      ].map(([label, value]) => (
-                        <div key={String(label)} style={{ borderRadius: 9, padding: '6px 4px', background: 'rgba(255,255,255,0.035)', textAlign: 'center' }}>
-                          <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
-                          <div style={{ color: C.textSecondary, fontSize: 6, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{label}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <ChangedSinceRefreshFeed
-                  changes={signalDeltaFeed}
-                  maxItems={isMobile ? 4 : 6}
-                  title="Refresh-change feed"
-                  emptyLabel="Run or refresh the signal model to build a durable change feed. Tiny moves are ignored."
-                  onSelectChange={(id) => {
-                    const next = topSignals.find(signal => signal.id === id)
-                    if (next) setSelectedSignal(next)
-                  }}
-                />
-                {alertEvents.length > 0 && (
-                  <div style={{ borderRadius: 13, padding: 10, background: 'rgba(255,209,102,0.055)', border: '1px solid rgba(255,209,102,0.18)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 7 }}>
-                      <div style={{ color: C.gold, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Watchlist alerts</div>
-                      <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{watchlist.filter(item => item.active).length} watched</div>
-                    </div>
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      {alertEvents.slice(0, 4).map((event, idx) => (
-                        <div key={`${event.key}-${event.type}-${event.at}-${idx}`} style={{ color: event.severity === 'danger' ? C.red : event.severity === 'watch' ? C.gold : C.cyan, fontSize: 9, lineHeight: 1.35, fontWeight: 850 }}>
-                          {event.label}: <span style={{ color: C.textSecondary }}>{event.detail}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </details>
           </div>
         )}
       </div>

@@ -2,7 +2,6 @@
 
 import type { KeyboardEvent } from 'react'
 import { buildWhyCare, classifySignalDecision } from '../../lib/signals/insight'
-import PriceFairMovementChart from './PriceFairMovementChart'
 import type { SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
 
 const C = {
@@ -29,28 +28,6 @@ function toProbability(value: number | null | undefined) {
 function toCents(value: number | null | undefined) {
   if (!isFiniteNumber(value)) return null
   return Math.abs(value) <= 1 ? value * 100 : value
-}
-
-function formatCents(value: number | null | undefined, fallback = '—') {
-  const cents = toCents(value)
-  if (cents == null) return fallback
-  const rounded = Math.round(cents * 10) / 10
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}c`
-}
-
-function formatSignedCents(value: number | null | undefined, fallback = '—') {
-  const cents = toCents(value)
-  if (cents == null) return fallback
-  const rounded = Math.round(cents * 10) / 10
-  const display = Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)
-  return `${rounded > 0 ? '+' : ''}${display}c`
-}
-
-function formatPercent(value: number | null | undefined, fallback = '—') {
-  if (!isFiniteNumber(value)) return fallback
-  const pct = Math.abs(value) <= 1 ? value * 100 : value
-  const rounded = Math.round(pct * 10) / 10
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}%`
 }
 
 function formatNumber(value: number | null | undefined, fallback = '—') {
@@ -153,36 +130,14 @@ export default function SignalTerminalCard({
     >
       <div style={{ position: 'absolute', inset: 0, opacity: selected ? 0.18 : 0.10, background: 'radial-gradient(circle at 20% 0%, rgba(125,246,255,0.36), transparent 34%), radial-gradient(circle at 90% 12%, rgba(141,247,255,0.22), transparent 30%)', pointerEvents: 'none' }} />
       <div style={{ position: 'relative', borderRadius: 19, padding: compact ? 12 : 14, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: `1px solid ${selected ? C.borderHot : C.border}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ color: tierColor(tier), fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{tier} signal</span>
-              {signal.sport && <span style={{ color: C.faint, fontSize: 8, fontWeight: 900, textTransform: 'uppercase' }}>{signal.sport}</span>}
-            </div>
-            <div style={{ color: C.text, fontSize: compact ? 14 : 16, fontWeight: 950, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleFor(signal)}</div>
-            <div style={{ color: C.muted, fontSize: compact ? 9 : 10, lineHeight: 1.35, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitleFor(signal) || 'No market label supplied'}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ color: tierColor(tier), fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{tier} signal</span>
+            {signal.sport && <span style={{ color: C.faint, fontSize: 8, fontWeight: 900, textTransform: 'uppercase' }}>{signal.sport}</span>}
           </div>
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ color: hotColor, fontSize: compact ? 15 : 18, fontWeight: 950, lineHeight: 1 }}>{formatSignedCents(signal.edge)}</div>
-            <div style={{ color: C.muted, fontSize: 8, fontWeight: 900, marginTop: 4 }}>{formatCents(signal.ask)} ask</div>
-          </div>
+          <div style={{ color: C.text, fontSize: compact ? 14 : 16, fontWeight: 950, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleFor(signal)}</div>
+          <div style={{ color: C.muted, fontSize: compact ? 9 : 10, lineHeight: 1.35, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitleFor(signal) || 'No market label supplied'}</div>
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 6, marginTop: 11 }}>
-          {[
-            ['Ask', formatCents(signal.ask), C.amber],
-            ['Fair', formatCents(signal.fairPrice), C.green],
-            ['L12 hit', signal.hits != null && signal.games != null ? `${formatNumber(signal.hits)}/${formatNumber(signal.games)}` : formatPercent(signal.hitRate ?? signal.projectedHitPct), C.text],
-            ['Avg', formatNumber(signal.avg), C.cyan],
-          ].map(([label, value, color]) => (
-            <div key={label} style={{ minWidth: 0, borderRadius: 11, padding: '7px 6px', background: 'rgba(255,255,255,0.036)', border: `1px solid ${C.border}`, textAlign: 'center' }}>
-              <div style={{ color, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
-              <div style={{ color: C.muted, fontSize: 7, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{label}</div>
-            </div>
-          ))}
-        </div>
-
-        {!compact && signal.movement?.length ? <PriceFairMovementChart points={signal.movement} compact style={{ marginTop: 10 }} /> : null}
 
         <div style={{ marginTop: 10, display: 'grid', gap: 5 }}>
           {whyCare.slice(0, compact ? 2 : 4).map((bullet) => (
@@ -213,14 +168,6 @@ export default function SignalTerminalCard({
             </div>
           </div>
         )}
-
-        {signal.flags?.length ? (
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 10 }}>
-            {signal.flags.slice(0, compact ? 3 : 6).map((flag) => (
-              <span key={flag} style={{ borderRadius: 999, padding: '4px 7px', background: 'rgba(255,209,102,0.09)', border: '1px solid rgba(255,209,102,0.22)', color: C.amber, fontSize: 7, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{flag.replace(/[_-]+/g, ' ')}</span>
-            ))}
-          </div>
-        ) : null}
 
       </div>
     </div>
