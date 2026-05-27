@@ -334,10 +334,13 @@ function reasonsFor(input: {
   liquidity: number
   risk: string
 }) {
+  const cushion = input.avg - input.line
+  const cushionText = cushion >= 0
+    ? `${cushion.toFixed(1)} above the ${input.line}+ line`
+    : `${Math.abs(cushion).toFixed(1)} below the ${input.line}+ line`
   const reasons = [
-    `Model fair ${input.fairPrice}c vs live ask ${input.ask}c: ${input.edge >= 0 ? '+' : ''}${input.edge}c edge.`,
-    `Recent form: hit ${input.hits}/${input.games} with ${input.avg.toFixed(1)} average vs ${input.line}+ line.`,
-    `Liquidity: ${input.liquidity} YES ask size.`,
+    `Recent form: ${input.hits}/${input.games} clears with a ${input.avg.toFixed(1)} average — ${cushionText}.`,
+    `Market is underpricing it: ${input.fairPrice}c fair vs ${input.ask}c ask leaves ${input.edge >= 0 ? '+' : ''}${input.edge}c cushion.`,
   ]
   const flags: string[] = []
   if (input.risk === 'high') flags.push('High volatility profile')

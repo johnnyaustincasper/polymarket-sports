@@ -122,36 +122,38 @@ function formatFlag(flag: string) {
 }
 
 export function buildWhyCare(input: BuildWhyCareInput): string[] {
-  const bullets: string[] = [`${input.player}: ${input.label}`]
-
-  if (isFiniteNumber(input.edge)) {
-    bullets.push(`${formatSignedCents(input.edge)} edge vs market`)
-  }
-
-  if (isFiniteNumber(input.fairPrice) && isFiniteNumber(input.ask)) {
-    bullets.push(`Model fair ${formatCents(input.fairPrice)} vs ask ${formatCents(input.ask)}`)
-  } else if (isFiniteNumber(input.fairPrice)) {
-    bullets.push(`Model fair ${formatCents(input.fairPrice)}`)
-  } else if (isFiniteNumber(input.ask)) {
-    bullets.push(`Current ask ${formatCents(input.ask)}`)
-  }
-
-  if (isFiniteNumber(input.hits) && isFiniteNumber(input.games)) {
-    bullets.push(`${formatNumber(input.hits)}/${formatNumber(input.games)} hit in recent sample`)
-  } else if (isFiniteNumber(input.hitRate)) {
-    bullets.push(`Recent sample cleared this line ${formatNumber(input.hitRate * 100)}% of the time`)
-  }
+  const bullets: string[] = []
 
   for (const reason of input.reasons ?? []) {
     const cleaned = reason.trim()
     if (cleaned) bullets.push(cleaned)
-    if (bullets.length >= 5) break
+    if (bullets.length >= 2) break
+  }
+
+  if (isFiniteNumber(input.hits) && isFiniteNumber(input.games)) {
+    bullets.push(`Recent form backs it: ${formatNumber(input.hits)}/${formatNumber(input.games)} cleared the line.`)
+  } else if (isFiniteNumber(input.hitRate)) {
+    bullets.push(`Recent form backs it: cleared this line ${formatNumber(input.hitRate * 100)}% of the time.`)
+  }
+
+  if (isFiniteNumber(input.edge) && isFiniteNumber(input.fairPrice) && isFiniteNumber(input.ask)) {
+    bullets.push(`Price gap is the trigger: ${formatCents(input.fairPrice)} fair vs ${formatCents(input.ask)} ask (${formatSignedCents(input.edge)} cushion).`)
+  } else if (isFiniteNumber(input.edge)) {
+    bullets.push(`Price gap is the trigger: ${formatSignedCents(input.edge)} cushion vs market.`)
+  } else if (isFiniteNumber(input.fairPrice)) {
+    bullets.push(`Model likes the side at ${formatCents(input.fairPrice)} fair.`)
+  } else if (isFiniteNumber(input.ask)) {
+    bullets.push(`Current entry is ${formatCents(input.ask)}.`)
+  }
+
+  if (bullets.length === 0) {
+    bullets.push(`${input.player}: ${input.label}`)
   }
 
   const flags = (input.flags ?? []).map(formatFlag).filter(Boolean)
-  if (flags.length > 0 && bullets.length < 6) {
-    bullets.push(`Watch: ${flags.join(', ')}`)
+  if (flags.length > 0 && bullets.length < 4) {
+    bullets.push(`Risk check: ${flags.join(', ')}`)
   }
 
-  return bullets.slice(0, 6)
+  return bullets.slice(0, 4)
 }

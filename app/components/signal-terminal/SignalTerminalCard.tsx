@@ -140,8 +140,9 @@ export default function SignalTerminalCard({
         </div>
 
         <div style={{ marginTop: 10, display: 'grid', gap: 5 }}>
-          {whyCare.slice(0, compact ? 2 : 4).map((bullet) => (
-            <div key={bullet} style={{ color: C.muted, fontSize: 9, lineHeight: 1.35, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 4 }}>
+          {!compact && <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Why this player</div>}
+          {whyCare.slice(0, compact ? 2 : 3).map((bullet) => (
+            <div key={bullet} style={{ color: C.muted, fontSize: 9, lineHeight: 1.4, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 4 }}>
               <span style={{ color: C.green }}>›</span>
               <span>{bullet}</span>
             </div>

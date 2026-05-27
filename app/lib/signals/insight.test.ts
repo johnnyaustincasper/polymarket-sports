@@ -71,7 +71,7 @@ describe('classifySignalDecision', () => {
 })
 
 describe('buildWhyCare', () => {
-  it('builds concise user-facing reasons with prices, hit rate, reasons, and flags', () => {
+  it('builds concise reasoning-first bullets without duplicate market-label noise', () => {
     const result = buildWhyCare({
       player: 'Jalen Brunson',
       label: 'Over 28.5 points',
@@ -85,20 +85,32 @@ describe('buildWhyCare', () => {
       flags: ['thin_liquidity'],
     })
 
-    expect(result[0]).toContain('Jalen Brunson')
     expect(result).toEqual(expect.arrayContaining([
-      expect.stringContaining('+8.4c edge'),
-      expect.stringContaining('fair 61c vs ask 52c'),
-      expect.stringContaining('8/12 hit in recent sample'),
       expect.stringContaining('Usage jumps without OG'),
-      expect.stringContaining('Watch: thin liquidity'),
+      expect.stringContaining('Knicks projected tight rotation'),
+      expect.stringContaining('8/12 cleared the line'),
+      expect.stringContaining('61c fair vs 52c ask'),
     ]))
-    expect(result.length).toBeLessThanOrEqual(6)
+    expect(result.join(' ')).not.toContain('Jalen Brunson: Over 28.5 points')
+    expect(result.length).toBeLessThanOrEqual(4)
+  })
+
+  it('shows risk copy when there is room after core reasoning', () => {
+    const result = buildWhyCare({
+      player: 'Aja Wilson',
+      label: 'Over rebounds',
+      hitRate: 0.67,
+      flags: ['thin_liquidity'],
+    })
+
+    expect(result).toEqual(expect.arrayContaining([
+      expect.stringContaining('67%'),
+      expect.stringContaining('Risk check: thin liquidity'),
+    ]))
   })
 
   it('omits unavailable numeric details instead of printing nulls', () => {
     const result = buildWhyCare({ player: 'Aja Wilson', label: 'Over rebounds' })
-
     expect(result.join(' ')).not.toMatch(/null|undefined|NaN/)
     expect(result[0]).toContain('Aja Wilson')
   })
