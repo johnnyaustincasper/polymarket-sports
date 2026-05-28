@@ -7,6 +7,22 @@ export type SignalSide = 'over' | 'under' | 'yes' | 'no' | 'home' | 'away' | str
 export type Severity = 'info' | 'watch' | 'danger'
 export type NumericValue = number | null | undefined
 
+export interface SignalLineOption {
+  id?: string
+  label: string
+  line?: NumericValue
+  ask?: NumericValue
+  fairPrice?: NumericValue
+  edge?: NumericValue
+  maxBuy?: NumericValue
+  tier?: SignalTier | null
+  hits?: NumericValue
+  games?: NumericValue
+  avg?: NumericValue
+  ticker?: string | null
+  url?: string | null
+}
+
 export interface SignalMovementPoint {
   label?: string
   time?: string

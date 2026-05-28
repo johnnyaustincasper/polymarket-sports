@@ -2,7 +2,7 @@
 
 import type { KeyboardEvent } from 'react'
 import { buildWhyCare, classifySignalDecision } from '../../lib/signals/insight'
-import type { SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
+import type { SignalLineOption, SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
 
 const C = {
   green: '#7df6ff',
@@ -34,6 +34,25 @@ function formatNumber(value: number | null | undefined, fallback = '—') {
   if (!isFiniteNumber(value)) return fallback
   const rounded = Math.round(value * 10) / 10
   return Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)
+}
+
+function formatCents(value: number | null | undefined) {
+  if (!isFiniteNumber(value) || value <= 0) return '—'
+  return `${Math.round(value)}c`
+}
+
+function formatLineOption(option: SignalLineOption) {
+  return option.label || (isFiniteNumber(option.line) ? `${formatNumber(option.line)}+` : 'Line')
+}
+
+function lineOptionKey(option: SignalLineOption, idx: number) {
+  return option.id || `${option.label}-${option.ask}-${idx}`
+}
+
+function getLineOptions(signal: SignalTerminalSignal): SignalLineOption[] {
+  const raw = signal.metadata?.lineOptions
+  if (Array.isArray(raw) && raw.length) return raw as SignalLineOption[]
+  return []
 }
 
 function safeTier(tier: SignalTier | null | undefined): 'A' | 'B' | 'WATCH' | 'KILL' | undefined {
@@ -109,6 +128,7 @@ export default function SignalTerminalCard({
     reasons: signal.reasons,
     flags: signal.flags,
   })
+  const lineOptions = getLineOptions(signal)
   const recentGames = Array.isArray(signal.metadata?.recentGames)
     ? (signal.metadata?.recentGames as Array<{ value?: unknown; opponent?: unknown; date?: unknown }>).filter(game => isFiniteNumber(Number(game.value))).slice(0, 12)
     : []
@@ -164,6 +184,25 @@ export default function SignalTerminalCard({
           <div style={{ color: C.text, fontSize: compact ? 14 : 16, fontWeight: 950, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleFor(signal)}</div>
           <div style={{ color: C.muted, fontSize: compact ? 9 : 10, lineHeight: 1.35, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitleFor(signal) || 'No market label supplied'}</div>
         </div>
+
+        {!compact && lineOptions.length > 1 && (
+          <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: `repeat(${Math.min(lineOptions.length, 3)}, minmax(0, 1fr))`, gap: 6 }}>
+            {lineOptions.slice(0, 3).map((option, idx) => (
+              <a
+                key={lineOptionKey(option, idx)}
+                href={option.url || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={event => { if (!option.url) event.preventDefault(); event.stopPropagation() }}
+                style={{ textDecoration: 'none', borderRadius: 11, padding: '8px 7px', background: idx === 0 ? 'rgba(125,246,255,0.105)' : 'rgba(255,255,255,0.045)', border: `1px solid ${idx === 0 ? 'rgba(125,246,255,0.26)' : C.border}` }}
+              >
+                <div style={{ color: idx === 0 ? C.green : C.text, fontSize: 10, fontWeight: 950, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatLineOption(option)}</div>
+                <div style={{ color: C.muted, fontSize: 8, fontWeight: 900, marginTop: 3 }}>ask {formatCents(toCents(option.ask))}</div>
+                <div style={{ color: C.faint, fontSize: 7.5, fontWeight: 900, marginTop: 1 }}>fair {formatCents(toCents(option.fairPrice))} · edge +{formatCents(toCents(option.edge))}</div>
+              </a>
+            ))}
+          </div>
+        )}
 
         <div style={{ marginTop: 10, display: 'grid', gap: 5 }}>
           {!compact && <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Why this player</div>}

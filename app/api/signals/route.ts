@@ -81,7 +81,24 @@ type ModelSignal = {
   metadata?: {
     recentGames?: Array<{ value: number; opponent?: string; date?: string; eventId?: string }>
     todayIntel?: TodaySignalIntel
+    lineOptions?: SignalLineOption[]
   }
+}
+
+type SignalLineOption = {
+  id: string
+  label: string
+  line: number
+  ask: number
+  fairPrice: number
+  edge: number
+  maxBuy: number
+  tier: SignalTier
+  hits: number
+  games: number
+  avg: number
+  ticker: string
+  url: string
 }
 
 type TodaySignalIntel = {
@@ -588,6 +605,7 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
           'Return strict JSON only. No markdown.',
           'Use live/public search if available. Check X/social, beat writers, injury reports, team news, projected lineups/starters, rotation/minutes notes, rest/travel, and matchup context.',
           'Use the provided teamIntel/injury/rest/pace context before making any generic claims.',
+          'When multiple lineOptions are provided for the same player/category, treat them as one signal ladder, not separate picks.',
           'Do not merely repeat the stat table. Explain WHY TODAY is different or worth attention.',
           'Every display bullet must be concrete, decision-relevant, and include a reason or threshold. Bad: "11/12 clears at 16.2 avg". Better: "Recent floor is strong: 11/12 over 10 pts, with only one miss at 8."',
           'For private-life/off-court chatter, only report credible public information. If it is just rumor, label it unverified/monitor and do not state it as fact.',
@@ -598,7 +616,7 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
       {
         role: 'user',
         content: JSON.stringify({
-          task: 'For each candidate, produce a Today Signals analyst card. Return {"signals":[{"id":"...","summary":"one sentence with the actual read","lineup":{"status":"confirmed starter|projected starter|bench|questionable|unknown","confidence":"low|medium|high","reason":"specific evidence or why unknown"},"injuryContext":["player/team/opponent injury details that change usage/minutes; empty if none credible"],"usageContext":["role, minutes, usage, matchup, teammate impact; no generic repeats"],"socialContext":{"status":"quiet|monitor|confirmed","summary":"X/news/off-court read; say quiet if no credible signal","confidence":"low|medium|high","sources":["source names or URLs if known"]},"riskFactors":["specific downgrade risks"],"whatCouldKillIt":["specific pass/avoid triggers like minutes cap, lineup scratch, price above X, blowout"],"displayBullets":["2-3 bullets max: (1) why player today, (2) lineup/usage/news edge, (3) price/entry or risk; no duplicate generic stat bullets"],"sources":["credible source names/URLs if known"]}]}',
+          task: 'For each candidate, produce one Today Signals analyst card. If lineOptions has multiple lines for the same player/category, analyze them together as a ladder: mention the respected odds/prices for each line, explain why both belong on the same player thesis, and give entry/risk guidance. Return {"signals":[{"id":"...","summary":"one sentence with the actual read","lineup":{"status":"confirmed starter|projected starter|bench|questionable|unknown","confidence":"low|medium|high","reason":"specific evidence or why unknown"},"injuryContext":["player/team/opponent injury details that change usage/minutes; empty if none credible"],"usageContext":["role, minutes, usage, matchup, teammate impact; no generic repeats"],"socialContext":{"status":"quiet|monitor|confirmed","summary":"X/news/off-court read; say quiet if no credible signal","confidence":"low|medium|high","sources":["source names or URLs if known"]},"riskFactors":["specific downgrade risks"],"whatCouldKillIt":["specific pass/avoid triggers like minutes cap, lineup scratch, price above X, blowout"],"displayBullets":["2-3 bullets max: (1) why player today, (2) line ladder/prices if multiple lineOptions, (3) risk/pass trigger; no duplicate generic stat bullets"],"sources":["credible source names/URLs if known"]}]}',
           generatedAt,
           signals: candidates.map(signal => ({
             id: signal.id,
@@ -610,6 +628,7 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
             metric: signal.metric,
             recent: { hits: signal.hits, games: signal.games, avg: signal.avg },
             market: { fair: signal.fairPrice, ask: signal.ask, edge: signal.edge, maxBuy: signal.maxBuy },
+            lineOptions: signal.metadata?.lineOptions || [{ label: signal.label, ask: signal.ask, fair: signal.fairPrice, edge: signal.edge, maxBuy: signal.maxBuy, hits: signal.hits, games: signal.games, avg: signal.avg }],
             currentReasons: signal.reasons,
             recentGames: signal.metadata?.recentGames || [],
             teamIntel: matchupIntel.get(signal.matchup) || null,
@@ -720,6 +739,78 @@ function roiForResult(entry: SignalLedgerEntry, hit: boolean): number | null {
   const ask = toNum(entry.ask)
   if (ask <= 0 || ask >= 100) return null
   return hit ? Math.round(((100 - ask) / ask) * 100) : -100
+}
+
+function signalLineOption(signal: ModelSignal): SignalLineOption {
+  return {
+    id: signal.id,
+    label: signal.label,
+    line: lineFromLabel(signal.label),
+    ask: signal.ask,
+    fairPrice: signal.fairPrice,
+    edge: signal.edge,
+    maxBuy: signal.maxBuy,
+    tier: signal.tier,
+    hits: signal.hits,
+    games: signal.games,
+    avg: signal.avg,
+    ticker: signal.ticker,
+    url: signal.url,
+  }
+}
+
+function combinedLineLabel(options: SignalLineOption[], metric: string): string {
+  const cleanMetric = metric.trim()
+  const lines = options
+    .map(option => option.line)
+    .filter(line => Number.isFinite(line) && line > 0)
+    .sort((a, b) => a - b)
+  const uniqueLines = Array.from(new Set(lines.map(line => Number.isInteger(line) ? `${line.toFixed(0)}+` : `${line}+`)))
+  if (!uniqueLines.length) return options[0]?.label || cleanMetric
+  return `${uniqueLines.join(' / ')} ${cleanMetric}`.trim()
+}
+
+function groupSamePlayerCategorySignals(signals: ModelSignal[]): ModelSignal[] {
+  const byKey = new Map<string, ModelSignal[]>()
+  for (const signal of signals) {
+    const key = [signal.sport, signal.gameId, signal.player.toLowerCase(), signal.team.toLowerCase(), signal.metric.toLowerCase()].join('|')
+    const group = byKey.get(key) || []
+    group.push(signal)
+    byKey.set(key, group)
+  }
+
+  const grouped: ModelSignal[] = []
+  for (const group of Array.from(byKey.values())) {
+    if (group.length === 1) {
+      grouped.push(group[0])
+      continue
+    }
+    const sortedGroup = [...group].sort((a, b) => {
+      const lineDiff = lineFromLabel(a.label) - lineFromLabel(b.label)
+      return lineDiff || b.edge - a.edge || a.ask - b.ask
+    })
+    const options = sortedGroup.map(signalLineOption)
+    const best = [...group].sort((a, b) => {
+      const rank = (tier: SignalTier) => tier === 'A' ? 3 : tier === 'B' ? 2 : tier === 'WATCH' ? 1 : 0
+      return rank(b.tier) - rank(a.tier) || b.edge - a.edge || a.ask - b.ask
+    })[0]
+    grouped.push({
+      ...best,
+      id: cleanId(`${best.sport}-${best.gameId}-${best.player}-${best.metric}-ladder`),
+      label: combinedLineLabel(options, best.metric),
+      reasons: uniq(group.flatMap(signal => signal.reasons || [])),
+      flags: uniq(group.flatMap(signal => signal.flags || [])),
+      metadata: {
+        ...(best.metadata || {}),
+        lineOptions: options,
+      },
+    })
+  }
+
+  return grouped.sort((a, b) => {
+    const rank = (tier: SignalTier) => tier === 'A' ? 3 : tier === 'B' ? 2 : tier === 'WATCH' ? 1 : 0
+    return rank(b.tier) - rank(a.tier) || b.edge - a.edge || b.confidence - a.confidence
+  })
 }
 
 export async function GET(req: NextRequest) {
@@ -833,12 +924,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const baseRankedSignals = allSignals
+    const baseRankedSignals = groupSamePlayerCategorySignals(allSignals
       .sort((a, b) => {
         const rank = (tier: SignalTier) => tier === 'A' ? 3 : tier === 'B' ? 2 : tier === 'WATCH' ? 1 : 0
         return rank(b.tier) - rank(a.tier) || b.edge - a.edge || b.confidence - a.confidence
       })
-      .slice(0, 40)
+      .slice(0, 40))
       .map(signal => enrichSignal(signal, generatedAt))
 
     const rankedSignals = daily ? await attachTodayIntel(baseRankedSignals, generatedAt, req.nextUrl.origin, sport) : baseRankedSignals
