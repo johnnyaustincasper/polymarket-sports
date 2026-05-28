@@ -81,6 +81,15 @@ function simpleContext(text: string) {
     .replace(/^Injury:\s*/i, '')
     .replace(/^Usage:\s*/i, '')
     .replace(/^X\/social:\s*/i, '')
+    .replace(/\bprojected starter\b/gi, 'Expected starter')
+    .replace(/\bconfirmed starter\b/gi, 'Starting')
+    .replace(/\busage\b/gi, 'touches')
+    .replace(/\bdefensive attention\b/gi, 'extra pressure')
+    .replace(/\bback-to-back fatigue\b/gi, 'tired legs')
+    .replace(/\bB2B\b/gi, 'tired legs')
+    .replace(/\brim protection\b/gi, 'defense near the basket')
+    .replace(/\bload manages?\b/gi, 'has his minutes limited')
+    .replace(/\bsecondary creator\b/gi, 'second scoring option')
 }
 
 function lineOptionKey(option: SignalLineOption, idx: number) {
@@ -193,9 +202,9 @@ export default function SignalTerminalCard({
     todayIntel?.lineup?.reason || '',
   ].map(simpleContext).find(Boolean)
   const planBullet = secondaryLine
-    ? `Simple read: ${plainLineLabel(primaryLine)} is the safer look; ${plainLineLabel(secondaryLine)} needs a stronger night.`
-    : `Simple read: this is worth watching if his role looks normal before tipoff.`
-  const whyCare = [formBullet, contextBullet, ...plainAiBullets, planBullet].filter(Boolean).slice(0, 3) as string[]
+    ? `Simple read: ${plainLineLabel(primaryLine)} is the main look; ${plainLineLabel(secondaryLine)} needs a bigger night.`
+    : `Simple read: this works if his role looks normal before tipoff.`
+  const whyCare = [formBullet, contextBullet, planBullet, ...plainAiBullets].filter(Boolean).slice(0, 3) as string[]
 
   return (
     <div
@@ -238,8 +247,8 @@ export default function SignalTerminalCard({
                 style={{ textDecoration: 'none', borderRadius: 11, padding: '8px 7px', background: idx === 0 ? 'rgba(125,246,255,0.105)' : 'rgba(255,255,255,0.045)', border: `1px solid ${idx === 0 ? 'rgba(125,246,255,0.26)' : C.border}` }}
               >
                 <div style={{ color: idx === 0 ? C.green : C.text, fontSize: 10, fontWeight: 950, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatLineOption(option)}</div>
-                <div style={{ color: C.muted, fontSize: 8, fontWeight: 900, marginTop: 3 }}>{idx === 0 ? 'Safer line' : idx === 1 ? 'Bigger night' : 'Longer shot'}</div>
-                <div style={{ color: C.faint, fontSize: 7.5, fontWeight: 900, marginTop: 1 }}>{idx === 0 ? 'Best for casual users' : 'Only if you want more risk'}</div>
+                <div style={{ color: C.muted, fontSize: 8, fontWeight: 900, marginTop: 3 }}>{idx === 0 ? 'Main look' : idx === 1 ? 'Bigger night' : 'Long shot'}</div>
+                <div style={{ color: C.faint, fontSize: 7.5, fontWeight: 900, marginTop: 1 }}>{idx === 0 ? 'Lower bar to clear' : 'Needs more from him'}</div>
               </a>
             ))}
           </div>
@@ -276,7 +285,7 @@ export default function SignalTerminalCard({
           </div>
         )}
 
-        {!compact && intelRows.length > 0 && (
+        {false && !compact && intelRows.length > 0 && (
           <div style={{ marginTop: 10, borderRadius: 12, padding: 9, background: 'rgba(125,246,255,0.045)', border: `1px solid ${C.border}` }}>
             <div style={{ color: C.text, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Intel check</div>
             <div style={{ display: 'grid', gap: 5 }}>
@@ -287,7 +296,7 @@ export default function SignalTerminalCard({
 
         {!compact && killRows.length > 0 && (
           <div style={{ marginTop: 8, borderRadius: 12, padding: 9, background: 'rgba(255,209,102,0.045)', border: '1px solid rgba(255,209,102,0.16)' }}>
-            <div style={{ color: C.amber, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>What could kill it</div>
+            <div style={{ color: C.amber, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Watch out for</div>
             <div style={{ display: 'grid', gap: 5 }}>
               {killRows.map(row => <div key={row} style={{ color: C.muted, fontSize: 8.5, lineHeight: 1.38 }}>• {row}</div>)}
             </div>
