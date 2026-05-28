@@ -262,7 +262,7 @@ function enrichSignal(signal: ModelSignal, generatedAt: string): ModelSignal {
     flags: [...(signal.flags || []), ...liquidity.warnings],
     generatedAt: signal.createdAt || generatedAt,
   })
-  const whyCare = buildWhyCare({
+  const fallbackWhyCare = buildWhyCare({
     player: signal.player,
     label: signal.label,
     edge: centsToProbability(signal.edge),
@@ -274,6 +274,12 @@ function enrichSignal(signal: ModelSignal, generatedAt: string): ModelSignal {
     reasons: signal.reasons,
     flags: signal.flags,
   })
+  const intelBullets = signal.metadata?.todayIntel?.displayBullets
+  const whyCare = Array.isArray(intelBullets) && intelBullets.length
+    ? intelBullets.map(item => String(item || '').trim()).filter(Boolean).slice(0, 3)
+    : Array.isArray(signal.whyCare) && signal.whyCare.some(item => !/^Recent form:|^Market is underpricing|^Recent form backs|^Price gap/i.test(String(item || '')))
+      ? signal.whyCare.map(item => String(item || '').trim()).filter(Boolean).slice(0, 3)
+      : fallbackWhyCare
 
   return {
     ...signal,
