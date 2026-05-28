@@ -498,6 +498,10 @@ function asStringArray(value: unknown): string[] {
 
 function sanitizeIntel(raw: any, provider?: string, model?: string): TodaySignalIntel {
   const social = raw?.socialContext || {}
+  const socialSummary = String(social.summary || '').trim()
+  const normalizedSocialSummary = /say quiet|x\/news\/off-court read/i.test(socialSummary)
+    ? 'Quiet: no credible public X/news/off-court signal found.'
+    : socialSummary
   return {
     summary: String(raw?.summary || '').trim() || undefined,
     lineup: raw?.lineup ? {
@@ -509,7 +513,7 @@ function sanitizeIntel(raw: any, provider?: string, model?: string): TodaySignal
     usageContext: asStringArray(raw?.usageContext),
     socialContext: raw?.socialContext ? {
       status: String(social.status || 'none').trim() || 'none',
-      summary: String(social.summary || '').trim() || undefined,
+      summary: normalizedSocialSummary || undefined,
       confidence: String(social.confidence || '').trim() || undefined,
       sources: asStringArray(social.sources),
     } : undefined,
@@ -523,9 +527,47 @@ function sanitizeIntel(raw: any, provider?: string, model?: string): TodaySignal
   }
 }
 
-async function attachTodayIntel(signals: ModelSignal[], generatedAt: string): Promise<ModelSignal[]> {
+async function fetchMatchupIntel(origin: string, sport: Sport, signal: ModelSignal): Promise<any | null> {
+  if (sport !== 'nba') return null
+  const [awayRaw, homeRaw] = signal.matchup.split('@').map(part => part.trim())
+  if (!awayRaw || !homeRaw) return null
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 4500)
+    const response = await fetch(`${origin}/api/team-intel?home=${encodeURIComponent(homeRaw)}&away=${encodeURIComponent(awayRaw)}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!response.ok) return null
+    const data = await response.json()
+    return {
+      home: data.home ? { abbr: data.home.abbr, restDays: data.home.restDays, streakLabel: data.home.streakLabel, fatigue: data.home.fatigue?.summary } : null,
+      away: data.away ? { abbr: data.away.abbr, restDays: data.away.restDays, streakLabel: data.away.streakLabel, fatigue: data.away.fatigue?.summary } : null,
+      injuryImpact: data.injuryImpact ? {
+        home: data.injuryImpact.home,
+        away: data.injuryImpact.away,
+        homeNotes: data.injuryImpact.homeNotes,
+        awayNotes: data.injuryImpact.awayNotes,
+      } : null,
+      pace: data.pace ? { edgeLabel: data.pace.edgeLabel, implication: data.pace.implication, home: data.pace.home, away: data.pace.away } : null,
+      h2h: data.h2h,
+      edgeRead: data.edgeRead,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, origin: string, sport: Sport): Promise<ModelSignal[]> {
   const candidates = signals.slice(0, 8)
   if (!candidates.length) return signals
+  const matchupIntel = new Map<string, any>()
+  await Promise.all(candidates.map(async signal => {
+    const key = signal.matchup
+    if (matchupIntel.has(key)) return
+    matchupIntel.set(key, await fetchMatchupIntel(origin, sport, signal))
+  }))
 
   const ai = await completeWithAi({
     maxTokens: 5200,
@@ -545,6 +587,7 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string): Pr
           'You are Athlete Intelligence, a sharp daily player-props analyst writing for bettors who need actionable context, not generic summaries.',
           'Return strict JSON only. No markdown.',
           'Use live/public search if available. Check X/social, beat writers, injury reports, team news, projected lineups/starters, rotation/minutes notes, rest/travel, and matchup context.',
+          'Use the provided teamIntel/injury/rest/pace context before making any generic claims.',
           'Do not merely repeat the stat table. Explain WHY TODAY is different or worth attention.',
           'Every display bullet must be concrete, decision-relevant, and include a reason or threshold. Bad: "11/12 clears at 16.2 avg". Better: "Recent floor is strong: 11/12 over 10 pts, with only one miss at 8."',
           'For private-life/off-court chatter, only report credible public information. If it is just rumor, label it unverified/monitor and do not state it as fact.',
@@ -569,6 +612,7 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string): Pr
             market: { fair: signal.fairPrice, ask: signal.ask, edge: signal.edge, maxBuy: signal.maxBuy },
             currentReasons: signal.reasons,
             recentGames: signal.metadata?.recentGames || [],
+            teamIntel: matchupIntel.get(signal.matchup) || null,
           })),
         }),
       },
@@ -797,7 +841,7 @@ export async function POST(req: NextRequest) {
       .slice(0, 40)
       .map(signal => enrichSignal(signal, generatedAt))
 
-    const rankedSignals = daily ? await attachTodayIntel(baseRankedSignals, generatedAt) : baseRankedSignals
+    const rankedSignals = daily ? await attachTodayIntel(baseRankedSignals, generatedAt, req.nextUrl.origin, sport) : baseRankedSignals
 
     const previousSignals = previousLatest?.signals?.length ? enrichResponse(previousLatest).signals : []
     const changeSinceRefresh = previousSignals.length
