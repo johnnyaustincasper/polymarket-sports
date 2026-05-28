@@ -90,7 +90,10 @@ export default function SignalTerminalCard({
     generatedAt: signal.generatedAt ?? signal.createdAt,
   })
   const hotColor = decisionColor(decision.decision)
-  const whyCare = buildWhyCare({
+  const aiReasonBullets = signal.metadata?.todayIntel && Array.isArray(signal.reasons)
+    ? signal.reasons.map(reason => String(reason || '').trim()).filter(Boolean).slice(0, 3)
+    : []
+  const whyCare = aiReasonBullets.length ? aiReasonBullets : buildWhyCare({
     player: titleFor(signal),
     label: signal.label || signal.metric || 'market signal',
     edge: toProbability(signal.edge),
