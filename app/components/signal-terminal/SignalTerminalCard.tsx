@@ -68,7 +68,7 @@ function tooMarketHeavy(text: string) {
 
 function simpleRisk(text: string) {
   const clean = stripJargon(text)
-  if (/price|ask|fair|edge|market|c\b/i.test(text)) return 'Skip it if the bet gets much worse before tipoff.'
+  if (/price|ask|fair|edge|market|c\b/i.test(text)) return 'Do not chase it if the line gets worse before tipoff.'
   if (/blowout|leads? by|lopsided/i.test(text)) return 'A blowout could cut his late-game minutes.'
   if (/minutes?|cap|restriction/i.test(text)) return 'Minutes are the big thing to watch.'
   if (/questionable|scratch|inactive|out\b/i.test(text)) return 'Make sure he is active before the game starts.'
@@ -76,7 +76,7 @@ function simpleRisk(text: string) {
 }
 
 function simpleContext(text: string) {
-  return stripJargon(text)
+  const cleaned = stripJargon(text)
     .replace(/^Lineup:\s*/i, '')
     .replace(/^Injury:\s*/i, '')
     .replace(/^Usage:\s*/i, '')
@@ -90,6 +90,12 @@ function simpleContext(text: string) {
     .replace(/\brim protection\b/gi, 'defense near the basket')
     .replace(/\bload manages?\b/gi, 'has his minutes limited')
     .replace(/\bsecondary creator\b/gi, 'second scoring option')
+
+  if (/expected starter|starting|starts?/i.test(cleaned)) return 'He should be in his normal starting role.'
+  if (/missing|\bout\b|injur/i.test(cleaned)) return 'Injuries in this game should keep his role important.'
+  if (/pace|transition|matchup/i.test(cleaned)) return 'The matchup should give him enough chances.'
+  if (/tired legs|rest|fatigue/i.test(cleaned)) return 'Minutes are the main thing to watch because tired legs can change rotations.'
+  return cleaned
 }
 
 function lineOptionKey(option: SignalLineOption, idx: number) {
