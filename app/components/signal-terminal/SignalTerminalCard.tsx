@@ -1,7 +1,7 @@
 'use client'
 
 import type { KeyboardEvent } from 'react'
-import { buildWhyCare, classifySignalDecision } from '../../lib/signals/insight'
+import { classifySignalDecision } from '../../lib/signals/insight'
 import type { SignalLineOption, SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
 
 const C = {
@@ -43,6 +43,44 @@ function formatCents(value: number | null | undefined) {
 
 function formatLineOption(option: SignalLineOption) {
   return option.label || (isFiniteNumber(option.line) ? `${formatNumber(option.line)}+` : 'Line')
+}
+
+function plainLineLabel(label: string) {
+  return label.replace(/\s*points$/i, '').trim() || label
+}
+
+function stripJargon(text: string) {
+  return text
+    .replace(/\bask\b/gi, 'price')
+    .replace(/\bfair(?: value)?\b/gi, 'true chance')
+    .replace(/\bedge\b/gi, 'value')
+    .replace(/\bladder entry\b/gi, 'safer plan')
+    .replace(/\bQ4\b/g, 'the 4th quarter')
+    .replace(/\bB2B\b/gi, 'back-to-back')
+    .replace(/\b\d+c\b/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+function tooMarketHeavy(text: string) {
+  return /\b(ask|fair|edge|misprice|cushion|ladder|underpricing|underpriced|market|entry|price)\b/i.test(text)
+}
+
+function simpleRisk(text: string) {
+  const clean = stripJargon(text)
+  if (/price|ask|fair|edge|market|c\b/i.test(text)) return 'Skip it if the bet gets much worse before tipoff.'
+  if (/blowout|leads? by|lopsided/i.test(text)) return 'A blowout could cut his late-game minutes.'
+  if (/minutes?|cap|restriction/i.test(text)) return 'Minutes are the big thing to watch.'
+  if (/questionable|scratch|inactive|out\b/i.test(text)) return 'Make sure he is active before the game starts.'
+  return clean
+}
+
+function simpleContext(text: string) {
+  return stripJargon(text)
+    .replace(/^Lineup:\s*/i, '')
+    .replace(/^Injury:\s*/i, '')
+    .replace(/^Usage:\s*/i, '')
+    .replace(/^X\/social:\s*/i, '')
 }
 
 function lineOptionKey(option: SignalLineOption, idx: number) {
@@ -109,25 +147,6 @@ export default function SignalTerminalCard({
     generatedAt: signal.generatedAt ?? signal.createdAt,
   })
   const hotColor = decisionColor(decision.decision)
-  const signalAny = signal as SignalTerminalSignal & { whyCare?: string[] }
-  const aiBulletSource = Array.isArray(signalAny.whyCare) && signalAny.whyCare.length
-    ? signalAny.whyCare
-    : signal.reasons
-  const aiReasonBullets = signal.metadata?.todayIntel && Array.isArray(aiBulletSource)
-    ? aiBulletSource.map(reason => String(reason || '').trim()).filter(Boolean).slice(0, 3)
-    : []
-  const whyCare = aiReasonBullets.length ? aiReasonBullets : buildWhyCare({
-    player: titleFor(signal),
-    label: signal.label || signal.metric || 'market signal',
-    edge: toProbability(signal.edge),
-    fairPrice: toProbability(signal.fairPrice),
-    ask: toProbability(signal.ask),
-    hitRate: toProbability(signal.hitRate ?? signal.projectedHitPct),
-    hits: signal.hits ?? undefined,
-    games: signal.games ?? undefined,
-    reasons: signal.reasons,
-    flags: signal.flags,
-  })
   const lineOptions = getLineOptions(signal)
   const recentGames = Array.isArray(signal.metadata?.recentGames)
     ? (signal.metadata?.recentGames as Array<{ value?: unknown; opponent?: unknown; date?: unknown }>).filter(game => isFiniteNumber(Number(game.value))).slice(0, 12)
@@ -154,7 +173,29 @@ export default function SignalTerminalCard({
   const killRows = [
     ...(Array.isArray(todayIntel?.whatCouldKillIt) ? todayIntel.whatCouldKillIt : []),
     ...(Array.isArray(todayIntel?.riskFactors) ? todayIntel.riskFactors : []),
-  ].map(row => row.trim()).filter(Boolean).slice(0, 2)
+  ].map(row => simpleRisk(row.trim())).filter(Boolean).slice(0, 2)
+  const signalAny = signal as SignalTerminalSignal & { whyCare?: string[] }
+  const aiBulletSource = Array.isArray(signalAny.whyCare) && signalAny.whyCare.length ? signalAny.whyCare : signal.reasons
+  const plainAiBullets = signal.metadata?.todayIntel && Array.isArray(aiBulletSource)
+    ? aiBulletSource.map(reason => stripJargon(String(reason || ''))).filter(reason => reason && !tooMarketHeavy(reason)).slice(0, 2)
+    : []
+  const primaryLine = lineOptions[0]?.label || signal.label || signal.metric || 'this line'
+  const secondaryLine = lineOptions[1]?.label
+  const recentLine = isFiniteNumber(signal.line) ? `${formatNumber(signal.line)}+` : plainLineLabel(primaryLine)
+  const formBullet = signal.hits && signal.games
+    ? `${titleFor(signal)} has cleared ${recentLine} in ${signal.hits} of his last ${signal.games}, averaging ${formatNumber(signal.avg ?? recentAvg)}.`
+    : recentAvg != null
+      ? `${titleFor(signal)} is averaging ${formatNumber(recentAvg)} over the last ${recentValues.length || 12} games.`
+      : `${titleFor(signal)} has the cleanest recent form on this board.`
+  const contextBullet = [
+    ...(Array.isArray(todayIntel?.usageContext) ? todayIntel.usageContext : []),
+    ...(Array.isArray(todayIntel?.injuryContext) ? todayIntel.injuryContext : []),
+    todayIntel?.lineup?.reason || '',
+  ].map(simpleContext).find(Boolean)
+  const planBullet = secondaryLine
+    ? `Simple read: ${plainLineLabel(primaryLine)} is the safer look; ${plainLineLabel(secondaryLine)} needs a stronger night.`
+    : `Simple read: this is worth watching if his role looks normal before tipoff.`
+  const whyCare = [formBullet, contextBullet, ...plainAiBullets, planBullet].filter(Boolean).slice(0, 3) as string[]
 
   return (
     <div
@@ -197,8 +238,8 @@ export default function SignalTerminalCard({
                 style={{ textDecoration: 'none', borderRadius: 11, padding: '8px 7px', background: idx === 0 ? 'rgba(125,246,255,0.105)' : 'rgba(255,255,255,0.045)', border: `1px solid ${idx === 0 ? 'rgba(125,246,255,0.26)' : C.border}` }}
               >
                 <div style={{ color: idx === 0 ? C.green : C.text, fontSize: 10, fontWeight: 950, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatLineOption(option)}</div>
-                <div style={{ color: C.muted, fontSize: 8, fontWeight: 900, marginTop: 3 }}>ask {formatCents(toCents(option.ask))}</div>
-                <div style={{ color: C.faint, fontSize: 7.5, fontWeight: 900, marginTop: 1 }}>fair {formatCents(toCents(option.fairPrice))} · edge +{formatCents(toCents(option.edge))}</div>
+                <div style={{ color: C.muted, fontSize: 8, fontWeight: 900, marginTop: 3 }}>{idx === 0 ? 'Safer line' : idx === 1 ? 'Bigger night' : 'Longer shot'}</div>
+                <div style={{ color: C.faint, fontSize: 7.5, fontWeight: 900, marginTop: 1 }}>{idx === 0 ? 'Best for casual users' : 'Only if you want more risk'}</div>
               </a>
             ))}
           </div>
@@ -239,7 +280,7 @@ export default function SignalTerminalCard({
           <div style={{ marginTop: 10, borderRadius: 12, padding: 9, background: 'rgba(125,246,255,0.045)', border: `1px solid ${C.border}` }}>
             <div style={{ color: C.text, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Intel check</div>
             <div style={{ display: 'grid', gap: 5 }}>
-              {intelRows.map(row => <div key={row} style={{ color: C.muted, fontSize: 8.5, lineHeight: 1.38 }}>• {row}</div>)}
+              {intelRows.map(row => <div key={row} style={{ color: C.muted, fontSize: 8.5, lineHeight: 1.38 }}>• {simpleContext(row)}</div>)}
             </div>
           </div>
         )}
