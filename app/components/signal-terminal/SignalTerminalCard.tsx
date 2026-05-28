@@ -90,8 +90,12 @@ export default function SignalTerminalCard({
     generatedAt: signal.generatedAt ?? signal.createdAt,
   })
   const hotColor = decisionColor(decision.decision)
-  const aiReasonBullets = signal.metadata?.todayIntel && Array.isArray(signal.reasons)
-    ? signal.reasons.map(reason => String(reason || '').trim()).filter(Boolean).slice(0, 3)
+  const signalAny = signal as SignalTerminalSignal & { whyCare?: string[] }
+  const aiBulletSource = Array.isArray(signalAny.whyCare) && signalAny.whyCare.length
+    ? signalAny.whyCare
+    : signal.reasons
+  const aiReasonBullets = signal.metadata?.todayIntel && Array.isArray(aiBulletSource)
+    ? aiBulletSource.map(reason => String(reason || '').trim()).filter(Boolean).slice(0, 3)
     : []
   const whyCare = aiReasonBullets.length ? aiReasonBullets : buildWhyCare({
     player: titleFor(signal),
