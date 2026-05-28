@@ -84,13 +84,16 @@ function storeKind() {
   return 'cookie'
 }
 
+async function profileStoreFilePath() {
+  return process.env.PROFILE_STORE_FILE || '/tmp/athlete-intelligence-profiles.json'
+}
+
 async function readFileProfiles(): Promise<StoredProfiles> {
   const fs = await import('fs/promises')
-  const path = await import('path')
-  const file = process.env.PROFILE_STORE_FILE || path.join(/* turbopackIgnore: true */ process.cwd(), '.data', 'profiles.json')
+  const file = await profileStoreFilePath()
 
   try {
-    const raw = await fs.readFile(file, 'utf8')
+    const raw = await fs.readFile(/*turbopackIgnore: true*/ file, 'utf8')
     const parsed = JSON.parse(raw)
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
   } catch (err: any) {
@@ -102,9 +105,9 @@ async function readFileProfiles(): Promise<StoredProfiles> {
 async function writeFileProfiles(profiles: StoredProfiles) {
   const fs = await import('fs/promises')
   const path = await import('path')
-  const file = process.env.PROFILE_STORE_FILE || path.join(/* turbopackIgnore: true */ process.cwd(), '.data', 'profiles.json')
-  await fs.mkdir(path.dirname(file), { recursive: true })
-  await fs.writeFile(file, JSON.stringify(profiles, null, 2), 'utf8')
+  const file = await profileStoreFilePath()
+  await fs.mkdir(/*turbopackIgnore: true*/ path.dirname(file), { recursive: true })
+  await fs.writeFile(/*turbopackIgnore: true*/ file, JSON.stringify(profiles, null, 2), 'utf8')
 }
 
 function kvConfig() {
