@@ -11,6 +11,12 @@ type AiSelection =
   | { available: false; provider: null; model: null; requires: string[] }
 
 type AiCompletionOptions = { maxTokens: number; temperature: number }
+type XaiSearchParameters = {
+  mode?: 'auto' | 'on' | 'off'
+  from_date?: string
+  to_date?: string
+  sources?: Array<{ type: 'x' | 'web' | 'news'; [key: string]: unknown }>
+}
 
 type AiClients = {
   xaiComplete?: (messages: AiMessage[], model: string, options: AiCompletionOptions) => Promise<string>
@@ -61,15 +67,25 @@ function splitSystem(messages: AiMessage[]) {
   return { system, nonSystem }
 }
 
-async function defaultXaiComplete(env: Env, messages: AiMessage[], model: string, options: AiCompletionOptions): Promise<string> {
+async function defaultXaiComplete(env: Env, messages: AiMessage[], model: string, options: AiCompletionOptions, searchParameters?: XaiSearchParameters): Promise<string> {
   if (!env.XAI_API_KEY) throw new Error('Missing XAI_API_KEY')
   const client = new OpenAI({ apiKey: env.XAI_API_KEY, baseURL: env.XAI_BASE_URL || 'https://api.x.ai/v1' })
-  const response = await client.chat.completions.create({
+  const body: any = {
     model,
     messages,
     temperature: options.temperature,
     max_tokens: options.maxTokens,
-  })
+  }
+  if (searchParameters && env.XAI_LIVE_SEARCH !== '0') body.search_parameters = searchParameters
+  let response
+  try {
+    response = await client.chat.completions.create(body)
+  } catch (error) {
+    if (!searchParameters) throw error
+    const fallbackBody = { ...body }
+    delete fallbackBody.search_parameters
+    response = await client.chat.completions.create(fallbackBody)
+  }
   return response.choices[0]?.message?.content?.trim() || ''
 }
 
@@ -111,6 +127,7 @@ export async function completeWithAi(options: {
   temperature?: number
   xaiModel?: string
   anthropicModel?: string
+  xaiSearchParameters?: XaiSearchParameters
 }): Promise<{ available: true; provider: AiProviderName; model: string; text: string } | AiUnavailableResult> {
   const env = options.env || process.env
   const completionOptions = {
@@ -140,7 +157,7 @@ export async function completeWithAi(options: {
       model,
       complete: () => options.clients?.xaiComplete
         ? options.clients.xaiComplete(options.messages, model, completionOptions)
-        : defaultXaiComplete(env, options.messages, model, completionOptions),
+        : defaultXaiComplete(env, options.messages, model, completionOptions, options.xaiSearchParameters),
     })
   }
   if (configured(env.ANTHROPIC_API_KEY)) {

@@ -528,23 +528,34 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string): Pr
   if (!candidates.length) return signals
 
   const ai = await completeWithAi({
-    maxTokens: 3800,
-    temperature: 0.1,
+    maxTokens: 5200,
+    temperature: 0.05,
+    xaiSearchParameters: {
+      mode: 'auto',
+      sources: [
+        { type: 'x' },
+        { type: 'news' },
+        { type: 'web' },
+      ],
+    },
     messages: [
       {
         role: 'system',
         content: [
-          'You are the Athlete Intelligence daily sports betting analyst.',
+          'You are Athlete Intelligence, a sharp daily player-props analyst writing for bettors who need actionable context, not generic summaries.',
           'Return strict JSON only. No markdown.',
-          'Analyze public, decision-relevant context only. If rumors/off-court chatter are unverified, label them monitor/unverified and do not state them as fact.',
-          'Prioritize lineup status, injuries, usage/minutes, team context, X/social/news chatter, and what could kill the signal.',
-          'Never invent sources. If you cannot verify social/news context, say no credible signal found or needs monitoring.',
+          'Use live/public search if available. Check X/social, beat writers, injury reports, team news, projected lineups/starters, rotation/minutes notes, rest/travel, and matchup context.',
+          'Do not merely repeat the stat table. Explain WHY TODAY is different or worth attention.',
+          'Every display bullet must be concrete, decision-relevant, and include a reason or threshold. Bad: "11/12 clears at 16.2 avg". Better: "Recent floor is strong: 11/12 over 10 pts, with only one miss at 8."',
+          'For private-life/off-court chatter, only report credible public information. If it is just rumor, label it unverified/monitor and do not state it as fact.',
+          'Never invent sources, injuries, lineup status, family issues, relationship drama, or social chatter. If nothing credible is found, say social/news is quiet.',
+          'If a signal is actually weak despite model edge, say why and include that in risk/kill factors.',
         ].join(' '),
       },
       {
         role: 'user',
         content: JSON.stringify({
-          task: 'For each signal, produce concise Today Signals intel. Return {"signals":[{"id":"...","summary":"...","lineup":{"status":"projected starter|bench|unknown","confidence":"low|medium|high","reason":"..."},"injuryContext":["..."],"usageContext":["..."],"socialContext":{"status":"none|monitor|confirmed","summary":"...","confidence":"low|medium|high","sources":["..."]},"riskFactors":["..."],"whatCouldKillIt":["..."],"displayBullets":["2-3 user-facing bullets"],"sources":["..."]}]}',
+          task: 'For each candidate, produce a Today Signals analyst card. Return {"signals":[{"id":"...","summary":"one sentence with the actual read","lineup":{"status":"confirmed starter|projected starter|bench|questionable|unknown","confidence":"low|medium|high","reason":"specific evidence or why unknown"},"injuryContext":["player/team/opponent injury details that change usage/minutes; empty if none credible"],"usageContext":["role, minutes, usage, matchup, teammate impact; no generic repeats"],"socialContext":{"status":"quiet|monitor|confirmed","summary":"X/news/off-court read; say quiet if no credible signal","confidence":"low|medium|high","sources":["source names or URLs if known"]},"riskFactors":["specific downgrade risks"],"whatCouldKillIt":["specific pass/avoid triggers like minutes cap, lineup scratch, price above X, blowout"],"displayBullets":["2-3 bullets max: (1) why player today, (2) lineup/usage/news edge, (3) price/entry or risk; no duplicate generic stat bullets"],"sources":["credible source names/URLs if known"]}]}',
           generatedAt,
           signals: candidates.map(signal => ({
             id: signal.id,

@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/admin/today-signals?sport=nba",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/admin/today-signals?sport=nba",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/admin/today-signals?sport=nba",
+      "schedule": "30 23 * * *"
+    }
+  ]
+}
