@@ -5,11 +5,13 @@ import { enforceRateLimit } from '@/app/lib/rate-limit'
 import { computeSignalDeltas, type SignalDelta, type SignalDeltaSnapshot } from '@/app/lib/signals/delta-feed'
 import { buildWhyCare, classifySignalDecision, type SignalDecisionResult } from '@/app/lib/signals/insight'
 import { gradeLiquidity, type LiquidityGrade } from '@/app/lib/signals/liquidity'
+import { completeWithAi } from '@/app/lib/ai-provider'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const SIGNAL_CACHE_SCHEMA = 'v2'
+const TODAY_SIGNAL_SCHEMA = 'v1'
 
 type Sport = 'nba' | 'nfl' | 'mlb'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
@@ -78,7 +80,24 @@ type ModelSignal = {
   changeSinceRefresh?: SignalDelta[]
   metadata?: {
     recentGames?: Array<{ value: number; opponent?: string; date?: string; eventId?: string }>
+    todayIntel?: TodaySignalIntel
   }
+}
+
+type TodaySignalIntel = {
+  summary?: string
+  lineup?: { status?: string; confidence?: string; reason?: string }
+  injuryContext?: string[]
+  usageContext?: string[]
+  socialContext?: { status?: 'none' | 'monitor' | 'confirmed' | string; summary?: string; confidence?: string; sources?: string[] }
+  riskFactors?: string[]
+  whatCouldKillIt?: string[]
+  displayBullets?: string[]
+  sources?: string[]
+  provider?: string
+  model?: string
+  generatedAt?: string
+  unavailable?: string
 }
 
 type SignalsResponse = {
@@ -295,6 +314,10 @@ function lastCacheKey(sport: Sport): string {
   return `signals:${SIGNAL_CACHE_SCHEMA}:last:${sport}`
 }
 
+function todaySignalsCacheKey(sport: Sport): string {
+  return `signals:${TODAY_SIGNAL_SCHEMA}:today:${sport}:${todayKey()}`
+}
+
 function hasSignalSlateOverlap(response: SignalsResponse | null | undefined, activeGameIds: string[]): boolean {
   if (!response?.signals?.length || !activeGameIds.length) return false
   const active = new Set(activeGameIds)
@@ -456,6 +479,117 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
   return { contracts, signals }
 }
 
+function extractJsonObject(text: string): any | null {
+  const trimmed = text.trim()
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]
+  const candidate = fenced || trimmed
+  try { return JSON.parse(candidate) } catch {}
+  const first = candidate.indexOf('{')
+  const last = candidate.lastIndexOf('}')
+  if (first >= 0 && last > first) {
+    try { return JSON.parse(candidate.slice(first, last + 1)) } catch {}
+  }
+  return null
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(item => String(item || '').trim()).filter(Boolean).slice(0, 6) : []
+}
+
+function sanitizeIntel(raw: any, provider?: string, model?: string): TodaySignalIntel {
+  const social = raw?.socialContext || {}
+  return {
+    summary: String(raw?.summary || '').trim() || undefined,
+    lineup: raw?.lineup ? {
+      status: String(raw.lineup.status || '').trim() || undefined,
+      confidence: String(raw.lineup.confidence || '').trim() || undefined,
+      reason: String(raw.lineup.reason || '').trim() || undefined,
+    } : undefined,
+    injuryContext: asStringArray(raw?.injuryContext),
+    usageContext: asStringArray(raw?.usageContext),
+    socialContext: raw?.socialContext ? {
+      status: String(social.status || 'none').trim() || 'none',
+      summary: String(social.summary || '').trim() || undefined,
+      confidence: String(social.confidence || '').trim() || undefined,
+      sources: asStringArray(social.sources),
+    } : undefined,
+    riskFactors: asStringArray(raw?.riskFactors),
+    whatCouldKillIt: asStringArray(raw?.whatCouldKillIt),
+    displayBullets: asStringArray(raw?.displayBullets).slice(0, 3),
+    sources: asStringArray(raw?.sources),
+    provider,
+    model,
+    generatedAt: new Date().toISOString(),
+  }
+}
+
+async function attachTodayIntel(signals: ModelSignal[], generatedAt: string): Promise<ModelSignal[]> {
+  const candidates = signals.slice(0, 8)
+  if (!candidates.length) return signals
+
+  const ai = await completeWithAi({
+    maxTokens: 3800,
+    temperature: 0.1,
+    messages: [
+      {
+        role: 'system',
+        content: [
+          'You are the Athlete Intelligence daily sports betting analyst.',
+          'Return strict JSON only. No markdown.',
+          'Analyze public, decision-relevant context only. If rumors/off-court chatter are unverified, label them monitor/unverified and do not state them as fact.',
+          'Prioritize lineup status, injuries, usage/minutes, team context, X/social/news chatter, and what could kill the signal.',
+          'Never invent sources. If you cannot verify social/news context, say no credible signal found or needs monitoring.',
+        ].join(' '),
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          task: 'For each signal, produce concise Today Signals intel. Return {"signals":[{"id":"...","summary":"...","lineup":{"status":"projected starter|bench|unknown","confidence":"low|medium|high","reason":"..."},"injuryContext":["..."],"usageContext":["..."],"socialContext":{"status":"none|monitor|confirmed","summary":"...","confidence":"low|medium|high","sources":["..."]},"riskFactors":["..."],"whatCouldKillIt":["..."],"displayBullets":["2-3 user-facing bullets"],"sources":["..."]}]}',
+          generatedAt,
+          signals: candidates.map(signal => ({
+            id: signal.id,
+            player: signal.player,
+            team: signal.team,
+            matchup: signal.matchup,
+            gameTime: signal.gameTime,
+            prop: signal.label,
+            metric: signal.metric,
+            recent: { hits: signal.hits, games: signal.games, avg: signal.avg },
+            market: { fair: signal.fairPrice, ask: signal.ask, edge: signal.edge, maxBuy: signal.maxBuy },
+            currentReasons: signal.reasons,
+            recentGames: signal.metadata?.recentGames || [],
+          })),
+        }),
+      },
+    ],
+  })
+
+  if (!ai.available) {
+    return signals.map((signal, idx) => idx < candidates.length ? {
+      ...signal,
+      metadata: { ...(signal.metadata || {}), todayIntel: { unavailable: ai.error, generatedAt: new Date().toISOString() } },
+    } : signal)
+  }
+
+  const parsed = extractJsonObject(ai.text)
+  const byId = new Map<string, TodaySignalIntel>()
+  for (const row of Array.isArray(parsed?.signals) ? parsed.signals : []) {
+    const id = String(row?.id || '')
+    if (id) byId.set(id, sanitizeIntel(row, ai.provider, ai.model))
+  }
+
+  return signals.map(signal => {
+    const intel = byId.get(signal.id)
+    if (!intel) return signal
+    const intelBullets = (intel.displayBullets || []).filter(Boolean).slice(0, 3)
+    return {
+      ...signal,
+      whyCare: intelBullets.length ? intelBullets : signal.whyCare,
+      metadata: { ...(signal.metadata || {}), todayIntel: intel },
+    }
+  })
+}
+
 function toLedgerEntries(signals: ModelSignal[], generatedAt: string): SignalLedgerEntry[] {
   return signals.map(signal => {
     const { changeSinceRefresh: _changeSinceRefresh, ...ledgerSignal } = signal
@@ -599,6 +733,8 @@ export async function POST(req: NextRequest) {
     const activeGameIds = activeGames.map(g => g.id)
     const cacheKey = latestCacheKey(sport, activeGameIds)
     const force = body.force === true
+    const daily = body.daily === true
+    const dailyCacheKey = todaySignalsCacheKey(sport)
 
     if (!activeGames.length) {
       const empty: SignalsResponse = {
@@ -614,7 +750,12 @@ export async function POST(req: NextRequest) {
       return finishRouteTiming(timing, NextResponse.json(empty))
     }
 
-    let previousLatest = await getJsonCache<SignalsResponse>(cacheKey)
+    if (daily && !force) {
+      const todayBoard = await getJsonCache<SignalsResponse>(dailyCacheKey)
+      if (todayBoard?.signals?.length) return finishRouteTiming(timing, NextResponse.json(enrichResponse(todayBoard)))
+    }
+
+    let previousLatest = await getJsonCache<SignalsResponse>(daily ? dailyCacheKey : cacheKey)
     if (!force && previousLatest) return finishRouteTiming(timing, NextResponse.json(enrichResponse(previousLatest)))
     if (!previousLatest) {
       const lastResponse = await getJsonCache<SignalsResponse>(lastCacheKey(sport))
@@ -637,13 +778,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const rankedSignals = allSignals
+    const baseRankedSignals = allSignals
       .sort((a, b) => {
         const rank = (tier: SignalTier) => tier === 'A' ? 3 : tier === 'B' ? 2 : tier === 'WATCH' ? 1 : 0
         return rank(b.tier) - rank(a.tier) || b.edge - a.edge || b.confidence - a.confidence
       })
       .slice(0, 40)
       .map(signal => enrichSignal(signal, generatedAt))
+
+    const rankedSignals = daily ? await attachTodayIntel(baseRankedSignals, generatedAt) : baseRankedSignals
 
     const previousSignals = previousLatest?.signals?.length ? enrichResponse(previousLatest).signals : []
     const changeSinceRefresh = previousSignals.length
@@ -671,6 +814,7 @@ export async function POST(req: NextRequest) {
     }
 
     await setJsonCache(cacheKey, response, 5 * 60_000)
+    if (daily) await setJsonCache(dailyCacheKey, response, 20 * 60 * 60_000)
     await setJsonCache(lastCacheKey(sport), response, 24 * 60 * 60_000)
     const ledgerEntries = toLedgerEntries(signals, generatedAt)
     await prependJsonList('signals:ledger:' + sport, ledgerEntries, 1000, 60 * 24 * 60 * 60_000)

@@ -3257,7 +3257,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
       const res = await fetch('/api/signals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sport, games: activeGames, force }),
+        body: JSON.stringify({ sport, games: activeGames, force, daily: true }),
       })
       const json = await res.json().catch(() => null)
       if (!res.ok) throw new Error(json?.error || 'signal scan failed')
@@ -3332,7 +3332,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
     return (
       <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.34), rgba(168,240,255,0.12), rgba(255,255,255,0.06))', boxShadow: '0 18px 54px rgba(0,0,0,0.30)' }}>
         <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 14 : 18, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Player Signals</div>
+          <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Today’s Signals</div>
           <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, letterSpacing: '-0.03em' }}>{title}</div>
           <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45, marginTop: 6 }}>{detail}</div>
         </div>
@@ -3358,9 +3358,11 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   return (
     <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.46), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.36)' }}>
       <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 12 : 15, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => runSignals(Boolean(data))} disabled={scanning} style={{ width: '100%', borderRadius: 999, padding: isMobile ? '12px 14px' : '10px 16px', border: '1px solid ' + C.borderHot, background: scanning ? 'rgba(255,255,255,0.05)' : 'rgba(125,246,255,0.14)', color: scanning ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: scanning ? 'default' : 'pointer' }}>
-          {scanning ? 'Scoring' : data ? 'Rescore' : 'Run model'}
+        <button onClick={() => runSignals(false)} disabled={scanning} style={{ width: '100%', borderRadius: 999, padding: isMobile ? '12px 14px' : '10px 16px', border: '1px solid ' + C.borderHot, background: scanning ? 'rgba(255,255,255,0.05)' : 'rgba(125,246,255,0.14)', color: scanning ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: scanning ? 'default' : 'pointer' }}>
+          {scanning ? 'Building board' : data ? 'Refresh Board' : 'Load Today’s Signals'}
         </button>
+
+        {data?.generatedAt && <div style={{ marginTop: 8, color: C.textSecondary, fontSize: 9, textAlign: 'center', fontWeight: 800 }}>Generated {new Date(data.generatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · {data.gamesScanned} games scanned · {data.contractsScored} props checked</div>}
 
         {error && <div style={{ marginTop: 10, color: C.gold, fontSize: 11 }}>Signals unavailable: {error}</div>}
 

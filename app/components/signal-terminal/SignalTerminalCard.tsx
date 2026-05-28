@@ -109,6 +109,25 @@ export default function SignalTerminalCard({
   const recentAvg = recentValues.length ? recentValues.reduce((sum, value) => sum + value, 0) / recentValues.length : null
   const recentMin = recentValues.length ? Math.min(...recentValues) : null
   const recentMax = recentValues.length ? Math.max(...recentValues) : null
+  const todayIntel = signal.metadata?.todayIntel as {
+    lineup?: { status?: string; confidence?: string; reason?: string }
+    socialContext?: { status?: string; summary?: string; confidence?: string }
+    injuryContext?: string[]
+    usageContext?: string[]
+    riskFactors?: string[]
+    whatCouldKillIt?: string[]
+    unavailable?: string
+  } | undefined
+  const intelRows = [
+    todayIntel?.lineup?.status ? `Lineup: ${todayIntel.lineup.status}${todayIntel.lineup.reason ? ` — ${todayIntel.lineup.reason}` : ''}` : '',
+    ...(Array.isArray(todayIntel?.injuryContext) ? todayIntel.injuryContext.slice(0, 1).map(item => `Injury: ${item}`) : []),
+    ...(Array.isArray(todayIntel?.usageContext) ? todayIntel.usageContext.slice(0, 1).map(item => `Usage: ${item}`) : []),
+    todayIntel?.socialContext?.summary ? `X/social: ${todayIntel.socialContext.summary}` : '',
+  ].map(row => row.trim()).filter(Boolean).slice(0, 3)
+  const killRows = [
+    ...(Array.isArray(todayIntel?.whatCouldKillIt) ? todayIntel.whatCouldKillIt : []),
+    ...(Array.isArray(todayIntel?.riskFactors) ? todayIntel.riskFactors : []),
+  ].map(row => row.trim()).filter(Boolean).slice(0, 2)
 
   return (
     <div
@@ -166,6 +185,24 @@ export default function SignalTerminalCard({
                   </div>
                 )
               })}
+            </div>
+          </div>
+        )}
+
+        {!compact && intelRows.length > 0 && (
+          <div style={{ marginTop: 10, borderRadius: 12, padding: 9, background: 'rgba(125,246,255,0.045)', border: `1px solid ${C.border}` }}>
+            <div style={{ color: C.text, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Intel check</div>
+            <div style={{ display: 'grid', gap: 5 }}>
+              {intelRows.map(row => <div key={row} style={{ color: C.muted, fontSize: 8.5, lineHeight: 1.38 }}>• {row}</div>)}
+            </div>
+          </div>
+        )}
+
+        {!compact && killRows.length > 0 && (
+          <div style={{ marginTop: 8, borderRadius: 12, padding: 9, background: 'rgba(255,209,102,0.045)', border: '1px solid rgba(255,209,102,0.16)' }}>
+            <div style={{ color: C.amber, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>What could kill it</div>
+            <div style={{ display: 'grid', gap: 5 }}>
+              {killRows.map(row => <div key={row} style={{ color: C.muted, fontSize: 8.5, lineHeight: 1.38 }}>• {row}</div>)}
             </div>
           </div>
         )}
