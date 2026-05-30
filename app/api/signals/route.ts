@@ -10,8 +10,8 @@ import { completeWithAi } from '@/app/lib/ai-provider'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v2'
-const TODAY_SIGNAL_SCHEMA = 'v1'
+const SIGNAL_CACHE_SCHEMA = 'v3'
+const TODAY_SIGNAL_SCHEMA = 'v2'
 
 type Sport = 'nba' | 'nfl' | 'mlb'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
@@ -156,7 +156,7 @@ type SignalPerformanceResponse = {
   aSignals: number
   bSignals: number
   watchSignals: number
-  ledger: SignalLedgerEntry[]
+  ledger?: SignalLedgerEntry[]
 }
 
 type SettlementResponse = {
@@ -191,6 +191,121 @@ function uniq(values: string[]): string[] {
 
 function formatCents(value: number): string {
   return Number.isFinite(value) && value > 0 ? `${Math.round(value)}%` : '—'
+}
+
+function isAdminRequest(req: NextRequest, body?: any): boolean {
+  const secret = process.env.CRON_SECRET || process.env.ADMIN_CRON_SECRET
+  if (!secret) return process.env.NODE_ENV !== 'production'
+  const auth = req.headers.get('authorization') || ''
+  const querySecret = req.nextUrl.searchParams.get('secret') || ''
+  const bodySecret = typeof body?.secret === 'string' ? body.secret : ''
+  return auth === `Bearer ${secret}` || querySecret === secret || bodySecret === secret
+}
+
+function stripPublicJargon(text: string): string {
+  return String(text || '')
+    .replace(/\bask\b/gi, 'market chance')
+    .replace(/\bfair(?: value)?\b/gi, 'model')
+    .replace(/\bedge\b/gi, 'value gap')
+    .replace(/\bmisprice(?:d)?\b/gi, 'pricing gap')
+    .replace(/\bcushion\b/gi, 'room before it stops being attractive')
+    .replace(/\bmax[-\s]?buy\b/gi, 'do-not-chase line')
+    .replace(/\bladder\b/gi, 'alternate line')
+    .replace(/\bentry\b/gi, 'look')
+    .replace(/\b(\d+(?:\.\d+)?)c\b/gi, '$1%')
+    .replace(/¢/g, '%')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+function publicBullets(signal: ModelSignal): string[] {
+  const source = Array.isArray(signal.whyCare) && signal.whyCare.length ? signal.whyCare : signal.reasons
+  const cleaned = source
+    .map(item => stripPublicJargon(String(item || '')))
+    .filter(Boolean)
+    .filter(item => !/\b(ask|fair|edge|misprice|cushion|max[-\s]?buy|ladder|¢)\b/i.test(item))
+    .slice(0, 3)
+  if (cleaned.length) return cleaned
+  const line = signal.label || `${signal.metric} line`
+  return [
+    `${signal.player} has cleared ${line} in ${signal.hits}/${signal.games} recently, averaging ${signal.avg.toFixed(1)}.`,
+    'Simple read: use this only if his role and minutes look normal before the game starts.',
+    'Do not chase it if the line moves against you.',
+  ]
+}
+
+function publicLineOptions(signal: ModelSignal): Array<Pick<SignalLineOption, 'id' | 'label' | 'line' | 'tier' | 'hits' | 'games' | 'avg'>> | undefined {
+  const options = Array.isArray(signal.metadata?.lineOptions) ? signal.metadata.lineOptions : []
+  if (!options.length) return undefined
+  return options.slice(0, 3).map(option => ({
+    id: option.id,
+    label: option.label,
+    line: option.line,
+    tier: option.tier,
+    hits: option.hits,
+    games: option.games,
+    avg: option.avg,
+  }))
+}
+
+function publicSignal(signal: ModelSignal): Partial<ModelSignal> {
+  const recentGames = Array.isArray(signal.metadata?.recentGames) ? signal.metadata.recentGames : undefined
+  const todayIntel = signal.metadata?.todayIntel
+  const lineOptions = publicLineOptions(signal)
+  return {
+    id: signal.id,
+    sport: signal.sport,
+    gameId: signal.gameId,
+    matchup: signal.matchup,
+    gameTime: signal.gameTime,
+    player: signal.player,
+    team: signal.team,
+    metric: signal.metric,
+    label: signal.label,
+    tier: signal.tier,
+    projectedHitPct: signal.projectedHitPct,
+    hits: signal.hits,
+    games: signal.games,
+    avg: signal.avg,
+    risk: signal.risk,
+    reasons: publicBullets(signal),
+    flags: (signal.flags || []).map(stripPublicJargon).filter(Boolean).filter(flag => !/liquidity|ask|fair|edge|cushion|max[-\s]?buy|¢/i.test(flag)).slice(0, 2),
+    createdAt: signal.createdAt,
+    whyCare: publicBullets(signal),
+    metadata: {
+      ...(recentGames ? { recentGames } : {}),
+      ...(todayIntel ? { todayIntel: {
+        summary: todayIntel.summary ? stripPublicJargon(todayIntel.summary) : undefined,
+        lineup: todayIntel.lineup,
+        injuryContext: todayIntel.injuryContext?.map(stripPublicJargon).slice(0, 3),
+        usageContext: todayIntel.usageContext?.map(stripPublicJargon).slice(0, 3),
+        riskFactors: todayIntel.riskFactors?.map(stripPublicJargon).slice(0, 3),
+        whatCouldKillIt: todayIntel.whatCouldKillIt?.map(stripPublicJargon).slice(0, 3),
+        displayBullets: publicBullets(signal),
+        sources: todayIntel.sources?.slice(0, 4),
+        generatedAt: todayIntel.generatedAt,
+        unavailable: todayIntel.unavailable,
+      } } : {}),
+      ...(lineOptions ? { lineOptions } : {}),
+    } as any,
+  }
+}
+
+function publicResponse(response: SignalsResponse): SignalsResponse {
+  const publicSignals = response.signals.map(signal => publicSignal(signal) as ModelSignal)
+  return {
+    ...response,
+    signals: publicSignals,
+    contractsScored: publicSignals.length,
+    changeSinceRefresh: undefined,
+    summary: {
+      a: publicSignals.filter(s => s.tier === 'A').length,
+      b: publicSignals.filter(s => s.tier === 'B').length,
+      watch: publicSignals.filter(s => s.tier === 'WATCH').length,
+      avgEdge: 0,
+      bestEdge: 0,
+    },
+  }
 }
 
 function buildExecution(input: {
@@ -687,7 +802,7 @@ function toLedgerEntries(signals: ModelSignal[], generatedAt: string): SignalLed
   })
 }
 
-function performanceFromLedger(ledger: SignalLedgerEntry[]): SignalPerformanceResponse {
+function performanceFromLedger(ledger: SignalLedgerEntry[], includeLedger = false): SignalPerformanceResponse {
   const graded = ledger.filter(row => row.status === 'graded')
   const wins = graded.filter(row => row.result === 'hit').length
   const losses = graded.filter(row => row.result === 'miss').length
@@ -704,7 +819,7 @@ function performanceFromLedger(ledger: SignalLedgerEntry[]): SignalPerformanceRe
     aSignals: ledger.filter(row => row.tier === 'A').length,
     bSignals: ledger.filter(row => row.tier === 'B').length,
     watchSignals: ledger.filter(row => row.tier === 'WATCH').length,
-    ledger: ledger.slice(0, 50),
+    ...(includeLedger ? { ledger: ledger.slice(0, 50) } : {}),
   }
 }
 
@@ -821,6 +936,33 @@ function groupSamePlayerCategorySignals(signals: ModelSignal[]): ModelSignal[] {
   })
 }
 
+function curateSignalBoard(signals: ModelSignal[], max = 7): ModelSignal[] {
+  const rank = (tier: SignalTier) => tier === 'A' ? 3 : tier === 'B' ? 2 : tier === 'WATCH' ? 1 : 0
+  const sorted = [...signals].sort((a, b) => {
+    const aScore = rank(a.tier) * 1000 + a.edge * 8 + a.confidence + Math.min(a.liquidity, 500) / 50
+    const bScore = rank(b.tier) * 1000 + b.edge * 8 + b.confidence + Math.min(b.liquidity, 500) / 50
+    return bScore - aScore
+  })
+  const picked: ModelSignal[] = []
+  const players = new Set<string>()
+  const games = new Map<string, number>()
+  for (const signal of sorted) {
+    if (picked.length >= max) break
+    const playerKey = `${signal.gameId}|${signal.player.toLowerCase()}|${signal.metric.toLowerCase()}`
+    if (players.has(playerKey)) continue
+    const gameCount = games.get(signal.gameId) || 0
+    if (gameCount >= 2 && picked.length >= 3) continue
+    players.add(playerKey)
+    games.set(signal.gameId, gameCount + 1)
+    picked.push(signal)
+  }
+  for (const signal of sorted) {
+    if (picked.length >= max) break
+    if (!picked.some(item => item.id === signal.id)) picked.push(signal)
+  }
+  return picked
+}
+
 export async function GET(req: NextRequest) {
   const rateLimited = enforceRateLimit(req, 'signals', { limit: 30, windowMs: 60_000 })
   if (rateLimited) return rateLimited
@@ -829,8 +971,9 @@ export async function GET(req: NextRequest) {
   try {
     const sport = parseSport(req.nextUrl.searchParams.get('sport'))
     const limit = Math.max(25, Math.min(500, Number(req.nextUrl.searchParams.get('limit') || 200)))
+    const includeLedger = req.nextUrl.searchParams.get('internal') === '1' && isAdminRequest(req)
     const ledger = await getJsonList<SignalLedgerEntry>('signals:ledger:' + sport, limit)
-    return finishRouteTiming(timing, NextResponse.json(performanceFromLedger(ledger)))
+    return finishRouteTiming(timing, NextResponse.json(performanceFromLedger(ledger, includeLedger)))
   } catch (err) {
     console.error('Signals ledger error:', err)
     return finishRouteTiming(timing, NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to load signal ledger' }, { status: 500 }))
@@ -906,11 +1049,17 @@ export async function POST(req: NextRequest) {
 
     if (daily && !force) {
       const todayBoard = await getJsonCache<SignalsResponse>(dailyCacheKey)
-      if (todayBoard?.signals?.length) return finishRouteTiming(timing, NextResponse.json(enrichResponse(todayBoard)))
+      if (todayBoard?.signals?.length) {
+        const cached = enrichResponse(todayBoard)
+        return finishRouteTiming(timing, NextResponse.json(isAdminRequest(req, body) && body.internal === true ? cached : publicResponse(cached)))
+      }
     }
 
     let previousLatest = await getJsonCache<SignalsResponse>(daily ? dailyCacheKey : cacheKey)
-    if (!force && previousLatest) return finishRouteTiming(timing, NextResponse.json(enrichResponse(previousLatest)))
+    if (!force && previousLatest) {
+      const cached = enrichResponse(previousLatest)
+      return finishRouteTiming(timing, NextResponse.json(isAdminRequest(req, body) && body.internal === true ? cached : publicResponse(cached)))
+    }
     if (!previousLatest) {
       const lastResponse = await getJsonCache<SignalsResponse>(lastCacheKey(sport))
       previousLatest = hasSignalSlateOverlap(lastResponse, activeGameIds) ? lastResponse : null
@@ -932,12 +1081,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const baseRankedSignals = groupSamePlayerCategorySignals(allSignals
+    const groupedSignals = groupSamePlayerCategorySignals(allSignals
       .sort((a, b) => {
         const rank = (tier: SignalTier) => tier === 'A' ? 3 : tier === 'B' ? 2 : tier === 'WATCH' ? 1 : 0
         return rank(b.tier) - rank(a.tier) || b.edge - a.edge || b.confidence - a.confidence
       })
-      .slice(0, 40))
+      .slice(0, 60))
+    const baseRankedSignals = (daily ? curateSignalBoard(groupedSignals, 7) : groupedSignals.slice(0, 40))
       .map(signal => enrichSignal(signal, generatedAt))
 
     const rankedSignals = daily ? await attachTodayIntel(baseRankedSignals, generatedAt, req.nextUrl.origin, sport) : baseRankedSignals
@@ -974,7 +1124,8 @@ export async function POST(req: NextRequest) {
     await prependJsonList('signals:ledger:' + sport, ledgerEntries, 1000, 60 * 24 * 60 * 60_000)
     await prependJsonList('signals:ledger:' + sport + ':' + todayKey(), ledgerEntries, 1000, 60 * 24 * 60 * 60_000)
 
-    return finishRouteTiming(timing, NextResponse.json(response))
+    const includeInternal = isAdminRequest(req, body) && body.internal === true
+    return finishRouteTiming(timing, NextResponse.json(includeInternal ? response : publicResponse(response)))
   } catch (err) {
     console.error('Signals error:', err)
     return finishRouteTiming(timing, NextResponse.json({ error: err instanceof Error ? err.message : 'Failed to generate signals' }, { status: 500 }))

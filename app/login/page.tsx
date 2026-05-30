@@ -10,15 +10,15 @@ const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 export default function LoginPage() {
   if (clerkEnabled) {
     return (
-      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Sign in" subtitle="Use Google, Discord, or email to access the premium intelligence desk.">
+      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Today's player-prop board" subtitle="See the best player-prop signals in 30 seconds. Start as a guest, then sign in when you want the full board saved to your account.">
+        <GuestButton />
         <SignIn
           routing="path"
           path="/login"
           signUpUrl="/sign-up"
-          afterSignInUrl="/subscribe"
+          fallbackRedirectUrl="/subscribe"
           appearance={clerkAppearance}
         />
-        <GuestButton />
       </AuthShell>
     )
   }
@@ -50,10 +50,11 @@ function GuestButton() {
     <div style={{ width: '100%', display: 'grid', gap: 8, marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ height: 1, flex: 1, background: 'rgba(125,246,255,0.14)' }} />
-        <span style={{ color: 'rgba(226,255,204,0.48)', fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Guest access</span>
+        <span style={{ color: 'rgba(226,255,204,0.70)', fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Start here</span>
         <span style={{ height: 1, flex: 1, background: 'rgba(125,246,255,0.14)' }} />
       </div>
-      <button type="button" onClick={continueAsGuest} disabled={loading} style={guestButton(loading)}>{loading ? 'Opening…' : 'Continue as Guest'}</button>
+      <button type="button" onClick={continueAsGuest} disabled={loading} style={guestButton(loading)}>{loading ? 'Opening board…' : 'Continue as Guest'}</button>
+      <p style={{ margin: 0, color: 'rgba(226,255,204,0.58)', fontSize: 11, textAlign: 'center', lineHeight: 1.45 }}>No card required. Preview today’s board first.</p>
       {error && <p style={{ color: '#ff4466', fontSize: 11, textAlign: 'center', fontWeight: 800 }}>{error}</p>}
     </div>
   )
@@ -96,7 +97,7 @@ function LegacyLogin() {
   const disabled = loading || !email.trim() || !code.trim() || (mode === 'signup' && !name.trim())
 
   return (
-    <AuthShell eyebrow="BOOTSTRAP ACCESS" title="Authorized access" subtitle="Temporary access-code mode. Add Clerk keys to enable Google, Discord, and email auth.">
+    <AuthShell eyebrow="ACCESS" title="Authorized access" subtitle="Use your invite code or continue as a guest to preview today’s board.">
       <form onSubmit={submit} style={{ width: '100%', display: 'grid', gap: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {(['signin', 'signup'] as const).map(option => (
@@ -143,10 +144,10 @@ function guestButton(disabled: boolean): React.CSSProperties {
   return {
     width: '100%', padding: '14px 15px', borderRadius: 17, fontSize: 12, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase',
     cursor: disabled ? 'not-allowed' : 'pointer',
-    background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(255,255,255,0.075), rgba(125,246,255,0.08))',
-    border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(125,246,255,0.30)'}`,
-    color: disabled ? 'rgba(226,255,204,0.3)' : '#f7fff0',
-    boxShadow: !disabled ? 'inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
+    background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(125,246,255,0.96), rgba(197,255,93,0.82))',
+    border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(125,246,255,0.72)'}`,
+    color: disabled ? 'rgba(226,255,204,0.3)' : '#041008',
+    boxShadow: !disabled ? '0 0 30px rgba(125,246,255,0.22), inset 0 1px 0 rgba(255,255,255,0.22)' : 'none',
   }
 }
 

@@ -21,7 +21,7 @@ export default async function SubscribePage() {
   return (
     <SubscribeShell
       title="Unlock Athlete Intelligence"
-      subtitle="Premium market signals, player context, injury/fatigue intelligence, and source-aware edge analysis."
+      subtitle="Get the full daily board: curated player-prop signals, last-12 game logs, injury/usage context, line movement, and simple risk notes."
       email={user?.primaryEmailAddress?.emailAddress}
     />
   )
@@ -44,8 +44,9 @@ function SubscribeShell({ title, subtitle, email }: { title: string; subtitle: s
             <span style={{ color: 'rgba(226,255,204,0.58)', fontWeight: 800 }}>/ month</span>
           </div>
           <ul style={{ margin: '14px 0 0', paddingLeft: 20, color: 'rgba(226,255,204,0.72)', lineHeight: 1.7, fontSize: 14 }}>
-            <li>Discord, Google, or email login</li>
-            <li>Premium app access after active subscription</li>
+            <li>Full Today’s Signals board, not just the guest preview</li>
+            <li>Last-12 game logs, injury/usage context, and line movement</li>
+            <li>Daily edge board built for quick decisions before tipoff</li>
             <li>Cancel or manage billing through Stripe</li>
           </ul>
         </div>

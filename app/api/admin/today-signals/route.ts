@@ -29,6 +29,37 @@ async function readJson(response: Response) {
   try { return JSON.parse(text) } catch { return { raw: text } }
 }
 
+function formatDigest(results: any[]): string {
+  const lines = ['Athlete Intelligence daily board']
+  for (const row of results) {
+    if (row.skipped) {
+      lines.push('', `${String(row.sport || '').toUpperCase()}: no slate found`)
+      continue
+    }
+    lines.push('', `${String(row.sport || '').toUpperCase()}: ${row.signals || 0} curated signals`)
+    for (const signal of row.preview || []) {
+      lines.push(`• ${signal.player} — ${signal.label} (${signal.matchup || 'today'})`)
+      for (const bullet of signal.whyCare || []) lines.push(`  - ${bullet}`)
+    }
+    if (row.signals > (row.preview?.length || 0)) lines.push(`  + ${row.signals - row.preview.length} more on the board`)
+  }
+  lines.push('', 'Open board: https://athleteintelligence.xyz')
+  return lines.join('\n').trim()
+}
+
+async function sendTelegramDigest(text: string): Promise<{ sent: boolean; reason?: string }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN || process.env.AI_TELEGRAM_BOT_TOKEN
+  const chatId = process.env.TELEGRAM_CHAT_ID || process.env.AI_TELEGRAM_CHAT_ID
+  if (!token || !chatId) return { sent: false, reason: 'telegram env not configured' }
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+  })
+  if (!response.ok) return { sent: false, reason: `telegram HTTP ${response.status}` }
+  return { sent: true }
+}
+
 async function findSlate(origin: string, sport: Sport) {
   const now = new Date()
   const offsets = sport === 'nfl' ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2]
@@ -81,12 +112,21 @@ export async function GET(req: NextRequest) {
         whyCare: payload.signals[0].whyCare,
         intel: payload.signals[0].metadata?.todayIntel,
       } : null,
+      preview: Array.isArray(payload?.signals) ? payload.signals.slice(0, 3).map((signal: any) => ({
+        player: signal.player,
+        label: signal.label,
+        matchup: signal.matchup,
+        whyCare: Array.isArray(signal.whyCare) ? signal.whyCare.slice(0, 2) : [],
+      })) : [],
       error: payload?.error,
     })
   }
 
   const ok = results.every(row => row.ok || row.skipped)
-  return NextResponse.json({ ok, generatedAt: new Date().toISOString(), results }, { status: ok ? 200 : 500 })
+  const digest = formatDigest(results)
+  const notify = req.nextUrl.searchParams.get('notify') === '1' || req.nextUrl.searchParams.get('telegram') === '1'
+  const telegram = notify ? await sendTelegramDigest(digest) : { sent: false, reason: 'notification not requested' }
+  return NextResponse.json({ ok, generatedAt: new Date().toISOString(), results, digest, telegram }, { status: ok ? 200 : 500 })
 }
 
 export async function POST(req: NextRequest) {
