@@ -44,7 +44,7 @@ function SubscribeShell({ title, subtitle, email }: { title: string; subtitle: s
             <span style={{ color: 'rgba(226,255,204,0.58)', fontWeight: 800 }}>/ month</span>
           </div>
           <ul style={{ margin: '14px 0 0', paddingLeft: 20, color: 'rgba(226,255,204,0.72)', lineHeight: 1.7, fontSize: 14 }}>
-            <li>Full Today’s Signals board, not just the guest preview</li>
+            <li>Full Today’s Signals board for members only</li>
             <li>Last-12 game logs, injury/usage context, and line movement</li>
             <li>Daily edge board built for quick decisions before tipoff</li>
             <li>Cancel or manage billing through Stripe</li>

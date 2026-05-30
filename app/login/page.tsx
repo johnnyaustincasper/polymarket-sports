@@ -10,8 +10,7 @@ const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 export default function LoginPage() {
   if (clerkEnabled) {
     return (
-      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Today's player-prop board" subtitle="See the best player-prop signals in 30 seconds. Start as a guest, then sign in when you want the full board saved to your account.">
-        <GuestButton />
+      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Unlock today's board" subtitle="Sign in or create your account to unlock the full daily player-prop board. Membership is required before the board opens.">
         <SignIn
           routing="path"
           path="/login"
@@ -24,40 +23,6 @@ export default function LoginPage() {
   }
 
   return <LegacyLogin />
-}
-
-function GuestButton() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const router = useRouter()
-
-  async function continueAsGuest() {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch('/api/auth/guest', { method: 'POST' })
-      if (!res.ok) throw new Error('Guest access unavailable.')
-      router.push(new URLSearchParams(window.location.search).get('next') || '/')
-      router.refresh()
-    } catch (e: any) {
-      setError(e?.message || 'Guest access unavailable.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div style={{ width: '100%', display: 'grid', gap: 8, marginTop: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ height: 1, flex: 1, background: 'rgba(125,246,255,0.14)' }} />
-        <span style={{ color: 'rgba(226,255,204,0.70)', fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Start here</span>
-        <span style={{ height: 1, flex: 1, background: 'rgba(125,246,255,0.14)' }} />
-      </div>
-      <button type="button" onClick={continueAsGuest} disabled={loading} style={guestButton(loading)}>{loading ? 'Opening board…' : 'Continue as Guest'}</button>
-      <p style={{ margin: 0, color: 'rgba(226,255,204,0.58)', fontSize: 11, textAlign: 'center', lineHeight: 1.45 }}>No card required. Preview today’s board first.</p>
-      {error && <p style={{ color: '#ff4466', fontSize: 11, textAlign: 'center', fontWeight: 800 }}>{error}</p>}
-    </div>
-  )
 }
 
 function LegacyLogin() {
@@ -97,7 +62,7 @@ function LegacyLogin() {
   const disabled = loading || !email.trim() || !code.trim() || (mode === 'signup' && !name.trim())
 
   return (
-    <AuthShell eyebrow="ACCESS" title="Authorized access" subtitle="Use your invite code or continue as a guest to preview today’s board.">
+    <AuthShell eyebrow="ACCESS" title="Member access" subtitle="Use your account access code to sign in. Paid membership is required before the board opens.">
       <form onSubmit={submit} style={{ width: '100%', display: 'grid', gap: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {(['signin', 'signup'] as const).map(option => (
@@ -110,7 +75,6 @@ function LegacyLogin() {
         {error && <p style={{ color: '#ff4466', fontSize: 12, textAlign: 'center', fontWeight: 800 }}>{error}</p>}
         <button type="submit" disabled={disabled} style={primaryButton(disabled)}>{loading ? 'Verifying…' : 'Enter Intelligence'}</button>
       </form>
-      <GuestButton />
     </AuthShell>
   )
 }
@@ -137,17 +101,6 @@ function primaryButton(disabled: boolean): React.CSSProperties {
     background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(125,246,255,0.26), rgba(125,246,255,0.13))',
     border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(125,246,255,0.48)'}`,
     color: disabled ? 'rgba(226,255,204,0.3)' : '#7df6ff', boxShadow: !disabled ? '0 0 26px rgba(125,246,255,0.18)' : 'none',
-  }
-}
-
-function guestButton(disabled: boolean): React.CSSProperties {
-  return {
-    width: '100%', padding: '14px 15px', borderRadius: 17, fontSize: 12, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(125,246,255,0.96), rgba(197,255,93,0.82))',
-    border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(125,246,255,0.72)'}`,
-    color: disabled ? 'rgba(226,255,204,0.3)' : '#041008',
-    boxShadow: !disabled ? '0 0 30px rgba(125,246,255,0.22), inset 0 1px 0 rgba(255,255,255,0.22)' : 'none',
   }
 }
 

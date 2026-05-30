@@ -46,9 +46,8 @@ export async function GET(req: NextRequest) {
   const session = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)
   if (!session) return NextResponse.json({ error: 'Not signed in.' }, { status: 401 })
 
-  const guest = Boolean(session.email?.endsWith('@guest.local'))
   return NextResponse.json(buildSubscriptionResponse({
-    subscriptionStatus: guest ? 'guest_full_access' : 'unknown',
-    plan: guest ? 'Guest pass' : 'Premium',
+    subscriptionStatus: 'unknown',
+    plan: 'Premium',
   }, 'legacy'))
 }

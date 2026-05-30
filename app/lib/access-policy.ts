@@ -78,9 +78,7 @@ export function evaluateAccessPolicy(
   if (hasPaidSubscription(principal)) return { allowed: true, policy, reason: 'paid' }
 
   if (principal.guest && options.guestFullAccess) {
-    return options.guestAccessEnabled === false
-      ? { allowed: false, policy, reason: 'guest_disabled' }
-      : { allowed: true, policy, reason: 'guest_full_access' }
+    return { allowed: false, policy, reason: 'guest_disabled' }
   }
 
   return { allowed: false, policy, reason: 'subscription_required' }

@@ -8,9 +8,9 @@ const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && pr
 
 export default async function HomePage() {
   const cookieStore = await cookies()
-  const guestOrLegacy = await verifySessionToken(cookieStore.get(SESSION_COOKIE)?.value)
+  const legacySession = await verifySessionToken(cookieStore.get(SESSION_COOKIE)?.value)
 
-  if (clerkEnabled && !guestOrLegacy) {
+  if (clerkEnabled) {
     const { userId, sessionClaims } = await auth()
     if (!userId) redirect('/login')
 
@@ -18,6 +18,8 @@ export default async function HomePage() {
     const metadata = (user?.publicMetadata || sessionClaims?.publicMetadata || {}) as { subscriptionStatus?: string }
     const active = metadata.subscriptionStatus === 'active' || metadata.subscriptionStatus === 'trialing'
     if (!active) redirect('/subscribe')
+  } else if (!legacySession || legacySession.guest) {
+    redirect('/login')
   }
 
   return <AppClient clerkEnabled={clerkEnabled} />

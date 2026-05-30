@@ -3189,7 +3189,6 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
 
 function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }: { sport: SupportedSport | 'ufc'; games: Game[]; loading: boolean; isMobile: boolean; autoRun?: boolean }) {
   const [data, setData] = useState<SignalsPanelData | null>(null)
-  const [accountProfile, setAccountProfile] = useState<{ guest?: boolean; subscriptionStatus?: string } | null>(null)
   const [performance, setPerformance] = useState<SignalPerformanceData | null>(null)
   const [scanning, setScanning] = useState(false)
   const [settling, setSettling] = useState(false)
@@ -3225,12 +3224,6 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
     setStorageHydrated(true)
   }, [])
 
-  useEffect(() => {
-    fetch('/api/account', { cache: 'no-store' })
-      .then(res => res.ok ? res.json() : null)
-      .then(json => setAccountProfile(json?.profile || null))
-      .catch(() => setAccountProfile(null))
-  }, [])
 
   useEffect(() => {
     if (!storageHydrated) return
@@ -3348,9 +3341,6 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   }
 
   const topSignals = (data?.signals || []).map(signal => signalToTerminalSignal(signal))
-  const guestPreview = accountProfile?.guest === true
-  const visibleSignals = guestPreview ? topSignals.slice(0, 3) : topSignals
-  const lockedSignals = guestPreview ? Math.max(0, topSignals.length - visibleSignals.length) : 0
   const watchedKeys = new Set(watchlist.filter(item => item.active).map(item => item.key))
   const openMarket = (signal: SignalTerminalSignal) => {
     if (isTrustedMarketUrl(signal.url)) window.open(signal.url, '_blank', 'noopener,noreferrer')
@@ -3389,21 +3379,13 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
 
         {data && (
           <div style={{ marginTop: 13, display: 'grid', gap: isMobile ? 8 : 9 }}>
-            {visibleSignals.length ? (
+            {topSignals.length ? (
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9 }}>
-                {visibleSignals.slice(0, 7).map((signal, signalIdx) => (
+                {topSignals.slice(0, 7).map((signal, signalIdx) => (
                   <div key={signal.id} style={{ opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 90, 540)}ms` }}>
                     <SignalTerminalCard signal={signal} />
                   </div>
                 ))}
-                {lockedSignals > 0 && (
-                  <div style={{ borderRadius: 20, padding: isMobile ? 14 : 16, background: 'linear-gradient(145deg, rgba(125,246,255,0.12), rgba(197,255,93,0.07))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 16px 44px rgba(0,0,0,0.34)' }}>
-                    <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Unlock full board</div>
-                    <div style={{ color: C.textPrimary, fontSize: isMobile ? 16 : 18, fontWeight: 950, marginTop: 6 }}>Guest preview showing 3 signals.</div>
-                    <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.5, marginTop: 7 }}>{lockedSignals} more curated looks are reserved for members, including line movement, injury/usage context, and last-12 game logs.</div>
-                    <a href="/subscribe" style={{ display: 'block', marginTop: 12, textAlign: 'center', textDecoration: 'none', borderRadius: 999, padding: '11px 13px', background: 'linear-gradient(135deg, rgba(125,246,255,0.96), rgba(197,255,93,0.82))', color: '#041008', fontSize: 11, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Unlock full board</a>
-                  </div>
-                )}
               </div>
             ) : (
               <div style={{ color: C.textSecondary, fontSize: 11 }}>No clean signals passed the current model gate on this slate.</div>

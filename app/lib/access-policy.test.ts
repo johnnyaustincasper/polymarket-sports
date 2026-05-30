@@ -27,14 +27,14 @@ describe('access policy helper', () => {
     expect(evaluateAccessPolicy('paid', admin).allowed).toBe(true)
   })
 
-  it('does not treat guests as paid unless the route explicitly opts into guest full access', () => {
+  it('does not treat guests as paid', () => {
     expect(evaluateAccessPolicy('paid', guest, { guestFullAccess: false, guestAccessEnabled: true })).toMatchObject({
       allowed: false,
       reason: 'subscription_required',
     })
     expect(evaluateAccessPolicy('paid', guest, { guestFullAccess: true, guestAccessEnabled: true })).toMatchObject({
-      allowed: true,
-      reason: 'guest_full_access',
+      allowed: false,
+      reason: 'guest_disabled',
     })
   })
 

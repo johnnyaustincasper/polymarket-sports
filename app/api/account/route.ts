@@ -33,7 +33,7 @@ function legacyToAccountProfile(profile: any) {
     displayName: profile.displayName || profile.name || '',
     details: profile.details || profile.preferences?.details || '',
     avatarUrl: profile.avatarUrl || '',
-    subscriptionStatus: profile.guest ? 'guest_full_access' : 'unknown',
+    subscriptionStatus: 'unknown',
     hasStripeCustomer: false,
     storage: profile.storage,
   }

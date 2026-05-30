@@ -117,7 +117,7 @@ function buildReadiness({
   }
 }) {
   const authProviderReady = auth.clerkConfigured || auth.legacySessionConfigured
-  const authAccessReady = auth.authorizedUserCount > 0 || auth.hasGlobalInviteCode || auth.guestAccessEnabled || auth.bootstrapMode
+  const authAccessReady = auth.authorizedUserCount > 0 || auth.hasGlobalInviteCode || auth.bootstrapMode
   const authReady = authProviderReady && authAccessReady
   const marketsReady = markets.kalshi.available || markets.polymarket.available
 
@@ -130,7 +130,7 @@ function buildReadiness({
     auth: readinessCheck(
       authReady,
       authReady ? 'ready' : 'blocked',
-      authReady ? 'Authentication and at least one access path are configured.' : 'Configure Clerk or legacy session auth plus an authorized user, invite code, or guest access.',
+      authReady ? 'Authentication and at least one paid access path are configured.' : 'Configure Clerk or legacy session auth plus an authorized user or invite code.',
     ),
     billing: readinessCheck(
       billing.isFullyConfigured,

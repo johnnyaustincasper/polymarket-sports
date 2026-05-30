@@ -19,7 +19,7 @@ function initials(name?: string, email?: string) {
   return ((parts[0]?.[0] || 'A') + (parts[1]?.[0] || 'I')).toUpperCase()
 }
 function statusTone(status?: string) {
-  if (status === 'active' || status === 'trialing' || status === 'guest' || status === 'guest_full_access') return C.green
+  if (status === 'active' || status === 'trialing') return C.green
   if (status === 'past_due' || status === 'unpaid') return '#f8d94a'
   return C.textSecondary
 }
@@ -97,7 +97,7 @@ export default function AccountMenu({ isMobile = false, forceOpen = false, onFor
   async function uploadProfilePicture(file?: File) {
     if (!file) return
     if (!user) {
-      setError('Image upload is available for signed-in accounts. Guests can use a profile picture URL for now.')
+      setError('Image upload is available for signed-in accounts.')
       return
     }
     if (!file.type.startsWith('image/')) {
@@ -138,7 +138,7 @@ export default function AccountMenu({ isMobile = false, forceOpen = false, onFor
 
   const avatar = profile?.avatarUrl
   const label = profile?.displayName || profile?.username || (profile?.guest ? 'Guest' : 'Account')
-  const status = profile?.subscriptionStatus || (profile?.guest ? 'guest_full_access' : 'unknown')
+  const status = profile?.subscriptionStatus || 'unknown'
   const overlayStyle: React.CSSProperties = {
     position: 'fixed', inset: 0, zIndex: 2147483647,
     background: isMobile ? 'rgba(0,0,0,0.88)' : 'rgba(0,0,0,0.64)',
