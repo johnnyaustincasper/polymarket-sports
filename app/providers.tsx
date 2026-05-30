@@ -12,8 +12,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       publishableKey={publishableKey}
       signInUrl="/login"
       signUpUrl="/sign-up"
-      afterSignInUrl="/subscribe"
-      afterSignUpUrl="/subscribe"
+      signInFallbackRedirectUrl="/subscribe"
+      signUpFallbackRedirectUrl="/subscribe"
     >
       {children}
     </ClerkProvider>
