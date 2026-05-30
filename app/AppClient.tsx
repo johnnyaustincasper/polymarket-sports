@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import AccountMenu from './components/AccountMenu'
 import LoadingMarketCards from './components/LoadingMarketCards'
 import UpdatedAgeLabel from './components/UpdatedAgeLabel'
@@ -5472,8 +5473,34 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
   onSportChange: (sport: SupportedSport | 'ufc') => void
   onDateChange: (date: string) => void
 }) {
+  const [mounted, setMounted] = useState(false)
+  const [visualViewportBottomOffset, setVisualViewportBottomOffset] = useState(0)
   const navItems = buildMobileDockTabs(sport)
   const dateOptions = mobileDockDateOptions(days)
+
+  useEffect(() => {
+    setMounted(true)
+
+    const updateViewportOffset = () => {
+      const viewport = window.visualViewport
+      if (!viewport) {
+        setVisualViewportBottomOffset(0)
+        return
+      }
+      setVisualViewportBottomOffset(Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop))
+    }
+
+    updateViewportOffset()
+    window.visualViewport?.addEventListener('resize', updateViewportOffset)
+    window.visualViewport?.addEventListener('scroll', updateViewportOffset)
+    window.addEventListener('resize', updateViewportOffset)
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateViewportOffset)
+      window.visualViewport?.removeEventListener('scroll', updateViewportOffset)
+      window.removeEventListener('resize', updateViewportOffset)
+    }
+  }, [])
 
   const dockButton = (selected: boolean): React.CSSProperties => ({
     appearance: 'none',
@@ -5553,15 +5580,15 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
     cursor: 'pointer',
   })
 
-  return (
+  const dock = (
     <nav aria-label="Mobile bottom navigation" style={{
       position: 'fixed',
       left: '50%',
       right: 'auto',
       width: 'min(430px, calc(100vw - 18px))',
-      bottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
+      bottom: `calc(10px + env(safe-area-inset-bottom, 0px) + ${visualViewportBottomOffset}px)`,
       transform: 'translateX(-50%)',
-      zIndex: 1000,
+      zIndex: 2147483000,
       display: 'grid',
       gridTemplateColumns: `repeat(${premiumMobileDockLayout.columns}, minmax(0, 1fr))`,
       alignItems: 'stretch',
@@ -5646,6 +5673,8 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
       })}
     </nav>
   )
+
+  return mounted ? createPortal(dock, document.body) : null
 }
 
 function MarketModeDock() {
