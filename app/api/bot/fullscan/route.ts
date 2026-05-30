@@ -40,7 +40,7 @@ function spreadToWinProb(spread: number): number {
 // Detect "live trade candidate" — cheap underdog in a competitive game
 function liveTradeCandidateScore(polyPrice: number, spreadAbs: number): number {
   // High score = strong live trade candidate
-  // Factors: price under 35¢ (cheap enough to 2-3x), spread under 8 (competitive game)
+  // Factors: low market chance (cheap enough to 2-3x), spread under 8 (competitive game)
   if (polyPrice > 0.38 || spreadAbs > 9) return 0
   const priceScore = Math.max(0, (0.38 - polyPrice) / 0.38)  // cheaper = higher score
   const spreadScore = Math.max(0, (9 - spreadAbs) / 9)       // tighter spread = higher score
@@ -408,7 +408,7 @@ export async function GET(req: NextRequest) {
               // EV and Kelly pre-calculated so Claude doesn't have to
               // EV per $1 risked = (trueProb * (1/polyPrice - 1)) - (1 - trueProb)
               // Kelly fraction = (trueProb - polyPrice) / (1 - polyPrice)
-              polyLine = `${awayName}: ${(polyAwayPrice*100).toFixed(1)}¢ | ${homeName}: ${(polyHomePrice*100).toFixed(1)}¢ | Volume: $${((winnerMarket.volumeNum||0)/1000).toFixed(0)}k`
+              polyLine = `${awayName}: ${(polyAwayPrice*100).toFixed(1)}% market chance | ${homeName}: ${(polyHomePrice*100).toFixed(1)}% market chance | Volume: $${((winnerMarket.volumeNum||0)/1000).toFixed(0)}k`
             }
           }
         }
@@ -452,7 +452,7 @@ export async function GET(req: NextRequest) {
       // Pre-calculate EV and Kelly for each side
       const calcEdgeStats = (trueProb: number, polyPrice: number, bankrollAmt: number) => {
         if (polyPrice <= 0 || polyPrice >= 1) return null
-        const edge = trueProb - polyPrice                          // cents of edge
+        const edge = trueProb - polyPrice                          // probability gap
         const evPer1 = trueProb * (1 / polyPrice - 1) - (1 - trueProb)  // EV per $1 risked
         const kelly = Math.max(0, edge / (1 - polyPrice))         // Kelly fraction
         const halfKelly = kelly / 2                                // Half-Kelly (safer)
@@ -494,9 +494,9 @@ export async function GET(req: NextRequest) {
           return [`${teamName}: no hold-to-resolution edge vs Poly price`, spreadNote, liveNote].filter(Boolean).join('\n')
         }
         return [
-          `${teamName}: +${(ev.edge*100).toFixed(1)}¢ EDGE (true prob est. ${(trueProb*100).toFixed(1)}% vs Poly ${(polyPrice*100).toFixed(1)}¢)`,
+          `${teamName}: +${(ev.edge*100).toFixed(1)}% VALUE GAP (true prob est. ${(trueProb*100).toFixed(1)}% vs market ${(polyPrice*100).toFixed(1)}%)`,
           spreadNote,
-          `  EV per $1: ${ev.evPer1 >= 0 ? '+' : ''}${(ev.evPer1*100).toFixed(1)}¢ ${ev.evPer1 > 0 ? '✓ POSITIVE EV' : '✗ NEGATIVE EV'} | Half-Kelly: $${ev.betSize.toFixed(0)} → ${ev.shares} shares → +$${ev.profit} / -$${ev.betSize.toFixed(0)}`,
+          `  EV per $1: ${ev.evPer1 >= 0 ? '+' : ''}${(ev.evPer1*100).toFixed(1)}% ${ev.evPer1 > 0 ? '✓ POSITIVE EV' : '✗ NEGATIVE EV'} | Half-Kelly: $${ev.betSize.toFixed(0)} → ${ev.shares} shares → +$${ev.profit} / -$${ev.betSize.toFixed(0)}`,
           liveNote,
         ].filter(Boolean).join('\n')
       }
@@ -522,7 +522,7 @@ AWAY — ${awayEVStr}
 
 HOME — ${homeEVStr}
 
-RULE: Only bet when EV is positive AND edge ≥ 5¢. Otherwise it's just agreeing with the market.
+RULE: Only bet when EV is positive AND the value gap is 5%+. Otherwise it's just agreeing with the market.
 
 📊 TEAM STATS & FORM:
 ${fmtStats(awayStats, awayName, false)}
@@ -564,20 +564,20 @@ THE ONLY QUESTION THAT MATTERS:
 ═══════════════════════════════════════
 
 SHARP BETTING PHILOSOPHY:
-- Betting a 90% favorite at 88¢ is TERRIBLE. You risk $88 to win $12. Even if they win, you barely profit.
-- Betting a 25% underdog at 23¢ in a COMPETITIVE game is GREAT. Risk $23 to win $77. If you're right on 27% true prob, that's massive EV.
+- Betting a 90% favorite at a 88% market chance is TERRIBLE. You risk too much for too little upside. Even if they win, you barely profit.
+- Betting a 25% underdog at a 23% market chance in a COMPETITIVE game is GREAT. If you're right on 27% true prob, that's massive EV.
 - The market is approximately right on who wins. It's frequently WRONG on the underdog's upset probability in close games.
 - Polymarket and the public both systematically overprice favorites in competitive games. That's your edge.
-- **BAD RECORD ≠ BAD BET.** A 20-win team's losing record is already in the 25¢ price. Don't double-count it.
+- **BAD RECORD ≠ BAD BET.** A 20-win team's losing record is already baked into the market chance. Don't double-count it.
 - Half-Kelly sizing is pre-calculated. Use it. Never recommend more.
-- PASS on anything with < 5¢ edge AND no live trade angle.
+- PASS on anything with < 5% value gap AND no live trade angle.
 
 TWO WAYS TO MAKE MONEY — EVALUATE BOTH:
 
-1. HOLD-TO-RESOLUTION: Buy and hold until game ends. Need clear positive EV (+5¢+ edge). Works for underdogs where market is genuinely mispriced.
+1. HOLD-TO-RESOLUTION: Buy and hold until game ends. Need clear positive EV (5%+ value gap). Works for underdogs where market is genuinely mispriced.
 
-2. LIVE TRADE (often better for underdogs): Buy cheap underdog shares upcoming-game. If they take an early lead, their Poly price jumps from 25¢ to 60-70¢. Sell and take the 2-3x. You don't need them to WIN — you just need them to be competitive in the first half. A team priced at 23.5¢ will be LEADING at halftime in ~35-40% of games. That's your cashout window.
-   - Live trades work best: spread ≤ 7 pts + Poly price ≤ 32¢ = 🎯 flag it
+2. LIVE TRADE (often better for underdogs): Buy cheap underdog shares upcoming-game. If they take an early lead, their market chance can jump from the mid-20s to 60-70%. Sell and take the 2-3x. You don't need them to WIN — you just need them to be competitive in the first half. A team priced around 24% will be LEADING at halftime in ~35-40% of games. That's your cashout window.
+   - Live trades work best: spread ≤ 7 pts + market chance ≤ 32% = 🎯 flag it
    - The data already flags these as "LIVE TRADE CANDIDATE" — take that seriously
 
 HOW TO FIND REAL EDGE:
@@ -585,7 +585,7 @@ HOW TO FIND REAL EDGE:
 2. Rest advantage on the underdog — back-to-back favorite vs rested underdog = massive variance
 3. Key player out for the FAVORITE — even a role player missing can shift 3-5% true probability
 4. Personal/life distractions on star players — books miss this entirely
-5. Tight spread + cheap Poly price = live trade setup regardless of hold-to-resolution EV
+5. Tight spread + cheap market chance = live trade setup regardless of hold-to-resolution EV
 
 HOW POLYMARKET WORKS:
 - Each share = $1.00 if that team wins. You buy at the current price.
@@ -601,18 +601,18 @@ ${gameContexts.join('\n')}
 OUTPUT FORMAT — FOR EACH GAME:
 
 **[AWAY] @ [HOME]**
-📍 Poly: [away]¢ / [home]¢ | Spread: [X] | Spread-implied: [away]% / [home]%
+📍 Market chance: [away]% / [home]% | Spread: [X] | Spread-implied: [away]% / [home]%
 🧠 True prob: [away]% / [home]% (explain any gap vs market)
 
 Verdict: STRONG BET / LIVE TRADE / LEAN / PASS
-— STRONG BET: 5¢+ positive EV edge, hold to resolution
+— STRONG BET: 5%+ positive value gap, hold to resolution
 — LIVE TRADE: buy the underdog cheap, target a 2-3x cashout if they lead at end of Q1 or halftime. You do NOT need them to win.
 — LEAN: real but thin edge, small position
 — PASS: insufficient edge in either direction (explain why even if the favorite looks dominant)
 
 The Play (skip if PASS):
-Hold: "[Team] YES at X¢ — $[amount] → [shares] shares. Win: +$[profit]. Lose: -$[bet]."
-Live trade: "Buy [Team] YES at X¢. If they're up or within [Y] at end of Q1, Poly price will be ~[Z]¢. Sell [half/all] for ~[X]x. Let rest ride free."
+Hold: "[Team] YES — $[amount] → [shares] shares. Win: +$[profit]. Lose: -$[bet]."
+Live trade: "Buy [Team] YES. If they're up or within [Y] at end of Q1, market chance should jump to ~[Z]%. Sell [half/all] for ~[X]x. Let rest ride free."
 
 Why the market is wrong:
 • [Specific mispricing — spread vs ML gap, rest edge, injury, discrepancy]

@@ -50,7 +50,7 @@ function GuestButton() {
     <div style={{ width: '100%', display: 'grid', gap: 8, marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ height: 1, flex: 1, background: 'rgba(125,246,255,0.14)' }} />
-        <span style={{ color: 'rgba(226,255,204,0.48)', fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Testing access</span>
+        <span style={{ color: 'rgba(226,255,204,0.48)', fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Guest access</span>
         <span style={{ height: 1, flex: 1, background: 'rgba(125,246,255,0.14)' }} />
       </div>
       <button type="button" onClick={continueAsGuest} disabled={loading} style={guestButton(loading)}>{loading ? 'Opening…' : 'Continue as Guest'}</button>

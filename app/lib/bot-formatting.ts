@@ -3,11 +3,11 @@ export function formatPct(n: number): string {
 }
 
 export function formatCents(n: number): string {
-  return (n * 100).toFixed(1) + '¢'
+  return (n * 100).toFixed(1) + '%'
 }
 
 export function formatEdge(n: number): string {
-  return (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '¢'
+  return (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%'
 }
 
 export function formatUnits(n: number): string {

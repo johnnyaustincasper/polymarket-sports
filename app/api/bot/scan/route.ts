@@ -277,7 +277,7 @@ export async function GET(req: NextRequest) {
       const homeEdge = dkHomeImplied - liveHomePrice
       const awayEdge = dkAwayImplied - liveAwayPrice
 
-      const MIN_EDGE = 0.03  // 3 cent minimum edge to signal
+      const MIN_EDGE = 0.03  // 3% minimum value gap to signal
       let bestSide: 'away' | 'home' | 'none' = 'none'
       let bestEdge = 0
       let recommendation = 'No edge'
@@ -285,11 +285,11 @@ export async function GET(req: NextRequest) {
       if (homeEdge >= MIN_EDGE && homeEdge >= awayEdge) {
         bestSide = 'home'
         bestEdge = homeEdge
-        recommendation = `BUY ${homeName} YES @ ${(liveHomePrice * 100).toFixed(1)}¢ | Reference implies ${(dkHomeImplied * 100).toFixed(1)}¢ | Edge: +${(homeEdge * 100).toFixed(1)}¢`
+        recommendation = `BUY ${homeName} YES | Market chance ${(liveHomePrice * 100).toFixed(1)}% | Reference implies ${(dkHomeImplied * 100).toFixed(1)}% | Value gap: +${(homeEdge * 100).toFixed(1)}%`
       } else if (awayEdge >= MIN_EDGE) {
         bestSide = 'away'
         bestEdge = awayEdge
-        recommendation = `BUY ${awayName} YES @ ${(liveAwayPrice * 100).toFixed(1)}¢ | Reference implies ${(dkAwayImplied * 100).toFixed(1)}¢ | Edge: +${(awayEdge * 100).toFixed(1)}¢`
+        recommendation = `BUY ${awayName} YES | Market chance ${(liveAwayPrice * 100).toFixed(1)}% | Reference implies ${(dkAwayImplied * 100).toFixed(1)}% | Value gap: +${(awayEdge * 100).toFixed(1)}%`
       }
 
       signals.push({

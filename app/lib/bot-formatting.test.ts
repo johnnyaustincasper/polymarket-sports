@@ -9,15 +9,15 @@ import {
 } from './bot-formatting'
 
 describe('bot formatting helpers', () => {
-  it('formats percentages, cents, edges, and units with legacy precision/signs', () => {
+  it('formats percentages, market chance, edges, and units with legacy precision/signs', () => {
     expect(formatPct(0.5512)).toBe('55.1%')
     expect(formatPct(0)).toBe('0.0%')
 
-    expect(formatCents(0.456)).toBe('45.6¢')
+    expect(formatCents(0.456)).toBe('45.6%')
 
-    expect(formatEdge(0.037)).toBe('+3.7¢')
-    expect(formatEdge(-0.012)).toBe('-1.2¢')
-    expect(formatEdge(0)).toBe('+0.0¢')
+    expect(formatEdge(0.037)).toBe('+3.7%')
+    expect(formatEdge(-0.012)).toBe('-1.2%')
+    expect(formatEdge(0)).toBe('+0.0%')
 
     expect(formatUnits(0.12345)).toBe('+0.123u')
     expect(formatUnits(-0.5)).toBe('-0.500u')

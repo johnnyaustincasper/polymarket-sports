@@ -27,9 +27,9 @@ function isFiniteNumber(value: unknown): value is number {
 
 function formatPrice(value: number | null | undefined) {
   if (!isFiniteNumber(value)) return '—'
-  const cents = Math.abs(value) <= 1 ? value * 100 : value
-  const rounded = Math.round(cents * 10) / 10
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}c`
+  const pct = Math.abs(value) <= 1 ? value * 100 : value
+  const rounded = Math.round(pct * 10) / 10
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}%`
 }
 
 function formatLine(value: number | null | undefined) {
@@ -67,8 +67,8 @@ export default function SportsbookConsensusPanel({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 7, marginBottom: 9 }}>
         {[
           ['Consensus', formatLine(consensus?.consensusLine ?? consensus?.averageLine), C.text],
-          ['Price', formatPrice(consensus?.consensusPrice), C.green],
-          ['Fair', formatPrice(consensus?.fairPrice), C.amber],
+          ['Market', formatPrice(consensus?.consensusPrice), C.green],
+          ['Model', formatPrice(consensus?.fairPrice), C.amber],
         ].map(([label, value, valueColor]) => (
           <div key={label} style={{ minWidth: 0, borderRadius: 10, padding: '7px 6px', background: 'rgba(0,0,0,0.18)', border: `1px solid ${C.border}`, textAlign: 'center' }}>
             <div style={{ color: valueColor, fontSize: 12, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>

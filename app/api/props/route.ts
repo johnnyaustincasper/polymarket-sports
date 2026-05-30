@@ -455,7 +455,7 @@ function findBinaryThreshold(values: number[], metricLabel: string): PropRecomme
     kalshi: null,
     xaiBacked: false,
     socialContext: [],
-    explanation: `${label} hit ${hits}/${values.length} with a ${last12Avg.toFixed(1)} last-12 avg. I would only bet YES at ${maxYesPrice}¢ or better. Risk: ${risk}.`,
+    explanation: `${label} hit ${hits}/${values.length} with a ${last12Avg.toFixed(1)} last-12 avg. Keep discipline and do not chase it if the line moves against you. Risk: ${risk}.`,
   }
 }
 
@@ -481,7 +481,7 @@ function buildThresholdRecommendation(values: number[], line: number, metricLabe
   const riskPenalty = risk === 'high' ? 8 : risk === 'medium' ? 3 : 0
   const valueScore = Math.round(consistency + thresholdAmbition + cushionScore - riskPenalty)
   const label = `${line}+ ${metricLabel}`
-  const priceText = `I would only bet YES at ${maxYesPrice}¢ or better`
+  const priceText = `Keep discipline and do not chase it if the line moves against you`
   return {
     metric: metricLabel,
     label,
@@ -538,14 +538,14 @@ function buildMarketRecommendation(values: number[], line: number, metricLabel: 
     kalshi: null,
     xaiBacked: false,
     socialContext: [],
-    explanation: `${label}: hit ${hits}/${values.length}, ${last12Avg.toFixed(1)} last-12 avg, ${margin >= 0 ? `${margin.toFixed(1)} cushion` : `${Math.abs(margin).toFixed(1)} below line`}. Model max YES ${maxYesPrice}¢. Risk: ${risk}.`,
+    explanation: `${label}: hit ${hits}/${values.length}, ${last12Avg.toFixed(1)} last-12 avg, ${margin >= 0 ? `${margin.toFixed(1)} cushion` : `${Math.abs(margin).toFixed(1)} below line`}. Do not chase it if the line moves against you. Risk: ${risk}.`,
   }
 }
 
 function shouldSurfaceKalshiRecommendation(rec: PropRecommendation, sport: Sport): boolean {
   if (!rec.kalshi) return false
   // Full-board sports need every executable Kalshi contract visible. The price edge is still
-  // shown in-card via ask/max, but hiding above-max asks made the slate look empty.
+  // shown in-card via line context, but hiding weaker lines made the slate look empty.
   if (isFullBoardSport(sport)) return true
   return Number(rec.kalshi.yesAsk) <= Number(rec.maxYesPrice)
 }
@@ -900,7 +900,7 @@ function addMissingKalshiContracts(players: PlayerPropLine[], kalshiMarkets: any
       const enrichedRec: PropRecommendation = {
         ...statRec,
         kalshi: rec.kalshi,
-        explanation: `${statRec.explanation} Kalshi ask ${rec.kalshi?.yesAsk ?? '—'}¢; max YES ${statRec.maxYesPrice}¢.`,
+        explanation: `${statRec.explanation} Matched Kalshi line attached.`,
       }
       if (!shouldSurfaceKalshiRecommendation(enrichedRec, sport)) continue
       existing.recommendations.push(enrichedRec)

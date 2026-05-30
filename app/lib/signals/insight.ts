@@ -72,7 +72,7 @@ export function classifySignalDecision(input: ClassifySignalDecisionInput): Sign
   }
 
   if (isFiniteNumber(input.ask) && isFiniteNumber(input.maxBuy) && input.ask > input.maxBuy) {
-    return result('trap', 'Above max buy', `Ask ${formatCents(input.ask)} is above max buy ${formatCents(input.maxBuy)}.`)
+    return result('trap', 'Line moved', 'Wait for a better YES line before entering.')
   }
 
   if (tier === 'KILL') {
@@ -88,24 +88,24 @@ export function classifySignalDecision(input: ClassifySignalDecisionInput): Sign
   }
 
   if (tier === 'A' && edge >= ACTIONABLE_EDGE && (input.liquidityGrade === 'real' || input.liquidityGrade === 'deep')) {
-    return result('actionable', 'Actionable signal', `A-tier signal with ${formatSignedCents(edge)} edge and executable liquidity.`)
+    return result('actionable', 'Actionable signal', `A-tier signal with ${formatSignedPercent(edge)} value gap and executable liquidity.`)
   }
 
   if ((tier === 'A' || tier === 'B' || tier === 'WATCH') && edge >= WATCH_EDGE) {
-    return result('watch', 'Watch signal', 'Positive edge, but keep on watch until tier, price, or liquidity improves.')
+    return result('watch', 'Watch signal', 'Positive value gap, but keep on watch until tier, line, or liquidity improves.')
   }
 
-  return result('pass', 'Pass', 'Edge is below the watch threshold.')
+  return result('pass', 'Pass', 'Value gap is below the watch threshold.')
 }
 
-function formatSignedCents(value: number) {
-  const cents = value * 100
-  const sign = cents > 0 ? '+' : ''
-  return `${sign}${formatNumber(cents)}c`
+function formatSignedPercent(value: number) {
+  const pct = value * 100
+  const sign = pct > 0 ? '+' : ''
+  return `${sign}${formatNumber(pct)}%`
 }
 
-function formatCents(value: number) {
-  return `${formatNumber(value * 100)}c`
+function formatMarketChance(value: number) {
+  return `${formatNumber(value * 100)}%`
 }
 
 function formatPercent(value: number) {
@@ -137,13 +137,13 @@ export function buildWhyCare(input: BuildWhyCareInput): string[] {
   }
 
   if (isFiniteNumber(input.edge) && isFiniteNumber(input.fairPrice) && isFiniteNumber(input.ask)) {
-    bullets.push(`Price gap is the trigger: ${formatCents(input.fairPrice)} fair vs ${formatCents(input.ask)} ask (${formatSignedCents(input.edge)} cushion).`)
+    bullets.push(`Value gap is the trigger: ${formatMarketChance(input.fairPrice)} model vs ${formatMarketChance(input.ask)} market (${formatSignedPercent(input.edge)} gap).`)
   } else if (isFiniteNumber(input.edge)) {
-    bullets.push(`Price gap is the trigger: ${formatSignedCents(input.edge)} cushion vs market.`)
+    bullets.push(`Value gap is the trigger: ${formatSignedPercent(input.edge)} vs market.`)
   } else if (isFiniteNumber(input.fairPrice)) {
-    bullets.push(`Model likes the side at ${formatCents(input.fairPrice)} fair.`)
+    bullets.push(`Model likes the side at ${formatMarketChance(input.fairPrice)} true chance.`)
   } else if (isFiniteNumber(input.ask)) {
-    bullets.push(`Current entry is ${formatCents(input.ask)}.`)
+    bullets.push(`Current market chance is ${formatMarketChance(input.ask)}.`)
   }
 
   if (bullets.length === 0) {

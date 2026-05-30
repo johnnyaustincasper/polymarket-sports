@@ -28,16 +28,16 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function toCents(value: number | null | undefined): number | null {
+function toPercent(value: number | null | undefined): number | null {
   if (!isFiniteNumber(value)) return null
   return Math.abs(value) <= 1 ? value * 100 : value
 }
 
-function formatCents(value: number | null | undefined) {
-  const cents = toCents(value)
-  if (cents == null) return '—'
-  const rounded = Math.round(cents * 10) / 10
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}c`
+function formatMarketChance(value: number | null | undefined) {
+  const pct = toPercent(value)
+  if (pct == null) return '—'
+  const rounded = Math.round(pct * 10) / 10
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}%`
 }
 
 function shortLabel(point: SignalMovementPoint, index: number) {
@@ -69,19 +69,19 @@ export default function PriceFairMovementChart({
   points,
   height = 128,
   compact = false,
-  title = 'Price / fair movement',
+  title = 'Market / model movement',
   emptyLabel = 'No movement history yet',
   style,
 }: PriceFairMovementChartProps) {
   const instanceId = useId().replace(/:/g, '')
   const askGradientId = `signalAskGlow-${instanceId}`
   const fairGradientId = `signalFairGlow-${instanceId}`
-  const normalized = (points ?? []).filter((point) => point && (toCents(point.ask ?? point.price) != null || toCents(point.fairPrice) != null))
+  const normalized = (points ?? []).filter((point) => point && (toPercent(point.ask ?? point.price) != null || toPercent(point.fairPrice) != null))
   const latest = normalized[normalized.length - 1]
   const first = normalized[0]
 
-  const askValues = normalized.map((point) => toCents(point.ask ?? point.price))
-  const fairValues = normalized.map((point) => toCents(point.fairPrice))
+  const askValues = normalized.map((point) => toPercent(point.ask ?? point.price))
+  const fairValues = normalized.map((point) => toPercent(point.fairPrice))
   const allValues = [...askValues, ...fairValues].filter(isFiniteNumber)
   const width = 360
   const pad = compact ? 14 : 18
@@ -94,7 +94,7 @@ export default function PriceFairMovementChart({
   const range = Math.max(max - min, 1)
   const askPath = pathFor(askValues, min, range, width, chartHeight, pad)
   const fairPath = pathFor(fairValues, min, range, width, chartHeight, pad)
-  const delta = first && latest ? (toCents(latest.ask ?? latest.price) ?? 0) - (toCents(first.ask ?? first.price) ?? 0) : null
+  const delta = first && latest ? (toPercent(latest.ask ?? latest.price) ?? 0) - (toPercent(first.ask ?? first.price) ?? 0) : null
   const deltaColor = delta == null ? C.muted : delta <= 0 ? C.green : C.amber
 
   return (
@@ -102,7 +102,7 @@ export default function PriceFairMovementChart({
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', marginBottom: 8 }}>
         <div style={{ color: C.green, fontSize: compact ? 8 : 9, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase' }}>{title}</div>
         <div style={{ color: deltaColor, fontSize: compact ? 8 : 9, fontWeight: 950 }}>
-          {delta == null ? '—' : `${delta > 0 ? '+' : ''}${Math.round(delta * 10) / 10}c`}
+          {delta == null ? '—' : `${delta > 0 ? '+' : ''}${Math.round(delta * 10) / 10}%`}
         </div>
       </div>
 
@@ -128,7 +128,7 @@ export default function PriceFairMovementChart({
             return (
               <g key={tick}>
                 <line x1={pad} x2={width - pad} y1={y} y2={y} stroke="rgba(255,255,255,0.07)" strokeDasharray="4 6" />
-                <text x={0} y={y + 3} fill={C.faint} fontSize="8" fontWeight="800">{Math.round(value)}c</text>
+                <text x={0} y={y + 3} fill={C.faint} fontSize="8" fontWeight="800">{Math.round(value)}%</text>
               </g>
             )
           })}
@@ -152,8 +152,8 @@ export default function PriceFairMovementChart({
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 8, color: C.muted, fontSize: 8, fontWeight: 850 }}>
         <span>{first ? shortLabel(first, 0) : '—'}</span>
-        <span style={{ color: C.green }}>fair {formatCents(latest?.fairPrice)}</span>
-        <span style={{ color: C.amber }}>ask {formatCents(latest?.ask ?? latest?.price)}</span>
+        <span style={{ color: C.green }}>model {formatMarketChance(latest?.fairPrice)}</span>
+        <span style={{ color: C.amber }}>market {formatMarketChance(latest?.ask ?? latest?.price)}</span>
         <span>{latest ? shortLabel(latest, normalized.length - 1) : '—'}</span>
       </div>
     </div>

@@ -106,7 +106,7 @@ export default function WatchlistControls({
 
       {!compact && (
         <div style={{ color: note ? C.muted : C.faint, fontSize: 9, lineHeight: 1.4, marginTop: 8 }}>
-          {note || 'Add to watchlist to track ask, fair value, tier movement, and post-refresh deltas.'}
+          {note || 'Add to watchlist to track line quality, tier movement, and post-refresh deltas.'}
         </div>
       )}
     </div>

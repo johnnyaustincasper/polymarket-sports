@@ -28,24 +28,24 @@ function toProbability(value: number | null | undefined) {
   return Math.abs(value) <= 1 ? value : value / 100
 }
 
-function toCents(value: number | null | undefined) {
+function toPercent(value: number | null | undefined) {
   if (!isFiniteNumber(value)) return null
   return Math.abs(value) <= 1 ? value * 100 : value
 }
 
-function formatCents(value: number | null | undefined, fallback = '—') {
-  const cents = toCents(value)
-  if (cents == null) return fallback
-  const rounded = Math.round(cents * 10) / 10
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}c`
+function formatMarketChance(value: number | null | undefined, fallback = '—') {
+  const pct = toPercent(value)
+  if (pct == null) return fallback
+  const rounded = Math.round(pct * 10) / 10
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}%`
 }
 
-function formatSignedCents(value: number | null | undefined, fallback = '—') {
-  const cents = toCents(value)
-  if (cents == null) return fallback
-  const rounded = Math.round(cents * 10) / 10
+function formatSignedPercent(value: number | null | undefined, fallback = '—') {
+  const pct = toPercent(value)
+  if (pct == null) return fallback
+  const rounded = Math.round(pct * 10) / 10
   const display = Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)
-  return `${rounded > 0 ? '+' : ''}${display}c`
+  return `${rounded > 0 ? '+' : ''}${display}%`
 }
 
 function formatPercent(value: number | null | undefined, fallback = '—') {
@@ -146,10 +146,10 @@ export default function SignalDetailDrawer({
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 7, marginBottom: 12 }}>
           {[
-            ['Edge', formatSignedCents(signal.edge), hotColor],
-            ['Ask', formatCents(signal.ask), C.amber],
-            ['Fair', formatCents(signal.fairPrice), C.green],
-            ['Max buy', formatCents(signal.maxBuy), C.text],
+            ['Value', formatSignedPercent(signal.edge), hotColor],
+            ['Market', formatMarketChance(signal.ask), C.amber],
+            ['Model', formatMarketChance(signal.fairPrice), C.green],
+            ['Discipline', signal.maxBuy ? 'Set' : '—', C.text],
             ['Hit', signal.hits != null && signal.games != null ? `${formatNumber(signal.hits)}/${formatNumber(signal.games)}` : formatPercent(signal.hitRate ?? signal.projectedHitPct), C.cyan],
             ['Conf', formatPercent(signal.confidence), C.text],
           ].map(([label, value, color]) => (

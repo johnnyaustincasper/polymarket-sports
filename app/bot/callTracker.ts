@@ -11,7 +11,7 @@ export interface TrackedCall {
   sport: string
   recommendation: string   // full recommendation text
   bettingSide: 'away' | 'home'
-  polymarketPrice: number  // e.g. 0.45 = 45¢
+  polymarketPrice: number  // e.g. 0.45 = 45% market chance
   dkImplied: number        // reference vig-removed implied prob
   edge: number             // polymarket edge (reference - poly)
   kellySize: number        // kelly fraction (bet size as decimal of bankroll)

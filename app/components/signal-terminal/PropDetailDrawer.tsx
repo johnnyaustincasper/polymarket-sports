@@ -27,10 +27,10 @@ function formatValue(value: number | null | undefined, suffix = '') {
   return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}${suffix}`
 }
 
-function formatCents(value: number | null | undefined) {
+function formatMarketChance(value: number | null | undefined) {
   if (!isFiniteNumber(value)) return '—'
-  const cents = Math.abs(value) <= 1 ? value * 100 : value
-  return formatValue(cents, 'c')
+  const pct = Math.abs(value) <= 1 ? value * 100 : value
+  return formatValue(pct, '%')
 }
 
 export default function PropDetailDrawer(props: PropDetailDrawerProps) {
@@ -53,8 +53,8 @@ export default function PropDetailDrawer(props: PropDetailDrawerProps) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(62px,1fr))', gap: 7 }}>
               {[
-                ['Ask', formatCents(signal.ask), C.amber],
-                ['Fair', formatCents(signal.fairPrice), C.green],
+                ['Market', formatMarketChance(signal.ask), C.amber],
+                ['Model', formatMarketChance(signal.fairPrice), C.green],
                 ['Avg', formatValue(signal.avg), C.text],
               ].map(([label, value, color]) => (
                 <div key={label} style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(255,255,255,0.036)', border: `1px solid ${C.border}`, textAlign: 'center' }}>

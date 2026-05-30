@@ -190,7 +190,7 @@ function uniq(values: string[]): string[] {
 }
 
 function formatCents(value: number): string {
-  return Number.isFinite(value) && value > 0 ? `${Math.round(value)}c` : '—'
+  return Number.isFinite(value) && value > 0 ? `${Math.round(value)}%` : '—'
 }
 
 function buildExecution(input: {
@@ -213,9 +213,9 @@ function buildExecution(input: {
     input.bid <= 0 ? 'missing_bid' : '',
   ])
 
-  let guidance = `Buy YES up to ${formatCents(input.maxBuy)}.`
-  if (input.ask <= 0) guidance = 'No executable YES ask is available.'
-  else if (input.ask > input.maxBuy) guidance = `Wait for YES ask at ${formatCents(input.maxBuy)} or better.`
+  let guidance = 'Buy YES only while the line stays inside the signal plan.'
+  if (input.ask <= 0) guidance = 'No executable YES line is available.'
+  else if (input.ask > input.maxBuy) guidance = 'Wait for a better YES line before entering.'
   else if (!liquid) guidance = 'Price is inside max-buy, but liquidity is too thin for an actionable entry.'
 
   return {
@@ -386,14 +386,14 @@ function reasonsFor(input: {
     : `${Math.abs(cushion).toFixed(1)} below the ${input.line}+ line`
   const reasons = [
     `Recent form: ${input.hits}/${input.games} clears with a ${input.avg.toFixed(1)} average — ${cushionText}.`,
-    `Market is underpricing it: ${input.fairPrice}c fair vs ${input.ask}c ask leaves ${input.edge >= 0 ? '+' : ''}${input.edge}c cushion.`,
+    `Model likes it more than the current market: ${input.fairPrice}% model vs ${input.ask}% market leaves ${input.edge >= 0 ? '+' : ''}${input.edge}% value gap.`,
   ]
   const flags: string[] = []
   if (input.risk === 'high') flags.push('High volatility profile')
-  if (input.edge < 5) flags.push('Small price edge')
+  if (input.edge < 5) flags.push('Small value gap')
   if (input.liquidity < 50) flags.push('Thin liquidity')
-  if (input.ask > input.fairPrice) flags.push('Ask above fair price')
-  if (input.tier === 'WATCH') flags.push('Watch price/news before buying')
+  if (input.ask > input.fairPrice) flags.push('Line moved against the signal')
+  if (input.tier === 'WATCH') flags.push('Watch line/news before buying')
   return { reasons, flags }
 }
 

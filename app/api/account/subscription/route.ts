@@ -49,6 +49,6 @@ export async function GET(req: NextRequest) {
   const guest = Boolean(session.email?.endsWith('@guest.local'))
   return NextResponse.json(buildSubscriptionResponse({
     subscriptionStatus: guest ? 'guest_full_access' : 'unknown',
-    plan: guest ? 'Guest testing pass' : 'Premium',
+    plan: guest ? 'Guest pass' : 'Premium',
   }, 'legacy'))
 }

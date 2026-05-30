@@ -27,19 +27,19 @@ describe('access policy helper', () => {
     expect(evaluateAccessPolicy('paid', admin).allowed).toBe(true)
   })
 
-  it('does not treat guests as paid unless the route explicitly opts into guest testing access', () => {
-    expect(evaluateAccessPolicy('paid', guest, { guestTestingAccess: false, guestAccessEnabled: true })).toMatchObject({
+  it('does not treat guests as paid unless the route explicitly opts into guest full access', () => {
+    expect(evaluateAccessPolicy('paid', guest, { guestFullAccess: false, guestAccessEnabled: true })).toMatchObject({
       allowed: false,
       reason: 'subscription_required',
     })
-    expect(evaluateAccessPolicy('paid', guest, { guestTestingAccess: true, guestAccessEnabled: true })).toMatchObject({
+    expect(evaluateAccessPolicy('paid', guest, { guestFullAccess: true, guestAccessEnabled: true })).toMatchObject({
       allowed: true,
-      reason: 'guest_testing_access',
+      reason: 'guest_full_access',
     })
   })
 
-  it('disables guest testing access when the environment guest flag is off', () => {
-    expect(evaluateAccessPolicy('paid', guest, { guestTestingAccess: true, guestAccessEnabled: false })).toMatchObject({
+  it('disables guest full access when the environment guest flag is off', () => {
+    expect(evaluateAccessPolicy('paid', guest, { guestFullAccess: true, guestAccessEnabled: false })).toMatchObject({
       allowed: false,
       reason: 'guest_disabled',
     })

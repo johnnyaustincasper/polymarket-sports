@@ -32,7 +32,7 @@ export async function POST() {
     return NextResponse.json({ error: 'Stripe is not configured yet.' }, { status: 503 })
   }
 
-  if (!clerkEnabled) return unavailable('Billing management needs Clerk account auth connected. Guest/legacy users have full testing access but no Stripe customer yet.')
+  if (!clerkEnabled) return unavailable('Billing management needs Clerk account auth connected. Guest users already have access but no Stripe customer yet.')
 
   const { userId, sessionClaims } = await auth()
   if (!userId) return NextResponse.json({ error: 'Sign in first.' }, { status: 401 })

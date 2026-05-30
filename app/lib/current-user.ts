@@ -7,7 +7,7 @@ const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && pr
 
 export async function getCurrentUser(req: NextRequest): Promise<SessionUser | null> {
   // Guest/legacy sessions are intentionally honored even when Clerk is enabled
-  // so Johnny can hand out temporary full-access testing passes.
+  // so Johnny can hand out full-access guest passes.
   const legacySession = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)
   if (legacySession) {
     if (legacySession.guest && !isGuestAccessEnabled()) return null

@@ -21,7 +21,7 @@ export type AccessPrincipal = {
 
 export type AccessPolicyOptions = {
   guestAccessEnabled?: boolean
-  guestTestingAccess?: boolean
+  guestFullAccess?: boolean
 }
 
 export type AccessDecisionReason =
@@ -29,7 +29,7 @@ export type AccessDecisionReason =
   | 'authenticated'
   | 'paid'
   | 'admin'
-  | 'guest_testing_access'
+  | 'guest_full_access'
   | 'auth_required'
   | 'subscription_required'
   | 'admin_required'
@@ -77,10 +77,10 @@ export function evaluateAccessPolicy(
   if (isAdminPrincipal(principal)) return { allowed: true, policy, reason: 'admin' }
   if (hasPaidSubscription(principal)) return { allowed: true, policy, reason: 'paid' }
 
-  if (principal.guest && options.guestTestingAccess) {
+  if (principal.guest && options.guestFullAccess) {
     return options.guestAccessEnabled === false
       ? { allowed: false, policy, reason: 'guest_disabled' }
-      : { allowed: true, policy, reason: 'guest_testing_access' }
+      : { allowed: true, policy, reason: 'guest_full_access' }
   }
 
   return { allowed: false, policy, reason: 'subscription_required' }

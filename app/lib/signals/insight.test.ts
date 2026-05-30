@@ -89,7 +89,7 @@ describe('buildWhyCare', () => {
       expect.stringContaining('Usage jumps without OG'),
       expect.stringContaining('Knicks projected tight rotation'),
       expect.stringContaining('8/12 cleared the line'),
-      expect.stringContaining('61c fair vs 52c ask'),
+      expect.stringContaining('61% model vs 52% market'),
     ]))
     expect(result.join(' ')).not.toContain('Jalen Brunson: Over 28.5 points')
     expect(result.length).toBeLessThanOrEqual(4)

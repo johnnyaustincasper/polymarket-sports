@@ -1486,7 +1486,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                                   <div style={{ borderRadius: 10, padding: '5px 8px', background: best.quality === 'bet' ? 'rgba(125,246,255,0.12)' : 'rgba(255,215,0,0.10)', border: `1px solid ${best.quality === 'bet' ? 'rgba(125,246,255,0.38)' : 'rgba(255,215,0,0.28)'}`, textAlign: 'right' }}>
                                     <div style={{ color: best.quality === 'bet' ? C.green : C.gold, fontSize: 11, fontWeight: 950 }}>{best.label}</div>
                                     <div style={{ color: C.textSecondary, fontSize: 8 }}>{best.hits}/{best.games} hit · C{best.confidence}</div>
-                                    <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900 }}>Kalshi ask {best.kalshi?.yesAsk ?? '—'}¢ · max {best.maxYesPrice}¢</div>
+                                    <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900 }}>Best matched line</div>
                                     {best.xaiBacked && <div style={{ color: C.purple, fontSize: 8, fontWeight: 900 }}>XAI checked</div>}
                                   </div>
                                 )}
@@ -1499,7 +1499,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
                                     <p style={{ color: C.textSecondary, fontSize: 7, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>{r.metric}</p>
                                     <p style={{ color: r.quality === 'bet' ? C.green : C.textPrimary, fontWeight: 900, fontSize: 13, lineHeight: 1 }}>{r.line}+</p>
                                     <p style={{ color: C.textSecondary, fontSize: 8, marginTop: 3 }}>{r.hitRate}% · avg {r.avg}</p>
-                                    <p style={{ color: C.cyan, fontSize: 7, marginTop: 2, fontWeight: 900 }}>Ask {r.kalshi?.yesAsk ?? '—'}¢ · ≤ {r.maxYesPrice}¢</p>
+                                    <p style={{ color: C.cyan, fontSize: 7, marginTop: 2, fontWeight: 900 }}>Matched line</p>
                                   </div>
                                 ))}
                               </div>
@@ -1909,7 +1909,7 @@ function buildPropEdgeRead(player: any, bet: any, intel?: TeamIntelData | null) 
     parts.push(`Context flag: ${detail}. If that player is limited, it can shift ${contextImpact} toward the remaining rotation. Treat this as a support note, not the main reason to bet it.`)
   } else if (injuryNotes && !/none/i.test(injuryNotes)) parts.push(`Team context: ${injuryNotes}`)
   if (Array.isArray(bet.signalTags) && bet.signalTags.length) parts.push(`Matchup signal: ${bet.signalTags.join(', ')}. ${bet.explanation || ''}`.trim())
-  parts.push(`Price discipline: Kalshi is asking ${bet.kalshi?.yesAsk ?? '—'}¢; model max is ${bet.maxYesPrice ?? '—'}¢.`)
+  parts.push('Do not chase it if the line moves against you before game time.')
   return parts
 }
 
@@ -2310,8 +2310,8 @@ function ExactKalshiBetButton({ player, bet, compact = false }: { player: string
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginBottom: 12 }}>
               {[
-                ['Ask', `${kalshi.yesAsk ?? '—'}¢`],
-                ['Max buy', `${bet.maxYesPrice ?? '—'}¢`],
+                ['Line', bet.label || title],
+                ['Recent', bet.hitRate != null ? `${bet.hitRate}% hit rate` : 'Check matchup'],
                 ['Hit rate', bet.hitRate != null ? `${bet.hitRate}%` : '—'],
                 ['Avg', bet.avg != null ? String(bet.avg) : '—'],
               ].map(([label, value]) => (
@@ -2508,7 +2508,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const contractKey = (p: any, bet: any) => `${p.team}|${p.player}|${bet.metric}|${bet.line}|${bet.kalshi?.legTicker || bet.kalshi?.ticker || ''}`
   const selectedItems = allContracts.filter((x: any) => selectedContracts[contractKey(x.player, x.bet)])
   const copySelected = async () => {
-    const text = selectedItems.map((x: any, i: number) => `${i + 1}. ${x.player.player} — ${x.bet.label} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`).join('\n')
+    const text = selectedItems.map((x: any, i: number) => `${i + 1}. ${x.player.player} — ${x.bet.label} — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`).join('\n')
     try { await navigator.clipboard?.writeText(text) } catch {}
   }
   const openSelectedInKalshi = () => {
@@ -2975,7 +2975,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                       const signalLabel = Array.isArray(bet.signalTags) && bet.signalTags.length ? ' · ' + bet.signalTags.join(' + ') : ''
                       return (
                         <button key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ borderRadius: 999, padding: '7px 9px', border: '1px solid ' + (open || safeHit || signalLabel ? C.borderHot : selected ? 'rgba(125,246,255,0.45)' : C.border), background: open ? 'rgba(125,246,255,0.18)' : safeHit || signalLabel ? 'rgba(125,246,255,0.13)' : selected ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || safeHit || signalLabel ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', animation: safeHit ? 'safePropThrob 1.25s ease-in-out infinite' : undefined, willChange: safeHit ? 'transform, box-shadow' : undefined }}>
-                          {bet.line}+ {formatPropMetricShort(activeGroup.metric === 'all' ? bet.metric : activeGroup.metric)} · {bet.kalshi?.yesAsk ?? '—'}¢{safeHit ? ` · ${bet.hits}/${bet.games}` : ''}{signalLabel}{liveProgress ? ' · LIVE ' + liveProgress.label : ''}
+                          {bet.line}+ {formatPropMetricShort(activeGroup.metric === 'all' ? bet.metric : activeGroup.metric)}{safeHit ? ` · ${bet.hits}/${bet.games}` : ''}{signalLabel}{liveProgress ? ' · LIVE ' + liveProgress.label : ''}
                         </button>
                       )
                     })}
@@ -2989,7 +2989,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                           <div>
                             <div style={{ color: expandedBet.quality === 'bet' ? C.green : expandedBet.quality === 'lean' ? C.gold : C.textPrimary, fontSize: 12, fontWeight: 950 }}>{expandedBet.label}</div>
-                            <div style={{ color: C.cyan, fontSize: 9, fontWeight: 900, marginTop: 2 }}>{expandedBet.kalshi?.yesAsk ?? '—'}¢ ask · max {expandedBet.maxYesPrice ?? '—'}¢ · {expandedBet.kalshi?.yesAskSize ?? 0} size</div>
+                            <div style={{ color: C.cyan, fontSize: 9, fontWeight: 900, marginTop: 2 }}>Matched exact contract · check line before placing</div>
                           </div>
                           <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, textAlign: 'right' }}>{expandedBet.hits}/{expandedBet.games}<br />hit</div>
                         </div>
@@ -3091,7 +3091,7 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
     const text = items.map((x, i) => {
       const matchup = x.game ? `${x.game.awayTeam.abbr}@${x.game.homeTeam.abbr}` : ''
       const pitcher = x.matchup ? ` — matchup ${x.matchup.score}/100 vs ${x.matchup.pitcher?.name || 'starter'}` : ''
-      return `${i + 1}. ${matchup} — ${x.player.player} — ${x.bet.label} — hit ${x.bet.hits}/${x.bet.games}${pitcher} — ${x.bet.kalshi?.yesAsk ?? '—'}¢ ask — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`
+      return `${i + 1}. ${matchup} — ${x.player.player} — ${x.bet.label} — hit ${x.bet.hits}/${x.bet.games}${pitcher} — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`
     }).join('\n')
     try { await navigator.clipboard?.writeText(text) } catch {}
   }
@@ -3152,13 +3152,12 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
       ) : tickets.length ? (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
                   {tickets.map((ticket, idx) => {
-                    const avgAsk = Math.round(ticket.items.reduce((sum, x) => sum + Number(x.bet.kalshi?.yesAsk || 0), 0) / ticket.items.length)
                     return (
                       <div key={`mlb-slate-ticket-${ticket.size}-${idx}`} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.24)', border: `1px solid ${C.border}`, opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(idx * 150, 900)}ms` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 7 }}>
                           <div>
                             <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{ticket.size}-leg slate ticket</div>
-                            <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>avg ask {avgAsk}c · screened value legs</div>
+                            <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>screened value legs</div>
                           </div>
                           <button onClick={() => copyTicket(ticket.items)} style={{ borderRadius: 999, padding: '6px 9px', border: `1px solid ${C.borderHot}`, background: 'rgba(125,246,255,0.14)', color: C.green, fontSize: 8, fontWeight: 950, cursor: 'pointer' }}>Copy</button>
                         </div>
@@ -3173,7 +3172,7 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
                                   <span style={{ color: C.textSecondary, fontWeight: 800 }}> · {item.matchup.note}</span>
                                 </div>}
                               </div>
-                              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{item.bet.hits}/{item.bet.games}<br />{item.bet.kalshi?.yesAsk ?? '—'}c</div>
+                              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>{item.bet.hits}/{item.bet.games}<br />hit</div>
                             </div>
                           ))}
                         </div>
@@ -3756,7 +3755,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
 
   const items = [
     { label: 'Market match', value: matched ? `${readiness.matchLabel} · ${readiness.matchQuality}%` : 'No Polymarket match yet', color: matched && readiness.matchQuality >= 55 ? C.green : C.gold },
-    { label: 'Winner market', value: game.hasWinnerOdds ? `${game.awayTeam.abbr} ${(game.awayWinOdds * 100).toFixed(1)}¢ / ${game.homeTeam.abbr} ${(game.homeWinOdds * 100).toFixed(1)}¢` : 'Waiting', color: game.hasWinnerOdds ? C.cyan : C.textSecondary },
+    { label: 'Winner market', value: game.hasWinnerOdds ? `${game.awayTeam.abbr} ${Math.round(game.awayWinOdds * 100)}% / ${game.homeTeam.abbr} ${Math.round(game.homeWinOdds * 100)}%` : 'Waiting', color: game.hasWinnerOdds ? C.cyan : C.textSecondary },
     { label: 'Spread gap', value: spreadGap != null ? `${spreadGap.toFixed(1)} pts` : 'Need market spread', color: spreadGap != null && spreadGap >= 1 ? C.green : C.textSecondary },
     { label: 'Total gap', value: totalGap != null ? `${totalGap.toFixed(1)} pts` : 'Need market total', color: totalGap != null && totalGap >= 1.5 ? C.green : C.textSecondary },
   ]
@@ -3827,7 +3826,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ color: p.bestBet?.quality === 'bet' ? C.green : C.gold, fontSize: 11, fontWeight: 950 }}>{p.bestBet?.label}</div>
-                      <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>Kalshi ask {p.bestBet?.kalshi?.yesAsk ?? '—'}¢ · max {p.bestBet?.maxYesPrice}¢</div>
+                      <div style={{ color: C.cyan, fontSize: 8, fontWeight: 900, marginTop: 2 }}>Best matched line</div>
                     </div>
                   </div>
                   <div style={{ color: 'rgba(247,255,240,0.74)', fontSize: 10, lineHeight: 1.45, marginTop: 7 }}>{p.bestBet?.hits}/{p.bestBet?.games} hit · avg {p.bestBet?.avg}. {p.bestBet?.explanation}</div>
@@ -4800,7 +4799,7 @@ function KalshiUFCSection() {
                       >
                         <div style={{ minWidth: 0 }}>
                           <div style={{ color: open ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.category}</div>
-                          <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.markets.length} options{best ? ` · low ${best.yesAsk || '—'}¢` : ''}</div>
+                          <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.markets.length} options</div>
                         </div>
                         <span style={{ borderRadius: 999, padding: '3px 7px', background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 8, fontWeight: 950 }}>{group.markets.length}</span>
                         <span style={{ color: open ? C.green : C.textSecondary, fontSize: 13, fontWeight: 950, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.16s ease' }}>⌄</span>
@@ -4814,8 +4813,8 @@ function KalshiUFCSection() {
                                 <div style={{ color: C.textSecondary, fontSize: 7, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.ticker}</div>
                               </div>
                               <div style={{ textAlign: 'right' }}>
-                                <div style={{ color: C.green, fontSize: 15, fontWeight: 950 }}>{m.yesAsk || '—'}¢</div>
-                                <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900 }}>{Math.round(m.yesAskSize || 0).toLocaleString()} ask</div>
+                                <div style={{ color: C.green, fontSize: 15, fontWeight: 950 }}>Open</div>
+                                <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900 }}>{Math.round(m.yesAskSize || 0).toLocaleString()} available</div>
                               </div>
                             </a>
                           ))}
