@@ -1,6 +1,7 @@
 'use client'
 
 import type { KeyboardEvent } from 'react'
+import { slateMainFeatureAnimation } from '../../lib/mobile-dock'
 import { signalCardTapContract } from '../../lib/signals/card-collapse'
 import { classifySignalDecision } from '../../lib/signals/insight'
 import type { SignalLineOption, SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
@@ -259,7 +260,7 @@ export default function SignalTerminalCard({
 
   return (
     <div
-      data-signal-card-tap={compact && onOpen ? 'true' : undefined}
+      data-slate-main-feature={compact && onOpen ? 'true' : undefined}
       role={onOpen ? 'button' : 'article'}
       tabIndex={onOpen ? 0 : undefined}
       onClick={() => onOpen?.(signal)}
@@ -279,33 +280,35 @@ export default function SignalTerminalCard({
             ? '0 0 0 1px rgba(125,246,255,0.12), 0 0 26px rgba(125,246,255,0.18), 0 16px 42px rgba(0,0,0,0.38)'
             : '0 16px 42px rgba(0,0,0,0.34)',
         cursor: onOpen ? 'pointer' : 'default',
-        overflow: 'hidden',
+        overflow: 'visible',
       }}
     >
       {compact && onOpen && (
         <>
           <style>{`
-            @keyframes ${signalCardTapContract.ringAnimationName} {
-              0%, 100% { opacity: 0.58; transform: scale(0.96); box-shadow: 0 0 0 0 rgba(125,246,255,0.34), 0 0 18px rgba(125,246,255,0.24); }
-              50% { opacity: 1; transform: scale(1.04); box-shadow: 0 0 0 5px rgba(125,246,255,0.10), 0 0 30px rgba(125,246,255,0.48); }
-            }
-            @keyframes ${signalCardTapContract.shimmerAnimationName} {
-              0% { transform: translateX(-145%) rotate(18deg); opacity: 0; }
-              28% { opacity: 0.72; }
-              58%, 100% { transform: translateX(145%) rotate(18deg); opacity: 0; }
-            }
-            @media (prefers-reduced-motion: reduce) {
-              [data-signal-card-tap="true"] [data-slate-ring="true"],
-              [data-signal-card-tap="true"] [data-slate-shimmer="true"] { animation: none !important; }
-            }
-          `}</style>
-          <span data-slate-ring="true" aria-hidden="true" style={{
+        @keyframes ${slateMainFeatureAnimation.ringAnimationName} {
+          0%, 100% { opacity: 0.58; transform: scale(0.96); box-shadow: 0 0 0 0 rgba(125,246,255,0.34), 0 0 18px rgba(125,246,255,0.24); }
+          50% { opacity: 1; transform: scale(1.04); box-shadow: 0 0 0 5px rgba(125,246,255,0.10), 0 0 30px rgba(125,246,255,0.48); }
+        }
+        @keyframes ${slateMainFeatureAnimation.shimmerAnimationName} {
+          0% { transform: translateX(-145%) rotate(18deg); opacity: 0; }
+          28% { opacity: 0.72; }
+          58%, 100% { transform: translateX(145%) rotate(18deg); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-slate-main-feature="true"] [data-slate-ring="true"],
+          [data-slate-main-feature="true"] [data-slate-shimmer="true"] {
+            animation: none !important;
+          }
+        }
+      `}</style>
+          <span aria-hidden="true" data-slate-ring="true" style={{
             position: 'absolute',
             inset: -3,
             borderRadius: 25,
             border: '1px solid rgba(125,246,255,0.78)',
             pointerEvents: 'none',
-            animation: `${signalCardTapContract.ringAnimationName} 2.4s ease-in-out infinite`,
+            animation: `${slateMainFeatureAnimation.ringAnimationName} 2.4s ease-in-out infinite`,
           }} />
           <span aria-hidden="true" style={{ position: 'absolute', inset: 2, borderRadius: 21, overflow: 'hidden', pointerEvents: 'none' }}>
             <span data-slate-shimmer="true" style={{
@@ -316,7 +319,7 @@ export default function SignalTerminalCard({
               width: 18,
               background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.38), rgba(125,246,255,0.26), transparent)',
               filter: 'blur(0.5px)',
-              animation: `${signalCardTapContract.shimmerAnimationName} 3.2s ease-in-out infinite`,
+              animation: `${slateMainFeatureAnimation.shimmerAnimationName} 3.2s ease-in-out infinite`,
             }} />
           </span>
         </>

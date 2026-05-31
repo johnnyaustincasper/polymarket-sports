@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { slateMainFeatureAnimation } from '../mobile-dock'
 import { resolveSignalCardMode, signalCardTapContract } from './card-collapse'
 
 describe('resolveSignalCardMode', () => {
@@ -11,7 +12,7 @@ describe('resolveSignalCardMode', () => {
   it('uses an obvious tap affordance and the slate-style animated border contract', () => {
     expect(signalCardTapContract.collapsedCta).toBe('Tap to open full signal')
     expect(signalCardTapContract.expandedCta).toBe('Tap to collapse')
-    expect(signalCardTapContract.ringAnimationName).toBe('slate-main-feature-ring')
-    expect(signalCardTapContract.shimmerAnimationName).toBe('slate-main-feature-shimmer')
+    expect(signalCardTapContract.ringAnimationName).toBe(slateMainFeatureAnimation.ringAnimationName)
+    expect(signalCardTapContract.shimmerAnimationName).toBe(slateMainFeatureAnimation.shimmerAnimationName)
   })
 })
