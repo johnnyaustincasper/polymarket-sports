@@ -286,21 +286,39 @@ export default function SignalTerminalCard({
         <>
           <style>{`
             @keyframes ${signalCardTapContract.ringAnimationName} {
-              0%, 100% { opacity: 0.58; transform: scale(0.985); box-shadow: 0 0 0 0 rgba(125,246,255,0.34), 0 0 18px rgba(125,246,255,0.24); }
-              50% { opacity: 1; transform: scale(1.015); box-shadow: 0 0 0 5px rgba(125,246,255,0.10), 0 0 30px rgba(125,246,255,0.48); }
+              0%, 100% { opacity: 0.58; transform: scale(0.96); box-shadow: 0 0 0 0 rgba(125,246,255,0.34), 0 0 18px rgba(125,246,255,0.24); }
+              50% { opacity: 1; transform: scale(1.04); box-shadow: 0 0 0 5px rgba(125,246,255,0.10), 0 0 30px rgba(125,246,255,0.48); }
             }
             @keyframes ${signalCardTapContract.shimmerAnimationName} {
               0% { transform: translateX(-145%) rotate(18deg); opacity: 0; }
               28% { opacity: 0.72; }
-              58%, 100% { transform: translateX(430%) rotate(18deg); opacity: 0; }
+              58%, 100% { transform: translateX(145%) rotate(18deg); opacity: 0; }
             }
             @media (prefers-reduced-motion: reduce) {
               [data-signal-card-tap="true"] [data-slate-ring="true"],
               [data-signal-card-tap="true"] [data-slate-shimmer="true"] { animation: none !important; }
             }
           `}</style>
-          <span data-slate-ring="true" aria-hidden="true" style={{ position: 'absolute', inset: 1, borderRadius: 17, pointerEvents: 'none', border: '1px solid rgba(125,246,255,0.52)', animation: `${signalCardTapContract.ringAnimationName} 2.4s ease-in-out infinite` }} />
-          <span data-slate-shimmer="true" aria-hidden="true" style={{ position: 'absolute', top: -34, bottom: -34, left: '-34%', width: '30%', pointerEvents: 'none', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.22), rgba(125,246,255,0.38), transparent)', filter: 'blur(1px)', animation: `${signalCardTapContract.shimmerAnimationName} 3.2s ease-in-out infinite` }} />
+          <span data-slate-ring="true" aria-hidden="true" style={{
+            position: 'absolute',
+            inset: -3,
+            borderRadius: 25,
+            border: '1px solid rgba(125,246,255,0.78)',
+            pointerEvents: 'none',
+            animation: `${signalCardTapContract.ringAnimationName} 2.4s ease-in-out infinite`,
+          }} />
+          <span aria-hidden="true" style={{ position: 'absolute', inset: 2, borderRadius: 21, overflow: 'hidden', pointerEvents: 'none' }}>
+            <span data-slate-shimmer="true" style={{
+              position: 'absolute',
+              top: -12,
+              bottom: -12,
+              left: '42%',
+              width: 18,
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.38), rgba(125,246,255,0.26), transparent)',
+              filter: 'blur(0.5px)',
+              animation: `${signalCardTapContract.shimmerAnimationName} 3.2s ease-in-out infinite`,
+            }} />
+          </span>
         </>
       )}
       <div style={{ position: 'absolute', inset: 0, opacity: selected ? 0.18 : 0.10, background: 'radial-gradient(circle at 20% 0%, rgba(125,246,255,0.36), transparent 34%), radial-gradient(circle at 90% 12%, rgba(141,247,255,0.22), transparent 30%)', pointerEvents: 'none' }} />
