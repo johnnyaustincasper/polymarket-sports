@@ -37,7 +37,7 @@ export type ShootingSnapshot = {
 }
 
 export type SignalDecisionSection = {
-  title: 'FORM CHECK' | 'ROLE CHECK' | 'LINE CHECK' | 'MATCHUP CHECK' | 'RISK CHECK'
+  title: 'ROLE CHECK' | 'PROP NUMBER' | 'RISK CHECK'
   rows: string[]
 }
 
@@ -270,6 +270,22 @@ function sportNotes(metric: string): string[] {
   return []
 }
 
+function propNumberRows(input: { metric: string; line?: number; median?: number; min: number; max: number; hit5?: number; games5: number; hit12?: number; games12: number }): string[] {
+  const metricLabel = input.metric.toLowerCase()
+  const listed = input.line == null
+    ? `Listed prop: no clear number was found for ${metricLabel}.`
+    : `Listed prop: ${fmt(input.line)}+ ${metricLabel}. Recent middle result: ${fmt(input.median)}; recent range: ${fmt(input.min)}-${fmt(input.max)}.`
+  const history = input.line == null
+    ? ''
+    : `History vs this number: cleared it in ${input.hit5 ?? '—'} of the last ${input.games5} and ${input.hit12 ?? '—'} of the last ${input.games12}.`
+  const read = input.line == null
+    ? 'Read: skip if the market number is unclear.'
+    : input.median != null && input.median >= input.line
+      ? `Read: this number is below his recent middle game, so ${fmt(input.line)}+ is the easier threshold. Be pickier if it rises above ${fmt(input.line + 1)}.`
+      : `Read: this number is above his recent middle game, so it needs an above-normal result. Do not chase if it moves higher.`
+  return [listed, history, read].filter(Boolean)
+}
+
 function lastGameBullet(lastGame: ShootingSnapshot, metric: string): string {
   const isPointsMetric = metric.toLowerCase() === 'points' || metric.toLowerCase() === 'pts+reb+ast'
   const shooting = lastGame.fgAttempted
@@ -347,17 +363,19 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     median: medianValue,
     range: { min, max },
     hitRateLabel: `${trend.last5HitRate ?? '—'} of ${last5.length} last 5 · ${trend.last12HitRate ?? '—'} of ${games.length} last 12`,
-    verdict: line == null ? 'No listed line available.' : medianValue != null && medianValue >= line ? `Line ${fmt(line)} sits below median ${fmt(medianValue)}.` : `Line ${fmt(line)} is above median ${fmt(medianValue)}; needs a better-than-normal result.`,
+    verdict: line == null
+      ? 'No listed prop number available.'
+      : medianValue != null && medianValue >= line
+        ? `The listed number is below his recent middle game, so ${fmt(line)}+ is the easier threshold.`
+        : `The listed number is above his recent middle game; it needs a better-than-normal result.`,
   }
   const roleCheck = roleStatus(minutes)
   const consistency = consistencyGrade(trend.last5HitRate, trend.last5Games, trend.last12HitRate, trend.last12Games)
   const gameEnvironment = environmentNotes(input)
   const sportSpecificNotes = sportNotes(input.metric)
   const decisionSections: SignalDecisionSection[] = [
-    { title: 'FORM CHECK', rows: summaryBullets.slice(0, 2) },
     { title: 'ROLE CHECK', rows: [roleCheck.label, ...roleCheck.details].filter(Boolean).slice(0, 3) },
-    { title: 'LINE CHECK', rows: [`Line ${fmt(line)} · median ${fmt(medianValue)} · range ${fmt(min)}-${fmt(max)}`, lineCheck.hitRateLabel, lineCheck.verdict].filter(Boolean).slice(0, 3) },
-    { title: 'MATCHUP CHECK', rows: [...matchupNotes, ...gameEnvironment, ...sportSpecificNotes].filter(Boolean).slice(0, 3) },
+    { title: 'PROP NUMBER', rows: propNumberRows({ metric: input.metric, line, median: medianValue, min, max, hit5: trend.last5HitRate, games5: last5.length, hit12: trend.last12HitRate, games12: games.length }).slice(0, 3) },
     { title: 'RISK CHECK', rows: [...riskNotes, playable(line), consistency.label].filter(Boolean).slice(0, 3) },
   ]
 

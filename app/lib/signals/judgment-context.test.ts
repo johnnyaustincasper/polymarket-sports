@@ -48,7 +48,7 @@ describe('signal judgment context', () => {
     expect(context?.consistency?.grade).toBe('solid')
   })
 
-  it('writes judgment bullets around volume, minutes, matchup/injury risk, and playable number', () => {
+  it('writes judgment bullets around volume, minutes, clearer prop number, and playable number without generic matchup filler', () => {
     const context = buildJudgmentContext({
       player: 'Anthony Edwards',
       metric: 'points',
@@ -72,9 +72,15 @@ describe('signal judgment context', () => {
     expect(context?.summaryBullets).toContain('Last game: 29 pts, 10/21 FG (47.6%), 4/9 3PT (44.4%), 5/6 FT in 37 min.')
     expect(context?.summaryBullets).toContain('Volume: 20.8 shots, 8.0 threes, and 6.8 free throws per game over the last 5.')
     expect(context?.summaryBullets.some(bullet => bullet.includes('Minutes: 37 last game / 36.2 last 5'))).toBe(true)
-    expect(context?.decisionSections.map(section => section.title)).toEqual(['FORM CHECK', 'ROLE CHECK', 'LINE CHECK', 'MATCHUP CHECK', 'RISK CHECK'])
-    expect(context?.decisionSections.find(section => section.title === 'LINE CHECK')?.rows.join(' ')).toContain('median 29')
+    expect(context?.decisionSections.map(section => section.title)).toEqual(['ROLE CHECK', 'PROP NUMBER', 'RISK CHECK'])
+    const propNumberRows = context?.decisionSections.find(section => section.title === 'PROP NUMBER')?.rows.join(' ') || ''
+    expect(propNumberRows).toContain('Listed prop: 24.5+ points')
+    expect(propNumberRows).toContain('Recent middle result: 29')
+    expect(propNumberRows).toContain('History vs this number: cleared it in 3 of the last 5')
+    expect(propNumberRows).toContain('easier threshold')
     expect(context?.decisionSections.find(section => section.title === 'RISK CHECK')?.rows.join(' ')).toMatch(/Blowout risk|Playable at 24.5/)
+    expect(context?.decisionSections.some(section => section.title === 'MATCHUP CHECK' as never)).toBe(false)
+    expect(context?.decisionSections.some(section => section.rows.join(' ').includes('Basketball context'))).toBe(false)
     expect(context?.matchupNotes.join(' ')).toMatch(/Pace helps shot volume|Opponent missing/)
     expect(context?.riskNotes.join(' ')).toMatch(/Blowout risk/)
     expect(context?.playableNumber).toBe('Playable at 24.5. Pass if the line moves past 25.5.')
@@ -100,6 +106,6 @@ describe('signal judgment context', () => {
     expect(context?.summaryBullets[0]).toBe('Last game: 6 hits + runs + RBIs.')
     expect(context?.trend.last5HitRate).toBe(1)
     expect(context?.sportSpecificNotes?.[0]).toContain('baseball')
-    expect(context?.decisionSections.find(section => section.title === 'LINE CHECK')?.rows.join(' ')).toContain('Line 3')
+    expect(context?.decisionSections.find(section => section.title === 'PROP NUMBER')?.rows.join(' ')).toContain('Listed prop: 3+ hits + runs + rbis')
   })
 })

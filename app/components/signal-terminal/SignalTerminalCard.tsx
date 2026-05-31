@@ -388,7 +388,7 @@ export default function SignalTerminalCard({
           <div style={{ marginTop: 10, borderRadius: 14, padding: 10, background: 'rgba(255,255,255,0.032)', border: `1px solid ${C.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
               <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Decision cockpit</div>
-              <div style={{ color: C.faint, fontSize: 8, fontWeight: 900 }}>role · line · matchup · risk</div>
+              <div style={{ color: C.faint, fontSize: 8, fontWeight: 900 }}>role · number · risk</div>
             </div>
             <div style={{ display: 'grid', gap: 7 }}>
               {decisionSections.map(section => (
@@ -408,7 +408,7 @@ export default function SignalTerminalCard({
           </div>
         )}
 
-        {judgmentFacts.length > 0 && !compact && (
+        {false && judgmentFacts.length > 0 && !compact && (
           <div style={{ marginTop: 10, borderRadius: 12, padding: 9, background: 'rgba(125,246,255,0.04)', border: `1px solid ${C.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 7 }}>
               <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Judgment check</div>
