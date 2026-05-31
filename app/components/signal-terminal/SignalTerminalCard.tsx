@@ -259,7 +259,7 @@ export default function SignalTerminalCard({
 
   return (
     <div
-      data-slate-main-feature={compact && onOpen ? 'true' : undefined}
+      data-signal-glow={compact && onOpen ? 'true' : undefined}
       role={onOpen ? 'button' : 'article'}
       tabIndex={onOpen ? 0 : undefined}
       onClick={() => onOpen?.(signal)}
@@ -282,6 +282,41 @@ export default function SignalTerminalCard({
         overflow: 'visible',
       }}
     >
+      {compact && onOpen && (
+        <>
+          <style>{`
+            @keyframes ${signalCardTapContract.glowAnimationName} {
+              0%, 100% {
+                opacity: 0.34;
+                box-shadow: 0 0 0 1px rgba(125,246,255,0.22), 0 0 10px rgba(125,246,255,0.14);
+              }
+              50% {
+                opacity: 1;
+                box-shadow: 0 0 0 1px rgba(125,246,255,0.78), 0 0 24px rgba(125,246,255,0.50), 0 0 44px rgba(125,246,255,0.20);
+              }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              [data-signal-glow="true"] [data-signal-blue-glow="true"] {
+                animation: none !important;
+                opacity: 0.74;
+              }
+            }
+          `}</style>
+          <span
+            aria-hidden="true"
+            data-signal-blue-glow="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 18,
+              border: '1px solid rgba(125,246,255,0.68)',
+              pointerEvents: 'none',
+              animation: `${signalCardTapContract.glowAnimationName} 2.35s ease-in-out infinite`,
+              zIndex: 2,
+            }}
+          />
+        </>
+      )}
       <div style={{ position: 'absolute', inset: 0, opacity: selected ? 0.18 : 0.10, background: 'radial-gradient(circle at 20% 0%, rgba(125,246,255,0.36), transparent 34%), radial-gradient(circle at 90% 12%, rgba(141,247,255,0.22), transparent 30%)', pointerEvents: 'none' }} />
       <div style={{ position: 'relative', borderRadius: compact ? 16 : 19, padding: compact ? '10px 11px 11px' : 14, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: `1px solid ${selected ? C.borderHot : compact ? 'rgba(125,246,255,0.24)' : C.border}` }}>
         <div style={{ minWidth: 0, textAlign: compact ? 'center' : 'left' }}>

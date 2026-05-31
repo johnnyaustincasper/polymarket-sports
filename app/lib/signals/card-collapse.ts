@@ -1,6 +1,7 @@
 export const signalCardTapContract = {
   collapsedCta: 'Tap to open full signal',
   expandedCta: 'Tap to collapse',
+  glowAnimationName: 'signal-card-blue-glow',
 } as const
 
 export function resolveSignalCardMode({ signalId, expandedSignalId }: { signalId: string; expandedSignalId?: string | null }) {

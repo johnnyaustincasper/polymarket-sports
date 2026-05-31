@@ -8,9 +8,10 @@ describe('resolveSignalCardMode', () => {
     expect(resolveSignalCardMode({ signalId: 'og-10-points', expandedSignalId: 'tatis-1-hit' })).toEqual({ compact: true, expanded: false })
   })
 
-  it('uses an obvious tap affordance without animated border chrome', () => {
+  it('uses an obvious tap affordance with a simple app-blue glow, not Slate shimmer chrome', () => {
     expect(signalCardTapContract.collapsedCta).toBe('Tap to open full signal')
     expect(signalCardTapContract.expandedCta).toBe('Tap to collapse')
+    expect(signalCardTapContract.glowAnimationName).toBe('signal-card-blue-glow')
     expect('ringAnimationName' in signalCardTapContract).toBe(false)
     expect('shimmerAnimationName' in signalCardTapContract).toBe(false)
   })
