@@ -8,6 +8,7 @@ import LoadingMarketCards from './components/LoadingMarketCards'
 import UpdatedAgeLabel from './components/UpdatedAgeLabel'
 import PropDetailDrawer from './components/signal-terminal/PropDetailDrawer'
 import SignalTerminalCard from './components/signal-terminal/SignalTerminalCard'
+import SlateMainFeatureAnimationFrame from './components/SlateMainFeatureAnimationFrame'
 import type { LineupInjuryFlagItem, SignalTerminalSignal, SportsbookConsensus } from './components/signal-terminal/types'
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
@@ -5615,23 +5616,6 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
     }}>
       <span aria-hidden="true" style={{ position: 'absolute', left: 28, right: 28, top: 0, height: 2, borderRadius: 999, background: 'linear-gradient(90deg, transparent, rgba(125,246,255,0.82), transparent)', boxShadow: '0 0 16px rgba(125,246,255,0.5)', opacity: 0.9 }} />
       <span aria-hidden="true" style={{ position: 'absolute', inset: 1, borderRadius: 33, pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.055)' }} />
-      <style>{`
-        @keyframes ${slateMainFeatureAnimation.ringAnimationName} {
-          0%, 100% { opacity: 0.58; transform: scale(0.96); box-shadow: 0 0 0 0 rgba(125,246,255,0.34), 0 0 18px rgba(125,246,255,0.24); }
-          50% { opacity: 1; transform: scale(1.04); box-shadow: 0 0 0 5px rgba(125,246,255,0.10), 0 0 30px rgba(125,246,255,0.48); }
-        }
-        @keyframes ${slateMainFeatureAnimation.shimmerAnimationName} {
-          0% { transform: translateX(-145%) rotate(18deg); opacity: 0; }
-          28% { opacity: 0.72; }
-          58%, 100% { transform: translateX(145%) rotate(18deg); opacity: 0; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          [data-slate-main-feature="true"] [data-slate-ring="true"],
-          [data-slate-main-feature="true"] [data-slate-shimmer="true"] {
-            animation: none !important;
-          }
-        }
-      `}</style>
       {openPanel === 'sport' && <div aria-label="Choose sport" style={verticalDockStyle('left')}>
         {sports.map(option => <button key={option.value} type="button" onClick={() => onSportChange(option.value)} style={optionButtonStyle(sport === option.value)}>{option.label}</button>)}
       </div>}
@@ -5654,28 +5638,7 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
             data-slate-main-feature={isSlateMainFeature ? 'true' : undefined}
             style={dockButton(selected)}
           >
-            {isSlateMainFeature && <>
-              <span aria-hidden="true" data-slate-ring="true" style={{
-                position: 'absolute',
-                inset: -3,
-                borderRadius: 25,
-                border: '1px solid rgba(125,246,255,0.78)',
-                pointerEvents: 'none',
-                animation: `${slateMainFeatureAnimation.ringAnimationName} 2.4s ease-in-out infinite`,
-              }} />
-              <span aria-hidden="true" style={{ position: 'absolute', inset: 2, borderRadius: 21, overflow: 'hidden', pointerEvents: 'none' }}>
-                <span data-slate-shimmer="true" style={{
-                  position: 'absolute',
-                  top: -12,
-                  bottom: -12,
-                  left: '42%',
-                  width: 18,
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.38), rgba(125,246,255,0.26), transparent)',
-                  filter: 'blur(0.5px)',
-                  animation: `${slateMainFeatureAnimation.shimmerAnimationName} 3.2s ease-in-out infinite`,
-                }} />
-              </span>
-            </>}
+            {isSlateMainFeature && <SlateMainFeatureAnimationFrame />}
             <span style={iconWrap(selected)}><DockIcon icon={item.icon} active={selected} primary={false} /></span>
             <span style={{ position: 'relative', zIndex: 1 }}>{item.label}</span>
             {selected && <span aria-hidden="true" style={{ position: 'relative', zIndex: 1, width: 14, height: 2, borderRadius: 999, background: '#b8fbff', boxShadow: '0 0 11px rgba(125,246,255,0.82)' }} />}
