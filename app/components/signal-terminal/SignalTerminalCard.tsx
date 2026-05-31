@@ -1,6 +1,7 @@
 'use client'
 
 import type { KeyboardEvent } from 'react'
+import { signalCardTapContract } from '../../lib/signals/card-collapse'
 import { classifySignalDecision } from '../../lib/signals/insight'
 import type { SignalLineOption, SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
 
@@ -254,29 +255,58 @@ export default function SignalTerminalCard({
     ...(Array.isArray(judgmentContext?.injuryNotes) ? judgmentContext.injuryNotes : []),
     judgmentContext?.playableNumber || '',
   ].map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3)
+  const tapHint = selected ? signalCardTapContract.expandedCta : signalCardTapContract.collapsedCta
 
   return (
     <div
+      data-signal-card-tap={compact && onOpen ? 'true' : undefined}
       role={onOpen ? 'button' : 'article'}
       tabIndex={onOpen ? 0 : undefined}
       onClick={() => onOpen?.(signal)}
       onKeyDown={(event) => onCardKeyDown(event, signal, onOpen)}
       style={{
         position: 'relative',
-        borderRadius: 20,
-        padding: 1,
+        borderRadius: compact ? 18 : 20,
+        padding: compact ? 2 : 1,
         background: selected
           ? `linear-gradient(135deg, ${hotColor}, rgba(255,255,255,0.13), rgba(125,246,255,0.15))`
-          : `linear-gradient(135deg, ${tierColor(tier)}55, rgba(255,255,255,0.08), rgba(0,0,0,0.12))`,
-        boxShadow: selected ? `0 0 34px ${hotColor}22, 0 18px 54px rgba(0,0,0,0.44)` : '0 16px 42px rgba(0,0,0,0.34)',
+          : compact
+            ? 'linear-gradient(135deg, rgba(125,246,255,0.70), rgba(255,255,255,0.12), rgba(125,246,255,0.26))'
+            : `linear-gradient(135deg, ${tierColor(tier)}55, rgba(255,255,255,0.08), rgba(0,0,0,0.12))`,
+        boxShadow: selected
+          ? `0 0 34px ${hotColor}22, 0 18px 54px rgba(0,0,0,0.44)`
+          : compact
+            ? '0 0 0 1px rgba(125,246,255,0.12), 0 0 26px rgba(125,246,255,0.18), 0 16px 42px rgba(0,0,0,0.38)'
+            : '0 16px 42px rgba(0,0,0,0.34)',
         cursor: onOpen ? 'pointer' : 'default',
         overflow: 'hidden',
       }}
     >
+      {compact && onOpen && (
+        <>
+          <style>{`
+            @keyframes ${signalCardTapContract.ringAnimationName} {
+              0%, 100% { opacity: 0.58; transform: scale(0.985); box-shadow: 0 0 0 0 rgba(125,246,255,0.34), 0 0 18px rgba(125,246,255,0.24); }
+              50% { opacity: 1; transform: scale(1.015); box-shadow: 0 0 0 5px rgba(125,246,255,0.10), 0 0 30px rgba(125,246,255,0.48); }
+            }
+            @keyframes ${signalCardTapContract.shimmerAnimationName} {
+              0% { transform: translateX(-145%) rotate(18deg); opacity: 0; }
+              28% { opacity: 0.72; }
+              58%, 100% { transform: translateX(430%) rotate(18deg); opacity: 0; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              [data-signal-card-tap="true"] [data-slate-ring="true"],
+              [data-signal-card-tap="true"] [data-slate-shimmer="true"] { animation: none !important; }
+            }
+          `}</style>
+          <span data-slate-ring="true" aria-hidden="true" style={{ position: 'absolute', inset: 1, borderRadius: 17, pointerEvents: 'none', border: '1px solid rgba(125,246,255,0.52)', animation: `${signalCardTapContract.ringAnimationName} 2.4s ease-in-out infinite` }} />
+          <span data-slate-shimmer="true" aria-hidden="true" style={{ position: 'absolute', top: -34, bottom: -34, left: '-34%', width: '30%', pointerEvents: 'none', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.22), rgba(125,246,255,0.38), transparent)', filter: 'blur(1px)', animation: `${signalCardTapContract.shimmerAnimationName} 3.2s ease-in-out infinite` }} />
+        </>
+      )}
       <div style={{ position: 'absolute', inset: 0, opacity: selected ? 0.18 : 0.10, background: 'radial-gradient(circle at 20% 0%, rgba(125,246,255,0.36), transparent 34%), radial-gradient(circle at 90% 12%, rgba(141,247,255,0.22), transparent 30%)', pointerEvents: 'none' }} />
-      <div style={{ position: 'relative', borderRadius: 19, padding: compact ? 12 : 14, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: `1px solid ${selected ? C.borderHot : C.border}` }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ position: 'relative', borderRadius: compact ? 16 : 19, padding: compact ? '10px 11px 11px' : 14, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: `1px solid ${selected ? C.borderHot : compact ? 'rgba(125,246,255,0.24)' : C.border}` }}>
+        <div style={{ minWidth: 0, textAlign: compact ? 'center' : 'left' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', justifyContent: compact ? 'center' : 'flex-start' }}>
             <span style={{ color: tierColor(tier), fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{tier} signal</span>
             {signal.sport && <span style={{ color: C.faint, fontSize: 8, fontWeight: 900, textTransform: 'uppercase' }}>{signal.sport}</span>}
           </div>
@@ -321,9 +351,12 @@ export default function SignalTerminalCard({
         )}
 
         {compact ? (
-          <div style={{ marginTop: 9, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', borderRadius: 12, padding: '8px 9px', background: 'rgba(125,246,255,0.055)', border: `1px solid ${C.border}` }}>
-            <div style={{ color: C.muted, fontSize: 9, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}</div>
-            <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Open ›</div>
+          <div style={{ marginTop: 9, display: 'grid', gap: 8 }}>
+            <div style={{ color: C.muted, fontSize: 9.5, fontWeight: 850, lineHeight: 1.35, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}</div>
+            <div style={{ justifySelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 176, borderRadius: 999, padding: '8px 14px', background: 'linear-gradient(135deg, rgba(125,246,255,0.22), rgba(125,246,255,0.09))', border: '1px solid rgba(125,246,255,0.45)', boxShadow: '0 0 20px rgba(125,246,255,0.18)', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.11em', textTransform: 'uppercase' }}>
+              <span aria-hidden="true">↯</span>
+              <span>{tapHint}</span>
+            </div>
           </div>
         ) : (
           <div style={{ marginTop: 10, display: 'grid', gap: 5 }}>
