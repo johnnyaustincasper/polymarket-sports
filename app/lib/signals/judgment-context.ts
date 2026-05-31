@@ -131,6 +131,11 @@ export function statValueForMetric(gameLog: JudgmentGameLog, metric: string): nu
     return pts + reb + ast
   }
   if (key === 'hits') return value(['hits', 'hit'])
+  if (key === 'runs') return value(['runs', 'r'])
+  if (key === 'rbis' || key === 'rbi') return value(['RBIs', 'rbi', 'runsBattedIn'])
+  if (key === 'hits + runs + rbis' || key === 'hits+runs+rbis' || key === 'h+r+rbi') {
+    return (value(['hits', 'hit']) || 0) + (value(['runs', 'r']) || 0) + (value(['RBIs', 'rbi', 'runsBattedIn']) || 0)
+  }
   if (key === 'home runs') return value(['homeRuns', 'hr'])
   if (key === 'total bases') return value(['totalBases', 'tb'])
   if (key === 'strikeouts') return value(['strikeouts', 'so', 'k'])
@@ -193,7 +198,8 @@ function playable(line?: number): string {
   return `Playable at ${fmt(line)}. Pass if the line moves past ${fmt(line + 1)}.`
 }
 
-function lastGameBullet(lastGame: ShootingSnapshot): string {
+function lastGameBullet(lastGame: ShootingSnapshot, metric: string): string {
+  const isPointsMetric = metric.toLowerCase() === 'points' || metric.toLowerCase() === 'pts+reb+ast'
   const shooting = lastGame.fgAttempted
     ? `${fmt(lastGame.fgMade)}/${fmt(lastGame.fgAttempted)} FG${lastGame.fgPct != null ? ` (${fmt(lastGame.fgPct)}%)` : ''}`
     : ''
@@ -202,7 +208,10 @@ function lastGameBullet(lastGame: ShootingSnapshot): string {
     : ''
   const freeThrows = lastGame.ftAttempted ? `${fmt(lastGame.ftMade)}/${fmt(lastGame.ftAttempted)} FT` : ''
   const parts = [shooting, threes, freeThrows].filter(Boolean).join(', ')
-  return `Last game: ${fmt(lastGame.points ?? lastGame.value)} pts${parts ? `, ${parts}` : ''}${lastGame.minutes != null ? ` in ${fmt(lastGame.minutes)} min` : ''}.`
+  const headline = isPointsMetric
+    ? `${fmt(lastGame.points ?? lastGame.value)} pts`
+    : `${fmt(lastGame.value)} ${metric}`
+  return `Last game: ${headline}${parts ? `, ${parts}` : ''}${lastGame.minutes != null ? ` in ${fmt(lastGame.minutes)} min` : ''}.`
 }
 
 export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmentContext | null {
@@ -254,7 +263,7 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
   ].map(note => String(note || '').trim()).filter(Boolean).slice(0, 3)
   const recentRows = games.slice(0, 5).map(game => `${game.date || game.opponent || 'Recent'}: ${fmt(game.value)} ${input.metric}, ${fmt(game.fgAttempted)} FGA, ${fmt(game.minutes)} min`)
   const summaryBullets = [
-    lastGameBullet(lastGame),
+    lastGameBullet(lastGame, input.metric),
     last5Avg != null ? `Trend: ${fmt(last5Avg)} ${input.metric} over the last 5; cleared ${fmt(line)} in ${trend.last5HitRate ?? '—'} of ${last5.length}.` : '',
     volume.shotAttemptsLast5Avg != null ? `Volume: ${fmtAvg(volume.shotAttemptsLast5Avg)} shots, ${fmtAvg(volume.threesAttemptedLast5Avg)} threes, and ${fmtAvg(volume.freeThrowsAttemptedLast5Avg)} free throws per game over the last 5.` : '',
     minutes.lastGame != null ? `Minutes: ${fmt(minutes.lastGame)} last game / ${fmt(minutes.last5Avg)} last 5${minutes.stable ? '; role looks stable.' : '; verify role before tipoff.'}` : '',

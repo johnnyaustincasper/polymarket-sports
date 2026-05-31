@@ -72,4 +72,25 @@ describe('signal judgment context', () => {
     expect(context?.riskNotes.join(' ')).toMatch(/Blowout risk/)
     expect(context?.playableNumber).toBe('Playable at 24.5. Pass if the line moves past 25.5.')
   })
+
+  it('supports MLB combo props without calling them points', () => {
+    const last12 = [
+      { eventId: 'm1', date: '2026-05-30', opponent: 'BAL', stats: { hits: 2, runs: 1, RBIs: 3, totalBases: 5 } },
+      { eventId: 'm2', date: '2026-05-29', opponent: 'NYY', stats: { hits: 1, runs: 0, RBIs: 1, totalBases: 2 } },
+      { eventId: 'm3', date: '2026-05-28', opponent: 'BOS', stats: { hits: 0, runs: 1, RBIs: 0, totalBases: 0 } },
+    ]
+
+    expect(statValueForMetric(last12[0], 'hits + runs + RBIs')).toBe(6)
+    const context = buildJudgmentContext({
+      player: 'Vladimir Guerrero Jr.',
+      metric: 'hits + runs + RBIs',
+      label: '3+ hits + runs + RBIs',
+      line: 3,
+      last12,
+    })
+
+    expect(context?.lastGame.value).toBe(6)
+    expect(context?.summaryBullets[0]).toBe('Last game: 6 hits + runs + RBIs.')
+    expect(context?.trend.last5HitRate).toBe(1)
+  })
 })
