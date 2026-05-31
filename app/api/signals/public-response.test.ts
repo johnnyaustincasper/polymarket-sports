@@ -51,6 +51,10 @@ const baseSignal = {
       consistency: { grade: 'strong', label: 'Strong: cleared in 4 of last 5.' },
       gameEnvironment: ['Fast pace helps volume.'],
       sportSpecificNotes: ['Basketball context: minutes matter most.'],
+      whyPlayerBullets: [
+        'Normie Guard fits this scoring look: 18.4 points over the last 5 and 4 of 5 cleared 10+.',
+        'The number is the hook: recent middle is 14, range is 8-22, so 10+ has room unless the prop moves up.',
+      ],
       decisionSections: [
         { title: 'FORM CHECK', rows: ['Last game: 18 pts.'] },
         { title: 'ROLE CHECK', rows: ['Stable role', '31 min last game · 32 avg last 5'] },
@@ -67,7 +71,8 @@ describe('public Today Signals response', () => {
     expect(stripPublicJargon('32¢ ask vs 83 fair leaves edge cushion')).not.toMatch(/32|¢|ask|fair|edge|cushion/i)
     const bullets = publicBullets(baseSignal)
     expect(bullets.join(' ')).not.toMatch(/¢|\b\d+c\b|ask|fair|edge|misprice|cushion|liquidity/i)
-    expect(bullets.join(' ')).toContain('Recent form')
+    expect(bullets.join(' ')).toContain('Normie Guard fits this scoring look')
+    expect(bullets.join(' ')).not.toContain('Recent form')
   })
 
   it('does not expose raw market pricing fields or line option prices to public app responses', () => {
@@ -90,6 +95,11 @@ describe('public Today Signals response', () => {
     expect(publicSignal.metadata.judgmentContext.lineCheck.verdict).toBe('Line 10 sits below median 14.')
     expect(publicSignal.metadata.judgmentContext.roleCheck.label).toBe('Stable role')
     expect(publicSignal.metadata.judgmentContext.decisionSections.map((section: any) => section.title)).toEqual(['FORM CHECK', 'ROLE CHECK', 'LINE CHECK', 'MATCHUP CHECK', 'RISK CHECK'])
+    expect(publicSignal.metadata.judgmentContext.whyPlayerBullets).toEqual([
+      'Normie Guard fits this scoring look: 18.4 points over the last 5 and 4 of 5 cleared 10+.',
+      'The number is the hook: recent middle is 14, range is 8-22, so 10+ has room unless the prop moves up.',
+    ])
+    expect(publicSignal.whyCare).toEqual(publicSignal.metadata.judgmentContext.whyPlayerBullets)
     expect(JSON.stringify(publicSignal)).not.toMatch(/¢|\b\d+c\b|\bask\b|fairPrice|\bedge\b|maxBuy|liquidity/i)
   })
 })

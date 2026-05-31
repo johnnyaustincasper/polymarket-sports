@@ -2,6 +2,7 @@
 
 import type { KeyboardEvent } from 'react'
 import { signalCardTapContract } from '../../lib/signals/card-collapse'
+import { selectWhyThisPlayerBullets } from '../../lib/signals/why-player'
 import { classifySignalDecision } from '../../lib/signals/insight'
 import type { SignalLineOption, SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
 
@@ -196,6 +197,7 @@ export default function SignalTerminalCard({
     riskNotes?: string[]
     playableNumber?: string
     summaryBullets?: string[]
+    whyPlayerBullets?: string[]
     recentRows?: string[]
   } | undefined
   const intelRows = [
@@ -209,6 +211,12 @@ export default function SignalTerminalCard({
     ...(Array.isArray(todayIntel?.riskFactors) ? todayIntel.riskFactors : []),
   ].map(row => simpleRisk(row.trim())).filter(Boolean).slice(0, 2)
   const signalAny = signal as SignalTerminalSignal & { whyCare?: string[] }
+  const playerSpecificWhy = Array.isArray(judgmentContext?.whyPlayerBullets)
+    ? judgmentContext.whyPlayerBullets.map(reason => stripJargon(String(reason || ''))).filter(Boolean)
+    : []
+  const apiWhyCare = Array.isArray(signalAny.whyCare)
+    ? signalAny.whyCare.map(reason => stripJargon(String(reason || ''))).filter(reason => reason && !tooMarketHeavy(reason))
+    : []
   const aiBulletSource = Array.isArray(signalAny.whyCare) && signalAny.whyCare.length ? signalAny.whyCare : signal.reasons
   const plainAiBullets = signal.metadata?.todayIntel && Array.isArray(aiBulletSource)
     ? aiBulletSource.map(reason => stripJargon(String(reason || ''))).filter(reason => reason && !tooMarketHeavy(reason)).slice(0, 2)
@@ -233,11 +241,11 @@ export default function SignalTerminalCard({
     ...(Array.isArray(judgmentContext?.summaryBullets) ? judgmentContext.summaryBullets : []),
     formBullet,
   ].map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 2)
-  const whyCare = [
-    contextBullet,
-    planBullet,
-    ...plainAiBullets,
-  ].filter(Boolean).slice(0, 3) as string[]
+  const whyCare = selectWhyThisPlayerBullets({
+    playerSpecific: playerSpecificWhy,
+    apiWhyCare,
+    fallback: [contextBullet, planBullet, ...plainAiBullets],
+  })
   const judgmentFacts = judgmentContext ? [
     judgmentContext.lastGame?.fgAttempted ? { label: 'Last game', value: `${formatNumber(judgmentContext.lastGame.points ?? judgmentContext.lastGame.value)} pts`, sub: `${formatNumber(judgmentContext.lastGame.fgMade)}/${formatNumber(judgmentContext.lastGame.fgAttempted)} FG${judgmentContext.lastGame.threeAttempted ? ` · ${formatNumber(judgmentContext.lastGame.threeMade)}/${formatNumber(judgmentContext.lastGame.threeAttempted)} 3PT` : ''}` } : null,
     judgmentContext.volume?.shotAttemptsLast5Avg ? { label: 'Volume', value: `${formatNumber(judgmentContext.volume.shotAttemptsLast5Avg)} FGA`, sub: `${formatNumber(judgmentContext.volume.threesAttemptedLast5Avg)} 3PA · ${formatNumber(judgmentContext.volume.freeThrowsAttemptedLast5Avg)} FTA last 5` } : null,

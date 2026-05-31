@@ -39,8 +39,9 @@ export function containsPublicJargon(text: string): boolean {
   return /\b(ask|fair|edge|misprice|cushion|max[-\s]?buy|ladder|liquidity|prediction[-\s]?market|market math|\d+(?:\.\d+)?c)\b|¢/i.test(text)
 }
 
-export function publicBullets(signal: Pick<PublicSignalLike, 'whyCare' | 'reasons' | 'player' | 'label' | 'metric' | 'hits' | 'games' | 'avg'>): string[] {
-  const source = Array.isArray(signal.whyCare) && signal.whyCare.length ? signal.whyCare : (signal.reasons || [])
+export function publicBullets(signal: Pick<PublicSignalLike, 'whyCare' | 'reasons' | 'player' | 'label' | 'metric' | 'hits' | 'games' | 'avg' | 'metadata'>): string[] {
+  const playerSpecific = cleanContextRows(signal.metadata?.judgmentContext?.whyPlayerBullets)
+  const source = playerSpecific?.length ? playerSpecific : Array.isArray(signal.whyCare) && signal.whyCare.length ? signal.whyCare : (signal.reasons || [])
   const cleaned = source
     .map(item => stripPublicJargon(String(item || '')))
     .filter(Boolean)
@@ -136,6 +137,7 @@ export function publicSignal(signal: PublicSignalLike): Partial<PublicSignalLike
         riskNotes: cleanContextRows(judgmentContext.riskNotes),
         playableNumber: stripPublicJargon(judgmentContext.playableNumber || ''),
         summaryBullets: cleanContextRows(judgmentContext.summaryBullets),
+        whyPlayerBullets: cleanContextRows(judgmentContext.whyPlayerBullets),
         recentRows: cleanContextRows(judgmentContext.recentRows),
       } } : {}),
     },
