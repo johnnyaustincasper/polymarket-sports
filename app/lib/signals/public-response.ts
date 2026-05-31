@@ -73,6 +73,13 @@ function cleanContextRows(rows?: string[]) {
   return rows?.map(stripPublicJargon).filter(item => item && !containsPublicJargon(item)).slice(0, 3)
 }
 
+function cleanDecisionSections(sections?: Array<{ title?: string; rows?: string[] }>) {
+  return sections?.map(section => ({
+    title: section.title,
+    rows: cleanContextRows(section.rows) || [],
+  })).filter(section => section.title && section.rows.length).slice(0, 5)
+}
+
 export function publicSignal(signal: PublicSignalLike): Partial<PublicSignalLike> {
   const recentGames = Array.isArray(signal.metadata?.recentGames) ? signal.metadata.recentGames : undefined
   const todayIntel = signal.metadata?.todayIntel
@@ -116,6 +123,12 @@ export function publicSignal(signal: PublicSignalLike): Partial<PublicSignalLike
       ...(judgmentContext ? { judgmentContext: {
         lastGame: judgmentContext.lastGame,
         trend: judgmentContext.trend,
+        lineCheck: judgmentContext.lineCheck,
+        roleCheck: judgmentContext.roleCheck,
+        consistency: judgmentContext.consistency,
+        gameEnvironment: cleanContextRows(judgmentContext.gameEnvironment),
+        sportSpecificNotes: cleanContextRows(judgmentContext.sportSpecificNotes),
+        decisionSections: cleanDecisionSections(judgmentContext.decisionSections),
         volume: judgmentContext.volume,
         minutes: judgmentContext.minutes,
         matchupNotes: cleanContextRows(judgmentContext.matchupNotes),

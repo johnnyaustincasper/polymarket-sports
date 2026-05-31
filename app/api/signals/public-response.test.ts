@@ -45,6 +45,20 @@ const baseSignal = {
       summary: 'No market math should leak.',
       generatedAt: '2026-05-30T12:00:00.000Z',
     },
+    judgmentContext: {
+      lineCheck: { line: 10, median: 14, range: { min: 8, max: 22 }, hitRateLabel: '4 of 5 last 5 · 9 of 12 last 12', verdict: 'Line 10 sits below median 14.' },
+      roleCheck: { status: 'stable', label: 'Stable role', details: ['31 min last game · 32 avg last 5'] },
+      consistency: { grade: 'strong', label: 'Strong: cleared in 4 of last 5.' },
+      gameEnvironment: ['Fast pace helps volume.'],
+      sportSpecificNotes: ['Basketball context: minutes matter most.'],
+      decisionSections: [
+        { title: 'FORM CHECK', rows: ['Last game: 18 pts.'] },
+        { title: 'ROLE CHECK', rows: ['Stable role', '31 min last game · 32 avg last 5'] },
+        { title: 'LINE CHECK', rows: ['Line 10 · median 14 · range 8-22'] },
+        { title: 'MATCHUP CHECK', rows: ['Fast pace helps volume.'] },
+        { title: 'RISK CHECK', rows: ['Do not chase it if the line moves.'] },
+      ],
+    },
   },
 } as any
 
@@ -73,6 +87,9 @@ describe('public Today Signals response', () => {
     expect(publicSignal.maxBuy).toBeUndefined()
     expect(publicSignal.liquidity).toBeUndefined()
     expect(publicSignal.metadata.lineOptions[0]).toEqual({ id: 'low', label: '10+ points', line: 10, tier: 'A', hits: 11, games: 12, avg: 18.4 })
-    expect(JSON.stringify(publicSignal)).not.toMatch(/¢|\b\d+c\b|ask|fairPrice|edge|maxBuy|liquidity/i)
+    expect(publicSignal.metadata.judgmentContext.lineCheck.verdict).toBe('Line 10 sits below median 14.')
+    expect(publicSignal.metadata.judgmentContext.roleCheck.label).toBe('Stable role')
+    expect(publicSignal.metadata.judgmentContext.decisionSections.map((section: any) => section.title)).toEqual(['FORM CHECK', 'ROLE CHECK', 'LINE CHECK', 'MATCHUP CHECK', 'RISK CHECK'])
+    expect(JSON.stringify(publicSignal)).not.toMatch(/¢|\b\d+c\b|\bask\b|fairPrice|\bedge\b|maxBuy|liquidity/i)
   })
 })

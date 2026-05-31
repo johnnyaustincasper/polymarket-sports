@@ -12,8 +12,8 @@ import { buildJudgmentContext, statValueForMetric, type SignalJudgmentContext } 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v4'
-const TODAY_SIGNAL_SCHEMA = 'v3'
+const SIGNAL_CACHE_SCHEMA = 'v5'
+const TODAY_SIGNAL_SCHEMA = 'v4'
 
 type Sport = 'nba' | 'nfl' | 'mlb'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'

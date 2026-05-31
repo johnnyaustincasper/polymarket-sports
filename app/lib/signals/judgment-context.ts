@@ -36,18 +36,43 @@ export type ShootingSnapshot = {
   ftPct?: number
 }
 
+export type SignalDecisionSection = {
+  title: 'FORM CHECK' | 'ROLE CHECK' | 'LINE CHECK' | 'MATCHUP CHECK' | 'RISK CHECK'
+  rows: string[]
+}
+
 export type SignalJudgmentContext = {
   lastGame: ShootingSnapshot
   trend: {
     last3Avg?: number
     last5Avg?: number
     last12Avg?: number
+    median?: number
     last5HitRate?: number
     last5Games?: number
     last12HitRate?: number
     last12Games?: number
     range?: { min: number; max: number }
   }
+  lineCheck: {
+    line?: number
+    median?: number
+    range: { min: number; max: number }
+    hitRateLabel: string
+    verdict: string
+  }
+  roleCheck: {
+    status: 'stable' | 'volatile' | 'unknown'
+    label: string
+    details: string[]
+  }
+  consistency: {
+    grade: 'strong' | 'solid' | 'volatile' | 'thin'
+    label: string
+  }
+  gameEnvironment: string[]
+  sportSpecificNotes: string[]
+  decisionSections: SignalDecisionSection[]
   volume: {
     shotAttemptsLast5Avg?: number
     threesAttemptedLast5Avg?: number
@@ -81,6 +106,14 @@ function avg(values: Array<number | undefined>): number | undefined {
   const clean = values.filter((value): value is number => Number.isFinite(value))
   if (!clean.length) return undefined
   return round(clean.reduce((sum, value) => sum + value, 0) / clean.length)
+}
+
+function median(values: Array<number | undefined>): number | undefined {
+  const clean = values.filter((value): value is number => Number.isFinite(value)).sort((a, b) => a - b)
+  if (!clean.length) return undefined
+  const mid = Math.floor(clean.length / 2)
+  if (clean.length % 2) return round(clean[mid])
+  return round((clean[mid - 1] + clean[mid]) / 2)
 }
 
 function fmt(value: Numeric, fallback = '—') {
@@ -198,6 +231,45 @@ function playable(line?: number): string {
   return `Playable at ${fmt(line)}. Pass if the line moves past ${fmt(line + 1)}.`
 }
 
+function metricSport(metric: string): 'nba' | 'mlb' | 'nfl' | 'generic' {
+  const key = metric.toLowerCase()
+  if (['hits', 'runs', 'rbis', 'rbi', 'hits + runs + rbis', 'hits+runs+rbis', 'home runs', 'total bases', 'strikeouts'].includes(key)) return 'mlb'
+  if (key.includes('passing') || key.includes('rushing') || key.includes('receiving') || key === 'receptions') return 'nfl'
+  if (['points', 'rebounds', 'assists', 'threes', 'steals', 'blocks', 'pts+reb+ast'].includes(key)) return 'nba'
+  return 'generic'
+}
+
+function consistencyGrade(hit5?: number, games5?: number, hit12?: number, games12?: number): SignalJudgmentContext['consistency'] {
+  const rate5 = games5 ? hit5 ?? 0 : 0
+  const rate12 = games12 ? hit12 ?? 0 : 0
+  if (games5 && rate5 >= Math.ceil(games5 * 0.8)) return { grade: 'strong', label: `Strong: cleared in ${rate5} of last ${games5}.` }
+  if (games5 && rate5 >= Math.ceil(games5 * 0.6)) return { grade: 'solid', label: `Solid: cleared in ${rate5} of last ${games5}.` }
+  if (games12 && rate12 <= Math.floor(games12 * 0.35)) return { grade: 'thin', label: `Thin: only ${rate12} of last ${games12} cleared.` }
+  return { grade: 'volatile', label: `Volatile: recent hit rate is mixed.` }
+}
+
+function roleStatus(minutes: { lastGame?: number; last5Avg?: number; stable: boolean }): SignalJudgmentContext['roleCheck'] {
+  if (minutes.stable) return { status: 'stable', label: 'Stable role', details: [`${fmt(minutes.lastGame)} min last game · ${fmt(minutes.last5Avg)} avg last 5`] }
+  if (minutes.lastGame != null || minutes.last5Avg != null) return { status: 'volatile', label: 'Verify role', details: [`${fmt(minutes.lastGame)} min last game · ${fmt(minutes.last5Avg)} avg last 5`] }
+  return { status: 'unknown', label: 'Role data limited', details: ['Minutes/role data is limited for this feed.'] }
+}
+
+function environmentNotes(input: JudgmentContextInput): string[] {
+  return [
+    input.teamIntel?.pace?.implication,
+    input.teamIntel?.pace?.edgeLabel ? `Game pace: ${input.teamIntel.pace.edgeLabel}.` : '',
+    input.teamIntel?.edgeRead,
+  ].map(note => String(note || '').trim()).filter(Boolean).slice(0, 2)
+}
+
+function sportNotes(metric: string): string[] {
+  const sport = metricSport(metric)
+  if (sport === 'mlb') return ['baseball context: watch batting order, pitcher handedness, park/weather, and bullpen quality before locking it in.']
+  if (sport === 'nba') return ['Basketball context: minutes, usage, shot volume, pace, and late injury news matter most.']
+  if (sport === 'nfl') return ['Football context: snap share, targets/routes, matchup coverage, and game script matter most.']
+  return []
+}
+
 function lastGameBullet(lastGame: ShootingSnapshot, metric: string): string {
   const isPointsMetric = metric.toLowerCase() === 'points' || metric.toLowerCase() === 'pts+reb+ast'
   const shooting = lastGame.fgAttempted
@@ -230,6 +302,7 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
   const min = Math.min(...values)
   const max = Math.max(...values)
   const last5Avg = avg(last5.map(game => game.value))
+  const medianValue = median(values)
   const minutesLast5Avg = avg(last5.map(game => game.minutes))
   const volume = {
     shotAttemptsLast5Avg: avg(last5.map(game => game.fgAttempted)),
@@ -245,6 +318,7 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     last3Avg: avg(last3.map(game => game.value)),
     last5Avg,
     last12Avg: avg(games.map(game => game.value)),
+    median: medianValue,
     last5HitRate: line != null ? last5.filter(hit).length : undefined,
     last5Games: last5.length,
     last12HitRate: line != null ? games.filter(hit).length : undefined,
@@ -268,10 +342,34 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     volume.shotAttemptsLast5Avg != null ? `Volume: ${fmtAvg(volume.shotAttemptsLast5Avg)} shots, ${fmtAvg(volume.threesAttemptedLast5Avg)} threes, and ${fmtAvg(volume.freeThrowsAttemptedLast5Avg)} free throws per game over the last 5.` : '',
     minutes.lastGame != null ? `Minutes: ${fmt(minutes.lastGame)} last game / ${fmt(minutes.last5Avg)} last 5${minutes.stable ? '; role looks stable.' : '; verify role before tipoff.'}` : '',
   ].filter(Boolean)
+  const lineCheck = {
+    line,
+    median: medianValue,
+    range: { min, max },
+    hitRateLabel: `${trend.last5HitRate ?? '—'} of ${last5.length} last 5 · ${trend.last12HitRate ?? '—'} of ${games.length} last 12`,
+    verdict: line == null ? 'No listed line available.' : medianValue != null && medianValue >= line ? `Line ${fmt(line)} sits below median ${fmt(medianValue)}.` : `Line ${fmt(line)} is above median ${fmt(medianValue)}; needs a better-than-normal result.`,
+  }
+  const roleCheck = roleStatus(minutes)
+  const consistency = consistencyGrade(trend.last5HitRate, trend.last5Games, trend.last12HitRate, trend.last12Games)
+  const gameEnvironment = environmentNotes(input)
+  const sportSpecificNotes = sportNotes(input.metric)
+  const decisionSections: SignalDecisionSection[] = [
+    { title: 'FORM CHECK', rows: summaryBullets.slice(0, 2) },
+    { title: 'ROLE CHECK', rows: [roleCheck.label, ...roleCheck.details].filter(Boolean).slice(0, 3) },
+    { title: 'LINE CHECK', rows: [`Line ${fmt(line)} · median ${fmt(medianValue)} · range ${fmt(min)}-${fmt(max)}`, lineCheck.hitRateLabel, lineCheck.verdict].filter(Boolean).slice(0, 3) },
+    { title: 'MATCHUP CHECK', rows: [...matchupNotes, ...gameEnvironment, ...sportSpecificNotes].filter(Boolean).slice(0, 3) },
+    { title: 'RISK CHECK', rows: [...riskNotes, playable(line), consistency.label].filter(Boolean).slice(0, 3) },
+  ]
 
   return {
     lastGame,
     trend,
+    lineCheck,
+    roleCheck,
+    consistency,
+    gameEnvironment,
+    sportSpecificNotes,
+    decisionSections,
     volume,
     minutes,
     matchupNotes,

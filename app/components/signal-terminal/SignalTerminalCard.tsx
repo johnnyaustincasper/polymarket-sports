@@ -181,7 +181,13 @@ export default function SignalTerminalCard({
   } | undefined
   const judgmentContext = signal.metadata?.judgmentContext as {
     lastGame?: { value?: number; points?: number; minutes?: number; fgMade?: number; fgAttempted?: number; fgPct?: number; threeMade?: number; threeAttempted?: number; threePct?: number; ftMade?: number; ftAttempted?: number; opponent?: string }
-    trend?: { last5Avg?: number; last12Avg?: number; last5HitRate?: number; last5Games?: number; range?: { min?: number; max?: number } }
+    trend?: { last5Avg?: number; last12Avg?: number; median?: number; last5HitRate?: number; last5Games?: number; range?: { min?: number; max?: number } }
+    lineCheck?: { line?: number; median?: number; hitRateLabel?: string; verdict?: string; range?: { min?: number; max?: number } }
+    roleCheck?: { status?: string; label?: string; details?: string[] }
+    consistency?: { grade?: string; label?: string }
+    gameEnvironment?: string[]
+    sportSpecificNotes?: string[]
+    decisionSections?: Array<{ title?: string; rows?: string[] }>
     volume?: { shotAttemptsLast5Avg?: number; threesAttemptedLast5Avg?: number; freeThrowsAttemptedLast5Avg?: number }
     minutes?: { lastGame?: number; last5Avg?: number; stable?: boolean }
     matchupNotes?: string[]
@@ -237,6 +243,12 @@ export default function SignalTerminalCard({
     judgmentContext.minutes?.last5Avg ? { label: 'Minutes', value: `${formatNumber(judgmentContext.minutes.lastGame)} / ${formatNumber(judgmentContext.minutes.last5Avg)}`, sub: judgmentContext.minutes.stable ? 'last game / last 5 · stable role' : 'last game / last 5 · verify role' } : null,
     judgmentContext.trend?.last5Avg ? { label: 'Trend', value: `${formatNumber(judgmentContext.trend.last5Avg)} avg`, sub: `${judgmentContext.trend.last5HitRate ?? '—'} of ${judgmentContext.trend.last5Games ?? '—'} over line last 5` } : null,
   ].filter(Boolean) as Array<{ label: string; value: string; sub: string }> : []
+  const decisionSections = Array.isArray(judgmentContext?.decisionSections)
+    ? judgmentContext.decisionSections
+      .map(section => ({ title: String(section.title || '').trim(), rows: (Array.isArray(section.rows) ? section.rows : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3) }))
+      .filter(section => section.title && section.rows.length)
+      .slice(0, 5)
+    : []
   const judgmentNotes = [
     ...(Array.isArray(judgmentContext?.matchupNotes) ? judgmentContext.matchupNotes : []),
     ...(Array.isArray(judgmentContext?.injuryNotes) ? judgmentContext.injuryNotes : []),
@@ -317,6 +329,30 @@ export default function SignalTerminalCard({
             </div>
           ))}
         </div>
+
+        {decisionSections.length > 0 && !compact && (
+          <div style={{ marginTop: 10, borderRadius: 14, padding: 10, background: 'rgba(255,255,255,0.032)', border: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
+              <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Decision cockpit</div>
+              <div style={{ color: C.faint, fontSize: 8, fontWeight: 900 }}>role · line · matchup · risk</div>
+            </div>
+            <div style={{ display: 'grid', gap: 7 }}>
+              {decisionSections.map(section => (
+                <div key={section.title} style={{ borderRadius: 11, padding: '8px 8px', background: section.title === 'RISK CHECK' ? 'rgba(255,209,102,0.045)' : 'rgba(125,246,255,0.035)', border: `1px solid ${section.title === 'RISK CHECK' ? 'rgba(255,209,102,0.13)' : 'rgba(125,246,255,0.10)'}` }}>
+                  <div style={{ color: section.title === 'RISK CHECK' ? C.amber : C.green, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>{section.title}</div>
+                  <div style={{ display: 'grid', gap: 3 }}>
+                    {section.rows.slice(0, 3).map(row => (
+                      <div key={`${section.title}-${row}`} style={{ color: C.muted, fontSize: 8.5, lineHeight: 1.32, display: 'grid', gridTemplateColumns: '10px minmax(0,1fr)', gap: 4 }}>
+                        <span style={{ color: section.title === 'RISK CHECK' ? C.amber : C.green }}>•</span>
+                        <span>{row}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {judgmentFacts.length > 0 && !compact && (
           <div style={{ marginTop: 10, borderRadius: 12, padding: 9, background: 'rgba(125,246,255,0.04)', border: `1px solid ${C.border}` }}>
