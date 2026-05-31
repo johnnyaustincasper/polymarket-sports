@@ -6,6 +6,7 @@ import { computeSignalDeltas, type SignalDelta, type SignalDeltaSnapshot } from 
 import { buildWhyCare, classifySignalDecision, type SignalDecisionResult } from '@/app/lib/signals/insight'
 import { gradeLiquidity, type LiquidityGrade } from '@/app/lib/signals/liquidity'
 import { completeWithAi } from '@/app/lib/ai-provider'
+import { containsPublicJargon, publicResponse, stripPublicJargon } from '@/app/lib/signals/public-response'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -200,112 +201,6 @@ function isAdminRequest(req: NextRequest, body?: any): boolean {
   const querySecret = req.nextUrl.searchParams.get('secret') || ''
   const bodySecret = typeof body?.secret === 'string' ? body.secret : ''
   return auth === `Bearer ${secret}` || querySecret === secret || bodySecret === secret
-}
-
-function stripPublicJargon(text: string): string {
-  return String(text || '')
-    .replace(/\bask\b/gi, 'market chance')
-    .replace(/\bfair(?: value)?\b/gi, 'model')
-    .replace(/\bedge\b/gi, 'value gap')
-    .replace(/\bmisprice(?:d)?\b/gi, 'pricing gap')
-    .replace(/\bcushion\b/gi, 'room before it stops being attractive')
-    .replace(/\bmax[-\s]?buy\b/gi, 'do-not-chase line')
-    .replace(/\bladder\b/gi, 'alternate line')
-    .replace(/\bentry\b/gi, 'look')
-    .replace(/\b(\d+(?:\.\d+)?)c\b/gi, '$1%')
-    .replace(/¢/g, '%')
-    .replace(/\s{2,}/g, ' ')
-    .trim()
-}
-
-function publicBullets(signal: ModelSignal): string[] {
-  const source = Array.isArray(signal.whyCare) && signal.whyCare.length ? signal.whyCare : signal.reasons
-  const cleaned = source
-    .map(item => stripPublicJargon(String(item || '')))
-    .filter(Boolean)
-    .filter(item => !/\b(ask|fair|edge|misprice|cushion|max[-\s]?buy|ladder|¢)\b/i.test(item))
-    .slice(0, 3)
-  if (cleaned.length) return cleaned
-  const line = signal.label || `${signal.metric} line`
-  return [
-    `${signal.player} has cleared ${line} in ${signal.hits}/${signal.games} recently, averaging ${signal.avg.toFixed(1)}.`,
-    'Simple read: use this only if his role and minutes look normal before the game starts.',
-    'Do not chase it if the line moves against you.',
-  ]
-}
-
-function publicLineOptions(signal: ModelSignal): Array<Pick<SignalLineOption, 'id' | 'label' | 'line' | 'tier' | 'hits' | 'games' | 'avg'>> | undefined {
-  const options = Array.isArray(signal.metadata?.lineOptions) ? signal.metadata.lineOptions : []
-  if (!options.length) return undefined
-  return options.slice(0, 3).map(option => ({
-    id: option.id,
-    label: option.label,
-    line: option.line,
-    tier: option.tier,
-    hits: option.hits,
-    games: option.games,
-    avg: option.avg,
-  }))
-}
-
-function publicSignal(signal: ModelSignal): Partial<ModelSignal> {
-  const recentGames = Array.isArray(signal.metadata?.recentGames) ? signal.metadata.recentGames : undefined
-  const todayIntel = signal.metadata?.todayIntel
-  const lineOptions = publicLineOptions(signal)
-  return {
-    id: signal.id,
-    sport: signal.sport,
-    gameId: signal.gameId,
-    matchup: signal.matchup,
-    gameTime: signal.gameTime,
-    player: signal.player,
-    team: signal.team,
-    metric: signal.metric,
-    label: signal.label,
-    tier: signal.tier,
-    projectedHitPct: signal.projectedHitPct,
-    hits: signal.hits,
-    games: signal.games,
-    avg: signal.avg,
-    risk: signal.risk,
-    reasons: publicBullets(signal),
-    flags: (signal.flags || []).map(stripPublicJargon).filter(Boolean).filter(flag => !/liquidity|ask|fair|edge|cushion|max[-\s]?buy|¢/i.test(flag)).slice(0, 2),
-    createdAt: signal.createdAt,
-    whyCare: publicBullets(signal),
-    metadata: {
-      ...(recentGames ? { recentGames } : {}),
-      ...(todayIntel ? { todayIntel: {
-        summary: todayIntel.summary ? stripPublicJargon(todayIntel.summary) : undefined,
-        lineup: todayIntel.lineup,
-        injuryContext: todayIntel.injuryContext?.map(stripPublicJargon).slice(0, 3),
-        usageContext: todayIntel.usageContext?.map(stripPublicJargon).slice(0, 3),
-        riskFactors: todayIntel.riskFactors?.map(stripPublicJargon).slice(0, 3),
-        whatCouldKillIt: todayIntel.whatCouldKillIt?.map(stripPublicJargon).slice(0, 3),
-        displayBullets: publicBullets(signal),
-        sources: todayIntel.sources?.slice(0, 4),
-        generatedAt: todayIntel.generatedAt,
-        unavailable: todayIntel.unavailable,
-      } } : {}),
-      ...(lineOptions ? { lineOptions } : {}),
-    } as any,
-  }
-}
-
-function publicResponse(response: SignalsResponse): SignalsResponse {
-  const publicSignals = response.signals.map(signal => publicSignal(signal) as ModelSignal)
-  return {
-    ...response,
-    signals: publicSignals,
-    contractsScored: publicSignals.length,
-    changeSinceRefresh: undefined,
-    summary: {
-      a: publicSignals.filter(s => s.tier === 'A').length,
-      b: publicSignals.filter(s => s.tier === 'B').length,
-      watch: publicSignals.filter(s => s.tier === 'WATCH').length,
-      avgEdge: 0,
-      bestEdge: 0,
-    },
-  }
 }
 
 function buildExecution(input: {
@@ -657,7 +552,7 @@ function sanitizeIntel(raw: any, provider?: string, model?: string): TodaySignal
     } : undefined,
     riskFactors: asStringArray(raw?.riskFactors),
     whatCouldKillIt: asStringArray(raw?.whatCouldKillIt),
-    displayBullets: asStringArray(raw?.displayBullets).slice(0, 3),
+    displayBullets: asStringArray(raw?.displayBullets).map(stripPublicJargon).filter(item => item && !containsPublicJargon(item)).slice(0, 3),
     sources: asStringArray(raw?.sources),
     provider,
     model,

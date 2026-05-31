@@ -577,7 +577,7 @@ TWO WAYS TO MAKE MONEY — EVALUATE BOTH:
 1. HOLD-TO-RESOLUTION: Buy and hold until game ends. Need clear positive EV (5%+ value gap). Works for underdogs where market is genuinely mispriced.
 
 2. LIVE TRADE (often better for underdogs): Buy cheap underdog shares upcoming-game. If they take an early lead, their market chance can jump from the mid-20s to 60-70%. Sell and take the 2-3x. You don't need them to WIN — you just need them to be competitive in the first half. A team priced around 24% will be LEADING at halftime in ~35-40% of games. That's your cashout window.
-   - Live trades work best: spread ≤ 7 pts + market chance ≤ 32% = 🎯 flag it
+   - Live trades work best: tight spread + low underdog market chance = 🎯 flag it
    - The data already flags these as "LIVE TRADE CANDIDATE" — take that seriously
 
 HOW TO FIND REAL EDGE:

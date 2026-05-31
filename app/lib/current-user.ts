@@ -6,8 +6,7 @@ import { isGuestAccessEnabled } from './guest-access'
 const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY)
 
 export async function getCurrentUser(req: NextRequest): Promise<SessionUser | null> {
-  // Guest/legacy sessions are intentionally honored even when Clerk is enabled
-  // so Johnny can hand out full-access guest passes.
+  // Legacy sessions are intentionally limited by the paid-access policy.
   const legacySession = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)
   if (legacySession) {
     if (legacySession.guest && !isGuestAccessEnabled()) return null

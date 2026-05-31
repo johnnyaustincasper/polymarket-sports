@@ -3,7 +3,6 @@
 import { buildWhyCare, classifySignalDecision } from '../../lib/signals/insight'
 import ChangedSinceRefreshFeed from './ChangedSinceRefreshFeed'
 import LineupInjuryFlags from './LineupInjuryFlags'
-import PriceFairMovementChart from './PriceFairMovementChart'
 import SportsbookConsensusPanel from './SportsbookConsensusPanel'
 import type { SignalDrawerProps, SignalTerminalSignal, SignalTier } from './types'
 
@@ -31,21 +30,6 @@ function toProbability(value: number | null | undefined) {
 function toPercent(value: number | null | undefined) {
   if (!isFiniteNumber(value)) return null
   return Math.abs(value) <= 1 ? value * 100 : value
-}
-
-function formatMarketChance(value: number | null | undefined, fallback = '—') {
-  const pct = toPercent(value)
-  if (pct == null) return fallback
-  const rounded = Math.round(pct * 10) / 10
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}%`
-}
-
-function formatSignedPercent(value: number | null | undefined, fallback = '—') {
-  const pct = toPercent(value)
-  if (pct == null) return fallback
-  const rounded = Math.round(pct * 10) / 10
-  const display = Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)
-  return `${rounded > 0 ? '+' : ''}${display}%`
 }
 
 function formatPercent(value: number | null | undefined, fallback = '—') {
@@ -144,14 +128,12 @@ export default function SignalDetailDrawer({
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 7, marginBottom: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 7, marginBottom: 12 }}>
           {[
-            ['Value', formatSignedPercent(signal.edge), hotColor],
-            ['Market', formatMarketChance(signal.ask), C.amber],
-            ['Model', formatMarketChance(signal.fairPrice), C.green],
-            ['Discipline', signal.maxBuy ? 'Set' : '—', C.text],
-            ['Hit', signal.hits != null && signal.games != null ? `${formatNumber(signal.hits)}/${formatNumber(signal.games)}` : formatPercent(signal.hitRate ?? signal.projectedHitPct), C.cyan],
-            ['Conf', formatPercent(signal.confidence), C.text],
+            ['Recent', signal.hits != null && signal.games != null ? `${formatNumber(signal.hits)}/${formatNumber(signal.games)}` : formatPercent(signal.hitRate ?? signal.projectedHitPct), C.cyan],
+            ['Average', formatNumber(signal.avg), C.green],
+            ['Role', signal.lineupFlags?.length ? 'Check' : 'Normal', signal.lineupFlags?.length ? C.amber : C.text],
+            ['Risk', signal.risk || 'Watch', C.amber],
           ].map(([label, value, color]) => (
             <div key={label} style={{ minWidth: 0, borderRadius: 11, padding: '8px 6px', background: 'rgba(255,255,255,0.036)', border: `1px solid ${C.border}`, textAlign: 'center' }}>
               <div style={{ color, fontSize: 12, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
@@ -162,7 +144,6 @@ export default function SignalDetailDrawer({
 
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(260px,0.85fr)', gap: 12 }}>
           <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
-            <PriceFairMovementChart points={signal.movement} />
             <div style={{ borderRadius: 14, padding: 12, background: 'rgba(0,0,0,0.20)', border: `1px solid ${C.border}` }}>
               <SectionTitle>Why care</SectionTitle>
               <div style={{ display: 'grid', gap: 7 }}>

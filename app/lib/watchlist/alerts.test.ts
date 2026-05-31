@@ -80,7 +80,7 @@ describe('evaluateAlerts', () => {
     const alerts = evaluateAlerts({ previous, current, rules, now })
 
     expect(alerts.map((alert) => alert.type)).toEqual(['ask-target', 'edge-target', 'tier-upgrade', 'liquidity-min'])
-    expect(alerts[0]).toMatchObject({ key: 'leg-1', label: 'Ask target hit', value: 49, threshold: 50 })
+    expect(alerts[0]).toMatchObject({ key: 'leg-1', label: 'Price target hit', value: 49, threshold: 50 })
     expect(alerts.every((alert) => alert.at === now.toISOString())).toBe(true)
   })
 

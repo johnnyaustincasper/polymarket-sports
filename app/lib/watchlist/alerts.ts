@@ -134,8 +134,8 @@ function evaluateRule(previous: WatchSnapshot | null, current: WatchSnapshot, ru
       return {
         key: current.key,
         type: rule.type,
-        label: 'Ask target hit',
-        detail: `${displayLabel(current)} ask is ${current.ask}, at or below target ${target}.`,
+        label: 'Price target hit',
+        detail: `${displayLabel(current)} is at ${current.ask}, at or below target ${target}.`,
         at,
         value: current.ask,
         threshold: target,
