@@ -46,6 +46,9 @@ describe('signal judgment context', () => {
     expect(context?.minutes.last5Avg).toBe(36.2)
     expect(context?.roleCheck?.status).toBe('stable')
     expect(context?.consistency?.grade).toBe('solid')
+    expect(context?.whyPlayerBullets.join(' ')).toContain('Anthony Edwards fits this scoring look')
+    expect(context?.whyPlayerBullets.join(' ')).toContain('24.5+')
+    expect(context?.whyPlayerBullets.join(' ')).not.toMatch(/Minutes are the main thing|Simple read/)
   })
 
   it('writes judgment bullets around volume, minutes, clearer prop number, and playable number without generic matchup filler', () => {
@@ -84,6 +87,25 @@ describe('signal judgment context', () => {
     expect(context?.matchupNotes.join(' ')).toMatch(/Pace helps shot volume|Opponent missing/)
     expect(context?.riskNotes.join(' ')).toMatch(/Blowout risk/)
     expect(context?.playableNumber).toBe('Playable at 24.5. Pass if the line moves past 25.5.')
+  })
+
+  it('builds player-specific why bullets for assist props instead of generic role filler', () => {
+    const context = buildJudgmentContext({
+      player: "De'Aaron Fox",
+      metric: 'assists',
+      line: 4,
+      label: '4+ assists',
+      last12: baseLast12,
+      lastGameMinutes: 37,
+      risk: 'medium',
+    })
+
+    const why = context?.whyPlayerBullets.join(' ') || ''
+    expect(why).toContain("De'Aaron Fox fits this passing/creation look")
+    expect(why).toContain('assists over the last 5')
+    expect(why).toContain('4+')
+    expect(why).toContain('recent middle')
+    expect(why).not.toMatch(/Minutes are the main thing|Simple read|Last game:/)
   })
 
   it('supports MLB combo props without calling them points', () => {

@@ -12,8 +12,8 @@ import { buildJudgmentContext, statValueForMetric, type SignalJudgmentContext } 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v6'
-const TODAY_SIGNAL_SCHEMA = 'v5'
+const SIGNAL_CACHE_SCHEMA = 'v7'
+const TODAY_SIGNAL_SCHEMA = 'v6'
 
 type Sport = 'nba' | 'nfl' | 'mlb'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
@@ -288,7 +288,10 @@ function enrichSignal(signal: ModelSignal, generatedAt: string): ModelSignal {
     flags: signal.flags,
   })
   const intelBullets = signal.metadata?.todayIntel?.displayBullets
-  const whyCare = Array.isArray(intelBullets) && intelBullets.length
+  const judgmentWhyCare = signal.metadata?.judgmentContext?.whyPlayerBullets
+  const whyCare = Array.isArray(judgmentWhyCare) && judgmentWhyCare.length
+    ? judgmentWhyCare.map(item => String(item || '').trim()).filter(Boolean).slice(0, 3)
+    : Array.isArray(intelBullets) && intelBullets.length
     ? intelBullets.map(item => String(item || '').trim()).filter(Boolean).slice(0, 3)
     : Array.isArray(signal.whyCare) && signal.whyCare.some(item => !/^Recent form:|^Market is underpricing|^Recent form backs|^Price gap/i.test(String(item || '')))
       ? signal.whyCare.map(item => String(item || '').trim()).filter(Boolean).slice(0, 3)
@@ -715,7 +718,7 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
     const intelBullets = (intel.displayBullets || []).filter(Boolean).slice(0, 3)
     return {
       ...signal,
-      whyCare: judgmentContext?.summaryBullets?.length ? judgmentContext.summaryBullets.slice(0, 3) : (intelBullets.length ? intelBullets : signal.whyCare),
+      whyCare: judgmentContext?.whyPlayerBullets?.length ? judgmentContext.whyPlayerBullets.slice(0, 3) : (intelBullets.length ? intelBullets : signal.whyCare),
       metadata: { ...(signal.metadata || {}), ...(teamIntel ? { teamIntel } : {}), ...(judgmentContext ? { judgmentContext } : {}), todayIntel: intel },
     }
   })

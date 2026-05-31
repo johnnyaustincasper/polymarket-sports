@@ -88,6 +88,7 @@ export type SignalJudgmentContext = {
   riskNotes: string[]
   playableNumber: string
   summaryBullets: string[]
+  whyPlayerBullets: string[]
   recentRows: string[]
 }
 
@@ -270,6 +271,55 @@ function sportNotes(metric: string): string[] {
   return []
 }
 
+function metricNoun(metric: string): string {
+  const key = metric.toLowerCase()
+  if (key === 'points') return 'scoring'
+  if (key === 'assists') return 'passing/creation'
+  if (key === 'rebounds') return 'rebounding'
+  if (key === 'threes') return 'shooting volume'
+  if (key.includes('hits') || key === 'total bases') return 'batting form'
+  if (key.includes('strikeout')) return 'strikeout profile'
+  if (key.includes('receiving') || key === 'receptions') return 'receiving role'
+  if (key.includes('rushing')) return 'rushing role'
+  if (key.includes('passing')) return 'passing role'
+  return `${metric.toLowerCase()} profile`
+}
+
+function whyPlayerRows(input: {
+  player: string
+  metric: string
+  line?: number
+  lastGame: ShootingSnapshot
+  last5Avg?: number
+  median?: number
+  min: number
+  max: number
+  hit5?: number
+  games5: number
+  hit12?: number
+  games12: number
+  minutes: { lastGame?: number; last5Avg?: number; stable: boolean }
+  volume: SignalJudgmentContext['volume']
+  riskNotes: string[]
+}): string[] {
+  const metricLabel = input.metric.toLowerCase()
+  const profile = metricNoun(input.metric)
+  const first = input.line != null
+    ? `${input.player} fits this ${profile} look: ${fmt(input.last5Avg)} ${metricLabel} over the last 5 and ${input.hit5 ?? '—'} of ${input.games5} cleared ${fmt(input.line)}+.`
+    : `${input.player} fits this ${profile} look: ${fmt(input.last5Avg)} ${metricLabel} over the last 5 with a recent range of ${fmt(input.min)}-${fmt(input.max)}.`
+  const second = input.line != null
+    ? `The number is the hook: recent middle is ${fmt(input.median)}, range is ${fmt(input.min)}-${fmt(input.max)}, so ${fmt(input.line)}+ has room unless the prop moves up.`
+    : `Recent middle is ${fmt(input.median)} with a ${fmt(input.min)}-${fmt(input.max)} range, so the play depends on getting a clean listed number.`
+  const volumeDetail = input.metric.toLowerCase() === 'points' && input.volume.shotAttemptsLast5Avg != null
+    ? `Role/volume supports it: ${fmt(input.minutes.lastGame)} min last game, ${fmt(input.minutes.last5Avg)} avg last 5, and ${fmtAvg(input.volume.shotAttemptsLast5Avg)} shots per game lately.`
+    : input.metric.toLowerCase() === 'threes' && input.volume.threesAttemptedLast5Avg != null
+      ? `Role/volume supports it: ${fmt(input.minutes.lastGame)} min last game and ${fmtAvg(input.volume.threesAttemptedLast5Avg)} three-point attempts per game lately.`
+      : input.minutes.lastGame != null
+        ? `Role supports it: ${fmt(input.minutes.lastGame)} min last game and ${fmt(input.minutes.last5Avg)} avg last 5${input.minutes.stable ? ', so the workload looks normal.' : '; verify the workload before locking it.'}`
+        : input.riskNotes[0] ? `Main thing to monitor: ${input.riskNotes[0]}` : ''
+  return [first, second, volumeDetail].filter(Boolean).slice(0, 3)
+}
+
 function propNumberRows(input: { metric: string; line?: number; median?: number; min: number; max: number; hit5?: number; games5: number; hit12?: number; games12: number }): string[] {
   const metricLabel = input.metric.toLowerCase()
   const listed = input.line == null
@@ -358,6 +408,23 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     volume.shotAttemptsLast5Avg != null ? `Volume: ${fmtAvg(volume.shotAttemptsLast5Avg)} shots, ${fmtAvg(volume.threesAttemptedLast5Avg)} threes, and ${fmtAvg(volume.freeThrowsAttemptedLast5Avg)} free throws per game over the last 5.` : '',
     minutes.lastGame != null ? `Minutes: ${fmt(minutes.lastGame)} last game / ${fmt(minutes.last5Avg)} last 5${minutes.stable ? '; role looks stable.' : '; verify role before tipoff.'}` : '',
   ].filter(Boolean)
+  const whyPlayerBullets = whyPlayerRows({
+    player: input.player,
+    metric: input.metric,
+    line,
+    lastGame,
+    last5Avg,
+    median: medianValue,
+    min,
+    max,
+    hit5: trend.last5HitRate,
+    games5: last5.length,
+    hit12: trend.last12HitRate,
+    games12: games.length,
+    minutes,
+    volume,
+    riskNotes,
+  })
   const lineCheck = {
     line,
     median: medianValue,
@@ -395,6 +462,7 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     riskNotes,
     playableNumber: playable(line),
     summaryBullets,
+    whyPlayerBullets,
     recentRows,
   }
 }
