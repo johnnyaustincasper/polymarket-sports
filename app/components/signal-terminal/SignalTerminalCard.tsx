@@ -222,9 +222,11 @@ export default function SignalTerminalCard({
   const planBullet = secondaryLine
     ? `Simple read: ${plainLineLabel(primaryLine)} is the main look; ${plainLineLabel(secondaryLine)} needs a bigger night.`
     : `Simple read: this works if his role looks normal before tipoff.`
-  const whyCare = [
+  const formCheckRows = [
     ...(Array.isArray(judgmentContext?.summaryBullets) ? judgmentContext.summaryBullets : []),
     formBullet,
+  ].map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 2)
+  const whyCare = [
     contextBullet,
     planBullet,
     ...plainAiBullets,
@@ -286,6 +288,23 @@ export default function SignalTerminalCard({
                 <div style={{ color: C.faint, fontSize: 7.5, fontWeight: 900, marginTop: 1 }}>{idx === 0 ? 'Lower bar to clear' : 'Needs more from him'}</div>
               </a>
             ))}
+          </div>
+        )}
+
+        {formCheckRows.length > 0 && !compact && (
+          <div style={{ marginTop: 11, borderRadius: 14, padding: 10, background: 'linear-gradient(135deg, rgba(125,246,255,0.14), rgba(125,246,255,0.045))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 24px rgba(125,246,255,0.10)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 7 }}>
+              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Form check · last game + trend</div>
+              <div style={{ color: C.text, fontSize: 8, fontWeight: 950, borderRadius: 999, padding: '3px 6px', background: 'rgba(125,246,255,0.12)', border: '1px solid rgba(125,246,255,0.22)' }}>NEW</div>
+            </div>
+            <div style={{ display: 'grid', gap: 5 }}>
+              {formCheckRows.map(row => (
+                <div key={row} style={{ color: C.text, fontSize: 10, lineHeight: 1.35, fontWeight: 850, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 4 }}>
+                  <span style={{ color: C.green }}>✓</span>
+                  <span>{row}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

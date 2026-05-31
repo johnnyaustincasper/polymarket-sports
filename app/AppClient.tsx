@@ -3363,7 +3363,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
           {scanning ? 'Building board' : data ? 'Refresh Board' : 'Load Today’s Signals'}
         </button>
 
-        {data?.generatedAt && <div style={{ marginTop: 8, color: C.textSecondary, fontSize: 9, textAlign: 'center', fontWeight: 800 }}>Updated {new Date(data.generatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · curated top board · injury/news checked</div>}
+        {data?.generatedAt && <div style={{ marginTop: 8, color: C.textSecondary, fontSize: 9, textAlign: 'center', fontWeight: 800 }}>Updated {new Date(data.generatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · form check: last game + trend · injury/news checked</div>}
 
         {error && <div style={{ marginTop: 10, color: C.gold, fontSize: 11 }}>Signals unavailable: {error}</div>}
 
