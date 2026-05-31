@@ -1,7 +1,6 @@
 'use client'
 
 import type { KeyboardEvent } from 'react'
-import SlateMainFeatureAnimationFrame from '../SlateMainFeatureAnimationFrame'
 import { signalCardTapContract } from '../../lib/signals/card-collapse'
 import { classifySignalDecision } from '../../lib/signals/insight'
 import type { SignalLineOption, SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
@@ -435,7 +434,6 @@ export default function SignalTerminalCard({
         )}
 
       </div>
-      {compact && onOpen && <SlateMainFeatureAnimationFrame />}
     </div>
   )
 }
