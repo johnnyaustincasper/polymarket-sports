@@ -179,6 +179,18 @@ export default function SignalTerminalCard({
     whatCouldKillIt?: string[]
     unavailable?: string
   } | undefined
+  const judgmentContext = signal.metadata?.judgmentContext as {
+    lastGame?: { value?: number; points?: number; minutes?: number; fgMade?: number; fgAttempted?: number; fgPct?: number; threeMade?: number; threeAttempted?: number; threePct?: number; ftMade?: number; ftAttempted?: number; opponent?: string }
+    trend?: { last5Avg?: number; last12Avg?: number; last5HitRate?: number; last5Games?: number; range?: { min?: number; max?: number } }
+    volume?: { shotAttemptsLast5Avg?: number; threesAttemptedLast5Avg?: number; freeThrowsAttemptedLast5Avg?: number }
+    minutes?: { lastGame?: number; last5Avg?: number; stable?: boolean }
+    matchupNotes?: string[]
+    injuryNotes?: string[]
+    riskNotes?: string[]
+    playableNumber?: string
+    summaryBullets?: string[]
+    recentRows?: string[]
+  } | undefined
   const intelRows = [
     todayIntel?.lineup?.status ? `Lineup: ${todayIntel.lineup.status}${todayIntel.lineup.reason ? ` — ${todayIntel.lineup.reason}` : ''}` : '',
     ...(Array.isArray(todayIntel?.injuryContext) ? todayIntel.injuryContext.slice(0, 1).map(item => `Injury: ${item}`) : []),
@@ -210,7 +222,24 @@ export default function SignalTerminalCard({
   const planBullet = secondaryLine
     ? `Simple read: ${plainLineLabel(primaryLine)} is the main look; ${plainLineLabel(secondaryLine)} needs a bigger night.`
     : `Simple read: this works if his role looks normal before tipoff.`
-  const whyCare = [formBullet, contextBullet, planBullet, ...plainAiBullets].filter(Boolean).slice(0, 3) as string[]
+  const whyCare = [
+    ...(Array.isArray(judgmentContext?.summaryBullets) ? judgmentContext.summaryBullets : []),
+    formBullet,
+    contextBullet,
+    planBullet,
+    ...plainAiBullets,
+  ].filter(Boolean).slice(0, 3) as string[]
+  const judgmentFacts = judgmentContext ? [
+    judgmentContext.lastGame?.fgAttempted ? { label: 'Last game', value: `${formatNumber(judgmentContext.lastGame.points ?? judgmentContext.lastGame.value)} pts`, sub: `${formatNumber(judgmentContext.lastGame.fgMade)}/${formatNumber(judgmentContext.lastGame.fgAttempted)} FG${judgmentContext.lastGame.threeAttempted ? ` · ${formatNumber(judgmentContext.lastGame.threeMade)}/${formatNumber(judgmentContext.lastGame.threeAttempted)} 3PT` : ''}` } : null,
+    judgmentContext.volume?.shotAttemptsLast5Avg ? { label: 'Volume', value: `${formatNumber(judgmentContext.volume.shotAttemptsLast5Avg)} FGA`, sub: `${formatNumber(judgmentContext.volume.threesAttemptedLast5Avg)} 3PA · ${formatNumber(judgmentContext.volume.freeThrowsAttemptedLast5Avg)} FTA last 5` } : null,
+    judgmentContext.minutes?.last5Avg ? { label: 'Minutes', value: `${formatNumber(judgmentContext.minutes.lastGame)} / ${formatNumber(judgmentContext.minutes.last5Avg)}`, sub: judgmentContext.minutes.stable ? 'last game / last 5 · stable role' : 'last game / last 5 · verify role' } : null,
+    judgmentContext.trend?.last5Avg ? { label: 'Trend', value: `${formatNumber(judgmentContext.trend.last5Avg)} avg`, sub: `${judgmentContext.trend.last5HitRate ?? '—'} of ${judgmentContext.trend.last5Games ?? '—'} over line last 5` } : null,
+  ].filter(Boolean) as Array<{ label: string; value: string; sub: string }> : []
+  const judgmentNotes = [
+    ...(Array.isArray(judgmentContext?.matchupNotes) ? judgmentContext.matchupNotes : []),
+    ...(Array.isArray(judgmentContext?.injuryNotes) ? judgmentContext.injuryNotes : []),
+    judgmentContext?.playableNumber || '',
+  ].map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3)
 
   return (
     <div
@@ -269,6 +298,27 @@ export default function SignalTerminalCard({
             </div>
           ))}
         </div>
+
+        {judgmentFacts.length > 0 && !compact && (
+          <div style={{ marginTop: 10, borderRadius: 12, padding: 9, background: 'rgba(125,246,255,0.04)', border: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 7 }}>
+              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Judgment check</div>
+              <div style={{ color: C.faint, fontSize: 8, fontWeight: 900 }}>volume · minutes · line</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 6 }}>
+              {judgmentFacts.map(fact => (
+                <div key={fact.label} style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div style={{ color: C.faint, fontSize: 7.5, fontWeight: 950, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{fact.label}</div>
+                  <div style={{ color: C.text, fontSize: 12, fontWeight: 950, marginTop: 2 }}>{fact.value}</div>
+                  <div style={{ color: C.muted, fontSize: 7.5, fontWeight: 800, marginTop: 1, lineHeight: 1.25 }}>{fact.sub}</div>
+                </div>
+              ))}
+            </div>
+            {judgmentNotes.length > 0 && <div style={{ marginTop: 7, display: 'grid', gap: 4 }}>
+              {judgmentNotes.map(note => <div key={note} style={{ color: C.muted, fontSize: 8.5, lineHeight: 1.35 }}>• {note}</div>)}
+            </div>}
+          </div>
+        )}
 
         {!compact && recentValues.length > 0 && (
           <div style={{ marginTop: 10, borderRadius: 12, padding: 9, background: 'rgba(255,255,255,0.028)', border: `1px solid ${C.border}` }}>

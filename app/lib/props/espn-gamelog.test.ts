@@ -31,6 +31,15 @@ describe('ESPN NBA gamelog stat parsing', () => {
       steals: 2,
       threes: 3,
       turnovers: 4,
+      fieldGoalsMade: 4,
+      fieldGoalsAttempted: 16,
+      fieldGoalPct: 25,
+      threePointersMade: 3,
+      threePointersAttempted: 10,
+      threePointPct: 30,
+      freeThrowsMade: 6,
+      freeThrowsAttempted: 6,
+      freeThrowPct: 100,
     })
   })
 })

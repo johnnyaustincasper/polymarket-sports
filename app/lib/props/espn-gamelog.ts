@@ -7,6 +7,15 @@ export type ParsedNbaGameLogStats = {
   steals: number
   threes: number
   turnovers: number
+  fieldGoalsMade: number
+  fieldGoalsAttempted: number
+  fieldGoalPct: number
+  threePointersMade: number
+  threePointersAttempted: number
+  threePointPct: number
+  freeThrowsMade: number
+  freeThrowsAttempted: number
+  freeThrowPct: number
 }
 
 export function parseEspnStat(names: string[], rowStats: string[], aliases: string[]): number {
@@ -19,6 +28,27 @@ export function parseEspnStat(names: string[], rowStats: string[], aliases: stri
 }
 
 export function parseNbaGameLogStats(names: string[], rowStats: string[]): ParsedNbaGameLogStats {
+  const fieldGoals = parseEspnMadeAttempted(names, rowStats, [
+    'fieldGoalsMade-fieldGoalsAttempted',
+    'fieldGoals',
+    'fieldGoalsMade',
+  ])
+  const threes = parseEspnMadeAttempted(names, rowStats, [
+    'threePointFieldGoalsMade-threePointFieldGoalsAttempted',
+    'threePointFieldGoals',
+    'threePointersMade',
+    'threePointers',
+    '3PM',
+  ])
+  const freeThrows = parseEspnMadeAttempted(names, rowStats, [
+    'freeThrowsMade-freeThrowsAttempted',
+    'freeThrows',
+    'freeThrowsMade',
+  ])
+  const fieldGoalPct = parseEspnStat(names, rowStats, ['fieldGoalPct', 'fieldGoalPercentage'])
+  const threePointPct = parseEspnStat(names, rowStats, ['threePointPct', 'threePointFieldGoalPct', 'threePointPercentage'])
+  const freeThrowPct = parseEspnStat(names, rowStats, ['freeThrowPct', 'freeThrowPercentage'])
+
   return {
     minutes: parseEspnStat(names, rowStats, ['minutes']),
     points: parseEspnStat(names, rowStats, ['points']),
@@ -26,16 +56,46 @@ export function parseNbaGameLogStats(names: string[], rowStats: string[]): Parse
     assists: parseEspnStat(names, rowStats, ['assists']),
     blocks: parseEspnStat(names, rowStats, ['blocks']),
     steals: parseEspnStat(names, rowStats, ['steals']),
-    threes: parseEspnStat(names, rowStats, [
-      'threePointFieldGoalsMade',
-      'threePointFieldGoalsMade-threePointFieldGoalsAttempted',
-      'threePointFieldGoals',
-      'threePointersMade',
-      'threePointers',
-      '3PM',
-    ]),
+    threes: threes.made,
     turnovers: parseEspnStat(names, rowStats, ['turnovers']),
+    fieldGoalsMade: fieldGoals.made,
+    fieldGoalsAttempted: fieldGoals.attempted,
+    fieldGoalPct: fieldGoalPct || pct(fieldGoals.made, fieldGoals.attempted),
+    threePointersMade: threes.made,
+    threePointersAttempted: threes.attempted,
+    threePointPct: threePointPct || pct(threes.made, threes.attempted),
+    freeThrowsMade: freeThrows.made,
+    freeThrowsAttempted: freeThrows.attempted,
+    freeThrowPct: freeThrowPct || pct(freeThrows.made, freeThrows.attempted),
   }
+}
+
+type MadeAttempted = { made: number; attempted: number }
+
+function parseEspnMadeAttempted(names: string[], rowStats: string[], aliases: string[]): MadeAttempted {
+  for (const alias of aliases) {
+    const idx = names.indexOf(alias)
+    if (idx < 0) continue
+    const raw = String(rowStats[idx] ?? '').trim()
+    if (!raw || raw === '-') return { made: 0, attempted: 0 }
+    if (raw.includes('-')) {
+      const [madeRaw, attemptedRaw] = raw.split('-')
+      const made = Number(madeRaw)
+      const attempted = Number(attemptedRaw)
+      return {
+        made: Number.isFinite(made) ? made : 0,
+        attempted: Number.isFinite(attempted) ? attempted : 0,
+      }
+    }
+    const made = parseEspnStatCell(raw, alias)
+    return { made, attempted: 0 }
+  }
+  return { made: 0, attempted: 0 }
+}
+
+function pct(made: number, attempted: number): number {
+  if (!attempted) return 0
+  return Math.round((made / attempted) * 1000) / 10
 }
 
 function parseEspnStatCell(value: unknown, statName: string): number {

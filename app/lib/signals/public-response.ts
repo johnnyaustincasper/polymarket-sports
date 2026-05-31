@@ -76,6 +76,7 @@ function cleanContextRows(rows?: string[]) {
 export function publicSignal(signal: PublicSignalLike): Partial<PublicSignalLike> {
   const recentGames = Array.isArray(signal.metadata?.recentGames) ? signal.metadata.recentGames : undefined
   const todayIntel = signal.metadata?.todayIntel
+  const judgmentContext = signal.metadata?.judgmentContext
   const lineOptions = publicLineOptions(signal)
   return {
     id: signal.id,
@@ -112,6 +113,18 @@ export function publicSignal(signal: PublicSignalLike): Partial<PublicSignalLike
         unavailable: todayIntel.unavailable,
       } } : {}),
       ...(lineOptions ? { lineOptions } : {}),
+      ...(judgmentContext ? { judgmentContext: {
+        lastGame: judgmentContext.lastGame,
+        trend: judgmentContext.trend,
+        volume: judgmentContext.volume,
+        minutes: judgmentContext.minutes,
+        matchupNotes: cleanContextRows(judgmentContext.matchupNotes),
+        injuryNotes: cleanContextRows(judgmentContext.injuryNotes),
+        riskNotes: cleanContextRows(judgmentContext.riskNotes),
+        playableNumber: stripPublicJargon(judgmentContext.playableNumber || ''),
+        summaryBullets: cleanContextRows(judgmentContext.summaryBullets),
+        recentRows: cleanContextRows(judgmentContext.recentRows),
+      } } : {}),
     },
   }
 }

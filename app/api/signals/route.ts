@@ -7,6 +7,7 @@ import { buildWhyCare, classifySignalDecision, type SignalDecisionResult } from 
 import { gradeLiquidity, type LiquidityGrade } from '@/app/lib/signals/liquidity'
 import { completeWithAi } from '@/app/lib/ai-provider'
 import { containsPublicJargon, publicResponse, stripPublicJargon } from '@/app/lib/signals/public-response'
+import { buildJudgmentContext, statValueForMetric, type SignalJudgmentContext } from '@/app/lib/signals/judgment-context'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -83,6 +84,8 @@ type ModelSignal = {
     recentGames?: Array<{ value: number; opponent?: string; date?: string; eventId?: string }>
     todayIntel?: TodaySignalIntel
     lineOptions?: SignalLineOption[]
+    judgmentContext?: SignalJudgmentContext
+    teamIntel?: any
   }
 }
 
@@ -410,7 +413,7 @@ function reasonsFor(input: {
 function recentGamesForMetric(player: any, metric: string) {
   return (Array.isArray(player?.last12) ? player.last12 : [])
     .map((game: any) => {
-      const value = statValueForMetric(player, game, metric)
+      const value = statValueForMetric(game, metric)
       if (!Number.isFinite(value)) return null
       return {
         value: Number(value),
@@ -504,6 +507,15 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
         createdAt,
         metadata: {
           recentGames: recentGamesForMetric(player, bet.metric),
+          judgmentContext: buildJudgmentContext({
+            player: player.player,
+            metric: bet.metric,
+            label: bet.label,
+            line: bet.line,
+            last12: player.last12,
+            lastGameMinutes: player.lastGameMinutes,
+            risk: bet.risk,
+          }) || undefined,
         },
       })
     }
@@ -645,6 +657,12 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
             prop: signal.label,
             metric: signal.metric,
             recent: { hits: signal.hits, games: signal.games, avg: signal.avg },
+            judgmentContext: signal.metadata?.judgmentContext || null,
+            lastGame: signal.metadata?.judgmentContext?.lastGame || null,
+            shootingVolume: signal.metadata?.judgmentContext?.volume || null,
+            minutes: signal.metadata?.judgmentContext?.minutes || null,
+            trend: signal.metadata?.judgmentContext?.trend || null,
+            recentGameRows: signal.metadata?.judgmentContext?.recentRows || [],
             market: { fair: signal.fairPrice, ask: signal.ask, edge: signal.edge, maxBuy: signal.maxBuy },
             lineOptions: signal.metadata?.lineOptions || [{ label: signal.label, ask: signal.ask, fair: signal.fairPrice, edge: signal.edge, maxBuy: signal.maxBuy, hits: signal.hits, games: signal.games, avg: signal.avg }],
             currentReasons: signal.reasons,
@@ -672,12 +690,33 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
 
   return signals.map(signal => {
     const intel = byId.get(signal.id)
-    if (!intel) return signal
+    const teamIntel = matchupIntel.get(signal.matchup) || null
+    const baseJudgmentContext = signal.metadata?.judgmentContext
+    const judgmentContext = baseJudgmentContext ? {
+      ...baseJudgmentContext,
+      matchupNotes: [
+        ...baseJudgmentContext.matchupNotes,
+        ...(teamIntel?.pace?.implication ? [teamIntel.pace.implication] : []),
+        ...(Array.isArray(teamIntel?.injuryImpact?.homeNotes) ? teamIntel.injuryImpact.homeNotes : []),
+        ...(Array.isArray(teamIntel?.injuryImpact?.awayNotes) ? teamIntel.injuryImpact.awayNotes : []),
+      ].map(note => String(note || '').trim()).filter(Boolean).slice(0, 3),
+      injuryNotes: [
+        ...baseJudgmentContext.injuryNotes,
+        ...(Array.isArray(intel?.injuryContext) ? intel.injuryContext : []),
+        intel?.lineup?.reason || '',
+      ].map(note => String(note || '').trim()).filter(Boolean).slice(0, 3),
+      riskNotes: [
+        ...baseJudgmentContext.riskNotes,
+        ...(Array.isArray(intel?.whatCouldKillIt) ? intel.whatCouldKillIt : []),
+        ...(Array.isArray(intel?.riskFactors) ? intel.riskFactors : []),
+      ].map(note => String(note || '').trim()).filter(Boolean).slice(0, 3),
+    } : undefined
+    if (!intel) return { ...signal, metadata: { ...(signal.metadata || {}), ...(teamIntel ? { teamIntel } : {}), ...(judgmentContext ? { judgmentContext } : {}) } }
     const intelBullets = (intel.displayBullets || []).filter(Boolean).slice(0, 3)
     return {
       ...signal,
-      whyCare: intelBullets.length ? intelBullets : signal.whyCare,
-      metadata: { ...(signal.metadata || {}), todayIntel: intel },
+      whyCare: judgmentContext?.summaryBullets?.length ? judgmentContext.summaryBullets.slice(0, 3) : (intelBullets.length ? intelBullets : signal.whyCare),
+      metadata: { ...(signal.metadata || {}), ...(teamIntel ? { teamIntel } : {}), ...(judgmentContext ? { judgmentContext } : {}), todayIntel: intel },
     }
   })
 }
@@ -716,37 +755,6 @@ function performanceFromLedger(ledger: SignalLedgerEntry[], includeLedger = fals
     watchSignals: ledger.filter(row => row.tier === 'WATCH').length,
     ...(includeLedger ? { ledger: ledger.slice(0, 50) } : {}),
   }
-}
-
-function statValueForMetric(_player: any, gameLog: any, metric: string): number | null {
-  const stats = gameLog?.stats || {}
-  const key = metric.toLowerCase()
-  const num = (v: unknown) => {
-    const n = Number(v)
-    return Number.isFinite(n) ? n : null
-  }
-  if (key === 'points') return num(stats.points ?? stats.pts)
-  if (key === 'rebounds') return num(stats.rebounds ?? stats.reb)
-  if (key === 'assists') return num(stats.assists ?? stats.ast)
-  if (key === 'threes') return num(stats.threes ?? stats.threePointersMade ?? stats['3pt'])
-  if (key === 'steals') return num(stats.steals ?? stats.stl)
-  if (key === 'blocks') return num(stats.blocks ?? stats.blk)
-  if (key === 'pts+reb+ast') {
-    const pts = num(stats.points ?? stats.pts) || 0
-    const reb = num(stats.rebounds ?? stats.reb) || 0
-    const ast = num(stats.assists ?? stats.ast) || 0
-    return pts + reb + ast
-  }
-  if (key === 'hits') return num(stats.hits ?? stats.hit)
-  if (key === 'home runs') return num(stats.homeRuns ?? stats.hr)
-  if (key === 'total bases') return num(stats.totalBases ?? stats.tb)
-  if (key === 'strikeouts') return num(stats.strikeouts ?? stats.so ?? stats.k)
-  if (key === 'passing yards') return num(stats.passingYards)
-  if (key === 'passing tds') return num(stats.passingTouchdowns ?? stats.passingTDs)
-  if (key === 'rushing yards') return num(stats.rushingYards)
-  if (key === 'receiving yards') return num(stats.receivingYards)
-  if (key === 'receptions') return num(stats.receptions)
-  return null
 }
 
 function lineFromLabel(label: string): number {
@@ -894,7 +902,7 @@ async function settleLedger(sport: Sport, limit: number): Promise<SettlementResp
     const player = players.find((p: any) => String(p.player || '').toLowerCase() === entry.player.toLowerCase())
     const gameLog = (player?.last12 || []).find((g: any) => String(g.eventId || '') === String(entry.gameId))
     if (!gameLog) continue
-    const value = statValueForMetric(player, gameLog, entry.metric)
+    const value = statValueForMetric(gameLog, entry.metric)
     if (value == null) continue
     const hit = value >= lineFromLabel(entry.label)
     entry.status = 'graded'
