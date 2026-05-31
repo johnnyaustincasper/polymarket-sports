@@ -21,6 +21,7 @@ import { appPalette } from './lib/app-palette'
 import { detectCorrelationWarnings, type CorrelationInputItem, type CorrelationWarning } from './lib/parlays/correlation'
 import { getLivePropProgress as getLivePropProgressPure } from './lib/live/prop-progress'
 import { buildPropLadder, buildStatDistribution, getMetricStatValue, type StatDistribution } from './lib/props/distributions'
+import { resolveSignalCardMode } from './lib/signals/card-collapse'
 import { computeSignalDeltas, type SignalDelta, type SignalDeltaSnapshot } from './lib/signals/delta-feed'
 import type { LiquidityGrade } from './lib/signals/liquidity'
 import { buildAlertRulesForWatchItem, buildWatchKey, evaluateAlerts, watchlistReducer, type AlertEvent, type AlertRule, type WatchItem, type WatchSnapshot } from './lib/watchlist/alerts'
@@ -3195,6 +3196,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   const [settling, setSettling] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedSignal, setSelectedSignal] = useState<SignalTerminalSignal | null>(null)
+  const [expandedSignalId, setExpandedSignalId] = useState<string | null>(null)
   const [watchlist, setWatchlist] = useState<WatchItem[]>([])
   const [alertEvents, setAlertEvents] = useState<AlertEvent[]>([])
   const [signalDeltaFeed, setSignalDeltaFeed] = useState<SignalDelta[]>([])
@@ -3212,6 +3214,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
     setError(null)
     setScanning(false)
     setSelectedSignal(null)
+    setExpandedSignalId(null)
     setLatestSignalDeltas([])
   }, [slateKey])
 
@@ -3382,11 +3385,19 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
           <div style={{ marginTop: 13, display: 'grid', gap: isMobile ? 8 : 9 }}>
             {topSignals.length ? (
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9 }}>
-                {topSignals.slice(0, 7).map((signal, signalIdx) => (
-                  <div key={signal.id} style={{ opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 90, 540)}ms` }}>
-                    <SignalTerminalCard signal={signal} />
-                  </div>
-                ))}
+                {topSignals.slice(0, 7).map((signal, signalIdx) => {
+                  const cardMode = resolveSignalCardMode({ signalId: signal.id, expandedSignalId })
+                  return (
+                    <div key={signal.id} style={{ opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 90, 540)}ms` }}>
+                      <SignalTerminalCard
+                        signal={signal}
+                        compact={cardMode.compact}
+                        selected={cardMode.expanded}
+                        onOpen={() => setExpandedSignalId(prev => prev === signal.id ? null : signal.id)}
+                      />
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <div style={{ color: C.textSecondary, fontSize: 11 }}>No clean signals passed the current model gate on this slate.</div>

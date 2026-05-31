@@ -320,15 +320,22 @@ export default function SignalTerminalCard({
           </div>
         )}
 
-        <div style={{ marginTop: 10, display: 'grid', gap: 5 }}>
-          {!compact && <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Why this player</div>}
-          {whyCare.slice(0, compact ? 2 : 3).map((bullet) => (
-            <div key={bullet} style={{ color: C.muted, fontSize: 9, lineHeight: 1.4, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 4 }}>
-              <span style={{ color: C.green }}>›</span>
-              <span>{bullet}</span>
-            </div>
-          ))}
-        </div>
+        {compact ? (
+          <div style={{ marginTop: 9, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', borderRadius: 12, padding: '8px 9px', background: 'rgba(125,246,255,0.055)', border: `1px solid ${C.border}` }}>
+            <div style={{ color: C.muted, fontSize: 9, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}</div>
+            <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Open ›</div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 10, display: 'grid', gap: 5 }}>
+            <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Why this player</div>
+            {whyCare.slice(0, 3).map((bullet) => (
+              <div key={bullet} style={{ color: C.muted, fontSize: 9, lineHeight: 1.4, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 4 }}>
+                <span style={{ color: C.green }}>›</span>
+                <span>{bullet}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {decisionSections.length > 0 && !compact && (
           <div style={{ marginTop: 10, borderRadius: 14, padding: 10, background: 'rgba(255,255,255,0.032)', border: `1px solid ${C.border}` }}>
