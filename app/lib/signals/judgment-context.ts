@@ -302,22 +302,60 @@ function whyPlayerRows(input: {
   volume: SignalJudgmentContext['volume']
   riskNotes: string[]
 }): string[] {
-  const metricLabel = input.metric.toLowerCase()
-  const profile = metricNoun(input.metric)
-  const first = input.line != null
-    ? `${input.player} fits this ${profile} look: ${fmt(input.last5Avg)} ${metricLabel} over the last 5 and ${input.hit5 ?? '—'} of ${input.games5} cleared ${fmt(input.line)}+.`
-    : `${input.player} fits this ${profile} look: ${fmt(input.last5Avg)} ${metricLabel} over the last 5 with a recent range of ${fmt(input.min)}-${fmt(input.max)}.`
-  const second = input.line != null
-    ? `The number is the hook: recent middle is ${fmt(input.median)}, range is ${fmt(input.min)}-${fmt(input.max)}, so ${fmt(input.line)}+ has room unless the prop moves up.`
+  const metricKey = input.metric.toLowerCase()
+  const metricLabel = metricKey
+  const lineText = input.line != null ? `${fmt(input.line)}+` : 'the listed number'
+  const hitText = input.line != null ? `${input.hit5 ?? '—'} of ${input.games5}` : `${fmt(input.last5Avg)} avg last 5`
+  const numberRead = input.line != null
+    ? `The prop is asking for ${lineText} ${metricLabel}; his recent middle is ${fmt(input.median)} with a ${fmt(input.min)}-${fmt(input.max)} range, so this is ${input.median != null && input.median >= input.line ? 'below his normal recent result' : 'asking for an above-normal result'}.`
     : `Recent middle is ${fmt(input.median)} with a ${fmt(input.min)}-${fmt(input.max)} range, so the play depends on getting a clean listed number.`
-  const volumeDetail = input.metric.toLowerCase() === 'points' && input.volume.shotAttemptsLast5Avg != null
-    ? `Role/volume supports it: ${fmt(input.minutes.lastGame)} min last game, ${fmt(input.minutes.last5Avg)} avg last 5, and ${fmtAvg(input.volume.shotAttemptsLast5Avg)} shots per game lately.`
-    : input.metric.toLowerCase() === 'threes' && input.volume.threesAttemptedLast5Avg != null
-      ? `Role/volume supports it: ${fmt(input.minutes.lastGame)} min last game and ${fmtAvg(input.volume.threesAttemptedLast5Avg)} three-point attempts per game lately.`
-      : input.minutes.lastGame != null
-        ? `Role supports it: ${fmt(input.minutes.lastGame)} min last game and ${fmt(input.minutes.last5Avg)} avg last 5${input.minutes.stable ? ', so the workload looks normal.' : '; verify the workload before locking it.'}`
-        : input.riskNotes[0] ? `Main thing to monitor: ${input.riskNotes[0]}` : ''
-  return [first, second, volumeDetail].filter(Boolean).slice(0, 3)
+
+  if (metricKey === 'rebounds') {
+    const floorText = input.min >= (input.line ?? Number.POSITIVE_INFINITY)
+      ? `even his low game in this sample was ${fmt(input.min)}`
+      : `his low game is ${fmt(input.min)}, so role/minutes still matter`
+    return [
+      `${input.player}'s case is rebounding-specific, not scoring-dependent: ${fmt(input.lastGame.value)} boards last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${lineText}.`,
+      `${numberRead} For a boards prop, that matters because one cold shooting night does not kill it the same way it can kill points.`,
+      `Workload/floor check: ${fmt(input.minutes.lastGame)} min last game, ${fmt(input.minutes.last5Avg)} avg last 5, and ${floorText}.`,
+    ].filter(Boolean).slice(0, 3)
+  }
+
+  if (metricKey === 'assists') {
+    return [
+      `${input.player}'s case is creation-driven: ${fmt(input.lastGame.value)} assists last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${lineText}.`,
+      `${numberRead} This is about normal on-ball reps and teammates finishing shots, not him needing a scoring spike.`,
+      `Role check for assists: ${fmt(input.minutes.lastGame)} min last game and ${fmt(input.minutes.last5Avg)} avg last 5${input.minutes.stable ? ', enough workload for passing volume to show up.' : '; verify the ball-handling role before locking it.'}`,
+    ].filter(Boolean).slice(0, 3)
+  }
+
+  if (metricKey === 'points') {
+    const shotText = input.volume.shotAttemptsLast5Avg != null
+      ? `${fmtAvg(input.volume.shotAttemptsLast5Avg)} shots, ${fmtAvg(input.volume.threesAttemptedLast5Avg)} threes, ${fmtAvg(input.volume.freeThrowsAttemptedLast5Avg)} free throws per game lately`
+      : `${fmt(input.minutes.lastGame)} min last game and ${fmt(input.minutes.last5Avg)} avg last 5`
+    return [
+      `${input.player}'s case is scoring-volume driven: ${fmt(input.lastGame.value)} points last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${lineText}.`,
+      `${numberRead} The read is strongest when his attempts stay normal, not just because the hit rate looks clean.`,
+      `Volume check: ${shotText}.`,
+    ].filter(Boolean).slice(0, 3)
+  }
+
+  if (metricKey === 'threes') {
+    return [
+      `${input.player}'s case is perimeter-volume driven: ${fmt(input.lastGame.value)} threes last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${lineText}.`,
+      `${numberRead} This needs shot attempts from deep, so check role and matchup before chasing a higher number.`,
+      `Three-point volume: ${fmtAvg(input.volume.threesAttemptedLast5Avg)} 3PA per game lately with ${fmt(input.minutes.lastGame)} min last game.`,
+    ].filter(Boolean).slice(0, 3)
+  }
+
+  const profile = metricNoun(input.metric)
+  return [
+    input.line != null
+      ? `${input.player} fits this ${profile} look: ${fmt(input.last5Avg)} ${metricLabel} over the last 5 and ${hitText} cleared ${lineText}.`
+      : `${input.player} fits this ${profile} look: ${fmt(input.last5Avg)} ${metricLabel} over the last 5 with a recent range of ${fmt(input.min)}-${fmt(input.max)}.`,
+    numberRead,
+    input.riskNotes[0] ? `Main thing to monitor: ${input.riskNotes[0]}` : '',
+  ].filter(Boolean).slice(0, 3)
 }
 
 function propNumberRows(input: { metric: string; line?: number; median?: number; min: number; max: number; hit5?: number; games5: number; hit12?: number; games12: number }): string[] {

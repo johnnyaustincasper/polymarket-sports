@@ -46,8 +46,9 @@ describe('signal judgment context', () => {
     expect(context?.minutes.last5Avg).toBe(36.2)
     expect(context?.roleCheck?.status).toBe('stable')
     expect(context?.consistency?.grade).toBe('solid')
-    expect(context?.whyPlayerBullets.join(' ')).toContain('Anthony Edwards fits this scoring look')
+    expect(context?.whyPlayerBullets.join(' ')).toContain("Anthony Edwards's case is scoring-volume driven")
     expect(context?.whyPlayerBullets.join(' ')).toContain('24.5+')
+    expect(context?.whyPlayerBullets.join(' ')).toContain('Volume check: 20.8 shots')
     expect(context?.whyPlayerBullets.join(' ')).not.toMatch(/Minutes are the main thing|Simple read/)
   })
 
@@ -101,11 +102,38 @@ describe('signal judgment context', () => {
     })
 
     const why = context?.whyPlayerBullets.join(' ') || ''
-    expect(why).toContain("De'Aaron Fox fits this passing/creation look")
-    expect(why).toContain('assists over the last 5')
+    expect(why).toContain("De'Aaron Fox's case is creation-driven")
+    expect(why).toContain('5.0 over the last 5')
     expect(why).toContain('4+')
-    expect(why).toContain('recent middle')
+    expect(why).toContain('normal on-ball reps')
     expect(why).not.toMatch(/Minutes are the main thing|Simple read|Last game:/)
+  })
+
+  it('builds player-specific why bullets for rebound props instead of template filler', () => {
+    const hartLast12 = [
+      { eventId: 'h1', stats: { minutes: 24, points: 6, rebounds: 11, assists: 3, fieldGoalsMade: 2, fieldGoalsAttempted: 5, threePointersMade: 1, threePointersAttempted: 3, freeThrowsMade: 1, freeThrowsAttempted: 2 } },
+      { eventId: 'h2', stats: { minutes: 35, points: 12, rebounds: 9, assists: 5 } },
+      { eventId: 'h3', stats: { minutes: 31, points: 8, rebounds: 7, assists: 4 } },
+      { eventId: 'h4', stats: { minutes: 30, points: 10, rebounds: 9, assists: 2 } },
+      { eventId: 'h5', stats: { minutes: 32, points: 7, rebounds: 4, assists: 6 } },
+      { eventId: 'h6', stats: { minutes: 33, points: 11, rebounds: 8, assists: 3 } },
+    ]
+
+    const context = buildJudgmentContext({
+      player: 'Josh Hart',
+      metric: 'rebounds',
+      line: 4,
+      label: '4+ rebounds',
+      last12: hartLast12,
+      risk: 'medium',
+    })
+
+    const why = context?.whyPlayerBullets.join(' ') || ''
+    expect(why).toContain("Josh Hart's case is rebounding-specific, not scoring-dependent")
+    expect(why).toContain('11 boards last game')
+    expect(why).toContain('one cold shooting night does not kill it')
+    expect(why).toContain('Workload/floor check')
+    expect(why).not.toMatch(/Stable \d+-\d+ minute role lately|Simple read|Minutes are the main thing|fits this rebounding look/)
   })
 
   it('supports MLB combo props without calling them points', () => {
