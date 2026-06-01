@@ -227,9 +227,21 @@ function notesFromTeamIntel(teamIntel: any): string[] {
   return notes.map(note => String(note || '').trim()).filter(Boolean).slice(0, 3)
 }
 
-function playable(line?: number): string {
-  if (line == null) return 'Playable only if the number stays close to the listed prop. Pass if it moves against you.'
-  return `Playable at ${fmt(line)}. Pass if the line moves past ${fmt(line + 1)}.`
+function propText(line?: number, metric?: string): string {
+  return line == null ? 'this prop' : `${fmt(line)}+${metric ? ` ${metric.toLowerCase()}` : ''}`
+}
+
+function nextPropText(line?: number, metric?: string): string {
+  return line == null ? 'a higher number' : `${fmt(line + 1)}+${metric ? ` ${metric.toLowerCase()}` : ''}`
+}
+
+function skipPropText(line?: number, metric?: string): string {
+  return line == null ? 'a much higher number' : `${fmt(line + 2)}+${metric ? ` ${metric.toLowerCase()}` : ''}`
+}
+
+function playable(line?: number, metric?: string): string {
+  if (line == null) return 'Only play this if the app shows a clear, reasonable prop number. If the number is missing or confusing, skip it.'
+  return `Green light is ${propText(line, metric)}. If it jumps to ${nextPropText(line, metric)}, be picky. If it reaches ${skipPropText(line, metric)}, skip it.`
 }
 
 function metricSport(metric: string): 'nba' | 'mlb' | 'nfl' | 'generic' {
@@ -243,9 +255,9 @@ function metricSport(metric: string): 'nba' | 'mlb' | 'nfl' | 'generic' {
 function consistencyGrade(hit5?: number, games5?: number, hit12?: number, games12?: number): SignalJudgmentContext['consistency'] {
   const rate5 = games5 ? hit5 ?? 0 : 0
   const rate12 = games12 ? hit12 ?? 0 : 0
-  if (games5 && rate5 >= Math.ceil(games5 * 0.8)) return { grade: 'strong', label: `Strong: cleared in ${rate5} of last ${games5}.` }
-  if (games5 && rate5 >= Math.ceil(games5 * 0.6)) return { grade: 'solid', label: `Solid: cleared in ${rate5} of last ${games5}.` }
-  if (games12 && rate12 <= Math.floor(games12 * 0.35)) return { grade: 'thin', label: `Thin: only ${rate12} of last ${games12} cleared.` }
+  if (games5 && rate5 >= Math.ceil(games5 * 0.8)) return { grade: 'strong', label: `Strong: hit in ${rate5} of last ${games5}.` }
+  if (games5 && rate5 >= Math.ceil(games5 * 0.6)) return { grade: 'solid', label: `Solid: hit in ${rate5} of last ${games5}.` }
+  if (games12 && rate12 <= Math.floor(games12 * 0.35)) return { grade: 'thin', label: `Thin: only hit in ${rate12} of last ${games12}.` }
   return { grade: 'volatile', label: `Volatile: recent hit rate is mixed.` }
 }
 
@@ -302,20 +314,22 @@ function whyPlayerRows(input: {
   volume: SignalJudgmentContext['volume']
   riskNotes: string[]
 }): string[] {
-  const metricKey = input.metric.toLowerCase()
-  const metricLabel = metricKey
-  const lineText = input.line != null ? `${fmt(input.line)}+` : 'the listed number'
+  const metricLabel = input.metric.toLowerCase()
+  const metricKey = metricLabel
+  const currentProp = propText(input.line, metricLabel)
+  const nextProp = nextPropText(input.line, metricLabel)
+  const skipProp = skipPropText(input.line, metricLabel)
   const hitText = input.line != null ? `${input.hit5 ?? '—'} of ${input.games5}` : `${fmt(input.last5Avg)} avg last 5`
   const numberRead = input.line != null
-    ? `The prop is asking for ${lineText} ${metricLabel}; his recent middle is ${fmt(input.median)} with a ${fmt(input.min)}-${fmt(input.max)} range, so this is ${input.median != null && input.median >= input.line ? 'below his normal recent result' : 'asking for an above-normal result'}.`
-    : `Recent middle is ${fmt(input.median)} with a ${fmt(input.min)}-${fmt(input.max)} range, so the play depends on getting a clean listed number.`
+    ? `Today's ask is ${currentProp}; his normal recent game is around ${fmt(input.median)}, with recent results from ${fmt(input.min)} to ${fmt(input.max)}. That means ${input.median != null && input.median >= input.line ? `${currentProp} is reasonable, ${nextProp} is where you get pickier, and ${skipProp} is probably too rich.` : `he needs one of his better games, so do not chase a higher number.`}`
+    : `His normal recent game is around ${fmt(input.median)}, with recent results from ${fmt(input.min)} to ${fmt(input.max)}. Only play it if the app shows a clear number.`
 
   if (metricKey === 'rebounds') {
     const floorText = input.min >= (input.line ?? Number.POSITIVE_INFINITY)
       ? `even his low game in this sample was ${fmt(input.min)}`
       : `his low game is ${fmt(input.min)}, so role/minutes still matter`
     return [
-      `${input.player}'s case is rebounding-specific, not scoring-dependent: ${fmt(input.lastGame.value)} boards last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${lineText}.`,
+      `${input.player}'s case is rebounding-specific, not scoring-dependent: ${fmt(input.lastGame.value)} boards last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} hit ${currentProp}.`,
       `${numberRead} For a boards prop, that matters because one cold shooting night does not kill it the same way it can kill points.`,
       `Workload/floor check: ${fmt(input.minutes.lastGame)} min last game, ${fmt(input.minutes.last5Avg)} avg last 5, and ${floorText}.`,
     ].filter(Boolean).slice(0, 3)
@@ -323,7 +337,7 @@ function whyPlayerRows(input: {
 
   if (metricKey === 'assists') {
     return [
-      `${input.player}'s case is creation-driven: ${fmt(input.lastGame.value)} assists last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${lineText}.`,
+      `${input.player}'s case is creation-driven: ${fmt(input.lastGame.value)} assists last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} hit ${currentProp}.`,
       `${numberRead} This is about normal on-ball reps and teammates finishing shots, not him needing a scoring spike.`,
       `Role check for assists: ${fmt(input.minutes.lastGame)} min last game and ${fmt(input.minutes.last5Avg)} avg last 5${input.minutes.stable ? ', enough workload for passing volume to show up.' : '; verify the ball-handling role before locking it.'}`,
     ].filter(Boolean).slice(0, 3)
@@ -334,7 +348,7 @@ function whyPlayerRows(input: {
       ? `${fmtAvg(input.volume.shotAttemptsLast5Avg)} shots, ${fmtAvg(input.volume.threesAttemptedLast5Avg)} threes, ${fmtAvg(input.volume.freeThrowsAttemptedLast5Avg)} free throws per game lately`
       : `${fmt(input.minutes.lastGame)} min last game and ${fmt(input.minutes.last5Avg)} avg last 5`
     return [
-      `${input.player}'s case is scoring-volume driven: ${fmt(input.lastGame.value)} points last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${lineText}.`,
+      `${input.player}'s case is scoring-volume driven: ${fmt(input.lastGame.value)} points last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} hit ${currentProp}.`,
       `${numberRead} The read is strongest when his attempts stay normal, not just because the hit rate looks clean.`,
       `Volume check: ${shotText}.`,
     ].filter(Boolean).slice(0, 3)
@@ -342,7 +356,7 @@ function whyPlayerRows(input: {
 
   if (metricKey === 'threes') {
     return [
-      `${input.player}'s case is perimeter-volume driven: ${fmt(input.lastGame.value)} threes last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${lineText}.`,
+      `${input.player}'s case is perimeter-volume driven: ${fmt(input.lastGame.value)} threes last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} hit ${currentProp}.`,
       `${numberRead} This needs shot attempts from deep, so check role and matchup before chasing a higher number.`,
       `Three-point volume: ${fmtAvg(input.volume.threesAttemptedLast5Avg)} 3PA per game lately with ${fmt(input.minutes.lastGame)} min last game.`,
     ].filter(Boolean).slice(0, 3)
@@ -351,7 +365,7 @@ function whyPlayerRows(input: {
   const profile = metricNoun(input.metric)
   return [
     input.line != null
-      ? `${input.player} fits this ${profile} look: ${fmt(input.last5Avg)} ${metricLabel} over the last 5 and ${hitText} cleared ${lineText}.`
+      ? `${input.player} fits this ${profile} look: ${fmt(input.last5Avg)} ${metricLabel} over the last 5 and ${hitText} hit ${currentProp}.`
       : `${input.player} fits this ${profile} look: ${fmt(input.last5Avg)} ${metricLabel} over the last 5 with a recent range of ${fmt(input.min)}-${fmt(input.max)}.`,
     numberRead,
     input.riskNotes[0] ? `Main thing to monitor: ${input.riskNotes[0]}` : '',
@@ -360,17 +374,20 @@ function whyPlayerRows(input: {
 
 function propNumberRows(input: { metric: string; line?: number; median?: number; min: number; max: number; hit5?: number; games5: number; hit12?: number; games12: number }): string[] {
   const metricLabel = input.metric.toLowerCase()
+  const currentProp = propText(input.line, metricLabel)
+  const nextProp = nextPropText(input.line, metricLabel)
+  const skipProp = skipPropText(input.line, metricLabel)
   const listed = input.line == null
-    ? `Listed prop: no clear number was found for ${metricLabel}.`
-    : `Listed prop: ${fmt(input.line)}+ ${metricLabel}. Recent middle result: ${fmt(input.median)}; recent range: ${fmt(input.min)}-${fmt(input.max)}.`
+    ? `Today's prop: no clear number was found for ${metricLabel}.`
+    : `Today's prop: ${currentProp}. His normal recent game is around ${fmt(input.median)}; recent results went from ${fmt(input.min)} to ${fmt(input.max)}.`
   const history = input.line == null
     ? ''
-    : `History vs this number: cleared it in ${input.hit5 ?? '—'} of the last ${input.games5} and ${input.hit12 ?? '—'} of the last ${input.games12}.`
+    : `Recent hit rate: he hit ${currentProp} in ${input.hit5 ?? '—'} of the last ${input.games5} games and ${input.hit12 ?? '—'} of the last ${input.games12}.`
   const read = input.line == null
-    ? 'Read: skip if the market number is unclear.'
+    ? 'Plain read: skip if the prop number is unclear.'
     : input.median != null && input.median >= input.line
-      ? `Read: this number is below his recent middle game, so ${fmt(input.line)}+ is the easier threshold. Be pickier if it rises above ${fmt(input.line + 1)}.`
-      : `Read: this number is above his recent middle game, so it needs an above-normal result. Do not chase if it moves higher.`
+      ? `Plain read: ${currentProp} is the comfortable number. If it becomes ${nextProp}, be picky. If it becomes ${skipProp}, skip it.`
+      : `Plain read: ${currentProp} already needs a better-than-normal game, so do not chase a higher number.`
   return [listed, history, read].filter(Boolean)
 }
 
@@ -442,7 +459,7 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
   const recentRows = games.slice(0, 5).map(game => `${game.date || game.opponent || 'Recent'}: ${fmt(game.value)} ${input.metric}, ${fmt(game.fgAttempted)} FGA, ${fmt(game.minutes)} min`)
   const summaryBullets = [
     lastGameBullet(lastGame, input.metric),
-    last5Avg != null ? `Trend: ${fmt(last5Avg)} ${input.metric} over the last 5; cleared ${fmt(line)} in ${trend.last5HitRate ?? '—'} of ${last5.length}.` : '',
+    last5Avg != null ? `Trend: ${fmt(last5Avg)} ${input.metric} over the last 5; hit ${propText(line, input.metric)} in ${trend.last5HitRate ?? '—'} of ${last5.length}.` : '',
     volume.shotAttemptsLast5Avg != null ? `Volume: ${fmtAvg(volume.shotAttemptsLast5Avg)} shots, ${fmtAvg(volume.threesAttemptedLast5Avg)} threes, and ${fmtAvg(volume.freeThrowsAttemptedLast5Avg)} free throws per game over the last 5.` : '',
     minutes.lastGame != null ? `Minutes: ${fmt(minutes.lastGame)} last game / ${fmt(minutes.last5Avg)} last 5${minutes.stable ? '; role looks stable.' : '; verify role before tipoff.'}` : '',
   ].filter(Boolean)
@@ -469,10 +486,10 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     range: { min, max },
     hitRateLabel: `${trend.last5HitRate ?? '—'} of ${last5.length} last 5 · ${trend.last12HitRate ?? '—'} of ${games.length} last 12`,
     verdict: line == null
-      ? 'No listed prop number available.'
+      ? 'No clear prop number available.'
       : medianValue != null && medianValue >= line
-        ? `The listed number is below his recent middle game, so ${fmt(line)}+ is the easier threshold.`
-        : `The listed number is above his recent middle game; it needs a better-than-normal result.`,
+        ? `${propText(line, input.metric)} is below his normal recent game, so that number is playable. Be careful one step higher; skip two steps higher.`
+        : `${propText(line, input.metric)} needs a better-than-normal result. Do not chase if the app asks for more.`,
   }
   const roleCheck = roleStatus(minutes)
   const consistency = consistencyGrade(trend.last5HitRate, trend.last5Games, trend.last12HitRate, trend.last12Games)
@@ -481,7 +498,7 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
   const decisionSections: SignalDecisionSection[] = [
     { title: 'ROLE CHECK', rows: [roleCheck.label, ...roleCheck.details].filter(Boolean).slice(0, 3) },
     { title: 'PROP NUMBER', rows: propNumberRows({ metric: input.metric, line, median: medianValue, min, max, hit5: trend.last5HitRate, games5: last5.length, hit12: trend.last12HitRate, games12: games.length }).slice(0, 3) },
-    { title: 'RISK CHECK', rows: [...riskNotes, playable(line), consistency.label].filter(Boolean).slice(0, 3) },
+    { title: 'RISK CHECK', rows: [...riskNotes, playable(line, input.metric), consistency.label].filter(Boolean).slice(0, 3) },
   ]
 
   return {
@@ -498,7 +515,7 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     matchupNotes,
     injuryNotes,
     riskNotes,
-    playableNumber: playable(line),
+    playableNumber: playable(line, input.metric),
     summaryBullets,
     whyPlayerBullets,
     recentRows,
