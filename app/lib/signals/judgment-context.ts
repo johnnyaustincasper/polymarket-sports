@@ -321,7 +321,7 @@ function whyPlayerRows(input: {
   const skipProp = skipPropText(input.line, metricLabel)
   const hitText = input.line != null ? `${input.hit5 ?? '—'} of ${input.games5}` : `${fmt(input.last5Avg)} avg last 5`
   const numberRead = input.line != null
-    ? `Today's ask is ${currentProp}; his normal recent game is around ${fmt(input.median)}, with recent results from ${fmt(input.min)} to ${fmt(input.max)}. That means ${input.median != null && input.median >= input.line ? `${currentProp} is reasonable, ${nextProp} is where you get pickier, and ${skipProp} is probably too rich.` : `he needs one of his better games, so do not chase a higher number.`}`
+    ? `Today's prop is ${currentProp}; his normal recent game is around ${fmt(input.median)}, with recent results from ${fmt(input.min)} to ${fmt(input.max)}. That means ${input.median != null && input.median >= input.line ? `${currentProp} is reasonable, ${nextProp} is where you get pickier, and ${skipProp} is probably too rich.` : `he needs one of his better games, so do not chase a higher number.`}`
     : `His normal recent game is around ${fmt(input.median)}, with recent results from ${fmt(input.min)} to ${fmt(input.max)}. Only play it if the app shows a clear number.`
 
   if (metricKey === 'rebounds') {
