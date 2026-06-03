@@ -2312,7 +2312,7 @@ function NativeShareButton({ title, text, label }: { title: string; text: string
     }
     setState('working')
     try {
-      await shareOrDownloadCardImage({ element, title, text, url: window.location.href })
+      await shareOrDownloadCardImage({ element, title })
       setState('done')
       window.setTimeout(() => setState('idle'), 1300)
     } catch (error) {

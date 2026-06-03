@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCardImageFileName, cardExportStatusLabel, canShareFiles } from './card-image-export'
+import { buildCardImageFileName, buildImageOnlyShareData, cardExportStatusLabel, canShareFiles } from './card-image-export'
 
 describe('card image export helpers', () => {
   it('builds a safe Athlete Intelligence jpeg filename from a card title', () => {
@@ -20,6 +20,15 @@ describe('card image export helpers', () => {
     expect(canShareFiles({ canShare: () => true }, [fakeFile])).toBe(true)
     expect(canShareFiles({ canShare: () => false }, [fakeFile])).toBe(false)
     expect(canShareFiles({}, [fakeFile])).toBe(false)
+  })
+
+  it('builds native share payload with only the jpeg file and no text or url', () => {
+    const fakeFile = { name: 'card.jpg', type: 'image/jpeg' } as File
+
+    expect(buildImageOnlyShareData('Josh Hart · Athlete Intelligence', fakeFile)).toEqual({
+      title: 'Josh Hart · Athlete Intelligence',
+      files: [fakeFile],
+    })
   })
 
   it('uses image-specific export status copy', () => {

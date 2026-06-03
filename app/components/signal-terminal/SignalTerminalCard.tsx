@@ -307,8 +307,6 @@ export default function SignalTerminalCard({
       await shareOrDownloadCardImage({
         element,
         title: `${titleFor(signal)} · Athlete Intelligence`,
-        text: shareTextForSignal(signal),
-        url: window.location.href,
       })
       setShareState('done')
       window.setTimeout(() => setShareState('idle'), 1400)

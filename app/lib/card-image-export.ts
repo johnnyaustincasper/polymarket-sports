@@ -129,10 +129,14 @@ export function downloadFile(file: File) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export async function shareOrDownloadCardImage(options: { element: HTMLElement; title: string; text?: string; url?: string }) {
+export function buildImageOnlyShareData(title: string, file: File): ShareData {
+  return { title, files: [file] }
+}
+
+export async function shareOrDownloadCardImage(options: { element: HTMLElement; title: string }) {
   const file = await renderCardElementToJpegFile(options.element, buildCardImageFileName(options.title))
   if (navigator.share && canShareFiles(navigator, [file])) {
-    await navigator.share({ title: options.title, text: options.text, url: options.url, files: [file] })
+    await navigator.share(buildImageOnlyShareData(options.title, file))
     return 'shared'
   }
   downloadFile(file)
