@@ -1,6 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import SubscriptionActions from '../components/SubscriptionActions'
+import AccessCodeRedeemer from '../components/AccessCodeRedeemer'
 
 const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY)
 
@@ -14,7 +15,7 @@ export default async function SubscribePage() {
 
   const user = await currentUser()
   const metadata = (user?.publicMetadata || sessionClaims?.publicMetadata || {}) as { subscriptionStatus?: string; stripeCustomerId?: string }
-  const active = metadata.subscriptionStatus === 'active' || metadata.subscriptionStatus === 'trialing'
+  const active = metadata.subscriptionStatus === 'active' || metadata.subscriptionStatus === 'trialing' || metadata.subscriptionStatus === 'paid'
 
   if (active) redirect('/')
 
@@ -51,6 +52,7 @@ function SubscribeShell({ title, subtitle, email }: { title: string; subtitle: s
           </ul>
         </div>
         {email && <p style={{ color: 'rgba(226,255,204,0.52)', fontSize: 12, marginTop: 0 }}>Signed in as {email}</p>}
+        <AccessCodeRedeemer />
         {configured ? <SubscriptionActions /> : <p style={{ color: '#f2ff7a', fontWeight: 800, fontSize: 13 }}>Stripe is not configured yet. Add STRIPE_SECRET_KEY and STRIPE_PRICE_ID in Vercel.</p>}
       </section>
     </main>

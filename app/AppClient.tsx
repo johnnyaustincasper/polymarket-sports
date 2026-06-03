@@ -3363,8 +3363,27 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   return (
     <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.46), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.36)' }}>
       <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 12 : 15, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => runSignals(false)} disabled={scanning} style={{ width: '100%', borderRadius: 999, padding: isMobile ? '12px 14px' : '10px 16px', border: '1px solid ' + C.borderHot, background: scanning ? 'rgba(255,255,255,0.05)' : 'rgba(125,246,255,0.14)', color: scanning ? C.textSecondary : C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', cursor: scanning ? 'default' : 'pointer' }}>
-          {scanning ? 'Building board' : data ? 'Refresh Board' : 'Load Today’s Signals'}
+        <button
+          onClick={() => runSignals(false)}
+          disabled={scanning}
+          aria-busy={scanning}
+          style={{
+            width: '100%',
+            borderRadius: 999,
+            padding: isMobile ? '12px 14px' : '10px 16px',
+            border: '1px solid ' + C.borderHot,
+            background: scanning ? 'rgba(125,246,255,0.12)' : 'rgba(125,246,255,0.14)',
+            color: scanning ? C.green : C.green,
+            fontSize: 10,
+            fontWeight: 950,
+            letterSpacing: '0.10em',
+            textTransform: 'uppercase',
+            cursor: scanning ? 'default' : 'pointer',
+            boxShadow: scanning ? '0 0 18px rgba(125,246,255,0.18), inset 0 0 18px rgba(125,246,255,0.06)' : undefined,
+            animation: scanning ? 'liveBorderPulse 1.45s ease-in-out infinite' : undefined,
+          }}
+        >
+          {scanning ? 'Loading Signals…' : data ? 'Refresh Board' : 'Load Today’s Signals'}
         </button>
 
         {data?.generatedAt && <div style={{ marginTop: 8, color: C.textSecondary, fontSize: 9, textAlign: 'center', fontWeight: 800 }}>Updated {new Date(data.generatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · form check: last game + trend · injury/news checked</div>}
@@ -3372,11 +3391,18 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
         {error && <div style={{ marginTop: 10, color: C.gold, fontSize: 11 }}>Signals unavailable: {error}</div>}
 
         {scanning && (
-          <div style={{ marginTop: 13, display: 'grid', gap: 8 }}>
+          <div role="status" aria-live="polite" style={{ marginTop: 13, display: 'grid', gap: 9 }}>
+            <div style={{ borderRadius: 16, padding: isMobile ? 12 : 13, background: 'linear-gradient(135deg, rgba(125,246,255,0.16), rgba(125,246,255,0.055))', border: '1px solid rgba(125,246,255,0.44)', boxShadow: '0 0 22px rgba(125,246,255,0.16), inset 0 1px 0 rgba(255,255,255,0.08)', display: 'flex', gap: 10, alignItems: 'center' }}>
+              <span aria-hidden="true" style={{ width: 22, height: 22, borderRadius: 999, border: '2px solid rgba(125,246,255,0.24)', borderTopColor: C.green, borderRightColor: 'rgba(125,246,255,0.84)', boxShadow: '0 0 14px rgba(125,246,255,0.24)', animation: 'aiAnalyzeOrbit 850ms linear infinite', flexShrink: 0 }} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: C.textPrimary, fontSize: isMobile ? 13 : 14, fontWeight: 950, letterSpacing: '-0.02em' }}>Loading Signals</div>
+                <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.35, marginTop: 2 }}>Scanning today’s slate, matching props, checking injuries, then ranking edges…</div>
+              </div>
+            </div>
             {[0, 1, 2].map(i => (
-              <div key={i} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, opacity: 0, animation: 'dominoFadeIn 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${i * 140}ms` }}>
-                <div style={{ height: 11, width: i === 0 ? '58%' : i === 1 ? '46%' : '66%', borderRadius: 999, background: 'rgba(247,255,240,0.12)', marginBottom: 8 }} />
-                <div style={{ height: 9, width: i === 0 ? '82%' : i === 1 ? '74%' : '64%', borderRadius: 999, background: 'rgba(125,246,255,0.12)' }} />
+              <div key={i} style={{ borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}`, opacity: 0, animation: 'dominoFadeIn 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards, scanCardGlow 1.55s ease-in-out infinite', animationDelay: `${i * 140}ms, ${i * 160}ms` }}>
+                <div style={{ height: 11, width: i === 0 ? '58%' : i === 1 ? '46%' : '66%', borderRadius: 999, background: 'rgba(247,255,240,0.16)', marginBottom: 8 }} />
+                <div style={{ height: 9, width: i === 0 ? '82%' : i === 1 ? '74%' : '64%', borderRadius: 999, background: 'rgba(125,246,255,0.18)' }} />
               </div>
             ))}
           </div>
