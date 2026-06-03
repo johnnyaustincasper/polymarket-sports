@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import AccountMenu from './components/AccountMenu'
 import LoadingMarketCards from './components/LoadingMarketCards'
@@ -2283,6 +2283,68 @@ function buildParlaySuggestions(safeParlayPool: ParlayItem[]) {
     .slice(0, 5)
 }
 
+async function openNativeCardShare(data: { title: string; text: string; url?: string }) {
+  if (navigator.share) {
+    await navigator.share(data)
+    return 'shared'
+  }
+  await navigator.clipboard?.writeText([data.title, data.text, data.url].filter(Boolean).join('\n'))
+  return 'copied'
+}
+
+function ShareGlyph({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M10 2.75v9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M6.55 6.2 10 2.75l3.45 3.45" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5.2 8.35H4.15A1.65 1.65 0 0 0 2.5 10v5.35A1.65 1.65 0 0 0 4.15 17h11.7a1.65 1.65 0 0 0 1.65-1.65V10a1.65 1.65 0 0 0-1.65-1.65H14.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function NativeShareButton({ title, text, label }: { title: string; text: string; label: string }) {
+  const [state, setState] = useState<'idle' | 'working' | 'done' | 'error'>('idle')
+  const share = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (state === 'working') return
+    setState('working')
+    try {
+      await openNativeCardShare({ title, text, url: window.location.href })
+      setState('done')
+      window.setTimeout(() => setState('idle'), 1300)
+    } catch (error) {
+      if ((error as Error)?.name === 'AbortError') {
+        setState('idle')
+        return
+      }
+      console.error('Card share failed', error)
+      setState('error')
+      window.setTimeout(() => setState('idle'), 1700)
+    }
+  }
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={state === 'done' ? 'Shared' : state === 'error' ? 'Could not share' : 'Share'}
+      onClick={share}
+      disabled={state === 'working'}
+      style={{ position: 'absolute', top: 9, right: 9, zIndex: 4, width: 31, height: 31, borderRadius: 11, border: '1px solid rgba(125,246,255,0.40)', background: 'rgba(2,5,1,0.72)', color: state === 'error' ? C.red : C.green, boxShadow: '0 0 18px rgba(125,246,255,0.14)', cursor: state === 'working' ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+    >
+      {state === 'working' ? <span style={{ fontSize: 13, fontWeight: 950 }}>…</span> : state === 'done' ? <span style={{ fontSize: 14, fontWeight: 950 }}>✓</span> : <ShareGlyph />}
+    </button>
+  )
+}
+
+function propShareText(game: Game, player: any, bet?: any) {
+  const matchup = `${game.awayTeam.abbr} @ ${game.homeTeam.abbr}`
+  const line = bet ? (bet.label || `${bet.line}+ ${formatPropMetricShort(bet.metric || 'prop')}`) : 'Player prop card'
+  const hit = bet?.hits && bet?.games ? `\nHit: ${bet.hits}/${bet.games}` : ''
+  const ticker = bet?.kalshi?.legTicker || bet?.kalshi?.ticker
+  return `${player.player} — ${line}\n${matchup}${game.gameTime ? ` · ${game.gameTime}` : ''}${hit}${ticker ? `\nKalshi ticker: ${ticker}` : ''}\nAthlete Intelligence: ${window.location.origin}`
+}
+
 function ExactKalshiBetButton({ player, bet, compact = false }: { player: string; bet: KalshiBetLike; compact?: boolean }) {
   const [open, setOpen] = useState(false)
   const kalshi = bet.kalshi
@@ -2958,7 +3020,12 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               const lastGameMinutes = formatLastGameMinutes(p)
               const playerSignalTags = Array.from(new Set(bets.flatMap((bet: any) => bet.signalTags || [])))
               return (
-                <div key={`${game.id}-${p.team}-${p.player}-${activeGroup.metric}`} style={{ borderRadius: 14, padding: 11, background: 'rgba(125,246,255,0.045)', border: '1px solid rgba(255,255,255,0.10)', opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(playerIdx * 150, 1350)}ms` }}>
+                <div key={`${game.id}-${p.team}-${p.player}-${activeGroup.metric}`} style={{ position: 'relative', borderRadius: 14, padding: 11, paddingRight: 48, background: 'rgba(125,246,255,0.045)', border: '1px solid rgba(255,255,255,0.10)', opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(playerIdx * 150, 1350)}ms` }}>
+                  <NativeShareButton
+                    title={`${p.player} · Athlete Intelligence`}
+                    text={propShareText(game, p, expandedBet || bets[0])}
+                    label={`Share ${p.player} card`}
+                  />
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
                     <div>
                       <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950 }}>{p.player}</div>

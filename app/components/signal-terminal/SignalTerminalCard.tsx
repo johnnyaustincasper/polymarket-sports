@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { signalCardTapContract } from '../../lib/signals/card-collapse'
 import { selectWhyThisPlayerBullets } from '../../lib/signals/why-player'
 import { classifySignalDecision } from '../../lib/signals/insight'
@@ -144,79 +144,34 @@ function onCardKeyDown(event: KeyboardEvent<HTMLDivElement>, signal: SignalTermi
   }
 }
 
-function safeShareFileName(signal: SignalTerminalSignal) {
-  return `${titleFor(signal)} ${signal.label || signal.metric || 'signal'}`
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 72) || 'athlete-intelligence-signal'
+
+function shareTextForSignal(signal: SignalTerminalSignal) {
+  const line = signal.label || signal.metric || 'Signal'
+  const matchup = signal.matchup ? ` · ${signal.matchup}` : ''
+  const gameTime = signal.gameTime ? ` · ${signal.gameTime}` : ''
+  const hitRate = signal.hits && signal.games ? `
+Hit: ${signal.hits}/${signal.games}` : ''
+  return `${titleFor(signal)} — ${line}${matchup}${gameTime}${hitRate}
+Athlete Intelligence: ${window.location.origin}`
 }
 
-async function exportElementAsPng(element: HTMLElement, signal: SignalTerminalSignal) {
-  const bounds = element.getBoundingClientRect()
-  const width = Math.ceil(bounds.width)
-  const height = Math.ceil(bounds.height)
-  if (!width || !height) throw new Error('Card is not ready to export yet.')
-
-  const clone = element.cloneNode(true) as HTMLElement
-  clone.querySelectorAll('[data-export-exclude="true"]').forEach(node => node.remove())
-  clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml')
-  clone.style.width = `${width}px`
-  clone.style.minWidth = `${width}px`
-  clone.style.maxWidth = `${width}px`
-  clone.style.height = `${height}px`
-  clone.style.margin = '0'
-  clone.style.cursor = 'default'
-  clone.style.fontFamily = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-
-  const serialized = new XMLSerializer().serializeToString(clone)
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><foreignObject width="100%" height="100%">${serialized}</foreignObject></svg>`
-  const svgUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }))
-
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => resolve(img)
-      img.onerror = () => reject(new Error('Could not render this card image.'))
-      img.src = svgUrl
-    })
-    const scale = Math.min(3, Math.max(2, window.devicePixelRatio || 2))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.ceil(width * scale)
-    canvas.height = Math.ceil(height * scale)
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('Could not prepare card image.')
-    ctx.scale(scale, scale)
-    ctx.fillStyle = '#020501'
-    ctx.fillRect(0, 0, width, height)
-    ctx.drawImage(image, 0, 0, width, height)
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(result => result ? resolve(result) : reject(new Error('Could not save card image.')), 'image/png', 0.95)
-    })
-    const fileName = `${safeShareFileName(signal)}.png`
-    const file = new File([blob], fileName, { type: 'image/png' })
-    const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean }
-    if (navigator.share && (!nav.canShare || nav.canShare({ files: [file] }))) {
-      await navigator.share({
-        title: `${titleFor(signal)} · Athlete Intelligence`,
-        text: `Athlete Intelligence signal for ${titleFor(signal)}.`,
-        files: [file],
-      })
-      return 'shared'
-    }
-
-    const pngUrl = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = pngUrl
-    link.download = fileName
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    setTimeout(() => URL.revokeObjectURL(pngUrl), 1200)
-    return 'downloaded'
-  } finally {
-    URL.revokeObjectURL(svgUrl)
+async function openNativeShare(data: { title: string; text: string; url?: string }) {
+  if (navigator.share) {
+    await navigator.share(data)
+    return 'shared'
   }
+  await navigator.clipboard?.writeText([data.title, data.text, data.url].filter(Boolean).join('\n'))
+  return 'copied'
+}
+
+function ShareGlyph({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M10 2.75v9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M6.55 6.2 10 2.75l3.45 3.45" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5.2 8.35H4.15A1.65 1.65 0 0 0 2.5 10v5.35A1.65 1.65 0 0 0 4.15 17h11.7a1.65 1.65 0 0 0 1.65-1.65V10a1.65 1.65 0 0 0-1.65-1.65H14.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
 }
 
 export default function SignalTerminalCard({
@@ -339,28 +294,34 @@ export default function SignalTerminalCard({
     judgmentContext?.playableNumber || '',
   ].map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3)
   const tapHint = selected ? signalCardTapContract.expandedCta : signalCardTapContract.collapsedCta
-  const cardRef = useRef<HTMLDivElement | null>(null)
-  const [exportState, setExportState] = useState<'idle' | 'working' | 'done' | 'error'>('idle')
+  const [shareState, setShareState] = useState<'idle' | 'working' | 'done' | 'error'>('idle')
 
   async function handleShareCard(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault()
     event.stopPropagation()
-    if (!cardRef.current || exportState === 'working') return
-    setExportState('working')
+    if (shareState === 'working') return
+    setShareState('working')
     try {
-      await exportElementAsPng(cardRef.current, signal)
-      setExportState('done')
-      window.setTimeout(() => setExportState('idle'), 1800)
+      await openNativeShare({
+        title: `${titleFor(signal)} · Athlete Intelligence`,
+        text: shareTextForSignal(signal),
+        url: window.location.href,
+      })
+      setShareState('done')
+      window.setTimeout(() => setShareState('idle'), 1400)
     } catch (error) {
-      console.error('Signal card export failed', error)
-      setExportState('error')
-      window.setTimeout(() => setExportState('idle'), 2400)
+      if ((error as Error)?.name === 'AbortError') {
+        setShareState('idle')
+        return
+      }
+      console.error('Signal card share failed', error)
+      setShareState('error')
+      window.setTimeout(() => setShareState('idle'), 1800)
     }
   }
 
   return (
     <div
-      ref={cardRef}
       data-signal-glow={compact && onOpen ? 'true' : undefined}
       role={onOpen ? 'button' : 'article'}
       tabIndex={onOpen ? 0 : undefined}
@@ -421,6 +382,18 @@ export default function SignalTerminalCard({
       )}
       <div style={{ position: 'absolute', inset: 0, opacity: selected ? 0.18 : 0.10, background: 'radial-gradient(circle at 20% 0%, rgba(125,246,255,0.36), transparent 34%), radial-gradient(circle at 90% 12%, rgba(141,247,255,0.22), transparent 30%)', pointerEvents: 'none' }} />
       <div style={{ position: 'relative', borderRadius: compact ? 16 : 19, padding: compact ? '10px 11px 11px' : 14, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: `1px solid ${selected ? C.borderHot : compact ? 'rgba(125,246,255,0.24)' : C.border}` }}>
+        {!compact && (
+          <button
+            type="button"
+            aria-label={`Share ${titleFor(signal)} signal`}
+            title={shareState === 'done' ? 'Shared' : shareState === 'error' ? 'Could not share' : 'Share'}
+            onClick={handleShareCard}
+            disabled={shareState === 'working'}
+            style={{ position: 'absolute', top: 10, right: 10, zIndex: 4, width: 31, height: 31, borderRadius: 11, border: '1px solid rgba(125,246,255,0.38)', background: 'rgba(2,5,1,0.74)', color: shareState === 'error' ? C.red : C.green, boxShadow: '0 0 18px rgba(125,246,255,0.14)', cursor: shareState === 'working' ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+          >
+            {shareState === 'working' ? <span style={{ fontSize: 13, fontWeight: 950 }}>…</span> : shareState === 'done' ? <span style={{ fontSize: 14, fontWeight: 950 }}>✓</span> : <ShareGlyph />}
+          </button>
+        )}
         <div style={{ minWidth: 0, textAlign: compact ? 'center' : 'left' }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', justifyContent: compact ? 'center' : 'flex-start' }}>
             <span style={{ color: tierColor(tier), fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{tier} signal</span>
@@ -566,37 +539,6 @@ export default function SignalTerminalCard({
             <div style={{ color: C.amber, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Watch out for</div>
             <div style={{ display: 'grid', gap: 5 }}>
               {killRows.map(row => <div key={row} style={{ color: C.muted, fontSize: 8.5, lineHeight: 1.38 }}>• {row}</div>)}
-            </div>
-          </div>
-        )}
-
-        {!compact && (
-          <div data-export-exclude="true" style={{ marginTop: 11, display: 'grid', gap: 6 }}>
-            <button
-              type="button"
-              onClick={handleShareCard}
-              disabled={exportState === 'working'}
-              style={{
-                width: '100%',
-                border: '1px solid rgba(125,246,255,0.48)',
-                borderRadius: 999,
-                padding: '10px 13px',
-                background: exportState === 'working'
-                  ? 'rgba(125,246,255,0.10)'
-                  : 'linear-gradient(135deg, rgba(125,246,255,0.28), rgba(125,246,255,0.095))',
-                boxShadow: '0 0 24px rgba(125,246,255,0.16)',
-                color: C.green,
-                cursor: exportState === 'working' ? 'wait' : 'pointer',
-                fontSize: 10,
-                fontWeight: 950,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-              }}
-            >
-              {exportState === 'working' ? 'Exporting card…' : exportState === 'done' ? 'Card ready to share' : exportState === 'error' ? 'Try export again' : 'Share this card'}
-            </button>
-            <div style={{ color: C.faint, fontSize: 8, lineHeight: 1.35, textAlign: 'center', fontWeight: 850 }}>
-              Exports this exact card as a PNG for texts/group chats.
             </div>
           </div>
         )}
