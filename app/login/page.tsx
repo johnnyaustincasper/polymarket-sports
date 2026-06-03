@@ -8,9 +8,58 @@ import AuthShell from '../components/AuthShell'
 const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 
 export default function LoginPage() {
+  const [guestCode, setGuestCode] = useState('')
+  const [guestError, setGuestError] = useState('')
+  const [guestMessage, setGuestMessage] = useState('')
+  const [guestLoading, setGuestLoading] = useState(false)
+  const router = useRouter()
+
+  async function submitGuestCode(e: React.FormEvent) {
+    e.preventDefault()
+    setGuestLoading(true)
+    setGuestError('')
+    setGuestMessage('')
+    try {
+      const res = await fetch('/api/auth/guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: guestCode }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setGuestError(data.error || 'Invalid or expired access code.')
+        return
+      }
+      setGuestMessage('Access unlocked. Loading your board…')
+      router.push('/')
+      router.refresh()
+    } catch {
+      setGuestError('Connection error. Try again.')
+    } finally {
+      setGuestLoading(false)
+    }
+  }
+
   if (clerkEnabled) {
+    const guestDisabled = guestLoading || !guestCode.trim()
     return (
-      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Unlock today's board" subtitle="Sign in or create your account to unlock the full daily player-prop board. Membership is required before the board opens.">
+      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Unlock today's board" subtitle="Enter an access code for instant guest access, or sign in with your account.">
+        <form onSubmit={submitGuestCode} style={{ width: '100%', display: 'grid', gap: 10, marginBottom: 18, padding: 14, borderRadius: 20, border: '1px solid rgba(125,246,255,0.24)', background: 'rgba(125,246,255,0.055)', boxShadow: '0 0 30px rgba(125,246,255,0.12)' }}>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <strong style={{ color: '#7df6ff', fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Access code</strong>
+            <span style={{ color: 'rgba(226,255,204,0.58)', fontSize: 12, lineHeight: 1.45 }}>Skip signup and open the board in guest mode.</span>
+          </div>
+          <input
+            value={guestCode}
+            onChange={e => setGuestCode(e.target.value)}
+            placeholder="Enter access code"
+            autoComplete="one-time-code"
+            style={inputStyle}
+          />
+          {guestError && <p style={{ color: '#ff4466', fontSize: 12, textAlign: 'center', fontWeight: 800 }}>{guestError}</p>}
+          {guestMessage && <p style={{ color: '#7df6ff', fontSize: 12, textAlign: 'center', fontWeight: 800 }}>{guestMessage}</p>}
+          <button type="submit" disabled={guestDisabled} style={primaryButton(guestDisabled)}>{guestLoading ? 'Unlocking…' : 'Enter with Access Code'}</button>
+        </form>
         <SignIn
           routing="path"
           path="/login"

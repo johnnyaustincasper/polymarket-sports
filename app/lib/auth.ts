@@ -105,23 +105,37 @@ export type SessionUser = {
   email: string
   name?: string
   guest: boolean
+  subscriptionStatus?: string
+  accessSource?: string
+  accessCodeLabel?: string
   iat?: number
   exp?: number
 }
 
-export async function createSessionToken(email: string, name?: string, options: { guest?: boolean; id?: string } = {}) {
+type SessionTokenOptions = {
+  guest?: boolean
+  id?: string
+  subscriptionStatus?: string
+  accessSource?: string
+  accessCodeLabel?: string
+}
+
+export async function createSessionToken(email: string, name?: string, options: SessionTokenOptions = {}) {
   const secret = getSecret()
   if (!secret) throw new Error('Missing AUTH_SESSION_SECRET or SESSION_SECRET')
 
   const normalizedEmail = normalizeEmail(email)
   const now = Math.floor(Date.now() / 1000)
   const payload = base64UrlEncode(JSON.stringify({
-    id: options.id,
+    accessCodeLabel: options.accessCodeLabel?.trim() || undefined,
+    accessSource: options.accessSource?.trim() || undefined,
     email: normalizedEmail,
-    name: name?.trim() || undefined,
+    exp: now + SESSION_TTL_SECONDS,
     guest: Boolean(options.guest || normalizedEmail.endsWith('@guest.local') || normalizedEmail.startsWith('guest-')),
     iat: now,
-    exp: now + SESSION_TTL_SECONDS,
+    id: options.id,
+    name: name?.trim() || undefined,
+    subscriptionStatus: options.subscriptionStatus?.trim() || undefined,
   }))
   const signature = await hmacSha256(payload, secret)
   return `${payload}.${signature}`
@@ -136,7 +150,7 @@ export async function verifySessionToken(token?: string): Promise<SessionUser | 
   if (!safeEqual(signature || '', expectedSignature)) return null
 
   try {
-    const session = JSON.parse(base64UrlDecode(payload)) as { id?: string; email?: string; name?: string; guest?: boolean; exp?: number; iat?: number }
+    const session = JSON.parse(base64UrlDecode(payload)) as { id?: string; email?: string; name?: string; guest?: boolean; subscriptionStatus?: string; accessSource?: string; accessCodeLabel?: string; exp?: number; iat?: number }
     if (!session.email || !session.exp || session.exp < Math.floor(Date.now() / 1000)) return null
     const email = normalizeEmail(session.email)
     return {
@@ -144,6 +158,9 @@ export async function verifySessionToken(token?: string): Promise<SessionUser | 
       email,
       name: session.name,
       guest: Boolean(session.guest || email.endsWith('@guest.local') || email.startsWith('guest-')),
+      subscriptionStatus: session.subscriptionStatus,
+      accessSource: session.accessSource,
+      accessCodeLabel: session.accessCodeLabel,
       iat: session.iat,
       exp: session.exp,
     }

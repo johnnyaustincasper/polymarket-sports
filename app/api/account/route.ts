@@ -1,6 +1,7 @@
 import { auth, clerkClient, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE, verifySessionToken } from '@/app/lib/auth'
+import { isAccessCodeGuestSession } from '@/app/lib/access-code-guest-session'
 import { isGuestAccessEnabled } from '@/app/lib/guest-access'
 import { getAccountProfile, saveAccountProfile } from '@/app/lib/profile-store'
 
@@ -24,7 +25,7 @@ function cleanString(value: unknown, max: number) {
   return String(value || '').trim().slice(0, max)
 }
 
-function legacyToAccountProfile(profile: any) {
+function legacyToAccountProfile(profile: any, session?: { subscriptionStatus?: string }) {
   return {
     authType: profile.guest ? 'guest' : 'legacy',
     guest: Boolean(profile.guest),
@@ -33,7 +34,7 @@ function legacyToAccountProfile(profile: any) {
     displayName: profile.displayName || profile.name || '',
     details: profile.details || profile.preferences?.details || '',
     avatarUrl: profile.avatarUrl || '',
-    subscriptionStatus: 'unknown',
+    subscriptionStatus: session?.subscriptionStatus || profile.subscriptionStatus || 'unknown',
     hasStripeCustomer: false,
     storage: profile.storage,
   }
@@ -58,7 +59,7 @@ function clerkToAccountProfile(user: NonNullable<Awaited<ReturnType<typeof curre
 
 async function getLegacySession(req: NextRequest) {
   const session = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value)
-  if (session?.guest && !isGuestAccessEnabled()) return null
+  if (session?.guest && !isAccessCodeGuestSession(session) && !isGuestAccessEnabled()) return null
   return session
 }
 
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
   const legacySession = await getLegacySession(req)
   if (legacySession) {
     const profile = await getAccountProfile(legacySession, req)
-    return NextResponse.json({ profile: legacyToAccountProfile(profile) })
+    return NextResponse.json({ profile: legacyToAccountProfile(profile, legacySession) })
   }
 
   const user = await currentUser().catch(() => null)
@@ -89,7 +90,7 @@ export async function PATCH(req: NextRequest) {
       avatarUrl,
       preferences: { username, details },
     }, res)
-    return NextResponse.json({ ok: true, profile: legacyToAccountProfile(profile) }, { headers: res.headers })
+    return NextResponse.json({ ok: true, profile: legacyToAccountProfile(profile, legacySession) }, { headers: res.headers })
   }
 
   const { userId } = await auth()

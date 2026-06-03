@@ -26,6 +26,8 @@ export async function GET(req: NextRequest) {
       email: user.email,
       name: profile.name || user.name,
       guest: user.guest,
+      subscriptionStatus: user.subscriptionStatus,
+      accessSource: user.accessSource,
     },
     guest: user.guest,
     auth: { provider: isClerkAuthEnabled() ? 'clerk' : 'legacy' },
