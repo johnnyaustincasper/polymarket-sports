@@ -4,6 +4,7 @@ import { useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { signalCardTapContract } from '../../lib/signals/card-collapse'
 import { selectWhyThisPlayerBullets } from '../../lib/signals/why-player'
 import { classifySignalDecision } from '../../lib/signals/insight'
+import { CARD_EXPORT_ROOT_SELECTOR, cardExportStatusLabel, shareOrDownloadCardImage, type CardExportStatus } from '../../lib/card-image-export'
 import type { SignalLineOption, SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
 
 const C = {
@@ -155,13 +156,8 @@ Hit: ${signal.hits}/${signal.games}` : ''
 Athlete Intelligence: ${window.location.origin}`
 }
 
-async function openNativeShare(data: { title: string; text: string; url?: string }) {
-  if (navigator.share) {
-    await navigator.share(data)
-    return 'shared'
-  }
-  await navigator.clipboard?.writeText([data.title, data.text, data.url].filter(Boolean).join('\n'))
-  return 'copied'
+function findCardExportRoot(event: MouseEvent<HTMLButtonElement>) {
+  return event.currentTarget.closest(CARD_EXPORT_ROOT_SELECTOR) as HTMLElement | null
 }
 
 function ShareGlyph({ size = 15 }: { size?: number }) {
@@ -294,15 +290,22 @@ export default function SignalTerminalCard({
     judgmentContext?.playableNumber || '',
   ].map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3)
   const tapHint = selected ? signalCardTapContract.expandedCta : signalCardTapContract.collapsedCta
-  const [shareState, setShareState] = useState<'idle' | 'working' | 'done' | 'error'>('idle')
+  const [shareState, setShareState] = useState<CardExportStatus>('idle')
 
   async function handleShareCard(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault()
     event.stopPropagation()
     if (shareState === 'working') return
+    const element = findCardExportRoot(event)
+    if (!element) {
+      setShareState('error')
+      window.setTimeout(() => setShareState('idle'), 1800)
+      return
+    }
     setShareState('working')
     try {
-      await openNativeShare({
+      await shareOrDownloadCardImage({
+        element,
         title: `${titleFor(signal)} · Athlete Intelligence`,
         text: shareTextForSignal(signal),
         url: window.location.href,
@@ -314,7 +317,7 @@ export default function SignalTerminalCard({
         setShareState('idle')
         return
       }
-      console.error('Signal card share failed', error)
+      console.error('Signal card JPEG export failed', error)
       setShareState('error')
       window.setTimeout(() => setShareState('idle'), 1800)
     }
@@ -322,6 +325,7 @@ export default function SignalTerminalCard({
 
   return (
     <div
+      data-card-export-root="true"
       data-signal-glow={compact && onOpen ? 'true' : undefined}
       role={onOpen ? 'button' : 'article'}
       tabIndex={onOpen ? 0 : undefined}
@@ -386,9 +390,10 @@ export default function SignalTerminalCard({
           <button
             type="button"
             aria-label={`Share ${titleFor(signal)} signal`}
-            title={shareState === 'done' ? 'Shared' : shareState === 'error' ? 'Could not share' : 'Share'}
+            title={cardExportStatusLabel(shareState)}
             onClick={handleShareCard}
             disabled={shareState === 'working'}
+            data-card-export-hide="true"
             style={{ position: 'absolute', top: 10, right: 10, zIndex: 4, width: 31, height: 31, borderRadius: 11, border: '1px solid rgba(125,246,255,0.38)', background: 'rgba(2,5,1,0.74)', color: shareState === 'error' ? C.red : C.green, boxShadow: '0 0 18px rgba(125,246,255,0.14)', cursor: shareState === 'working' ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
           >
             {shareState === 'working' ? <span style={{ fontSize: 13, fontWeight: 950 }}>…</span> : shareState === 'done' ? <span style={{ fontSize: 14, fontWeight: 950 }}>✓</span> : <ShareGlyph />}

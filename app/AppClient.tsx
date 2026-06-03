@@ -27,6 +27,7 @@ import { computeSignalDeltas, type SignalDelta, type SignalDeltaSnapshot } from 
 import type { LiquidityGrade } from './lib/signals/liquidity'
 import { buildAlertRulesForWatchItem, buildWatchKey, evaluateAlerts, watchlistReducer, type AlertEvent, type AlertRule, type WatchItem, type WatchSnapshot } from './lib/watchlist/alerts'
 import { getFighterPhotoUrl, isWeightClassOpenByDefault } from './lib/ufc/fighters-directory'
+import { CARD_EXPORT_ROOT_SELECTOR, cardExportStatusLabel, shareOrDownloadCardImage, type CardExportStatus } from './lib/card-image-export'
 
 const BetTracker = dynamic(() => import('./components/BetTracker'), { ssr: false })
 
@@ -2283,13 +2284,8 @@ function buildParlaySuggestions(safeParlayPool: ParlayItem[]) {
     .slice(0, 5)
 }
 
-async function openNativeCardShare(data: { title: string; text: string; url?: string }) {
-  if (navigator.share) {
-    await navigator.share(data)
-    return 'shared'
-  }
-  await navigator.clipboard?.writeText([data.title, data.text, data.url].filter(Boolean).join('\n'))
-  return 'copied'
+function findCardExportRoot(event: MouseEvent<HTMLButtonElement>) {
+  return event.currentTarget.closest(CARD_EXPORT_ROOT_SELECTOR) as HTMLElement | null
 }
 
 function ShareGlyph({ size = 15 }: { size?: number }) {
@@ -2303,14 +2299,20 @@ function ShareGlyph({ size = 15 }: { size?: number }) {
 }
 
 function NativeShareButton({ title, text, label }: { title: string; text: string; label: string }) {
-  const [state, setState] = useState<'idle' | 'working' | 'done' | 'error'>('idle')
+  const [state, setState] = useState<CardExportStatus>('idle')
   const share = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault()
     event.stopPropagation()
     if (state === 'working') return
+    const element = findCardExportRoot(event)
+    if (!element) {
+      setState('error')
+      window.setTimeout(() => setState('idle'), 1700)
+      return
+    }
     setState('working')
     try {
-      await openNativeCardShare({ title, text, url: window.location.href })
+      await shareOrDownloadCardImage({ element, title, text, url: window.location.href })
       setState('done')
       window.setTimeout(() => setState('idle'), 1300)
     } catch (error) {
@@ -2318,7 +2320,7 @@ function NativeShareButton({ title, text, label }: { title: string; text: string
         setState('idle')
         return
       }
-      console.error('Card share failed', error)
+      console.error('Card JPEG export failed', error)
       setState('error')
       window.setTimeout(() => setState('idle'), 1700)
     }
@@ -2327,9 +2329,10 @@ function NativeShareButton({ title, text, label }: { title: string; text: string
     <button
       type="button"
       aria-label={label}
-      title={state === 'done' ? 'Shared' : state === 'error' ? 'Could not share' : 'Share'}
+      title={cardExportStatusLabel(state)}
       onClick={share}
       disabled={state === 'working'}
+      data-card-export-hide="true"
       style={{ position: 'absolute', top: 9, right: 9, zIndex: 4, width: 31, height: 31, borderRadius: 11, border: '1px solid rgba(125,246,255,0.40)', background: 'rgba(2,5,1,0.72)', color: state === 'error' ? C.red : C.green, boxShadow: '0 0 18px rgba(125,246,255,0.14)', cursor: state === 'working' ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
     >
       {state === 'working' ? <span style={{ fontSize: 13, fontWeight: 950 }}>…</span> : state === 'done' ? <span style={{ fontSize: 14, fontWeight: 950 }}>✓</span> : <ShareGlyph />}
@@ -3020,7 +3023,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               const lastGameMinutes = formatLastGameMinutes(p)
               const playerSignalTags = Array.from(new Set(bets.flatMap((bet: any) => bet.signalTags || [])))
               return (
-                <div key={`${game.id}-${p.team}-${p.player}-${activeGroup.metric}`} style={{ position: 'relative', borderRadius: 14, padding: 11, paddingRight: 48, background: 'rgba(125,246,255,0.045)', border: '1px solid rgba(255,255,255,0.10)', opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(playerIdx * 150, 1350)}ms` }}>
+                <div data-card-export-root="true" key={`${game.id}-${p.team}-${p.player}-${activeGroup.metric}`} style={{ position: 'relative', borderRadius: 14, padding: 11, paddingRight: 48, background: 'rgba(125,246,255,0.045)', border: '1px solid rgba(255,255,255,0.10)', opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(playerIdx * 150, 1350)}ms` }}>
                   <NativeShareButton
                     title={`${p.player} · Athlete Intelligence`}
                     text={propShareText(game, p, expandedBet || bets[0])}
