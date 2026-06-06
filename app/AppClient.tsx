@@ -4798,8 +4798,14 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
 interface KalshiUFCMarket {
   ticker: string; eventTicker: string; series: string; category: string; categoryPriority: number; fighter: string; title: string; yesAsk: number; yesAskSize: number; yesBid: number; yesBidSize: number; status: string; url: string
 }
+interface KalshiUFCRecommendedLook {
+  label: string; market: string; reason: string; risk: string; confidence: 'strong' | 'medium' | 'watch'; ticker: string
+}
+interface KalshiUFCFightIntel {
+  primaryLean: string; marketRead: string; finishRead: string; redFlags: string[]; recommendedLooks: KalshiUFCRecommendedLook[]
+}
 interface KalshiUFCFight {
-  id: string; eventKey: string; eventTickers: string[]; fighterA: string; fighterB: string; dateLabel: string; markets: KalshiUFCMarket[]
+  id: string; eventKey: string; eventTickers: string[]; fighterA: string; fighterB: string; dateLabel: string; markets: KalshiUFCMarket[]; intel?: KalshiUFCFightIntel
 }
 
 function groupUfcMarkets(markets: KalshiUFCMarket[]) {
@@ -4850,6 +4856,8 @@ function KalshiUFCSection() {
       {fights.map(fight => {
         const totalSize = fight.markets.reduce((sum, m) => sum + (m.yesAskSize || 0), 0)
         const groups = groupUfcMarkets(fight.markets)
+        const intel = fight.intel
+        const topLook = intel?.recommendedLooks?.[0]
         const loaded = Boolean(loadedFightIds[fight.id])
         if (!loaded) {
           return (
@@ -4870,12 +4878,18 @@ function KalshiUFCSection() {
                     <div style={{ color: C.green, fontSize: isMobile ? 7 : 9, fontWeight: 950, letterSpacing: isMobile ? '0.12em' : '0.16em', textTransform: 'uppercase' }}>Kalshi UFC</div>
                     <div style={{ color: C.textPrimary, fontSize: isMobile ? 14 : 18, fontWeight: 950, marginTop: 4, lineHeight: 1.08, overflow: 'hidden', textOverflow: 'ellipsis' }}>{fight.fighterA}<br />vs {fight.fighterB}</div>
                     <div style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 800, marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fight.dateLabel || fight.eventKey}</div>
+                    {topLook && (
+                      <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
+                        <div style={{ color: C.green, fontSize: isMobile ? 9 : 11, fontWeight: 950, lineHeight: 1.18, overflow: 'hidden', textOverflow: 'ellipsis' }}>{topLook.market}</div>
+                        <div style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 9, lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{topLook.reason}</div>
+                      </div>
+                    )}
                   </div>
                   <span style={{ flexShrink: 0, borderRadius: 999, padding: '3px 7px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 8, fontWeight: 950 }}>{fight.markets.length}</span>
                 </div>
                 <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', minWidth: 0 }}>
-                  <span style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Load board</span>
-                  <span style={{ color: C.green, fontSize: isMobile ? 8 : 10, fontWeight: 950 }}>{Math.round(totalSize).toLocaleString()} size</span>
+                  <span style={{ color: C.textSecondary, fontSize: isMobile ? 8 : 10, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Open fight intel</span>
+                  <span style={{ color: C.green, fontSize: isMobile ? 8 : 10, fontWeight: 950 }}>{intel?.primaryLean || `${Math.round(totalSize).toLocaleString()} size`}</span>
                 </div>
               </div>
             </button>
@@ -4886,7 +4900,7 @@ function KalshiUFCSection() {
             <div style={{ borderRadius: 21, padding: 14, background: SURFACE.panel, minHeight: 190 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.15em', textTransform: 'uppercase' }}>Kalshi UFC · {fight.markets.length} options</div>
+                  <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.15em', textTransform: 'uppercase' }}>Kalshi UFC · decision intel</div>
                   <div style={{ color: C.textPrimary, fontSize: 14, fontWeight: 950, marginTop: 4, lineHeight: 1.15 }}>{fight.fighterA} vs {fight.fighterB}</div>
                   <div style={{ color: C.textSecondary, fontSize: 9, marginTop: 3 }}>{fight.dateLabel || fight.eventKey}</div>
                 </div>
@@ -4895,6 +4909,41 @@ function KalshiUFCSection() {
                   <button onClick={() => setLoadedFightIds(prev => { const next = { ...prev }; delete next[fight.id]; return next })} style={{ borderRadius: 999, padding: '7px 10px', border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.045)', color: C.textPrimary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>Minimize</button>
                 </div>
               </div>
+
+              {intel && (
+                <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+                  <div style={{ borderRadius: 16, padding: 12, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.26)' }}>
+                    <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 6 }}>Fight read</div>
+                    <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 850, lineHeight: 1.45 }}>{intel.marketRead}</div>
+                    <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 6 }}>{intel.finishRead}</div>
+                  </div>
+                  {intel.recommendedLooks?.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+                      {intel.recommendedLooks.map(look => {
+                        const linked = fight.markets.find(m => m.ticker === look.ticker)
+                        const confidenceColor = look.confidence === 'strong' ? C.green : look.confidence === 'medium' ? C.cyan : C.gold
+                        return (
+                          <a key={`${look.label}-${look.ticker}`} href={linked?.url || undefined} target={linked?.url ? '_blank' : undefined} rel={linked?.url ? 'noreferrer' : undefined} style={{ textDecoration: 'none', borderRadius: 14, padding: 11, background: 'rgba(0,0,0,0.20)', border: `1px solid ${look.confidence === 'strong' ? 'rgba(125,246,255,0.34)' : C.border}`, display: 'grid', gap: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                              <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{look.label}</span>
+                              <span style={{ color: confidenceColor, fontSize: 8, fontWeight: 950, textTransform: 'uppercase' }}>{look.confidence}</span>
+                            </div>
+                            <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950, lineHeight: 1.22 }}>{look.market}</div>
+                            <div style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.38 }}>{look.reason}</div>
+                            <div style={{ color: C.gold, fontSize: 8, lineHeight: 1.35 }}>{look.risk}</div>
+                          </a>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {intel.redFlags?.length > 0 && (
+                    <div style={{ display: 'grid', gap: 5, borderRadius: 13, padding: 10, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.18)' }}>
+                      <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Risk checks</div>
+                      {intel.redFlags.map(flag => <div key={flag} style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.35 }}>• {flag}</div>)}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ display: 'grid', gap: 8 }}>
                 {groups.map(group => {
@@ -4923,7 +4972,7 @@ function KalshiUFCSection() {
                                 <div style={{ color: C.textSecondary, fontSize: 7, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.ticker}</div>
                               </div>
                               <div style={{ textAlign: 'right' }}>
-                                <div style={{ color: C.green, fontSize: 15, fontWeight: 950 }}>Open</div>
+                                <div style={{ color: C.green, fontSize: 15, fontWeight: 950 }}>{m.yesAsk}%</div>
                                 <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900 }}>{Math.round(m.yesAskSize || 0).toLocaleString()} available</div>
                               </div>
                             </a>

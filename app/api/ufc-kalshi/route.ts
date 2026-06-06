@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceRateLimit } from '@/app/lib/rate-limit'
+import { buildKalshiUFCFightIntel } from '@/app/lib/ufc/kalshi-fight-intel'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -150,10 +151,14 @@ export async function GET(req: NextRequest) {
     }
 
     const fights = Array.from(byFight.values())
-      .map(f => ({
-        ...f,
-        markets: f.markets.sort((a: any, b: any) => a.categoryPriority - b.categoryPriority || b.yesAskSize - a.yesAskSize || a.yesAsk - b.yesAsk),
-      }))
+      .map(f => {
+        const markets = f.markets.sort((a: any, b: any) => a.categoryPriority - b.categoryPriority || b.yesAskSize - a.yesAskSize || a.yesAsk - b.yesAsk)
+        return {
+          ...f,
+          markets,
+          intel: buildKalshiUFCFightIntel(markets),
+        }
+      })
       .sort((a, b) => {
         const aWinner = a.markets.some((m: any) => m.series === 'KXUFCFIGHT') ? 1 : 0
         const bWinner = b.markets.some((m: any) => m.series === 'KXUFCFIGHT') ? 1 : 0
