@@ -10,7 +10,7 @@ const routeLimits = [
   { route: 'ufc', bucket: 'ufc', limit: 30 },
   { route: 'ufc-kalshi', bucket: 'ufc-kalshi', limit: 10 },
   { route: 'fighters', bucket: 'fighters', limit: 40 },
-  { route: 'markets', bucket: 'markets', limit: 30 },
+  { route: 'markets', bucket: 'markets', limit: 240 },
   { route: 'game-live', bucket: 'game-live', limit: 60 },
   { route: 'lineups', bucket: 'lineups', limit: 60 },
   { route: 'streaks', bucket: 'streaks', limit: 20 },

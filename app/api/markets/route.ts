@@ -396,7 +396,7 @@ async function getPolyOdds(
 }
 
 export async function GET(req: NextRequest) {
-  const rateLimited = enforceRateLimit(req, 'markets', { limit: 30, windowMs: 60_000 })
+  const rateLimited = enforceRateLimit(req, 'markets', { limit: 240, windowMs: 60_000 })
   if (rateLimited) return rateLimited
 
   try {

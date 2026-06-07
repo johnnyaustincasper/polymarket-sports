@@ -6023,6 +6023,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const [oddsDrift, setOddsDrift] = useState<Record<string, OddsDrift>>({})
   const prevGamesRef = useRef<Map<string, Game>>(new Map())
   const startupSportResolvedRef = useRef(false)
+  const feedRequestSeqRef = useRef(0)
+  const feedAbortRef = useRef<AbortController | null>(null)
   const [activeIntelGame, setActiveIntelGame] = useState<Game | null>(null)
   const [activeAnalysisGame, setActiveAnalysisGame] = useState<Game | null>(null)
   const [analysisLoadingGameId, setAnalysisLoadingGameId] = useState<string | null>(null)
@@ -6064,9 +6066,16 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   }, [sport, date])
 
   const fetchGames = useCallback(async () => {
+    feedAbortRef.current?.abort()
+    const controller = new AbortController()
+    feedAbortRef.current = controller
+    const requestSeq = feedRequestSeqRef.current + 1
+    feedRequestSeqRef.current = requestSeq
+    const isCurrentFeedRequest = () => feedRequestSeqRef.current === requestSeq && !controller.signal.aborted
+
     try {
       const loadDate = async (sportToLoad: SupportedSport, yyyymmdd: string): Promise<Game[]> => {
-        const res = await fetch(`/api/markets?date=${espnRequestDateForChicagoDay(yyyymmdd)}&sport=${sportToLoad}&displayDate=${yyyymmdd}&t=${Date.now()}`, { cache: 'no-store' })
+        const res = await fetch(`/api/markets?date=${espnRequestDateForChicagoDay(yyyymmdd)}&sport=${sportToLoad}&displayDate=${yyyymmdd}&t=${Date.now()}`, { cache: 'no-store', signal: controller.signal })
         const json = await res.json().catch(() => null)
         if (!res.ok) throw new Error(json?.error || `market feed failed (${res.status})`)
         return Array.isArray(json) ? json : []
@@ -6101,12 +6110,14 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           initialDate: date,
           loadGames: (sportToLoad, startDate) => loadSportSlate(sportToLoad, startDate),
         })
+        if (!isCurrentFeedRequest()) return
         resolvedDate = startup.date
         newGames = startup.games
         if (startup.sport !== sport) setSport(startup.sport)
         if (startup.date !== date) setDate(startup.date)
       } else {
         const loaded = sport === 'ufc' ? { date, games: [] as Game[] } : await loadSportSlate(sport, date)
+        if (!isCurrentFeedRequest()) return
         resolvedDate = loaded.date
         newGames = loaded.games
         if (resolvedDate !== date) setDate(resolvedDate)
@@ -6137,10 +6148,11 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       if (Object.keys(newDrift).length > 0) setOddsDrift(newDrift)
       setLastUpdated(new Date())
     } catch (err) {
+      if (!isCurrentFeedRequest() || (err instanceof DOMException && err.name === 'AbortError')) return
       setFeedError(err instanceof Error ? err.message : 'market feed unavailable')
       setGames([])
     } finally {
-      setLoading(false)
+      if (isCurrentFeedRequest()) setLoading(false)
     }
   }, [date, sport, provider])
 
