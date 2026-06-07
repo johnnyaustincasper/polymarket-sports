@@ -4884,10 +4884,43 @@ function groupUfcMarkets(markets: KalshiUFCMarket[]) {
   return groups.sort((a, b) => (a.markets[0]?.categoryPriority || 99) - (b.markets[0]?.categoryPriority || 99))
 }
 
+function normalizeUfcName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function ufcNameMatches(shortName: string, fullName: string) {
+  const short = normalizeUfcName(shortName)
+  const full = normalizeUfcName(fullName)
+  if (!short || !full) return false
+  const fullParts = full.split(' ')
+  return full === short || full.includes(short) || fullParts[fullParts.length - 1] === short
+}
+
+function findDeepAnalysisForKalshiFight(fight: KalshiUFCFight, analyses: UFCFightDeepAnalysis[]) {
+  return analyses.find(candidate => {
+    const aToA = ufcNameMatches(fight.fighterA, candidate.fighterA.name)
+    const bToB = ufcNameMatches(fight.fighterB, candidate.fighterB.name)
+    const aToB = ufcNameMatches(fight.fighterA, candidate.fighterB.name)
+    const bToA = ufcNameMatches(fight.fighterB, candidate.fighterA.name)
+    return (aToA && bToB) || (aToB && bToA)
+  }) || null
+}
+
+function getUfcWinnerMarkets(fight: KalshiUFCFight) {
+  return fight.markets.filter(m => m.category === 'Winner').sort((a, b) => (b.yesAsk || 0) - (a.yesAsk || 0))
+}
+
+function summarizeUfcRecentForm(dossier: UFCFighterDossier) {
+  const last = dossier.lastFightSummary && dossier.lastFightSummary !== 'unknown' ? dossier.lastFightSummary : 'Last fight unavailable'
+  const profile = dossier.finishingProfile?.summary && dossier.finishingProfile.summary !== 'unknown' ? dossier.finishingProfile.summary : 'Finish profile unavailable'
+  return `${last} · Last five: ${profile}`
+}
+
 function KalshiUFCSection() {
   const cols = useColCount()
   const isMobile = useIsMobile()
   const [data, setData] = useState<{ available: boolean; scanned: number; fights: KalshiUFCFight[]; scannedBySeries?: Record<string, number> } | null>(null)
+  const [deepAnalysis, setDeepAnalysis] = useState<UFCEventDeepAnalysis | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
@@ -4897,13 +4930,22 @@ function KalshiUFCSection() {
     let cancelled = false
     setLoading(true)
     setError(null)
-    fetch(`/api/ufc-kalshi?ts=${Date.now()}`, { cache: 'no-store' })
-      .then(async r => {
-        const d = await r.json().catch(() => ({}))
-        if (!r.ok) throw new Error(d?.error || `Kalshi UFC scan failed (${r.status})`)
-        return d
+    Promise.all([
+      fetch(`/api/ufc-kalshi?ts=${Date.now()}`, { cache: 'no-store' })
+        .then(async r => {
+          const d = await r.json().catch(() => ({}))
+          if (!r.ok) throw new Error(d?.error || `Kalshi UFC scan failed (${r.status})`)
+          return d
+        }),
+      fetch(`/api/ufc-analysis?ts=${Date.now()}`, { cache: 'no-store' })
+        .then(r => r.json().catch(() => null))
+        .catch(() => null),
+    ])
+      .then(([kalshi, analysis]) => {
+        if (cancelled) return
+        setData(kalshi)
+        setDeepAnalysis(analysis?.available && analysis?.analysis ? analysis.analysis : null)
       })
-      .then(d => { if (!cancelled) setData(d) })
       .catch(e => { if (!cancelled) setError(e?.message || 'Kalshi UFC unavailable') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -4920,6 +4962,8 @@ function KalshiUFCSection() {
         const totalSize = fight.markets.reduce((sum, m) => sum + (m.yesAskSize || 0), 0)
         const groups = groupUfcMarkets(fight.markets)
         const intel = fight.intel
+        const deepFight = findDeepAnalysisForKalshiFight(fight, deepAnalysis?.fights || [])
+        const winnerMarkets = getUfcWinnerMarkets(fight)
         const topLook = intel?.recommendedLooks?.[0]
         const loaded = Boolean(loadedFightIds[fight.id])
         if (!loaded) {
@@ -4973,45 +5017,71 @@ function KalshiUFCSection() {
                 </div>
               </div>
 
-              {intel && (
-                <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+              <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+                {deepFight ? (
+                  <>
+                    <div style={{ borderRadius: 18, padding: 13, background: 'linear-gradient(135deg, rgba(125,246,255,0.14), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.32)', boxShadow: '0 0 22px rgba(125,246,255,0.09)' }}>
+                      <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Bet decision</div>
+                      <div style={{ color: C.textPrimary, fontSize: isMobile ? 18 : 22, fontWeight: 950, lineHeight: 1.08 }}>{deepFight.ai.confidence === 'pass' ? 'Pass this fight' : `Lean ${deepFight.ai.pick}`}</div>
+                      <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.5, marginTop: 8 }}>{deepFight.ai.thesis}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
+                        <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 9, fontWeight: 950, textTransform: 'uppercase' }}>{deepFight.ai.confidence}</span>
+                        <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: 9, fontWeight: 900 }}>{deepFight.weightClass}</span>
+                        <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: 9, fontWeight: 900 }}>{deepFight.ai.method || deepFight.market.expectedMethod}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
+                      <div style={{ borderRadius: 15, padding: 11, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(125,246,255,0.20)' }}>
+                        <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>Why bet this side</div>
+                        {(deepFight.ai.why?.length ? deepFight.ai.why : [deepFight.ai.thesis]).slice(0, 4).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, marginBottom: 5 }}>• {item}</div>)}
+                      </div>
+                      <div style={{ borderRadius: 15, padding: 11, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.20)' }}>
+                        <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>What can kill it</div>
+                        {(deepFight.ai.risks?.length ? deepFight.ai.risks : deepFight.ai.watchouts || []).slice(0, 4).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, marginBottom: 5 }}>• {item}</div>)}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
+                      {[deepFight.fighterA, deepFight.fighterB].map(dossier => (
+                        <div key={dossier.name} style={{ borderRadius: 15, padding: 11, background: 'rgba(255,255,255,0.035)', border: `1px solid ${C.border}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                            <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{dossier.name}</div>
+                            <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{dossier.age ? `${dossier.age} yrs` : ''}{dossier.reach && dossier.reach !== 'unknown' ? ` · ${dossier.reach} reach` : ''}</div>
+                          </div>
+                          <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 7 }}>{summarizeUfcRecentForm(dossier)}</div>
+                          {(dossier.strengths?.length > 0 || dossier.concerns?.length > 0) && <div style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.4, marginTop: 7 }}><b style={{ color: C.green }}>Plus:</b> {(dossier.strengths || []).slice(0, 2).join(', ') || '—'} <br /><b style={{ color: C.gold }}>Concern:</b> {(dossier.concerns || []).slice(0, 2).join(', ') || '—'}</div>}
+                        </div>
+                      ))}
+                    </div>
+
+                    {deepFight.bettingAngles?.length > 0 && (
+                      <div style={{ display: 'grid', gap: 7, borderRadius: 15, padding: 11, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.22)' }}>
+                        <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Bet plan</div>
+                        {deepFight.bettingAngles.slice(0, 3).map(angle => <div key={`${angle.label}-${angle.side}`} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}><b>{angle.label}:</b> {angle.side} — {angle.rationale} <span style={{ color: angle.maxRisk === 'avoid' ? C.gold : C.textSecondary }}>({angle.maxRisk} risk)</span></div>)}
+                      </div>
+                    )}
+
+                    {winnerMarkets.length > 0 && (
+                      <div style={{ display: 'grid', gap: 6, borderRadius: 13, padding: 10, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
+                        <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Market check — secondary, not the handicap</div>
+                        {winnerMarkets.slice(0, 2).map(m => <div key={m.ticker} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, color: C.textSecondary, fontSize: 10 }}><span>{m.fighter}</span><span style={{ color: C.green, fontWeight: 950 }}>{m.yesAsk}%</span></div>)}
+                      </div>
+                    )}
+                  </>
+                ) : intel ? (
                   <div style={{ borderRadius: 16, padding: 12, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.26)' }}>
-                    <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 6 }}>Fight read</div>
+                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 6 }}>Market-only fallback</div>
                     <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 850, lineHeight: 1.45 }}>{intel.marketRead}</div>
-                    <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 6 }}>{intel.finishRead}</div>
+                    <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 6 }}>No fighter dossier matched this Kalshi contract yet. Use the raw markets below only as price context, not as a bet recommendation.</div>
                   </div>
-                  {intel.recommendedLooks?.length > 0 && (
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-                      {intel.recommendedLooks.map(look => {
-                        const linked = fight.markets.find(m => m.ticker === look.ticker)
-                        const confidenceColor = look.confidence === 'strong' ? C.green : look.confidence === 'medium' ? C.cyan : C.gold
-                        return (
-                          <a key={`${look.label}-${look.ticker}`} href={linked?.url || undefined} target={linked?.url ? '_blank' : undefined} rel={linked?.url ? 'noreferrer' : undefined} style={{ textDecoration: 'none', borderRadius: 14, padding: 11, background: 'rgba(0,0,0,0.20)', border: `1px solid ${look.confidence === 'strong' ? 'rgba(125,246,255,0.34)' : C.border}`, display: 'grid', gap: 6 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                              <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{look.label}</span>
-                              <span style={{ color: confidenceColor, fontSize: 8, fontWeight: 950, textTransform: 'uppercase' }}>{look.confidence}</span>
-                            </div>
-                            <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950, lineHeight: 1.22 }}>{look.market}</div>
-                            <div style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.38 }}>{look.reason}</div>
-                            <div style={{ color: C.gold, fontSize: 8, lineHeight: 1.35 }}>{look.risk}</div>
-                          </a>
-                        )
-                      })}
-                    </div>
-                  )}
-                  {intel.redFlags?.length > 0 && (
-                    <div style={{ display: 'grid', gap: 5, borderRadius: 13, padding: 10, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.18)' }}>
-                      <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Risk checks</div>
-                      {intel.redFlags.map(flag => <div key={flag} style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.35 }}>• {flag}</div>)}
-                    </div>
-                  )}
-                </div>
-              )}
+                ) : null}
+              </div>
 
               <div style={{ display: 'grid', gap: 8 }}>
                 {groups.map(group => {
                   const key = `${fight.id}|${group.category}`
-                  const open = openGroups[key] ?? group.category === 'Winner'
+                  const open = openGroups[key] ?? false
                   const best = group.markets.reduce((low, m) => (low == null || (m.yesAsk && m.yesAsk < low.yesAsk) ? m : low), null as KalshiUFCMarket | null)
                   return (
                     <div key={group.category} style={{ borderRadius: 15, overflow: 'hidden', background: open ? 'rgba(125,246,255,0.045)' : 'rgba(255,255,255,0.03)', border: `1px solid ${open ? 'rgba(125,246,255,0.24)' : C.border}` }}>
