@@ -3402,14 +3402,29 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   }
 
   if (!supported || loading || !activeGames.length) {
-    const title = !supported ? 'Player Signals are not available for this sport yet.' : loading ? 'Loading slate before Player Signals…' : 'No active games available for Player Signals.'
-    const detail = !supported ? 'Switch to NBA, MLB, or NFL from the Sport dock to run player signals.' : loading ? 'The model will appear as soon as the slate finishes loading.' : 'Pick another date or sport with upcoming/live games to run the model.'
+    const title = !supported ? 'Player Signals are not available for this sport yet.' : loading ? 'Loading Signals…' : 'No active games available for Player Signals.'
+    const detail = !supported ? 'Switch to NBA, MLB, or NFL from the Sport dock to run player signals.' : loading ? 'First loading today’s slate, then Player Signals will scan props, injuries, and recent form.' : 'Pick another date or sport with upcoming/live games to run the model.'
     return (
-      <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.34), rgba(168,240,255,0.12), rgba(255,255,255,0.06))', boxShadow: '0 18px 54px rgba(0,0,0,0.30)' }}>
-        <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 14 : 18, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Today’s Signals</div>
-          <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, letterSpacing: '-0.03em' }}>{title}</div>
-          <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45, marginTop: 6 }}>{detail}</div>
+      <section aria-busy={loading || undefined} aria-live="polite" style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.52), rgba(168,240,255,0.18), rgba(255,255,255,0.08))', boxShadow: loading ? '0 0 34px rgba(125,246,255,0.20), 0 18px 54px rgba(0,0,0,0.34)' : '0 18px 54px rgba(0,0,0,0.30)', animation: loading ? 'liveBorderPulse 1.35s ease-in-out infinite' : undefined }}>
+        <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 14 : 18, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: loading ? 12 : 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+            {loading && <span aria-hidden="true" style={{ width: 26, height: 26, borderRadius: 999, border: '2px solid rgba(125,246,255,0.24)', borderTopColor: C.green, borderRightColor: 'rgba(125,246,255,0.84)', boxShadow: '0 0 16px rgba(125,246,255,0.26)', animation: 'aiAnalyzeOrbit 850ms linear infinite', flexShrink: 0 }} />}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>{loading ? 'Loading Signals' : 'Today’s Signals'}</div>
+              <div style={{ color: C.textPrimary, fontSize: isMobile ? 17 : 19, fontWeight: 950, letterSpacing: '-0.03em' }}>{title}</div>
+              <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45, marginTop: 6 }}>{detail}</div>
+            </div>
+          </div>
+          {loading && (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {['Loading game slate', 'Preparing player prop matchups', 'Signals board will open automatically'].map((step, i) => (
+                <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 9, borderRadius: 13, padding: '9px 10px', background: 'rgba(125,246,255,0.07)', border: '1px solid rgba(125,246,255,0.20)', opacity: 0, animation: 'dominoFadeIn 760ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${i * 130}ms` }}>
+                  <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: 999, background: C.green, boxShadow: '0 0 12px rgba(125,246,255,0.72)', animation: 'liveDotPulse 1.1s ease-in-out infinite' }} />
+                  <span style={{ color: i === 0 ? C.textPrimary : C.textSecondary, fontSize: 11, fontWeight: 850 }}>{step}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     )
@@ -6193,7 +6208,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         {sport === 'ufc' && subtab === 'slate' && <KalshiUFCSection />}
 
         {sport !== 'ufc' && subtab === 'slate' && (loading ? (
-          <LoadingMarketCards cols={cols} count={6} />
+          <LoadingMarketCards cols={cols} count={6} label="Slate" detail="Loading games, markets, and playable prices before the board opens." />
         ) : feedError ? (
           <div style={{ textAlign: 'center', padding: '54px 18px', border: `1px solid ${C.border}`, borderRadius: 18, background: 'rgba(255,255,255,0.035)' }}>
             <p style={{ color: C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Feed error</p>
