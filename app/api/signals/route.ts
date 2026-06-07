@@ -15,7 +15,7 @@ export const revalidate = 0
 const SIGNAL_CACHE_SCHEMA = 'v9'
 const TODAY_SIGNAL_SCHEMA = 'v8'
 
-type Sport = 'nba' | 'nfl' | 'mlb'
+type Sport = 'nba' | 'nfl' | 'mlb' | 'nhl'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
 
 type SignalGame = {
@@ -173,7 +173,7 @@ type SettlementResponse = {
 
 function parseSport(value: unknown): Sport {
   const sport = String(value || 'nba').toLowerCase()
-  return sport === 'mlb' || sport === 'nfl' ? sport : 'nba'
+  return sport === 'mlb' || sport === 'nfl' || sport === 'nhl' ? sport : 'nba'
 }
 
 function toNum(value: unknown): number {
@@ -442,12 +442,13 @@ function trustedInternalApiOrigin() {
   return `http://127.0.0.1:${process.env.PORT || 3000}`
 }
 
-async function fetchProps(sport: Sport, game: SignalGame) {
-  const url = new URL('/api/props', trustedInternalApiOrigin())
+async function fetchProps(sport: Sport, game: SignalGame, authHeaders?: HeadersInit, origin = trustedInternalApiOrigin()) {
+  const url = new URL('/api/props', origin)
   url.searchParams.set('sport', sport)
   url.searchParams.set('home', game.homeTeam.abbr)
   url.searchParams.set('away', game.awayTeam.abbr)
-  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(45_000) })
+  if (game.id) url.searchParams.set('eventId', game.id)
+  const res = await fetch(url, { headers: authHeaders, cache: 'no-store', signal: AbortSignal.timeout(45_000) })
   const data = await res.json().catch(() => null)
   if (!res.ok) throw new Error(data?.error || `props failed ${res.status}`)
   return data
@@ -932,7 +933,7 @@ export async function POST(req: NextRequest) {
       return finishRouteTiming(timing, NextResponse.json(await settleLedger(sport, limit)))
     }
     const games = Array.isArray(body.games) ? body.games as SignalGame[] : []
-    const activeGames = games.filter(g => g?.homeTeam?.abbr && g?.awayTeam?.abbr && g.status !== 'post').slice(0, sport === 'mlb' ? 15 : 8)
+    const activeGames = games.filter(g => g?.homeTeam?.abbr && g?.awayTeam?.abbr && g.status !== 'post').slice(0, sport === 'mlb' ? 15 : sport === 'nhl' ? 10 : 8)
     const activeGameIds = activeGames.map(g => g.id)
     const cacheKey = latestCacheKey(sport, activeGameIds)
     const force = body.force === true
@@ -975,10 +976,17 @@ export async function POST(req: NextRequest) {
     const allSignals: ModelSignal[] = []
     let contractsScored = 0
 
+    const requestCookie = req.headers.get('cookie') || ''
+    const requestAuth = req.headers.get('authorization') || ''
+    const internalAuthHeaders: HeadersInit = {
+      ...(requestCookie ? { cookie: requestCookie } : {}),
+      ...(requestAuth ? { authorization: requestAuth } : {}),
+    }
+
     for (let i = 0; i < activeGames.length; i += 3) {
       const batch = activeGames.slice(i, i + 3)
       const scored = await Promise.all(batch.map(async game => {
-        const data = await fetchProps(sport, game)
+        const data = await fetchProps(sport, game, internalAuthHeaders, req.nextUrl.origin)
         return scoreProps(sport, game, data, generatedAt)
       }))
       for (const item of scored) {

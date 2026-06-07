@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type Sport = 'nba' | 'mlb' | 'nfl'
+type Sport = 'nba' | 'mlb' | 'nfl' | 'nhl'
 
 function parseSport(value: string | null): Sport {
-  return value === 'mlb' || value === 'nfl' ? value : 'nba'
+  return value === 'mlb' || value === 'nfl' || value === 'nhl' ? value : 'nba'
 }
 
 function yyyymmdd(date: Date): string {

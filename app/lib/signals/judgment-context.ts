@@ -158,6 +158,7 @@ export function statValueForMetric(gameLog: JudgmentGameLog, metric: string): nu
   if (key === 'threes') return value(['threes', 'threePointersMade', 'threePointFieldGoalsMade', '3pt'])
   if (key === 'steals') return value(['steals', 'stl'])
   if (key === 'blocks') return value(['blocks', 'blk'])
+  if (key === 'goals') return value(['goals', 'goal'])
   if (key === 'pts+reb+ast') {
     const pts = value(['points', 'pts']) || 0
     const reb = value(['rebounds', 'reb', 'totalRebounds']) || 0
@@ -244,10 +245,11 @@ function playable(line?: number, metric?: string): string {
   return `Green light is ${propText(line, metric)}. If it jumps to ${nextPropText(line, metric)}, be picky. If it reaches ${skipPropText(line, metric)}, skip it.`
 }
 
-function metricSport(metric: string): 'nba' | 'mlb' | 'nfl' | 'generic' {
+function metricSport(metric: string): 'nba' | 'mlb' | 'nfl' | 'nhl' | 'generic' {
   const key = metric.toLowerCase()
   if (['hits', 'runs', 'rbis', 'rbi', 'hits + runs + rbis', 'hits+runs+rbis', 'home runs', 'total bases', 'strikeouts'].includes(key)) return 'mlb'
   if (key.includes('passing') || key.includes('rushing') || key.includes('receiving') || key === 'receptions') return 'nfl'
+  if (['goals'].includes(key)) return 'nhl'
   if (['points', 'rebounds', 'assists', 'threes', 'steals', 'blocks', 'pts+reb+ast'].includes(key)) return 'nba'
   return 'generic'
 }
@@ -280,6 +282,7 @@ function sportNotes(metric: string): string[] {
   if (sport === 'mlb') return ['baseball context: watch batting order, pitcher handedness, park/weather, and bullpen quality before locking it in.']
   if (sport === 'nba') return ['Basketball context: minutes, usage, shot volume, pace, and late injury news matter most.']
   if (sport === 'nfl') return ['Football context: snap share, targets/routes, matchup coverage, and game script matter most.']
+  if (sport === 'nhl') return ['Hockey context: lines, ice time, power-play role, goalie matchup, and shot volume matter most.']
   return []
 }
 
@@ -287,6 +290,7 @@ function metricNoun(metric: string): string {
   const key = metric.toLowerCase()
   if (key === 'points') return 'scoring'
   if (key === 'assists') return 'passing/creation'
+  if (key === 'goals') return 'goal scoring'
   if (key === 'rebounds') return 'rebounding'
   if (key === 'threes') return 'shooting volume'
   if (key.includes('hits') || key === 'total bases') return 'batting form'

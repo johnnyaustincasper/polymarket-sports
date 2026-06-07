@@ -2425,7 +2425,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const [liveUpdatedAt, setLiveUpdatedAt] = useState<Date | null>(null)
   const [activeLiveTab, setActiveLiveTab] = useState<'props' | 'feed' | 'box' | 'lineups'>('props')
   const isMobile = useIsMobile()
-  const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
+  const supportedKalshiSport = sport === 'nba' || sport === 'mlb' || sport === 'nfl' || sport === 'nhl'
   const shouldLoadIntelAndProps = loadRequested
   const requestCardLoad = useCallback(() => {
     setLoadRequested(true)
@@ -2546,7 +2546,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     }
   }, [game.awayTeam.abbr, game.homeTeam.abbr, game.gameDate, game.id, game.status, sport, shouldLoadIntelAndProps])
 
-  const fullBoardSport = sport === 'nba' || sport === 'mlb'
+  const fullBoardSport = sport === 'nba' || sport === 'mlb' || sport === 'nhl'
   const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (fullBoardSport || (p.last12 || []).length >= 4) && (p.recommendations || []).length) : []
   const allContracts = players.flatMap((p: any) => (p.recommendations || []).map((bet: any) => ({ player: p, bet })))
   const categoryOrder = sport === 'nba'
@@ -2555,7 +2555,9 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
       ? ['passing yards', 'passing TDs', 'rushing yards', 'receiving yards', 'receptions']
       : sport === 'mlb'
         ? ['hits', 'home runs', 'hits + runs + RBIs', 'total bases', 'strikeouts']
-        : ['points', 'rebounds', 'assists']
+        : sport === 'nhl'
+          ? ['goals', 'points', 'assists']
+          : ['points', 'rebounds', 'assists']
   const metricGroups = categoryOrder
     .map(metric => ({ metric, items: allContracts.filter((x: any) => x.bet.metric === metric).sort((a: any, b: any) => (b.bet.hitRate - a.bet.hitRate) || ((a.bet.kalshi?.yesAsk || 99) - (b.bet.kalshi?.yesAsk || 99))) }))
     .filter(g => g.items.length)
@@ -3276,7 +3278,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   const previousSignalSnapshotsRef = useRef<SignalDeltaSnapshot[]>([])
   const previousWatchSnapshotsRef = useRef<Record<string, WatchSnapshot>>({})
   const autoRunKeyRef = useRef<string | null>(null)
-  const supported = sport === 'nba' || sport === 'mlb' || sport === 'nfl'
+  const supported = sport === 'nba' || sport === 'mlb' || sport === 'nfl' || sport === 'nhl'
   const activeGames = games.filter(g => g.status !== 'post')
   const slateKey = [sport, ...activeGames.map(g => g.id)].join('|')
 
@@ -3403,7 +3405,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
 
   if (!supported || loading || !activeGames.length) {
     const title = !supported ? 'Player Signals are not available for this sport yet.' : loading ? 'Loading Signals…' : 'No active games available for Player Signals.'
-    const detail = !supported ? 'Switch to NBA, MLB, or NFL from the Sport dock to run player signals. NHL slate and team intel are available now while hockey player signals are being wired.' : loading ? 'First loading today’s slate, then Player Signals will scan props, injuries, and recent form.' : 'Pick another date or sport with upcoming/live games to run the model.'
+    const detail = !supported ? 'Switch to NBA, MLB, NFL, or NHL from the Sport dock to run player signals.' : loading ? 'First loading today’s slate, then Player Signals will scan props, injuries, and recent form.' : 'Pick another date or sport with upcoming/live games to run the model.'
     return (
       <section aria-busy={loading || undefined} aria-live="polite" style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.52), rgba(168,240,255,0.18), rgba(255,255,255,0.08))', boxShadow: loading ? '0 0 34px rgba(125,246,255,0.20), 0 18px 54px rgba(0,0,0,0.34)' : '0 18px 54px rgba(0,0,0,0.30)', animation: loading ? 'liveBorderPulse 1.35s ease-in-out infinite' : undefined }}>
         <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 14 : 18, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: loading ? 12 : 0 }}>

@@ -1,4 +1,4 @@
-export type Sport = 'nba' | 'nfl' | 'mlb'
+export type Sport = 'nba' | 'nfl' | 'mlb' | 'nhl'
 
 export type PropRecommendationLike = {
   metric: string
@@ -46,6 +46,12 @@ export function metricPrefixes(metric: string, sport: Sport): string[] {
     if (metric === 'strikeouts') return ['KXMLBKS']
     return []
   }
+  if (sport === 'nhl') {
+    if (metric === 'goals') return ['KXNHLGOAL']
+    if (metric === 'points') return ['KXNHLPTS']
+    if (metric === 'assists') return ['KXNHLAST']
+    return []
+  }
   if (metric === 'passing yards') return ['KXNFLPASSYDS', 'KXNFLPASSYD', 'KXNFLPYDS']
   if (metric === 'passing TDs') return ['KXNFLPASSTD', 'KXNFLPTD']
   if (metric === 'rushing yards') return ['KXNFLRUSHYDS', 'KXNFLRUSHYD', 'KXNFLRYDS']
@@ -72,6 +78,7 @@ export function metricAliases(metric: string): string[] {
   if (metric === 'hits + runs + RBIs') return ['hits runs rbis', 'hit run rbi', 'hrr']
   if (metric === 'total bases') return ['total bases', 'bases']
   if (metric === 'strikeouts') return ['strikeouts', 'ks', 'k s']
+  if (metric === 'goals') return ['goals', 'goal']
   return [metric]
 }
 
@@ -99,7 +106,7 @@ export function marketTextMatchesPlayer(player: string, marketText: string, spor
   const tokens = nameTokens(player)
   const first = tokens[0]
   const last = tokens.at(-1)
-  if (sport === 'nba' || sport === 'mlb') return Boolean(first && last && first !== last && hay.includes(first) && hay.includes(last))
+  if (sport === 'nba' || sport === 'mlb' || sport === 'nhl') return Boolean(first && last && first !== last && hay.includes(first) && hay.includes(last))
 
   return Boolean(last && last.length >= 5 && hay.includes(last))
 }
@@ -111,7 +118,7 @@ export function textHaystack(m: any): string {
 export function marketTextMatches(player: string, rec: PropRecommendationLike, m: any, sport: Sport): boolean {
   const raw = textHaystack(m)
   if (!marketTextMatchesPlayer(player, raw, sport)) return false
-  if (sport === 'nba' || sport === 'nfl' || sport === 'mlb') return true
+  if (sport === 'nba' || sport === 'nfl' || sport === 'mlb' || sport === 'nhl') return true
 
   const hay = normalizeName(raw)
   const aliases = metricAliases(rec.metric).map(normalizeName)
@@ -151,6 +158,9 @@ export function kalshiSeriesSlug(series: string): string {
     KXNFLREC: 'pro-football-player-receptions',
     KXNFLRECYDS: 'pro-football-player-receiving-yards',
     KXNFLRECYD: 'pro-football-player-receiving-yards',
+    KXNHLGOAL: 'pro-hockey-player-goals',
+    KXNHLPTS: 'pro-hockey-player-points',
+    KXNHLAST: 'pro-hockey-player-assists',
   }
   return map[s] || 'markets'
 }
@@ -186,6 +196,11 @@ export function metricFromKalshiTicker(ticker: string, sport: Sport): string | n
   if (t.startsWith('KXNFLRUSHYDS') || t.startsWith('KXNFLRUSHYD') || t.startsWith('KXNFLRYDS')) return 'rushing yards'
   if (t.startsWith('KXNFLRECYDS') || t.startsWith('KXNFLRECYD')) return 'receiving yards'
   if (t.startsWith('KXNFLREC')) return 'receptions'
+  if (sport === 'nhl') {
+    if (t.startsWith('KXNHLGOAL')) return 'goals'
+    if (t.startsWith('KXNHLPTS')) return 'points'
+    if (t.startsWith('KXNHLAST')) return 'assists'
+  }
   return null
 }
 
