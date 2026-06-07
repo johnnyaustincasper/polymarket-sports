@@ -703,7 +703,7 @@ function OddsChip({ top, bottom, hot, href, onClick, delta, flashDir }: {
   return <div className={cls} style={style} onClick={onClick}>{content}</div>
 }
 
-// ─── Bet Modal ────────────────────────────────────────────────────────────────
+// ─── Signal Modal ──────────────────────────────────────────────────────────────
 function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
   game: Game; betType: string; betLabel: string; odds: number
   onClose: () => void; onSave: (bet: BetLog) => void
@@ -728,7 +728,7 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
         <h3 style={{ color: C.textPrimary, fontWeight: 800, fontSize: 18, marginTop: 4 }}>{betLabel}</h3>
         <p style={{ color: C.cyan, fontSize: 13, marginTop: 4 }}>{pct(odds)}% implied probability</p>
         <div className="mt-6 mb-3">
-          <label style={{ color: C.textSecondary, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Stake (USDC)</label>
+          <label style={{ color: C.textSecondary, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Track amount (USDC)</label>
           <input
             type="number" value={stake} onChange={e => setStake(e.target.value)}
             className="w-full mt-2 text-center text-2xl font-bold focus:outline-none"
@@ -737,11 +737,11 @@ function BetModal({ game, betType, betLabel, odds, onClose, onSave }: {
         </div>
         <div className="flex justify-between mb-6" style={{ fontSize: 12, color: C.textSecondary }}>
           <span>Return: <span style={{ color: C.textPrimary }}>${payout.toFixed(2)}</span></span>
-          <span>Net profit: <span style={{ color: C.green }}>+${profit.toFixed(2)}</span></span>
+          <span>Net result: <span style={{ color: C.green }}>+${profit.toFixed(2)}</span></span>
         </div>
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-3 rounded-2xl font-semibold transition-all" style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, color: C.textSecondary }}>Cancel</button>
-          <button onClick={save} className="flex-1 py-3 rounded-2xl font-bold transition-all" style={{ background: `linear-gradient(135deg, rgba(125,246,255,0.2), rgba(231,238,226,0.2))`, border: `1px solid ${C.borderHot}`, color: C.cyan, boxShadow: `0 0 20px ${C.cyan}22` }}>Log Bet</button>
+          <button onClick={save} className="flex-1 py-3 rounded-2xl font-bold transition-all" style={{ background: `linear-gradient(135deg, rgba(125,246,255,0.2), rgba(231,238,226,0.2))`, border: `1px solid ${C.borderHot}`, color: C.cyan, boxShadow: `0 0 20px ${C.cyan}22` }}>Log Position</button>
         </div>
       </div>
     </div>
@@ -994,7 +994,7 @@ function StreakPanel() {
 }
 
 
-// ─── Betting Trends Panel ────────────────────────────────────────────────────
+// ─── Market Trends Panel ──────────────────────────────────────────────────────
 function BettingTrendsPanel() {
   const [data, setData] = useState<{ teams: BettingTrendData[]; totalLine: number; source: string } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -1410,7 +1410,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
               const publicPct = publicFavsHome ? homePct : awayPct
               return (
                 <IntelCard>
-                  <SectionHeader icon="💰" label="Public Betting + Sharp Money" />
+                  <SectionHeader icon="💰" label="Public Market + Sharp Money" />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                     <span style={{ color: C.textSecondary, fontSize: 10, flexShrink: 0 }}>{bs.awayTeam} {Math.round(awayPct)}%</span>
                     <div style={{ flex: 1, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.04)', overflow: 'hidden', position: 'relative' }}>
@@ -1910,7 +1910,7 @@ function buildPropEdgeRead(player: any, bet: any, intel?: TeamIntelData | null) 
   if (minAvg >= 28) parts.push(`Role check: he is averaging about ${minAvg.toFixed(0)} minutes in this sample, so the opportunity is stable enough for this prop to matter.`)
   if (flaggedMates.length) {
     const detail = flaggedMates.map((x: any) => `${x.name}${x.minutes >= 0 ? ` (${x.minutes}m last game)` : ''}${x.warning ? ` — ${x.warning}` : x.fatigueFlag === 'dnp' ? ' — DNP flag' : ' — high fatigue flag'}`).join('; ')
-    parts.push(`Context flag: ${detail}. If that player is limited, it can shift ${contextImpact} toward the remaining rotation. Treat this as a support note, not the main reason to bet it.`)
+    parts.push(`Context flag: ${detail}. If that player is limited, it can shift ${contextImpact} toward the remaining rotation. Treat this as a support note, not the main reason to chase it.`)
   } else if (injuryNotes && !/none/i.test(injuryNotes)) parts.push(`Team context: ${injuryNotes}`)
   if (Array.isArray(bet.signalTags) && bet.signalTags.length) parts.push(`Matchup signal: ${bet.signalTags.join(', ')}. ${bet.explanation || ''}`.trim())
   parts.push('Do not chase it if the line moves against you before game time.')
@@ -2362,7 +2362,7 @@ function ExactKalshiBetButton({ player, bet, compact = false }: { player: string
   return (
     <>
       <button onClick={() => setOpen(true)} style={{ display: 'inline-flex', marginTop: compact ? 7 : 8, marginBottom: compact ? 0 : 9, color: C.cyan, fontSize: compact ? 9 : 9, fontWeight: 950, textDecoration: 'none', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>
-        Open exact Kalshi bet ↗
+        Open exact Kalshi market ↗
       </button>
       {open && (
         <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18 }}>
@@ -4206,8 +4206,8 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
                         <p style={{ color: C.cyan, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>⚡ POLYMARKET LINE DISCREPANCY</p>
                         <p style={{ color: C.textPrimary, fontSize: 12, lineHeight: 1.6, opacity: 0.8, marginBottom: 10 }}>Polymarket's line differs from the reference market. This gap is a potential edge.</p>
                         <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-                          <p style={{ color: C.textSecondary, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>How to exploit it:</p>
-                          {['Bet the reference-aligned side on Polymarket when the price still lags.', 'Arbitrage: bet both sides across platforms to lock guaranteed profit.', 'Move fast — these gaps close within hours.'].map((t, i) => (
+                          <p style={{ color: C.textSecondary, fontSize: 11, fontWeight: 700, marginBottom: 6 }}>How to read it:</p>
+                          {['Track the reference-aligned side on Polymarket when the price still lags.', 'Cross-market mismatch: both sides price differently across platforms.', 'Move fast — these gaps close within hours.'].map((t, i) => (
                             <div key={i} className="flex gap-2 mb-1.5">
                               <span style={{ color: C.cyan, opacity: 0.5, flexShrink: 0, fontSize: 10 }}>◆</span>
                               <p style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.5, opacity: 0.75 }}>{t}</p>
@@ -4475,7 +4475,7 @@ function buildFallbackUFCIntel(fight: UFCFight, reason = 'AI model unavailable')
   return {
     verdict: `${marketText} ${reason}; showing market-and-card based intel instead of pretending to have a full stylistic model.`,
     edge: leader.name,
-    striking: `${leader.name} gets the provisional edge only from available market/card context. Confirm tape notes for range, volume, durability, and defensive reactions before betting.`,
+    striking: `${leader.name} gets the provisional edge only from available market/card context. Confirm tape notes for range, volume, durability, and defensive reactions before trusting the read.`,
     grappling: `Grappling edge is not safely inferable from the current feed. Check takedown offense/defense, get-up ability, submission threat, and cage control for ${leader.name} vs ${opponent.name}.`,
     keyFactors: [
       hasMarket ? `Market confidence: ${leader.name} over ${opponent.name}` : 'No reliable win-market match yet',
@@ -5021,7 +5021,7 @@ function KalshiUFCSection() {
                 {deepFight ? (
                   <>
                     <div style={{ borderRadius: 18, padding: 13, background: 'linear-gradient(135deg, rgba(125,246,255,0.14), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.32)', boxShadow: '0 0 22px rgba(125,246,255,0.09)' }}>
-                      <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Bet decision</div>
+                      <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Athlete read</div>
                       <div style={{ color: C.textPrimary, fontSize: isMobile ? 18 : 22, fontWeight: 950, lineHeight: 1.08 }}>{deepFight.ai.confidence === 'pass' ? 'Pass this fight' : `Lean ${deepFight.ai.pick}`}</div>
                       <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.5, marginTop: 8 }}>{deepFight.ai.thesis}</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
@@ -5033,7 +5033,7 @@ function KalshiUFCSection() {
 
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
                       <div style={{ borderRadius: 15, padding: 11, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(125,246,255,0.20)' }}>
-                        <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>Why bet this side</div>
+                        <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>Why this side</div>
                         {(deepFight.ai.why?.length ? deepFight.ai.why : [deepFight.ai.thesis]).slice(0, 4).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, marginBottom: 5 }}>• {item}</div>)}
                       </div>
                       <div style={{ borderRadius: 15, padding: 11, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.20)' }}>
@@ -5057,14 +5057,14 @@ function KalshiUFCSection() {
 
                     {deepFight.bettingAngles?.length > 0 && (
                       <div style={{ display: 'grid', gap: 7, borderRadius: 15, padding: 11, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.22)' }}>
-                        <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Bet plan</div>
+                        <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Intel plan</div>
                         {deepFight.bettingAngles.slice(0, 3).map(angle => <div key={`${angle.label}-${angle.side}`} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}><b>{angle.label}:</b> {angle.side} — {angle.rationale} <span style={{ color: angle.maxRisk === 'avoid' ? C.gold : C.textSecondary }}>({angle.maxRisk} risk)</span></div>)}
                       </div>
                     )}
 
                     {winnerMarkets.length > 0 && (
                       <div style={{ display: 'grid', gap: 6, borderRadius: 13, padding: 10, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
-                        <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Market check — secondary, not the handicap</div>
+                        <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Market check — secondary context</div>
                         {winnerMarkets.slice(0, 2).map(m => <div key={m.ticker} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, color: C.textSecondary, fontSize: 10 }}><span>{m.fighter}</span><span style={{ color: C.green, fontWeight: 950 }}>{m.yesAsk}%</span></div>)}
                       </div>
                     )}
@@ -5073,7 +5073,7 @@ function KalshiUFCSection() {
                   <div style={{ borderRadius: 16, padding: 12, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.26)' }}>
                     <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 6 }}>Market-only fallback</div>
                     <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 850, lineHeight: 1.45 }}>{intel.marketRead}</div>
-                    <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 6 }}>No fighter dossier matched this Kalshi contract yet. Use the raw markets below only as price context, not as a bet recommendation.</div>
+                    <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 6 }}>No fighter dossier matched this Kalshi contract yet. Use the raw markets below only as price context, not as an athlete recommendation.</div>
                   </div>
                 ) : null}
               </div>

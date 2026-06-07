@@ -62,7 +62,7 @@ export function buildKalshiUFCFightIntel(markets: KalshiUFCMarketForIntel[]): Ka
 
   const totalSize = valid.reduce((sum, m) => sum + (m.yesAskSize || 0), 0)
   if (!winners.length) redFlags.push('No clean winner market found yet; start with fight style, not props.')
-  if (totalSize > 0 && totalSize < 75) redFlags.push('Thin available size — confirm the market is still executable before acting.')
+  if (totalSize > 0 && totalSize < 75) redFlags.push('Thin available size — confirm the market is still executable before trusting it.')
   if (valid.length > 18) redFlags.push('Lots of derivative props are live; avoid chasing exact round/method unless the fight script supports it.')
 
   const topWinner = winners[0]
@@ -86,7 +86,7 @@ export function buildKalshiUFCFightIntel(markets: KalshiUFCMarketForIntel[]): Ka
         : 'Winner is the simplest market to compare against your fighter read because the price gap is not overwhelming.',
       risk: topWinner.yesAsk >= 78
         ? 'Price is already expensive; do not chase if the number moves higher.'
-        : 'Still verify cardio, wrestling threat, and opponent durability before sizing.',
+        : 'Still verify cardio, wrestling threat, and opponent durability before trusting the read.',
       confidence: confidenceFor(topWinner, gap),
       ticker: topWinner.ticker,
     })
@@ -128,7 +128,7 @@ export function buildKalshiUFCFightIntel(markets: KalshiUFCMarketForIntel[]): Ka
       label: 'Timing check',
       market: `${compactTitle(topRound)} · ${pct(topRound.yesAsk)}%`,
       reason: 'Round/total markets can validate whether the board expects a slow decision fight or early chaos.',
-      risk: 'Do not use timing props as the primary bet unless the matchup has a clear pace/finish trigger.',
+      risk: 'Do not use timing props as the primary read unless the matchup has a clear pace/finish trigger.',
       confidence: 'watch',
       ticker: topRound.ticker,
     })
@@ -140,7 +140,7 @@ export function buildKalshiUFCFightIntel(markets: KalshiUFCMarketForIntel[]): Ka
       label: 'Only watchlist',
       market: `${compactTitle(top)} · ${pct(top.yesAsk)}%`,
       reason: 'This is the most prominent live price, but the fight board does not have enough structure for a strong lean.',
-      risk: 'Wait for cleaner winner/distance markets or add external fight research before betting.',
+      risk: 'Wait for cleaner winner/distance markets or add external fight research before trusting it.',
       confidence: 'watch',
       ticker: top.ticker,
     })

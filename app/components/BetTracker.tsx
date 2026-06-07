@@ -40,11 +40,11 @@ export default function BetTracker({ bets, onUpdate, onClose }: {
       <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(125,246,255,0.015) 2px, rgba(125,246,255,0.015) 4px)' }} />
       <div className="flex-1 overflow-y-auto max-w-lg w-full mx-auto px-5 py-8" style={{ position: 'relative', zIndex: 1 }}>
         <button onClick={onClose} style={{ color: C.textSecondary, fontSize: 12, letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20 }}>← CLOSE</button>
-        <h3 style={{ color: C.cyan, fontWeight: 900, fontSize: 20, letterSpacing: '-0.02em', textShadow: `0 0 20px ${C.cyan}55` }}>◈ BET TRACKER</h3>
+        <h3 style={{ color: C.cyan, fontWeight: 900, fontSize: 20, letterSpacing: '-0.02em', textShadow: `0 0 20px ${C.cyan}55` }}>◈ POSITION TRACKER</h3>
 
         {settled.length > 0 && (
           <div className="mt-4 mb-6 rounded-2xl p-4 grid grid-cols-3 text-center" style={{ background: 'rgba(125,246,255,0.04)', border: `1px solid ${C.border}` }}>
-            {([['BETS', settled.length, C.textPrimary], ['STAKED', `$${totalStaked.toFixed(0)}`, C.textPrimary], ['P&L', `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, totalPnl >= 0 ? C.green : C.red]] as const).map(([label, val, color]) => (
+            {([['POSITIONS', settled.length, C.textPrimary], ['TRACKED', `$${totalStaked.toFixed(0)}`, C.textPrimary], ['RESULT', `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, totalPnl >= 0 ? C.green : C.red]] as const).map(([label, val, color]) => (
               <div key={String(label)}>
                 <p style={{ color: C.textSecondary, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</p>
                 <p style={{ color: String(color), fontWeight: 800, fontSize: 20, marginTop: 2 }}>{val}</p>
@@ -96,8 +96,8 @@ export default function BetTracker({ bets, onUpdate, onClose }: {
 
         {bets.length === 0 && (
           <div className="text-center py-16">
-            <p style={{ color: C.textSecondary, fontSize: 14 }}>No bets logged</p>
-            <p style={{ color: C.textSecondary, opacity: 0.5, fontSize: 11, marginTop: 6, letterSpacing: '0.05em' }}>Tap any odds chip to log a position</p>
+            <p style={{ color: C.textSecondary, fontSize: 14 }}>No positions logged</p>
+            <p style={{ color: C.textSecondary, opacity: 0.5, fontSize: 11, marginTop: 6, letterSpacing: '0.05em' }}>Tap any signal chip to log a position</p>
           </div>
         )}
       </div>

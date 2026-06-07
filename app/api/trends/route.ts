@@ -185,6 +185,6 @@ export async function GET(req: NextRequest) {
     })
   } catch (err) {
     console.error('Trends error:', err)
-    return NextResponse.json({ available: false, error: 'Failed to fetch betting trends' }, { status: 500 })
+    return NextResponse.json({ available: false, error: 'Failed to fetch market trends' }, { status: 500 })
   }
 }

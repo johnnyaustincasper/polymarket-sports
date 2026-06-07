@@ -243,7 +243,7 @@ Requirements:
 - Use the research context above to identify each fighter's last fight summary and last 5 fight results with method, round/time if available, opponent, date if available, and notes.
 - Include hype, narrative, beef/storyline, camp news, injury/layoff notes, and possible market distortion.
 - Include expected winner from market/public consensus and expected method.
-- Include your model pick, method, timing, confidence, why bullets, risks, watchouts, and bet/pass recommendation.
+- Include your model pick, method, timing, confidence, why bullets, risks, watchouts, and read/pass recommendation.
 - Include source URLs from the research context in sources when they support the claims.
 - If a fact is not found, return "unknown" instead of guessing. Do not fabricate exact last 5 results.
 - You may still make a conservative fight pick from style/market/context if enough support exists, but use confidence "lean" unless evidence is strong.

@@ -214,7 +214,7 @@ export function buildFallbackFightAnalysis(fight: UFCFight, kalshiIntel?: Kalshi
       thesis: passReason,
       why: priceNotes.slice(0, 4),
       risks: [passReason, ...(kalshiIntel?.redFlags || [])].slice(0, 4),
-      watchouts: ['Generate deep pre-event research before treating this as a bet.'],
+      watchouts: ['Generate deep pre-event research before treating this as an athlete read.'],
     },
     bettingAngles: [{
       label: confidence === 'lean' ? 'Market lean only' : 'Pass',
@@ -327,7 +327,7 @@ export function getFightAnalysisQuality(analysis: UFCFightDeepAnalysis): { compl
   if (!isMeaningful(analysis.ai.thesis)) reasons.push('missing AI thesis')
   if (!analysis.ai.why.some(isMeaningful)) reasons.push('missing AI why bullets')
   if (!analysis.ai.risks.some(isMeaningful)) reasons.push('missing AI risk bullets')
-  if (!analysis.bettingAngles.length) reasons.push('missing betting/pass angle')
+  if (!analysis.bettingAngles.length) reasons.push('missing read/pass angle')
   if ((analysis.ai.confidence === 'solid' || analysis.ai.confidence === 'strong') && reasons.length > 0) reasons.push('high confidence without support')
   return { complete: reasons.length === 0, reasons }
 }

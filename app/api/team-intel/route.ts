@@ -155,7 +155,7 @@ async function fetchH2H(homeAbbr: string, awayAbbr: string): Promise<H2HResult> 
   }
 }
 
-// ─── Public Betting Splits (Action Network) ───────────────────────────────────
+// ─── Public Market Splits (Action Network) ────────────────────────────────────
 interface BettingSplits {
   homePct: number | null
   awayPct: number | null
