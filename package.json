@@ -13,6 +13,7 @@
     "check:prop-coverage": "node scripts/check-prop-coverage.js",
     "smoke:prod": "node scripts/smoke-production.js",
     "smoke:prod:strict": "SMOKE_STRICT_WARNINGS=1 node scripts/smoke-production.js",
+    "smoke:ufc-analysis": "node scripts/smoke-ufc-analysis.js",
     "start": "next start"
   },
   "dependencies": {

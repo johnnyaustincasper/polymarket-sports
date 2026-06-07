@@ -11,6 +11,10 @@
     {
       "path": "/api/admin/today-signals?sport=nba",
       "schedule": "30 23 * * *"
+    },
+    {
+      "path": "/api/cron/ufc-analysis",
+      "schedule": "0 15 * * *"
     }
   ]
 }

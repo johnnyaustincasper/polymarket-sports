@@ -4405,6 +4405,27 @@ interface UFCEvent {
   id: string; name: string; date: string; venue: string; location: string
   status: 'pre' | 'in' | 'post'; fights: UFCFight[]
 }
+interface UFCFighterRecentFight {
+  opponent: string; date: string; result: 'win' | 'loss' | 'draw' | 'no_contest' | 'unknown'; method: string; round: number | null; time: string; notes: string
+}
+interface UFCFighterDossier {
+  name: string; record: string; age: number | null; height: string; reach: string; country: string; ranking: number | null
+  lastFightSummary: string; lastFive: UFCFighterRecentFight[]; finishingProfile: { koTko: number; submission: number; decision: number; unknown: number; summary: string }
+  strengths: string[]; concerns: string[]; hype: { level: 'low' | 'medium' | 'high'; why: string[]; possibleMarketDistortion: string }
+  narrative: { beefOrStory: string; campNews: string; injuryOrLayoffNotes: string }
+}
+interface UFCFightDeepAnalysis {
+  fightId: string; eventId: string; eventName: string; eventDate: string; weightClass: string; isMainEvent: boolean
+  fighterA: UFCFighterDossier; fighterB: UFCFighterDossier
+  market: { expectedWinner: string; expectedMethod: string; kalshiLean?: string; polymarketLean?: string; priceNotes: string[] }
+  ai: { pick: string; method: string; roundOrTiming: string; confidence: 'pass' | 'lean' | 'solid' | 'strong'; thesis: string; why: string[]; risks: string[]; watchouts: string[] }
+  bettingAngles: Array<{ label: string; marketType: 'moneyline' | 'method' | 'distance' | 'rounds' | 'pass'; side: string; rationale: string; maxRisk: 'small' | 'normal' | 'avoid' }>
+  generatedAt: string; sources: string[]; staleAfter: string
+}
+interface UFCEventDeepAnalysis {
+  schemaVersion: 1; eventId: string; eventName: string; eventDate: string; generatedAt: string; status: 'missing' | 'partial' | 'complete' | 'stale'
+  fights: UFCFightDeepAnalysis[]; cardSummary: { headline: string; bestLooks: string[]; fadeTheHype: string[]; passFights: string[] }
+}
 
 // ─── UFC Intel Panel ──────────────────────────────────────────────────────────
 interface UFCIntel {
@@ -4462,53 +4483,20 @@ function parseUFCIntel(raw: string): UFCIntel | null {
   return null
 }
 
-function UFCIntelPanel({ fight, onClose }: { fight: UFCFight; onClose: () => void }) {
-  const [intel, setIntel] = useState<UFCIntel | null>(null)
-  const [loading, setLoading] = useState(true)
+function UFCIntelPanel({ fight, onClose, deepAnalysis, analysisStatus }: { fight: UFCFight; onClose: () => void; deepAnalysis?: UFCFightDeepAnalysis | null; analysisStatus?: string | null }) {
+  const isMobile = useIsMobile()
+  const [intel, setIntel] = useState<UFCIntel | null>(deepAnalysis ? null : null)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const { fighterA: a, fighterB: b, weightClass, isTitleFight } = fight
-    const fmtForm = (f: UFCFighter) => f.recentForm.length > 0 ? f.recentForm.slice(0, 5).join('') : 'N/A'
-    const fmtRank = (f: UFCFighter) => f.ranking !== null ? (f.ranking === 0 ? 'Champion' : `#${f.ranking}`) : 'NR'
-    const prompt = `You are a sharp UFC analyst. Analyze this fight and respond ONLY with valid JSON (no markdown, no extra text).
-
-Fight: ${a.name} vs ${b.name} | ${weightClass}${isTitleFight ? ' — TITLE FIGHT' : ''}
-${a.name}: ${a.record} | Rank: ${fmtRank(a)} | Form: ${fmtForm(a)} | Striking Acc: ${a.strikingAccuracy ?? '?'}% | TD Acc: ${a.takedownAccuracy ?? '?'}% | Age: ${a.age ?? '?'} | Height: ${a.height} | Reach: ${a.reach}
-${b.name}: ${b.record} | Rank: ${fmtRank(b)} | Form: ${fmtForm(b)} | Striking Acc: ${b.strikingAccuracy ?? '?'}% | TD Acc: ${b.takedownAccuracy ?? '?'}% | Age: ${b.age ?? '?'} | Height: ${b.height} | Reach: ${b.reach}
-Polymarket win odds: ${a.name} ${fight.polyOdds?.fighterAWin ? Math.round(fight.polyOdds.fighterAWin * 100) : '?'}% | ${b.name} ${fight.polyOdds?.fighterBWin ? Math.round(fight.polyOdds.fighterBWin * 100) : '?'}%
-
-IMPORTANT RULES:
-- Do NOT base the verdict on win/loss record alone — records are misleading due to opponent quality
-- Analyze: fighting style, range/reach advantages, striking accuracy, takedown offense/defense, submission threat, cardio, age/experience, recent competition level, how their styles match up
-- Use Polymarket odds as a signal of market consensus but identify if there's an edge against it
-- Be specific — name actual skills, tendencies, and stylistic matchup reasons
-
-Return this exact JSON:
-{"verdict":"<1 sentence who wins and why — based on skills/style, not just record>","edge":"<${a.name} or ${b.name}>","striking":"<striking matchup: range, accuracy, volume, power, who controls distance and why>","grappling":"<grappling matchup: who shoots more, takedown defense, submission threat, cage control>","keyFactors":["<specific stylistic or physical factor>","<specific factor>","<specific factor>"],"prediction":"<method of victory e.g. Decision, KO R2, Sub R1>","watchFor":"<key x-factor, upset scenario, or stylistic wrinkle that could flip the fight>"}`
-
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ context: prompt }),
-        })
-        const d = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(d?.error || `Analyze failed (${res.status})`)
-        const parsed = parseUFCIntel(d.analysis || '')
-        if (!parsed?.verdict) throw new Error('Analyze returned unusable UFC JSON')
-        if (!cancelled) setIntel(parsed)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'AI model unavailable'
-        const reason = msg.includes('XAI_API_KEY') ? 'AI key unavailable' : msg
-        if (!cancelled) setIntel(buildFallbackUFCIntel(fight, reason))
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [fight])
+    if (deepAnalysis) {
+      setIntel(null)
+      setLoading(false)
+      return
+    }
+    setIntel(buildFallbackUFCIntel(fight, analysisStatus || 'Deep UFC preview has not been generated yet'))
+    setLoading(false)
+  }, [fight, deepAnalysis, analysisStatus])
 
   const renderStatBar = (label: string, valA: number | null, valB: number | null, suffix = '%') => {
     if (valA === null && valB === null) return null
@@ -4535,11 +4523,62 @@ Return this exact JSON:
     <div style={{ width: '100%', background: 'rgba(2,2,15,0.97)', borderTop: `1px solid rgba(125,246,255,0.3)`, padding: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, maxWidth: 900, margin: '0 auto 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: UFC_RED, fontSize: 11, fontWeight: 900, letterSpacing: '0.12em' }}>◈ FIGHT INTEL</span>
+          <span style={{ color: UFC_RED, fontSize: 11, fontWeight: 900, letterSpacing: '0.12em' }}>◈ FIGHT PREVIEW</span>
           <span style={{ color: C.textSecondary, fontSize: 10 }}>— {a.name} vs {b.name}</span>
         </div>
         <button onClick={onClose} style={{ color: C.textSecondary, fontSize: 16, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, cursor: 'pointer' }}>×</button>
       </div>
+
+      {deepAnalysis && (
+        <div style={{ maxWidth: 1200, margin: '0 auto 14px', display: 'grid', gap: 10 }}>
+          <div style={{ borderRadius: 18, padding: 16, background: 'linear-gradient(135deg, rgba(125,246,255,0.12), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.30)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+              <span style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Cached deep analysis · {deepAnalysis.ai.confidence}</span>
+              <span style={{ color: C.textSecondary, fontSize: 9 }}>Generated {new Date(deepAnalysis.generatedAt).toLocaleString()}</span>
+            </div>
+            <div style={{ color: C.textPrimary, fontSize: 17, fontWeight: 950, lineHeight: 1.25 }}>{deepAnalysis.ai.pick} by {deepAnalysis.ai.method}</div>
+            <div style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.55, marginTop: 8 }}>{deepAnalysis.ai.thesis}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginTop: 12 }}>
+              <div style={{ borderRadius: 14, padding: 12, background: 'rgba(0,0,0,0.18)', border: `1px solid ${C.border}` }}>
+                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>Why we like it</div>
+                {(deepAnalysis.ai.why || []).slice(0, 4).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, marginBottom: 5 }}>• {item}</div>)}
+              </div>
+              <div style={{ borderRadius: 14, padding: 12, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.18)' }}>
+                <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>What can kill it</div>
+                {(deepAnalysis.ai.risks || []).slice(0, 4).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, marginBottom: 5 }}>• {item}</div>)}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+            {[deepAnalysis.fighterA, deepAnalysis.fighterB].map(dossier => (
+              <div key={dossier.name} style={{ borderRadius: 16, padding: 12, background: 'rgba(8,12,5,0.9)', border: `1px solid ${C.border}` }}>
+                <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950 }}>{dossier.name}</div>
+                <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 5 }}>{dossier.lastFightSummary || 'Last fight: unknown'}</div>
+                <div style={{ color: C.green, fontSize: 10, fontWeight: 900, marginTop: 8 }}>{dossier.finishingProfile?.summary || 'Last 5 finishes: unknown'}</div>
+                {dossier.hype?.why?.length > 0 && <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 6 }}>Hype: {dossier.hype.why.slice(0, 2).join(' · ')}</div>}
+                {dossier.narrative?.beefOrStory && dossier.narrative.beefOrStory !== 'unknown' && <div style={{ color: C.gold, fontSize: 10, lineHeight: 1.45, marginTop: 6 }}>Story: {dossier.narrative.beefOrStory}</div>}
+              </div>
+            ))}
+          </div>
+          {deepAnalysis.bettingAngles?.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+              {deepAnalysis.bettingAngles.slice(0, 3).map(angle => (
+                <div key={`${angle.label}-${angle.side}`} style={{ borderRadius: 14, padding: 11, background: 'rgba(125,246,255,0.06)', border: '1px solid rgba(125,246,255,0.20)' }}>
+                  <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase' }}>{angle.label}</div>
+                  <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950, marginTop: 5 }}>{angle.side}</div>
+                  <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 5 }}>{angle.rationale}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!deepAnalysis && analysisStatus && (
+        <div style={{ maxWidth: 900, margin: '0 auto 14px', borderRadius: 16, padding: 12, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.18)', color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>
+          Deep UFC preview has not been generated yet. Market-only analysis below is a fallback, not a full fight dossier.
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, maxWidth: 1200, margin: '0 auto' }}>
 
@@ -4671,8 +4710,8 @@ function marketLean(fight: UFCFight) {
   return { leader, edge, label: edge >= 0.3 ? 'Strong market lean' : edge >= 0.14 ? 'Clear market lean' : 'Tight market' }
 }
 
-function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
-  fight: UFCFight; totalFights: number; onOpenIntel: () => void; isActive: boolean
+function FightCard({ fight, totalFights, onOpenIntel, isActive, deepAnalysis }: {
+  fight: UFCFight; totalFights: number; onOpenIntel: () => void; isActive: boolean; deepAnalysis?: UFCFightDeepAnalysis | null
 }) {
   const isMobile = useIsMobile()
   const boutLabel = getBoutLabel(fight, totalFights)
@@ -4728,7 +4767,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
           {fight.isTitleFight && <span style={{ background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.4)', borderRadius: 6, padding: '1px 7px', color: C.gold, fontSize: 8, fontWeight: 900 }}>🏆 TITLE</span>}
           <span style={{ color: C.textSecondary, fontSize: 10 }}>{fight.weightClass}</span>
         </div>
-        <button onClick={e => { e.stopPropagation(); onOpenIntel() }} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 8, background: 'rgba(125,246,255,0.1)', border: `1px solid rgba(125,246,255,0.3)`, color: UFC_RED, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.08em' }}>📊 INTEL</button>
+        <button onClick={e => { e.stopPropagation(); onOpenIntel() }} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 8, background: 'rgba(125,246,255,0.1)', border: `1px solid rgba(125,246,255,0.3)`, color: UFC_RED, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.08em' }}>{deepAnalysis ? 'OPEN PREVIEW' : 'FALLBACK INTEL'}</button>
       </div>
 
       {/* Fighters */}
@@ -4745,6 +4784,15 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive }: {
         </div>
         <Fighter f={b} side="right" />
       </div>
+
+      {/* Deep analysis quick read */}
+      {deepAnalysis && (
+        <div style={{ marginTop: 12, padding: '10px 11px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.03))', border: '1px solid rgba(125,246,255,0.24)' }}>
+          <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Deep preview pick</div>
+          <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950, marginTop: 4 }}>{deepAnalysis.ai.pick} · {deepAnalysis.ai.method}</div>
+          <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{deepAnalysis.ai.thesis}</div>
+        </div>
+      )}
 
       {/* Polymarket odds + market read */}
       {(() => {
@@ -4999,6 +5047,9 @@ function UFCSection() {
   const [loading, setLoading] = useState(true)
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [activeFight, setActiveFight] = useState<UFCFight | null>(null)
+  const [deepAnalysis, setDeepAnalysis] = useState<UFCEventDeepAnalysis | null>(null)
+  const [analysisStatus, setAnalysisStatus] = useState<string | null>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
   useEffect(() => {
     if (activeFight) {
       setTimeout(() => {
@@ -5030,6 +5081,35 @@ function UFCSection() {
 
   const selectedEvent = events.find(e => e.id === selectedEventId) || events[0]
 
+  useEffect(() => {
+    if (!selectedEvent?.id) {
+      setDeepAnalysis(null)
+      setAnalysisStatus(null)
+      return
+    }
+    let cancelled = false
+    setAnalysisLoading(true)
+    fetch(`/api/ufc-analysis?eventId=${encodeURIComponent(selectedEvent.id)}&t=${Date.now()}`, { cache: 'no-store' })
+      .then(async r => {
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(d?.message || d?.error || `UFC analysis failed (${r.status})`)
+        return d
+      })
+      .then(d => {
+        if (cancelled) return
+        setDeepAnalysis(d?.available && d?.analysis ? d.analysis : null)
+        setAnalysisStatus(d?.status || (d?.available ? 'complete' : 'missing'))
+      })
+      .catch(e => {
+        if (!cancelled) {
+          setDeepAnalysis(null)
+          setAnalysisStatus(e?.message || 'missing')
+        }
+      })
+      .finally(() => { if (!cancelled) setAnalysisLoading(false) })
+    return () => { cancelled = true }
+  }, [selectedEvent?.id])
+
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {[...Array(5)].map((_, i) => <div key={i} style={{ height: 90, borderRadius: 20, background: 'rgba(255,255,255,0.02)', border: `1px solid ${C.border}`, animation: 'pulse 2s infinite' }} />)}
@@ -5044,9 +5124,27 @@ function UFCSection() {
   )
 
   const sortedFights = [...(selectedEvent.fights || [])].sort((a, b) => a.boutOrder - b.boutOrder)
+  const analysisByFightId = new Map((deepAnalysis?.fights || []).map(fight => [fight.fightId, fight]))
 
   return (
     <div>
+      <section style={{ marginBottom: 16, borderRadius: isMobile ? 18 : 22, padding: isMobile ? 13 : 16, background: 'linear-gradient(145deg, rgba(125,246,255,0.08), rgba(3,5,0,0.92))', border: `1px solid ${deepAnalysis ? 'rgba(125,246,255,0.28)' : 'rgba(255,215,0,0.20)'}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ color: deepAnalysis ? C.green : C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{analysisLoading ? 'Loading deep UFC preview…' : deepAnalysis ? 'Deep UFC preview ready' : 'Market-only fallback'}</div>
+            <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 18, fontWeight: 950, marginTop: 5 }}>{deepAnalysis?.cardSummary?.headline || selectedEvent.name}</div>
+            <div style={{ color: C.textSecondary, fontSize: 11, marginTop: 4 }}>{deepAnalysis ? `Generated ${new Date(deepAnalysis.generatedAt).toLocaleString()} · ${deepAnalysis.status}` : 'Deep UFC preview has not been generated yet. Raw market reads are fallback only.'}</div>
+          </div>
+          <span style={{ color: C.textSecondary, fontSize: 10, borderRadius: 999, padding: '5px 8px', border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.04)' }}>{sortedFights.length} fights</span>
+        </div>
+        {deepAnalysis && (deepAnalysis.cardSummary.bestLooks.length > 0 || deepAnalysis.cardSummary.fadeTheHype.length > 0 || deepAnalysis.cardSummary.passFights.length > 0) && (
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8, marginTop: 12 }}>
+            {deepAnalysis.cardSummary.bestLooks.length > 0 && <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}><b style={{ color: C.green }}>Best looks:</b> {deepAnalysis.cardSummary.bestLooks.slice(0, 2).join(' · ')}</div>}
+            {deepAnalysis.cardSummary.fadeTheHype.length > 0 && <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}><b style={{ color: C.gold }}>Fade hype:</b> {deepAnalysis.cardSummary.fadeTheHype.slice(0, 2).join(' · ')}</div>}
+            {deepAnalysis.cardSummary.passFights.length > 0 && <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}><b style={{ color: C.textPrimary }}>Pass:</b> {deepAnalysis.cardSummary.passFights.slice(0, 2).join(' · ')}</div>}
+          </div>
+        )}
+      </section>
       {chunkArray(sortedFights, cols).map((row, rowIdx) => {
         const rowHasActive = activeFight != null && row.some(f => f.id === activeFight.id)
         return (
@@ -5058,13 +5156,14 @@ function UFCSection() {
                   fight={fight}
                   totalFights={sortedFights.length}
                   isActive={activeFight?.id === fight.id}
+                  deepAnalysis={analysisByFightId.get(fight.id) || null}
                   onOpenIntel={() => setActiveFight(prev => prev?.id === fight.id ? null : fight)}
                 />
               ))}
             </div>
             {rowHasActive && activeFight && (
               <div id="ufc-intel-panel" style={{ marginTop: 8 }}>
-                <UFCIntelPanel fight={activeFight} onClose={() => setActiveFight(null)} />
+                <UFCIntelPanel fight={activeFight} deepAnalysis={analysisByFightId.get(activeFight.id) || null} analysisStatus={analysisStatus} onClose={() => setActiveFight(null)} />
               </div>
             )}
           </div>
