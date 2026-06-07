@@ -9,6 +9,7 @@ export const mobileDockSportOptions: MobileSportOption[] = [
   { value: 'nba', label: 'NBA' },
   { value: 'mlb', label: 'MLB' },
   { value: 'nfl', label: 'NFL' },
+  { value: 'nhl', label: 'NHL' },
   { value: 'ufc', label: 'UFC' },
 ]
 

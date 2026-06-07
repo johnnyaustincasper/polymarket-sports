@@ -1,4 +1,4 @@
-export type SupportedSport = 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'mlb'
+export type SupportedSport = 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'mlb' | 'nhl'
 
 export interface SportsTeamLike {
   name?: string
@@ -112,7 +112,7 @@ export function deriveGameEdge<TGame extends SportsGameLike>(game: TGame): GameE
 
   // Blend simple record strength with market prior; small home-field/home-court lean.
   homeEdge = homeEdge * 0.4 + game.homeWinOdds * 0.6
-  homeEdge += game.sport === 'nfl' || game.sport === 'ncaaf' ? 0.025 : 0.03
+  homeEdge += game.sport === 'nfl' || game.sport === 'ncaaf' || game.sport === 'nhl' ? 0.025 : 0.03
   homeEdge = clamp(homeEdge, 0.12, 0.88)
   const awayEdge = 1 - homeEdge
 

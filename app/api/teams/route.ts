@@ -6,16 +6,17 @@ import { enforceRateLimit } from '@/app/lib/rate-limit'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type TeamSport = 'nba' | 'nfl' | 'mlb'
+type TeamSport = 'nba' | 'nfl' | 'mlb' | 'nhl'
 
 const SPORT_PATH: Record<TeamSport, string> = {
   nba: 'basketball/nba',
   nfl: 'football/nfl',
   mlb: 'baseball/mlb',
+  nhl: 'hockey/nhl',
 }
 
 function isTeamSport(value: string | null): value is TeamSport {
-  return value === 'nba' || value === 'nfl' || value === 'mlb'
+  return value === 'nba' || value === 'nfl' || value === 'mlb' || value === 'nhl'
 }
 
 async function fetchEspnJson(url: string, timeoutMs = 8000): Promise<any | null> {
@@ -36,7 +37,7 @@ function flattenStats(data: any) {
   const categories = data?.results?.stats?.categories || []
   const wanted = new Set([
     'gamesPlayed', 'pointsPerGame', 'avgPoints', 'avgRebounds', 'avgAssists', 'avgTurnovers',
-    'battingAverage', 'runs', 'homeRuns', 'era', 'whip', 'pointsFor', 'pointsAgainst',
+    'battingAverage', 'runs', 'homeRuns', 'era', 'whip', 'goals', 'goalsPerGame', 'avgGoalsFor', 'avgGoalsAgainst', 'shotsPerGame', 'savePct', 'pointsFor', 'pointsAgainst',
     'totalYardsPerGame', 'passingYardsPerGame', 'rushingYardsPerGame', 'yardsPerGame',
   ])
   const stats: { label: string; value: string }[] = []
@@ -118,7 +119,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const sportParam = searchParams.get('sport')
   if (!isTeamSport(sportParam)) {
-    return finishRouteTiming(routeTimer, NextResponse.json({ error: 'Teams are currently available for NBA, MLB, and NFL.' }, { status: 400 }))
+    return finishRouteTiming(routeTimer, NextResponse.json({ error: 'Teams are currently available for NBA, MLB, NFL, and NHL.' }, { status: 400 }))
   }
 
   const sport = sportParam

@@ -6,7 +6,7 @@ export const revalidate = 0
 
 const GAMMA_API = 'https://gamma-api.polymarket.com'
 
-type SportKey = 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'mlb'
+type SportKey = 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'mlb' | 'nhl'
 
 const SPORTS: Record<SportKey, {
   leaguePath: string
@@ -19,6 +19,7 @@ const SPORTS: Record<SportKey, {
   nfl:   { leaguePath: 'football/nfl', label: 'NFL', eventWords: ['nfl', 'football'], polyTags: ['nfl', 'football'] },
   ncaaf: { leaguePath: 'football/college-football', label: 'NCAAF', eventWords: ['college football', 'ncaaf'], polyTags: ['college-football', 'ncaaf'] },
   mlb:   { leaguePath: 'baseball/mlb', label: 'MLB', eventWords: ['mlb', 'baseball', 'major league baseball'], polyTags: ['mlb', 'baseball'] },
+  nhl:   { leaguePath: 'hockey/nhl', label: 'NHL', eventWords: ['nhl', 'hockey', 'stanley cup'], polyTags: ['nhl', 'hockey'] },
 }
 
 const NO_STORE_HEADERS = {
@@ -29,31 +30,38 @@ const NO_STORE_HEADERS = {
 
 // ESPN abbreviation/name → Polymarket-friendly terms. Keep team nicknames first.
 const PRO_TEAM_KEYWORDS: Record<string, string[]> = {
+  CBJ: ['blue jackets', 'columbus blue jackets', 'columbus'], MTL: ['canadiens', 'montreal canadiens', 'montreal'],
+  ANA: ['ducks', 'anaheim ducks', 'anaheim'], CGY: ['flames', 'calgary flames', 'calgary'], EDM: ['oilers', 'edmonton oilers', 'edmonton'],
+  FLA: ['panthers', 'florida panthers', 'florida'], LAK: ['kings', 'los angeles kings'], NSH: ['predators', 'nashville predators', 'nashville'],
+  NJD: ['devils', 'new jersey devils'], NYI: ['islanders', 'new york islanders'], NYR: ['rangers', 'new york rangers'],
+  OTT: ['senators', 'ottawa senators', 'ottawa'], SEA_NHL: ['kraken', 'seattle kraken'], SJS: ['sharks', 'san jose sharks'], SJ: ['sharks', 'san jose sharks'],
+  TBL: ['lightning', 'tampa bay lightning'], VAN: ['canucks', 'vancouver canucks', 'vancouver'], VGK: ['golden knights', 'vegas golden knights', 'las vegas golden knights'],
+  WPG: ['jets', 'winnipeg jets', 'winnipeg'], UTAHHC: ['utah hockey club', 'utah mammoth', 'mammoth'],
   // MLB: include ESPN abbreviations plus common aliases so baseball does not collide with NBA/NFL city-only matches.
   ARI: ['diamondbacks', 'd backs', 'dbacks', 'arizona'], AZ: ['diamondbacks', 'd backs', 'dbacks', 'arizona'],
   ATH: ['athletics', 'a s', 'athletics baseball'], OAK: ['athletics', 'oakland athletics', 'a s'],
   CHC: ['cubs', 'chicago cubs'], CWS: ['white sox', 'chicago white sox'], CHW: ['white sox', 'chicago white sox'],
-  COL: ['rockies', 'colorado rockies'], KCR: ['royals', 'kansas city royals'], KCMLB: ['royals', 'kansas city royals'],
+  COL: ['avalanche', 'colorado avalanche', 'rockies', 'colorado rockies'], KCR: ['royals', 'kansas city royals'], KCMLB: ['royals', 'kansas city royals'],
   LAA: ['angels', 'los angeles angels'], LAD: ['dodgers', 'los angeles dodgers'],
   NYM: ['mets', 'new york mets'], NYY: ['yankees', 'new york yankees'],
   SDP: ['padres', 'san diego padres'], SD: ['padres', 'san diego padres'], SFG: ['giants', 'san francisco giants'],
-  STL: ['cardinals', 'st louis cardinals'], TBR: ['rays', 'tampa bay rays'], WSN: ['nationals', 'washington nationals'],
-  ATL: ['braves', 'atlanta braves', 'hawks', 'falcons'], BOS: ['red sox', 'boston red sox', 'celtics'], BKN: ['nets', 'brooklyn'],
-  CHA: ['hornets', 'charlotte', 'panthers'], CHI: ['bulls', 'chicago', 'bears'], CLE: ['guardians', 'cleveland guardians', 'cavaliers', 'browns', 'cleveland'],
-  DAL: ['mavericks', 'dallas', 'cowboys'], DEN: ['nuggets', 'denver', 'broncos'], DET: ['tigers', 'detroit tigers', 'pistons', 'lions', 'detroit'],
+  STL: ['blues', 'st louis blues', 'cardinals', 'st louis cardinals'], TBR: ['rays', 'tampa bay rays'], WSN: ['nationals', 'washington nationals'],
+  ATL: ['braves', 'atlanta braves', 'hawks', 'falcons'], BOS: ['bruins', 'boston bruins', 'red sox', 'boston red sox', 'celtics'], BKN: ['nets', 'brooklyn'],
+  CHA: ['hornets', 'charlotte', 'panthers'], CHI: ['blackhawks', 'chicago blackhawks', 'bulls', 'chicago', 'bears'], CLE: ['guardians', 'cleveland guardians', 'cavaliers', 'browns', 'cleveland'],
+  DAL: ['stars', 'dallas stars', 'mavericks', 'dallas', 'cowboys'], DEN: ['nuggets', 'denver', 'broncos'], DET: ['red wings', 'detroit red wings', 'tigers', 'detroit tigers', 'pistons', 'lions', 'detroit'],
   GSW: ['warriors', 'golden state'], GS: ['warriors', 'golden state'], HOU: ['astros', 'houston astros', 'rockets', 'texans', 'houston'], IND: ['pacers', 'indiana', 'colts'],
   LAC: ['clippers', 'chargers', 'los angeles chargers'], LAL: ['lakers', 'los angeles lakers'], LAR: ['rams', 'los angeles rams'],
   LV: ['raiders', 'las vegas'], LA: ['rams', 'chargers', 'los angeles'],
-  MEM: ['grizzlies', 'memphis'], MIA: ['marlins', 'miami marlins', 'heat', 'dolphins', 'miami'], MIL: ['brewers', 'milwaukee brewers', 'bucks', 'milwaukee'], MIN: ['twins', 'minnesota twins', 'timberwolves', 'vikings', 'minnesota'],
+  MEM: ['grizzlies', 'memphis'], MIA: ['marlins', 'miami marlins', 'heat', 'dolphins', 'miami'], MIL: ['brewers', 'milwaukee brewers', 'bucks', 'milwaukee'], MIN: ['wild', 'minnesota wild', 'twins', 'minnesota twins', 'timberwolves', 'vikings', 'minnesota'],
   NOP: ['pelicans', 'new orleans'], NO: ['pelicans', 'saints', 'new orleans'], NYK: ['knicks', 'new york'], NY: ['knicks', 'giants', 'jets', 'new york'],
   NYG: ['giants', 'new york giants'], NYJ: ['jets', 'new york jets'], OKC: ['thunder', 'oklahoma city'], ORL: ['magic', 'orlando'],
-  PHI: ['phillies', 'philadelphia phillies', '76ers', 'sixers', 'eagles', 'philadelphia'], PHX: ['suns', 'phoenix'], POR: ['trail blazers', 'portland'],
+  PHI: ['flyers', 'philadelphia flyers', 'phillies', 'philadelphia phillies', '76ers', 'sixers', 'eagles', 'philadelphia'], PHX: ['suns', 'phoenix'], POR: ['trail blazers', 'portland'],
   SAC: ['kings', 'sacramento'], SAS: ['spurs', 'san antonio'], SA: ['spurs', 'san antonio'],
-  UTA: ['jazz', 'utah'], UTAH: ['jazz', 'utah'], WAS: ['nationals', 'washington nationals', 'wizards', 'commanders', 'washington'], WSH: ['nationals', 'washington nationals', 'wizards', 'commanders', 'washington'],
-  BAL: ['orioles', 'baltimore orioles', 'ravens', 'baltimore'], BUF: ['bills', 'buffalo'], CAR: ['panthers', 'carolina'], CIN: ['reds', 'cincinnati reds', 'bengals', 'cincinnati'],
+  UTA: ['jazz', 'utah'], UTAH: ['jazz', 'utah'], WAS: ['capitals', 'washington capitals', 'nationals', 'washington nationals', 'wizards', 'commanders', 'washington'], WSH: ['capitals', 'washington capitals', 'nationals', 'washington nationals', 'wizards', 'commanders', 'washington'],
+  BAL: ['orioles', 'baltimore orioles', 'ravens', 'baltimore'], BUF: ['sabres', 'buffalo sabres', 'bills', 'buffalo'], CAR: ['hurricanes', 'carolina hurricanes', 'panthers', 'carolina'], CIN: ['reds', 'cincinnati reds', 'bengals', 'cincinnati'],
   GB: ['packers', 'green bay'], JAX: ['jaguars', 'jacksonville'], KC: ['royals', 'kansas city royals', 'chiefs', 'kansas city'], NE: ['patriots', 'new england'],
-  PIT: ['pirates', 'pittsburgh pirates', 'steelers', 'pittsburgh'], SEA: ['mariners', 'seattle mariners', 'seahawks', 'seattle'], SF: ['giants', 'san francisco giants', '49ers', 'niners', 'san francisco'], TB: ['rays', 'tampa bay rays', 'buccaneers', 'bucs', 'tampa bay'],
-  TEX: ['rangers', 'texas rangers'], TOR: ['blue jays', 'toronto blue jays', 'raptors', 'toronto'],
+  PIT: ['penguins', 'pittsburgh penguins', 'pirates', 'pittsburgh pirates', 'steelers', 'pittsburgh'], SEA: ['kraken', 'seattle kraken', 'mariners', 'seattle mariners', 'seahawks', 'seattle'], SF: ['giants', 'san francisco giants', '49ers', 'niners', 'san francisco'], TB: ['lightning', 'tampa bay lightning', 'rays', 'tampa bay rays', 'buccaneers', 'bucs', 'tampa bay'],
+  TEX: ['rangers', 'texas rangers'], TOR: ['maple leafs', 'leafs', 'toronto maple leafs', 'blue jays', 'toronto blue jays', 'raptors', 'toronto'],
   TEN: ['titans', 'tennessee'],
 }
 

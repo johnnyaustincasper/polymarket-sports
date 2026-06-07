@@ -2991,7 +2991,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
         )}
 
         {activeLiveTab !== 'props' ? null : !supportedKalshiSport ? (
-          <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>Kalshi player prop cards are not wired for {sport.toUpperCase()} yet. Use Polymarket for this sport while we add that feed.</p>
+          <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>Player signal cards are not wired for {sport.toUpperCase()} yet. Use the slate and team context while we add that hockey feed.</p>
         ) : scanActive ? (
           <div style={{ display: 'grid', gap: 9 }}>
             {[0, 1, 2].map(i => (
@@ -3403,7 +3403,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
 
   if (!supported || loading || !activeGames.length) {
     const title = !supported ? 'Player Signals are not available for this sport yet.' : loading ? 'Loading Signals…' : 'No active games available for Player Signals.'
-    const detail = !supported ? 'Switch to NBA, MLB, or NFL from the Sport dock to run player signals.' : loading ? 'First loading today’s slate, then Player Signals will scan props, injuries, and recent form.' : 'Pick another date or sport with upcoming/live games to run the model.'
+    const detail = !supported ? 'Switch to NBA, MLB, or NFL from the Sport dock to run player signals. NHL slate and team intel are available now while hockey player signals are being wired.' : loading ? 'First loading today’s slate, then Player Signals will scan props, injuries, and recent form.' : 'Pick another date or sport with upcoming/live games to run the model.'
     return (
       <section aria-busy={loading || undefined} aria-live="polite" style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.52), rgba(168,240,255,0.18), rgba(255,255,255,0.08))', boxShadow: loading ? '0 0 34px rgba(125,246,255,0.20), 0 18px 54px rgba(0,0,0,0.34)' : '0 18px 54px rgba(0,0,0,0.30)', animation: loading ? 'liveBorderPulse 1.35s ease-in-out infinite' : undefined }}>
         <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 14 : 18, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: loading ? 12 : 0 }}>
@@ -5470,7 +5470,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
     return (
       <section style={{ borderRadius: 20, padding: 18, background: 'rgba(255,255,255,0.035)', border: `1px solid ${C.border}` }}>
         <p style={{ color: C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Teams unavailable</p>
-        <p style={{ color: C.textSecondary, fontSize: 13, lineHeight: 1.45 }}>Team rosters are wired for NBA, MLB, and NFL first. Switch sports from the dock to browse teams.</p>
+        <p style={{ color: C.textSecondary, fontSize: 13, lineHeight: 1.45 }}>Team rosters are wired for NBA, MLB, NFL, and NHL first. Switch sports from the dock to browse teams.</p>
       </section>
     )
   }
@@ -5716,6 +5716,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
     { value: 'nba', label: 'NBA' },
     { value: 'mlb', label: 'MLB' },
     { value: 'nfl', label: 'NFL' },
+    { value: 'nhl', label: 'NHL' },
     { value: 'ufc', label: 'UFC' },
   ]
   const sportLabel = sport === 'ncaaf' || sport === 'ncaab' ? 'NCAA' : sport.toUpperCase()

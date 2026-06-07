@@ -4,7 +4,7 @@ import { enforceRateLimit } from '@/app/lib/rate-limit'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type Sport = 'mlb' | 'nba' | 'nfl'
+type Sport = 'mlb' | 'nba' | 'nfl' | 'nhl'
 
 const NO_STORE_HEADERS = {
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -16,11 +16,12 @@ const SPORT_PATH: Record<Sport, string> = {
   mlb: 'baseball/mlb',
   nba: 'basketball/nba',
   nfl: 'football/nfl',
+  nhl: 'hockey/nhl',
 }
 
 function parseSport(value: string | null): Sport {
   const sport = String(value || 'mlb').toLowerCase()
-  return sport === 'nba' || sport === 'nfl' ? sport : 'mlb'
+  return sport === 'nba' || sport === 'nfl' || sport === 'nhl' ? sport : 'mlb'
 }
 
 async function fetchEspnJson(url: string, timeoutMs = 8000) {
@@ -59,7 +60,8 @@ function parsePlayerStats(summary: any) {
       const isBatting = labels.includes('H-AB') || String(statGroup.type || statGroup.name || '').toLowerCase().includes('bat')
       const isPitching = labels.includes('IP') && labels.includes('ERA')
       const isBasketball = labels.includes('PTS') && labels.includes('REB') && labels.includes('AST')
-      if (!isBatting && !isPitching && !isBasketball) continue
+      const isHockey = labels.includes('G') && labels.includes('A') && (labels.includes('S') || labels.includes('SOG'))
+      if (!isBatting && !isPitching && !isBasketball && !isHockey) continue
 
       for (const entry of (statGroup.athletes || [])) {
         const athlete = entry.athlete || {}
@@ -73,9 +75,17 @@ function parsePlayerStats(summary: any) {
           starter: Boolean(entry.starter),
           active: Boolean(entry.active),
           batOrder: Number(entry.batOrder || 0),
-          kind: isPitching ? 'pitching' : isBasketball ? 'basketball' : 'batting',
+          kind: isPitching ? 'pitching' : isBasketball ? 'basketball' : isHockey ? 'hockey' : 'batting',
           decision: (entry.notes || []).find((note: any) => note?.type === 'pitchingDecision')?.text || '',
-          stats: isPitching ? {
+          stats: isHockey ? {
+            goals: statNum(labels, entry.stats || [], 'G'),
+            assists: statNum(labels, entry.stats || [], 'A'),
+            points: statNum(labels, entry.stats || [], 'PTS'),
+            shots: statNum(labels, entry.stats || [], 'S') || statNum(labels, entry.stats || [], 'SOG'),
+            plusMinus: statAt(labels, entry.stats || [], '+/-'),
+            penaltyMinutes: statNum(labels, entry.stats || [], 'PIM'),
+            timeOnIce: statAt(labels, entry.stats || [], 'TOI'),
+          } : isPitching ? {
             innings: statAt(labels, entry.stats || [], 'IP'),
             hitsAllowed: statNum(labels, entry.stats || [], 'H'),
             runs: statNum(labels, entry.stats || [], 'R'),

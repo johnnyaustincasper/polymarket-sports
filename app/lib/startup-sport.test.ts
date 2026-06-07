@@ -26,16 +26,16 @@ describe('resolveStartupSport', () => {
     expect(loadGames).toHaveBeenNthCalledWith(2, 'mlb', '20260520')
   })
 
-  it('falls back from NBA to MLB to NFL when only NFL has games', async () => {
-    const nflGames: TestGame[] = [{ id: 'nfl-1', status: 'pre' }]
-    const loadGames = vi.fn(async (sport: string) => sport === 'nfl' ? nflGames : [])
+  it('falls back from NBA to MLB to NHL when only NHL has games', async () => {
+    const nhlGames: TestGame[] = [{ id: 'nhl-1', status: 'pre' }]
+    const loadGames = vi.fn(async (sport: string) => sport === 'nhl' ? nhlGames : [])
 
     const result = await resolveStartupSport({ initialDate: '20260520', loadGames })
 
-    expect(result).toEqual({ sport: 'nfl', date: '20260520', games: nflGames })
+    expect(result).toEqual({ sport: 'nhl', date: '20260520', games: nhlGames })
     expect(loadGames).toHaveBeenNthCalledWith(1, 'nba', '20260520')
     expect(loadGames).toHaveBeenNthCalledWith(2, 'mlb', '20260520')
-    expect(loadGames).toHaveBeenNthCalledWith(3, 'nfl', '20260520')
+    expect(loadGames).toHaveBeenNthCalledWith(3, 'nhl', '20260520')
   })
 
   it('keeps NBA selected with an empty slate when no fallback sport has games', async () => {
@@ -44,6 +44,6 @@ describe('resolveStartupSport', () => {
     const result = await resolveStartupSport({ initialDate: '20260520', loadGames })
 
     expect(result).toEqual({ sport: 'nba', date: '20260520', games: [] })
-    expect(loadGames).toHaveBeenCalledTimes(3)
+    expect(loadGames).toHaveBeenCalledTimes(4)
   })
 })
