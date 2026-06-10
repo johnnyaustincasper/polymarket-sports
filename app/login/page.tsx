@@ -43,11 +43,11 @@ export default function LoginPage() {
   if (clerkEnabled) {
     const guestDisabled = guestLoading || !guestCode.trim()
     return (
-      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Unlock today's board" subtitle="Enter an access code for instant guest access, or sign in with your account.">
-        <form onSubmit={submitGuestCode} style={{ width: '100%', display: 'grid', gap: 10, marginBottom: 18, padding: 14, borderRadius: 20, border: '1px solid rgba(125,246,255,0.24)', background: 'rgba(125,246,255,0.055)', boxShadow: '0 0 30px rgba(125,246,255,0.12)' }}>
+      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Open the board" subtitle="Sign in for premium athlete reads, or use a VIP code Johnny gave you.">
+        <form onSubmit={submitGuestCode} style={accessCodeCard}>
           <div style={{ display: 'grid', gap: 4 }}>
-            <strong style={{ color: '#7df6ff', fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Access code</strong>
-            <span style={{ color: 'rgba(226,255,204,0.58)', fontSize: 12, lineHeight: 1.45 }}>Skip signup and open the board in guest mode.</span>
+            <strong style={{ color: '#7df6ff', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>VIP access code</strong>
+            <span style={{ color: 'rgba(226,255,204,0.62)', fontSize: 12, lineHeight: 1.45 }}>Have a comp pass? Enter it here and go straight to today’s board.</span>
           </div>
           <input
             value={guestCode}
@@ -56,10 +56,11 @@ export default function LoginPage() {
             autoComplete="one-time-code"
             style={inputStyle}
           />
-          {guestError && <p style={{ color: '#ff4466', fontSize: 12, textAlign: 'center', fontWeight: 800 }}>{guestError}</p>}
-          {guestMessage && <p style={{ color: '#7df6ff', fontSize: 12, textAlign: 'center', fontWeight: 800 }}>{guestMessage}</p>}
-          <button type="submit" disabled={guestDisabled} style={primaryButton(guestDisabled)}>{guestLoading ? 'Unlocking…' : 'Enter with Access Code'}</button>
+          {guestError && <p style={{ color: '#ff4466', fontSize: 12, textAlign: 'center', fontWeight: 800, margin: 0 }}>{guestError}</p>}
+          {guestMessage && <p style={{ color: '#7df6ff', fontSize: 12, textAlign: 'center', fontWeight: 800, margin: 0 }}>{guestMessage}</p>}
+          <button type="submit" disabled={guestDisabled} style={primaryButton(guestDisabled)}>{guestLoading ? 'Unlocking…' : 'Unlock Board'}</button>
         </form>
+        <div className="auth-divider-label">or sign in</div>
         <SignIn
           routing="path"
           path="/login"
@@ -111,7 +112,7 @@ function LegacyLogin() {
   const disabled = loading || !email.trim() || !code.trim() || (mode === 'signup' && !name.trim())
 
   return (
-    <AuthShell eyebrow="ACCESS" title="Member access" subtitle="Use your account access code to sign in. Paid membership is required before the board opens.">
+    <AuthShell eyebrow="ACCESS" title="Member access" subtitle="Use your account access code to sign in. Premium access is required before the board opens.">
       <form onSubmit={submit} style={{ width: '100%', display: 'grid', gap: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {(['signin', 'signup'] as const).map(option => (
@@ -130,8 +131,20 @@ function LegacyLogin() {
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '15px 16px', borderRadius: 16, fontSize: 15,
-  background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.22)',
+  background: 'rgba(3,10,10,0.72)', border: '1px solid rgba(125,246,255,0.20)',
   color: '#eaffd6', outline: 'none', boxSizing: 'border-box', caretColor: '#7df6ff',
+  boxShadow: '0 0 0 1px rgba(255,255,255,0.025) inset',
+}
+
+const accessCodeCard: React.CSSProperties = {
+  width: '100%',
+  display: 'grid',
+  gap: 10,
+  padding: 14,
+  borderRadius: 22,
+  border: '1px solid rgba(125,246,255,0.18)',
+  background: 'linear-gradient(135deg, rgba(125,246,255,0.08), rgba(255,255,255,0.025))',
+  boxShadow: '0 0 0 1px rgba(255,255,255,0.035) inset, 0 18px 44px rgba(0,0,0,0.28)',
 }
 
 function tabStyle(active: boolean): React.CSSProperties {
@@ -147,9 +160,9 @@ function primaryButton(disabled: boolean): React.CSSProperties {
   return {
     width: '100%', padding: '15px', borderRadius: 17, fontSize: 12, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase',
     cursor: disabled ? 'not-allowed' : 'pointer',
-    background: disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, rgba(125,246,255,0.26), rgba(125,246,255,0.13))',
+    background: disabled ? 'rgba(255,255,255,0.045)' : 'linear-gradient(135deg, #7df6ff, #26aaff)',
     border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(125,246,255,0.48)'}`,
-    color: disabled ? 'rgba(226,255,204,0.3)' : '#7df6ff', boxShadow: !disabled ? '0 0 26px rgba(125,246,255,0.18)' : 'none',
+    color: disabled ? 'rgba(226,255,204,0.3)' : '#03100f', boxShadow: !disabled ? '0 18px 34px rgba(38,170,255,0.22), 0 0 24px rgba(125,246,255,0.2)' : 'none',
   }
 }
 
@@ -157,17 +170,17 @@ const clerkAppearance = {
   variables: {
     colorPrimary: '#7df6ff',
     colorBackground: '#050805',
-    colorInputBackground: 'rgba(125,246,255,0.055)',
+    colorInputBackground: 'rgba(3,10,10,0.72)',
     colorInputText: '#f7fff0',
     colorText: '#f7fff0',
     colorTextSecondary: 'rgba(226,255,204,0.62)',
-    borderRadius: '16px',
+    borderRadius: '18px',
   },
   elements: {
     card: { background: 'transparent', boxShadow: 'none', border: 'none', width: '100%' },
     headerTitle: { display: 'none' },
     headerSubtitle: { display: 'none' },
-    socialButtonsBlockButton: { borderColor: 'rgba(125,246,255,0.22)', color: '#f7fff0' },
+    socialButtonsBlockButton: { borderColor: 'rgba(125,246,255,0.20)', color: '#f7fff0' },
     formButtonPrimary: { color: '#051005', fontWeight: 900 },
     footerActionLink: { color: '#7df6ff' },
   },
