@@ -10,7 +10,7 @@ const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 export default function LoginPage() {
   if (clerkEnabled) {
     return (
-      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Open the board" subtitle="Sign in to access today’s premium athlete reads.">
+      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Enter the intelligence room" subtitle="Access premium player context, signal movement, rotation shifts, and matchup reads before the board settles.">
         <SignIn
           routing="path"
           path="/login"
@@ -62,7 +62,7 @@ function LegacyLogin() {
   const disabled = loading || !email.trim() || !code.trim() || (mode === 'signup' && !name.trim())
 
   return (
-    <AuthShell eyebrow="ACCESS" title="Member access" subtitle="Use your account access code to sign in. Premium access is required before the board opens.">
+    <AuthShell eyebrow="ACCESS" title="Enter the intelligence room" subtitle="Use your approved access code to open the premium athlete intelligence board.">
       <form onSubmit={submit} style={{ width: '100%', display: 'grid', gap: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {(['signin', 'signup'] as const).map(option => (
@@ -80,7 +80,7 @@ function LegacyLogin() {
 }
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '15px 16px', borderRadius: 16, fontSize: 15,
+  width: '100%', padding: '15px 18px', borderRadius: 16, fontSize: 15, lineHeight: 1.2,
   background: 'rgba(3,10,10,0.72)', border: '1px solid rgba(125,246,255,0.20)',
   color: '#eaffd6', outline: 'none', boxSizing: 'border-box', caretColor: '#7df6ff',
   boxShadow: '0 0 0 1px rgba(255,255,255,0.025) inset',
@@ -99,9 +99,9 @@ function primaryButton(disabled: boolean): React.CSSProperties {
   return {
     width: '100%', padding: '15px', borderRadius: 17, fontSize: 12, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase',
     cursor: disabled ? 'not-allowed' : 'pointer',
-    background: disabled ? 'rgba(255,255,255,0.045)' : 'linear-gradient(135deg, #7df6ff, #26aaff)',
-    border: `1px solid ${disabled ? 'rgba(255,255,255,0.08)' : 'rgba(125,246,255,0.48)'}`,
-    color: disabled ? 'rgba(226,255,204,0.3)' : '#03100f', boxShadow: !disabled ? '0 18px 34px rgba(38,170,255,0.22), 0 0 24px rgba(125,246,255,0.2)' : 'none',
+    background: disabled ? 'rgba(125,246,255,0.075)' : 'linear-gradient(135deg, #7df6ff, #26aaff)',
+    border: `1px solid ${disabled ? 'rgba(125,246,255,0.18)' : 'rgba(125,246,255,0.48)'}`,
+    color: disabled ? 'rgba(226,255,204,0.56)' : '#03100f', boxShadow: !disabled ? '0 18px 34px rgba(38,170,255,0.22), 0 0 24px rgba(125,246,255,0.2)' : '0 0 0 1px rgba(255,255,255,0.025) inset',
   }
 }
 

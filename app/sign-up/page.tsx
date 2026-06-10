@@ -15,7 +15,7 @@ export default function SignUpPage() {
   }
 
   return (
-    <AuthShell eyebrow="START PREMIUM ACCESS" title="Create account" subtitle="Sign up with Discord or email. Subscription starts after account creation.">
+    <AuthShell eyebrow="START PREMIUM ACCESS" title="Enter the intelligence room" subtitle="Create your account for premium player context, signal movement, rotation shifts, and matchup reads.">
       <SignUp
         routing="path"
         path="/sign-up"
