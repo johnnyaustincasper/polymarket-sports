@@ -8,59 +8,9 @@ import AuthShell from '../components/AuthShell'
 const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 
 export default function LoginPage() {
-  const [guestCode, setGuestCode] = useState('')
-  const [guestError, setGuestError] = useState('')
-  const [guestMessage, setGuestMessage] = useState('')
-  const [guestLoading, setGuestLoading] = useState(false)
-  const router = useRouter()
-
-  async function submitGuestCode(e: React.FormEvent) {
-    e.preventDefault()
-    setGuestLoading(true)
-    setGuestError('')
-    setGuestMessage('')
-    try {
-      const res = await fetch('/api/auth/guest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: guestCode }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setGuestError(data.error || 'Invalid or expired access code.')
-        return
-      }
-      setGuestMessage('Access unlocked. Loading your board…')
-      router.push('/')
-      router.refresh()
-    } catch {
-      setGuestError('Connection error. Try again.')
-    } finally {
-      setGuestLoading(false)
-    }
-  }
-
   if (clerkEnabled) {
-    const guestDisabled = guestLoading || !guestCode.trim()
     return (
-      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Open the board" subtitle="Sign in for premium athlete reads, or use a VIP code Johnny gave you.">
-        <form onSubmit={submitGuestCode} style={accessCodeCard}>
-          <div style={{ display: 'grid', gap: 4 }}>
-            <strong style={{ color: '#7df6ff', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>VIP access code</strong>
-            <span style={{ color: 'rgba(226,255,204,0.62)', fontSize: 12, lineHeight: 1.45 }}>Have a comp pass? Enter it here and go straight to today’s board.</span>
-          </div>
-          <input
-            value={guestCode}
-            onChange={e => setGuestCode(e.target.value)}
-            placeholder="Enter access code"
-            autoComplete="one-time-code"
-            style={inputStyle}
-          />
-          {guestError && <p style={{ color: '#ff4466', fontSize: 12, textAlign: 'center', fontWeight: 800, margin: 0 }}>{guestError}</p>}
-          {guestMessage && <p style={{ color: '#7df6ff', fontSize: 12, textAlign: 'center', fontWeight: 800, margin: 0 }}>{guestMessage}</p>}
-          <button type="submit" disabled={guestDisabled} style={primaryButton(guestDisabled)}>{guestLoading ? 'Unlocking…' : 'Unlock Board'}</button>
-        </form>
-        <div className="auth-divider-label">or sign in</div>
+      <AuthShell eyebrow="AI ATHLETE INTELLIGENCE" title="Open the board" subtitle="Sign in to access today’s premium athlete reads.">
         <SignIn
           routing="path"
           path="/login"
@@ -134,17 +84,6 @@ const inputStyle: React.CSSProperties = {
   background: 'rgba(3,10,10,0.72)', border: '1px solid rgba(125,246,255,0.20)',
   color: '#eaffd6', outline: 'none', boxSizing: 'border-box', caretColor: '#7df6ff',
   boxShadow: '0 0 0 1px rgba(255,255,255,0.025) inset',
-}
-
-const accessCodeCard: React.CSSProperties = {
-  width: '100%',
-  display: 'grid',
-  gap: 10,
-  padding: 14,
-  borderRadius: 22,
-  border: '1px solid rgba(125,246,255,0.18)',
-  background: 'linear-gradient(135deg, rgba(125,246,255,0.08), rgba(255,255,255,0.025))',
-  boxShadow: '0 0 0 1px rgba(255,255,255,0.035) inset, 0 18px 44px rgba(0,0,0,0.28)',
 }
 
 function tabStyle(active: boolean): React.CSSProperties {

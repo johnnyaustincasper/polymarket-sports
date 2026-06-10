@@ -95,25 +95,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .auth-eyebrow { color: #7df6ff; font-weight: 950; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; margin: 0; }
         .auth-title { margin: 8px 0 6px; font-size: clamp(30px, 8vw, 44px); line-height: 0.95; letter-spacing: -0.065em; }
         .auth-subtitle { margin: 0 auto; max-width: 340px; color: rgba(226,255,204,0.64); font-size: 13px; line-height: 1.45; }
-        .auth-proof-row {
-          display: flex;
-          justify-content: center;
-          flex-wrap: wrap;
-          gap: 7px;
-          margin-top: 14px;
-        }
-        .auth-proof-chip {
-          border: 1px solid rgba(125,246,255,0.12);
-          border-radius: 999px;
-          padding: 7px 8px;
-          background: rgba(255,255,255,0.035);
-          color: rgba(247,255,240,0.72);
-          font-size: 10px;
-          font-weight: 850;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          white-space: nowrap;
-        }
         .auth-body { display: grid; gap: 14px; }
         .auth-divider-label {
           display: flex;
@@ -170,8 +151,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           .auth-eyebrow { font-size: 8px; letter-spacing: 0.17em; }
           .auth-title { font-size: 34px; margin: 6px 0 5px; }
           .auth-subtitle { font-size: 12px; max-width: 300px; }
-          .auth-proof-row { gap: 6px; margin-top: 11px; }
-          .auth-proof-chip { font-size: 9px; padding: 6px 9px; letter-spacing: 0.055em; }
           .auth-body { gap: 11px; }
           .auth-card form { gap: 9px !important; }
           .auth-card input { padding: 13px 14px !important; font-size: 15px !important; border-radius: 16px !important; }
@@ -180,10 +159,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           .cl-formButtonPrimary { min-height: 44px !important; }
           .cl-formFieldInput { min-height: 44px !important; }
           .cl-footer, .cl-dividerRow { margin-top: 9px !important; }
-        }
-
-        @media (max-width: 360px) {
-          .auth-proof-row { display: none; }
         }
       `}</style>
       <div className="auth-grid-bg" />
@@ -198,11 +173,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           <p className="auth-eyebrow">{eyebrow}</p>
           <h1 className="auth-title">{title}</h1>
           <p className="auth-subtitle">{subtitle}</p>
-          <div className="auth-proof-row" aria-label="Athlete Intelligence highlights">
-            <span className="auth-proof-chip">Daily board</span>
-            <span className="auth-proof-chip">Player reads</span>
-            <span className="auth-proof-chip">Line checks</span>
-          </div>
         </div>
         <div className="auth-body">{children}</div>
       </section>
