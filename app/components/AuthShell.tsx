@@ -15,7 +15,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   const [opened, setOpened] = useState(false)
 
   return (
-    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-smooth-circle-20260611">
+    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-ball-morph-20260611">
       <style>{`
         html, body { min-height: 100%; background: #000404; }
         .auth-shell {
@@ -200,12 +200,8 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           border-radius: 50%;
           overflow: hidden;
           background:
-            radial-gradient(circle at 36% 27%, rgba(255,255,255,0.96) 0 5%, rgba(255,255,255,0.22) 11%, transparent 22%),
-            linear-gradient(115deg, transparent 0 24%, rgba(255,255,255,0.18) 35%, transparent 46%),
-            radial-gradient(circle at 28% 72%, rgba(47,255,185,0.58), transparent 24%),
-            radial-gradient(circle at 72% 28%, rgba(38,170,255,0.72), transparent 31%),
-            radial-gradient(circle at 54% 58%, rgba(125,246,255,0.82), rgba(24,145,190,0.58) 35%, rgba(4,23,29,0.92) 72%),
-            linear-gradient(135deg, #7df6ff, #26aaff 48%, #2fffb9 100%);
+            radial-gradient(circle at 50% 50%, rgba(125,246,255,0.18), transparent 66%),
+            linear-gradient(135deg, rgba(5,24,30,0.92), rgba(2,9,12,0.96));
           box-shadow:
             0 0 76px rgba(125,246,255,0.36),
             0 0 160px rgba(38,170,255,0.18),
@@ -215,6 +211,57 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
             24px 30px 80px rgba(0,0,0,0.52) inset;
           animation: heartBeat 1.42s cubic-bezier(.32,.02,.21,1) infinite;
           transform-origin: 50% 54%;
+        }
+        .ball-skin,
+        .orb-shine {
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+        }
+        .ball-skin {
+          display: block;
+          opacity: 0;
+          transform: scale(1.045) rotate(-3deg);
+          animation-duration: 9s;
+          animation-timing-function: ease-in-out;
+          animation-iteration-count: infinite;
+          will-change: opacity, transform;
+        }
+        .ball-skin svg {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
+        .ball-basketball {
+          background:
+            radial-gradient(circle at 34% 24%, rgba(255,255,255,0.38), transparent 17%),
+            radial-gradient(circle at 70% 75%, rgba(92,34,0,0.30), transparent 38%),
+            radial-gradient(circle at 50% 50%, rgba(255,149,44,0.94), rgba(206,88,17,0.98) 58%, rgba(104,41,9,0.98) 100%);
+          animation-name: basketballMorph;
+        }
+        .ball-baseball {
+          background:
+            radial-gradient(circle at 32% 22%, rgba(255,255,255,0.92), transparent 18%),
+            radial-gradient(circle at 70% 78%, rgba(165,180,190,0.22), transparent 42%),
+            radial-gradient(circle at 50% 50%, #f8fbf7 0%, #d9e1df 60%, #9fb5b8 100%);
+          animation-name: baseballMorph;
+        }
+        .ball-soccer {
+          background:
+            radial-gradient(circle at 34% 23%, rgba(255,255,255,0.84), transparent 17%),
+            radial-gradient(circle at 50% 50%, #f4fbf7 0%, #dde8e6 58%, #80999d 100%);
+          animation-name: soccerMorph;
+        }
+        .orb-shine {
+          z-index: 4;
+          background:
+            radial-gradient(circle at 34% 25%, rgba(255,255,255,0.96) 0 5%, rgba(255,255,255,0.24) 12%, transparent 24%),
+            linear-gradient(115deg, transparent 0 24%, rgba(255,255,255,0.16) 35%, transparent 46%),
+            radial-gradient(circle at 50% 84%, rgba(0,0,0,0.30), transparent 42%);
+          opacity: 0.88;
         }
         .orb-label {
           position: absolute;
@@ -390,6 +437,21 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         @keyframes gridPulse { 0%, 100% { transform: scale(1); opacity: 0.25; } 50% { transform: scale(1.05); opacity: 0.50; } }
         @keyframes scanFall { from { background-position: 0 0, 0 -310px; } to { background-position: 0 0, 0 310px; } }
         @keyframes heartBeat { 0%, 100% { transform: scale(1); } 10% { transform: scale(1.045); } 18% { transform: scale(0.985); } 29% { transform: scale(1.075); } 43% { transform: scale(1); } }
+        @keyframes basketballMorph {
+          0%, 27% { opacity: 1; transform: scale(1) rotate(0deg); }
+          33%, 94% { opacity: 0; transform: scale(1.045) rotate(4deg); }
+          100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        @keyframes baseballMorph {
+          0%, 27% { opacity: 0; transform: scale(1.045) rotate(-4deg); }
+          33%, 60% { opacity: 1; transform: scale(1) rotate(0deg); }
+          66%, 100% { opacity: 0; transform: scale(1.045) rotate(4deg); }
+        }
+        @keyframes soccerMorph {
+          0%, 60% { opacity: 0; transform: scale(1.045) rotate(-4deg); }
+          66%, 94% { opacity: 1; transform: scale(1) rotate(0deg); }
+          100% { opacity: 0; transform: scale(1.045) rotate(4deg); }
+        }
         @media (max-width: 560px) {
           .auth-shell { padding: calc(env(safe-area-inset-top) + 10px) 10px calc(env(safe-area-inset-bottom) + 10px); }
           .orb-stage { min-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
@@ -438,7 +500,43 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           aria-label="Open login screen"
           aria-expanded={opened}
         >
-          <span className="orb-core" aria-hidden="true" />
+          <span className="orb-core" aria-hidden="true">
+            <span className="ball-skin ball-basketball">
+              <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                <path d="M50 -4 C42 20 42 80 50 104" fill="none" stroke="rgba(31,18,8,0.76)" strokeWidth="3.6" strokeLinecap="round" />
+                <path d="M-4 50 C20 42 80 42 104 50" fill="none" stroke="rgba(31,18,8,0.74)" strokeWidth="3.6" strokeLinecap="round" />
+                <path d="M15 5 C33 25 33 75 15 95" fill="none" stroke="rgba(31,18,8,0.70)" strokeWidth="3" strokeLinecap="round" />
+                <path d="M85 5 C67 25 67 75 85 95" fill="none" stroke="rgba(31,18,8,0.70)" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="ball-skin ball-baseball">
+              <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                <path d="M26 -4 C8 24 8 76 26 104" fill="none" stroke="rgba(176,26,39,0.92)" strokeWidth="2.7" strokeLinecap="round" />
+                <path d="M74 -4 C92 24 92 76 74 104" fill="none" stroke="rgba(176,26,39,0.92)" strokeWidth="2.7" strokeLinecap="round" />
+                {Array.from({ length: 9 }).map((_, index) => {
+                  const y = 12 + index * 9.4
+                  return (
+                    <g key={`stitch-${index}`}>
+                      <path d={`M${23 + (index % 2)} ${y} l-6 4`} stroke="rgba(176,26,39,0.86)" strokeWidth="1.8" strokeLinecap="round" />
+                      <path d={`M${77 - (index % 2)} ${y} l6 4`} stroke="rgba(176,26,39,0.86)" strokeWidth="1.8" strokeLinecap="round" />
+                    </g>
+                  )
+                })}
+              </svg>
+            </span>
+            <span className="ball-skin ball-soccer">
+              <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                <polygon points="50,28 67,40 61,60 39,60 33,40" fill="rgba(8,13,14,0.88)" />
+                <polygon points="50,3 62,18 50,28 38,18" fill="rgba(8,13,14,0.72)" />
+                <polygon points="93,38 80,52 67,40 71,24" fill="rgba(8,13,14,0.72)" />
+                <polygon points="78,91 60,82 61,60 78,55" fill="rgba(8,13,14,0.72)" />
+                <polygon points="22,91 40,82 39,60 22,55" fill="rgba(8,13,14,0.72)" />
+                <polygon points="7,38 20,52 33,40 29,24" fill="rgba(8,13,14,0.72)" />
+                <path d="M50 28 L50 3 M67 40 L93 38 M61 60 L78 91 M39 60 L22 91 M33 40 L7 38" fill="none" stroke="rgba(8,13,14,0.40)" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="orb-shine" />
+          </span>
           <span className="orb-label" aria-hidden="true">
             <strong>Open</strong>
             <span>Tap the signal</span>
