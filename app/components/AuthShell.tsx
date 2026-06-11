@@ -15,7 +15,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   const [opened, setOpened] = useState(false)
 
   return (
-    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-no-square-layers-20260611">
+    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-single-circle-20260611">
       <style>{`
         html, body { min-height: 100%; background: #000404; }
         .auth-shell {
@@ -197,48 +197,25 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .orb-core {
           position: absolute;
           inset: 0;
-          border-radius: 44% 56% 52% 48% / 48% 45% 55% 52%;
+          border-radius: 50%;
           overflow: hidden;
           background:
             radial-gradient(circle at 36% 27%, rgba(255,255,255,0.96) 0 5%, rgba(255,255,255,0.22) 11%, transparent 22%),
+            repeating-radial-gradient(ellipse at 50% 52%, rgba(255,255,255,0.10) 0 1px, transparent 1px 9px),
+            linear-gradient(115deg, transparent 0 24%, rgba(255,255,255,0.18) 35%, transparent 46%),
             radial-gradient(circle at 28% 72%, rgba(47,255,185,0.58), transparent 24%),
             radial-gradient(circle at 72% 28%, rgba(38,170,255,0.72), transparent 31%),
             radial-gradient(circle at 54% 58%, rgba(125,246,255,0.82), rgba(24,145,190,0.58) 35%, rgba(4,23,29,0.92) 72%),
             linear-gradient(135deg, #7df6ff, #26aaff 48%, #2fffb9 100%);
           box-shadow:
+            0 0 76px rgba(125,246,255,0.36),
+            0 0 160px rgba(38,170,255,0.18),
             0 0 0 1px rgba(255,255,255,0.20) inset,
             0 0 48px rgba(125,246,255,0.58) inset,
             -24px -24px 70px rgba(255,255,255,0.12) inset,
             24px 30px 80px rgba(0,0,0,0.52) inset;
-          animation:
-            heartBeat 1.42s cubic-bezier(.32,.02,.21,1) infinite,
-            liquidMorph 4.6s ease-in-out infinite;
+          animation: heartBeat 1.42s cubic-bezier(.32,.02,.21,1) infinite;
           transform-origin: 50% 54%;
-        }
-        .orb-core::before {
-          content: '';
-          position: absolute;
-          inset: -24%;
-          border-radius: inherit;
-          background:
-            repeating-radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.11) 0 1px, transparent 1px 8px),
-            conic-gradient(from 20deg, rgba(255,255,255,0.0), rgba(255,255,255,0.32), rgba(47,255,185,0.20), rgba(38,170,255,0.24), rgba(255,255,255,0.0));
-          filter: blur(1px) contrast(1.12);
-          mix-blend-mode: overlay;
-          animation: waterAgitation 980ms linear infinite;
-        }
-        .orb-core::after {
-          content: '';
-          position: absolute;
-          inset: 8%;
-          border-radius: 48% 52% 44% 56% / 56% 43% 57% 44%;
-          background:
-            linear-gradient(115deg, transparent 0 24%, rgba(255,255,255,0.30) 35%, transparent 46%),
-            radial-gradient(ellipse at 50% 10%, rgba(255,255,255,0.46), transparent 34%),
-            radial-gradient(ellipse at 50% 95%, rgba(0,0,0,0.36), transparent 42%);
-          opacity: 0.82;
-          mix-blend-mode: soft-light;
-          animation: innerTide 2.15s ease-in-out infinite alternate;
         }
         .orb-label {
           position: absolute;
@@ -414,10 +391,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         @keyframes gridPulse { 0%, 100% { transform: scale(1); opacity: 0.25; } 50% { transform: scale(1.05); opacity: 0.50; } }
         @keyframes scanFall { from { background-position: 0 0, 0 -310px; } to { background-position: 0 0, 0 310px; } }
         @keyframes heartBeat { 0%, 100% { transform: scale(1); } 10% { transform: scale(1.045); } 18% { transform: scale(0.985); } 29% { transform: scale(1.075); } 43% { transform: scale(1); } }
-        @keyframes liquidMorph { 0%, 100% { border-radius: 44% 56% 52% 48% / 48% 45% 55% 52%; } 25% { border-radius: 54% 46% 44% 56% / 42% 58% 46% 54%; } 50% { border-radius: 49% 51% 58% 42% / 57% 43% 52% 48%; } 75% { border-radius: 58% 42% 49% 51% / 48% 54% 46% 52%; } }
-        @keyframes waterAgitation { from { transform: translate3d(-2%, -1%, 0) rotate(0deg) scale(1.06); } to { transform: translate3d(2%, 1%, 0) rotate(360deg) scale(1.11); } }
-        @keyframes innerTide { from { transform: translate3d(-3%, 2%, 0) rotate(-6deg) scale(1.02); opacity: 0.62; } to { transform: translate3d(4%, -2%, 0) rotate(8deg) scale(1.10); opacity: 0.9; } }
-
         @media (max-width: 560px) {
           .auth-shell { padding: calc(env(safe-area-inset-top) + 10px) 10px calc(env(safe-area-inset-bottom) + 10px); }
           .orb-stage { min-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
