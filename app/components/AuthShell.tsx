@@ -15,7 +15,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   const [opened, setOpened] = useState(false)
 
   return (
-    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`}>
+    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="no-box-20260611-958ea3c">
       <style>{`
         html, body { min-height: 100%; background: #000404; }
         .auth-shell {
