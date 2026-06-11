@@ -15,7 +15,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   const [opened, setOpened] = useState(false)
 
   return (
-    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="no-box-20260611-958ea3c">
+    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-no-square-layers-20260611">
       <style>{`
         html, body { min-height: 100%; background: #000404; }
         .auth-shell {
@@ -32,7 +32,8 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           color: #f7fff0;
           font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
           background:
-            radial-gradient(circle at 50% 45%, rgba(125,246,255,0.12), transparent 31%),
+            radial-gradient(circle at 50% 38%, rgba(125,246,255,0.22), transparent 34%),
+            radial-gradient(circle at 50% 45%, rgba(125,246,255,0.12), transparent 48%),
             radial-gradient(circle at 16% 18%, rgba(47,255,185,0.10), transparent 26%),
             radial-gradient(circle at 82% 22%, rgba(38,170,255,0.14), transparent 30%),
             radial-gradient(circle at 70% 84%, rgba(125,246,255,0.08), transparent 28%),
@@ -107,22 +108,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           display: grid;
           place-items: center;
         }
-        .orb-stage::before {
-          content: '';
-          position: absolute;
-          z-index: 11;
-          left: 50%;
-          top: calc(50% - 38px);
-          width: min(132vw, 760px);
-          aspect-ratio: 1;
-          transform: translate(-50%, -50%);
-          pointer-events: none;
-          background: radial-gradient(circle at 50% 50%, rgba(220,255,255,0.25) 0%, rgba(125,246,255,0.22) 18%, rgba(38,170,255,0.14) 34%, rgba(47,255,185,0.065) 49%, transparent 68%);
-          opacity: 0.86;
-          mix-blend-mode: screen;
-          animation: auraBreathe 3.8s ease-in-out infinite;
-        }
-        .auth-opened .orb-stage::before { opacity: 0; transition: opacity 560ms ease; }
         .orb-copy {
           position: absolute;
           z-index: 12;
@@ -209,20 +194,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           pointer-events: none;
           transition-duration: 1050ms;
         }
-        .orb-rings,
-        .orb-rings::before,
-        .orb-rings::after {
-          position: absolute;
-          inset: -18%;
-          border-radius: 999px;
-          border: 1px solid rgba(125,246,255,0.18);
-          box-shadow: 0 0 42px rgba(125,246,255,0.12) inset, 0 0 46px rgba(47,255,185,0.08);
-          animation: soundRing 1.72s ease-out infinite;
-        }
-        .orb-rings::before,
-        .orb-rings::after { content: ''; inset: -12%; }
-        .orb-rings::before { animation-delay: 0.38s; }
-        .orb-rings::after { animation-delay: 0.78s; }
         .orb-core {
           position: absolute;
           inset: 0;
@@ -268,33 +239,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           opacity: 0.82;
           mix-blend-mode: soft-light;
           animation: innerTide 2.15s ease-in-out infinite alternate;
-        }
-        .orb-frequency {
-          position: absolute;
-          inset: 5%;
-          border-radius: 50%;
-          overflow: hidden;
-          opacity: 0.76;
-          mix-blend-mode: screen;
-          clip-path: circle(50% at 50% 50%);
-          -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0 57%, rgba(0,0,0,0.68) 64%, transparent 73%);
-          mask-image: radial-gradient(circle at 50% 50%, #000 0 57%, rgba(0,0,0,0.68) 64%, transparent 73%);
-        }
-        .orb-frequency::before,
-        .orb-frequency::after {
-          content: '';
-          position: absolute;
-          inset: -20%;
-          background:
-            repeating-linear-gradient(90deg, transparent 0 11px, rgba(255,255,255,0.23) 12px, transparent 14px),
-            repeating-linear-gradient(0deg, transparent 0 17px, rgba(125,246,255,0.16) 18px, transparent 21px);
-          animation: frequencyShake 340ms linear infinite;
-        }
-        .orb-frequency::after {
-          opacity: 0.58;
-          transform: rotate(24deg) scale(1.12);
-          animation-duration: 260ms;
-          animation-direction: reverse;
         }
         .orb-label {
           position: absolute;
@@ -525,9 +469,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           aria-label="Open login screen"
           aria-expanded={opened}
         >
-          <span className="orb-rings" aria-hidden="true" />
           <span className="orb-core" aria-hidden="true" />
-          <span className="orb-frequency" aria-hidden="true" />
           <span className="orb-label" aria-hidden="true">
             <strong>Open</strong>
             <span>Tap the signal</span>
