@@ -417,9 +417,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         @keyframes liquidMorph { 0%, 100% { border-radius: 44% 56% 52% 48% / 48% 45% 55% 52%; } 25% { border-radius: 54% 46% 44% 56% / 42% 58% 46% 54%; } 50% { border-radius: 49% 51% 58% 42% / 57% 43% 52% 48%; } 75% { border-radius: 58% 42% 49% 51% / 48% 54% 46% 52%; } }
         @keyframes waterAgitation { from { transform: translate3d(-2%, -1%, 0) rotate(0deg) scale(1.06); } to { transform: translate3d(2%, 1%, 0) rotate(360deg) scale(1.11); } }
         @keyframes innerTide { from { transform: translate3d(-3%, 2%, 0) rotate(-6deg) scale(1.02); opacity: 0.62; } to { transform: translate3d(4%, -2%, 0) rotate(8deg) scale(1.10); opacity: 0.9; } }
-        @keyframes auraBreathe { 0%, 100% { transform: translate(-50%, -50%) scale(0.96); opacity: 0.64; } 48% { transform: translate(-50%, -50%) scale(1.08); opacity: 0.92; } }
-        @keyframes frequencyShake { 0% { transform: translateX(-10px) translateY(0) skewX(-4deg); } 25% { transform: translateX(8px) translateY(-5px) skewX(5deg); } 50% { transform: translateX(-5px) translateY(6px) skewX(-7deg); } 75% { transform: translateX(11px) translateY(2px) skewX(4deg); } 100% { transform: translateX(-10px) translateY(0) skewX(-4deg); } }
-        @keyframes soundRing { 0% { transform: scale(0.72); opacity: 0.62; } 64%, 100% { transform: scale(1.24); opacity: 0; } }
 
         @media (max-width: 560px) {
           .auth-shell { padding: calc(env(safe-area-inset-top) + 10px) 10px calc(env(safe-area-inset-bottom) + 10px); }
