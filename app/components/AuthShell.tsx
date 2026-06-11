@@ -181,7 +181,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           background: transparent;
           transform: translateY(-38px) scale(1);
           transition: transform 900ms cubic-bezier(.15,.88,.2,1), opacity 560ms ease, filter 740ms ease;
-          filter: drop-shadow(0 0 44px rgba(125,246,255,0.32)) drop-shadow(0 36px 88px rgba(0,0,0,0.92));
+          filter: drop-shadow(0 36px 88px rgba(0,0,0,0.92));
           -webkit-tap-highlight-color: transparent;
         }
         .liquid-orb-button:hover { transform: translateY(-42px) scale(1.025); }
@@ -207,6 +207,20 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .orb-rings::after { content: ''; inset: -12%; }
         .orb-rings::before { animation-delay: 0.38s; }
         .orb-rings::after { animation-delay: 0.78s; }
+        .orb-aura {
+          position: absolute;
+          inset: -34%;
+          border-radius: 999px;
+          pointer-events: none;
+          background:
+            radial-gradient(circle at 50% 50%, rgba(214,254,255,0.30) 0%, rgba(125,246,255,0.24) 24%, rgba(38,170,255,0.15) 42%, rgba(47,255,185,0.08) 56%, transparent 73%),
+            radial-gradient(circle at 36% 30%, rgba(255,255,255,0.22) 0%, rgba(125,246,255,0.12) 24%, transparent 55%);
+          filter: blur(28px) saturate(1.18);
+          opacity: 0.88;
+          mix-blend-mode: screen;
+          transform: translateZ(0);
+          animation: auraBreathe 3.8s ease-in-out infinite;
+        }
         .orb-core {
           position: absolute;
           inset: 0;
@@ -222,9 +236,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
             0 0 0 1px rgba(255,255,255,0.20) inset,
             0 0 48px rgba(125,246,255,0.58) inset,
             -24px -24px 70px rgba(255,255,255,0.12) inset,
-            24px 30px 80px rgba(0,0,0,0.52) inset,
-            0 0 70px rgba(125,246,255,0.48),
-            0 0 140px rgba(38,170,255,0.22);
+            24px 30px 80px rgba(0,0,0,0.52) inset;
           animation:
             heartBeat 1.42s cubic-bezier(.32,.02,.21,1) infinite,
             liquidMorph 4.6s ease-in-out infinite;
@@ -458,6 +470,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         @keyframes liquidMorph { 0%, 100% { border-radius: 44% 56% 52% 48% / 48% 45% 55% 52%; } 25% { border-radius: 54% 46% 44% 56% / 42% 58% 46% 54%; } 50% { border-radius: 49% 51% 58% 42% / 57% 43% 52% 48%; } 75% { border-radius: 58% 42% 49% 51% / 48% 54% 46% 52%; } }
         @keyframes waterAgitation { from { transform: translate3d(-2%, -1%, 0) rotate(0deg) scale(1.06); } to { transform: translate3d(2%, 1%, 0) rotate(360deg) scale(1.11); } }
         @keyframes innerTide { from { transform: translate3d(-3%, 2%, 0) rotate(-6deg) scale(1.02); opacity: 0.62; } to { transform: translate3d(4%, -2%, 0) rotate(8deg) scale(1.10); opacity: 0.9; } }
+        @keyframes auraBreathe { 0%, 100% { transform: scale(0.96); opacity: 0.68; filter: blur(34px) saturate(1.05); } 48% { transform: scale(1.08); opacity: 0.95; filter: blur(24px) saturate(1.28); } }
         @keyframes frequencyShake { 0% { transform: translateX(-10px) translateY(0) skewX(-4deg); } 25% { transform: translateX(8px) translateY(-5px) skewX(5deg); } 50% { transform: translateX(-5px) translateY(6px) skewX(-7deg); } 75% { transform: translateX(11px) translateY(2px) skewX(4deg); } 100% { transform: translateX(-10px) translateY(0) skewX(-4deg); } }
         @keyframes soundRing { 0% { transform: scale(0.72); opacity: 0.62; } 64%, 100% { transform: scale(1.24); opacity: 0; } }
 
@@ -497,7 +510,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         }
       `}</style>
       <svg width="0" height="0" aria-hidden="true" focusable="false">
-        <filter id="orb-wobble">
+        <filter id="orb-wobble" x="-45%" y="-45%" width="190%" height="190%" colorInterpolationFilters="sRGB">
           <feTurbulence type="fractalNoise" baseFrequency="0.018 0.12" numOctaves="2" seed="8" result="noise" />
           <feDisplacementMap in="SourceGraphic" in2="noise" scale="18" xChannelSelector="R" yChannelSelector="G" />
         </filter>
@@ -516,6 +529,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           aria-expanded={opened}
         >
           <span className="orb-rings" aria-hidden="true" />
+          <span className="orb-aura" aria-hidden="true" />
           <span className="orb-core" aria-hidden="true" />
           <span className="orb-frequency" aria-hidden="true" />
           <span className="orb-label" aria-hidden="true">
