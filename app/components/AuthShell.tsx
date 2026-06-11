@@ -15,7 +15,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   const [opened, setOpened] = useState(false)
 
   return (
-    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-ball-morph-20260611">
+    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-clean-ball-geometry-20260611">
       <style>{`
         html, body { min-height: 100%; background: #000404; }
         .auth-shell {
@@ -222,7 +222,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .ball-skin {
           display: block;
           opacity: 0;
-          transform: scale(1.045) rotate(-3deg);
+          transform: scale(1.025);
           animation-duration: 9s;
           animation-timing-function: ease-in-out;
           animation-iteration-count: infinite;
@@ -438,19 +438,19 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         @keyframes scanFall { from { background-position: 0 0, 0 -310px; } to { background-position: 0 0, 0 310px; } }
         @keyframes heartBeat { 0%, 100% { transform: scale(1); } 10% { transform: scale(1.045); } 18% { transform: scale(0.985); } 29% { transform: scale(1.075); } 43% { transform: scale(1); } }
         @keyframes basketballMorph {
-          0%, 27% { opacity: 1; transform: scale(1) rotate(0deg); }
-          33%, 94% { opacity: 0; transform: scale(1.045) rotate(4deg); }
-          100% { opacity: 1; transform: scale(1) rotate(0deg); }
+          0%, 27% { opacity: 1; transform: scale(1); }
+          33%, 94% { opacity: 0; transform: scale(1.025); }
+          100% { opacity: 1; transform: scale(1); }
         }
         @keyframes baseballMorph {
-          0%, 27% { opacity: 0; transform: scale(1.045) rotate(-4deg); }
-          33%, 60% { opacity: 1; transform: scale(1) rotate(0deg); }
-          66%, 100% { opacity: 0; transform: scale(1.045) rotate(4deg); }
+          0%, 27% { opacity: 0; transform: scale(1.025); }
+          33%, 60% { opacity: 1; transform: scale(1); }
+          66%, 100% { opacity: 0; transform: scale(1.025); }
         }
         @keyframes soccerMorph {
-          0%, 60% { opacity: 0; transform: scale(1.045) rotate(-4deg); }
-          66%, 94% { opacity: 1; transform: scale(1) rotate(0deg); }
-          100% { opacity: 0; transform: scale(1.045) rotate(4deg); }
+          0%, 60% { opacity: 0; transform: scale(1.025); }
+          66%, 94% { opacity: 1; transform: scale(1); }
+          100% { opacity: 0; transform: scale(1.025); }
         }
         @media (max-width: 560px) {
           .auth-shell { padding: calc(env(safe-area-inset-top) + 10px) 10px calc(env(safe-area-inset-bottom) + 10px); }
@@ -503,22 +503,26 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           <span className="orb-core" aria-hidden="true">
             <span className="ball-skin ball-basketball">
               <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-                <path d="M50 -4 C42 20 42 80 50 104" fill="none" stroke="rgba(31,18,8,0.76)" strokeWidth="3.6" strokeLinecap="round" />
-                <path d="M-4 50 C20 42 80 42 104 50" fill="none" stroke="rgba(31,18,8,0.74)" strokeWidth="3.6" strokeLinecap="round" />
-                <path d="M15 5 C33 25 33 75 15 95" fill="none" stroke="rgba(31,18,8,0.70)" strokeWidth="3" strokeLinecap="round" />
-                <path d="M85 5 C67 25 67 75 85 95" fill="none" stroke="rgba(31,18,8,0.70)" strokeWidth="3" strokeLinecap="round" />
+                <path d="M50 -6 C44 18 44 82 50 106" fill="none" stroke="rgba(32,18,8,0.78)" strokeWidth="3.4" strokeLinecap="round" />
+                <path d="M-6 50 C18 44 82 44 106 50" fill="none" stroke="rgba(32,18,8,0.76)" strokeWidth="3.4" strokeLinecap="round" />
+                <path d="M18 2 C34 22 34 78 18 98" fill="none" stroke="rgba(32,18,8,0.72)" strokeWidth="3" strokeLinecap="round" />
+                <path d="M82 2 C66 22 66 78 82 98" fill="none" stroke="rgba(32,18,8,0.72)" strokeWidth="3" strokeLinecap="round" />
               </svg>
             </span>
             <span className="ball-skin ball-baseball">
               <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-                <path d="M26 -4 C8 24 8 76 26 104" fill="none" stroke="rgba(176,26,39,0.92)" strokeWidth="2.7" strokeLinecap="round" />
-                <path d="M74 -4 C92 24 92 76 74 104" fill="none" stroke="rgba(176,26,39,0.92)" strokeWidth="2.7" strokeLinecap="round" />
-                {Array.from({ length: 9 }).map((_, index) => {
-                  const y = 12 + index * 9.4
+                <path d="M28 -6 C10 22 10 78 28 106" fill="none" stroke="rgba(176,26,39,0.92)" strokeWidth="2.6" strokeLinecap="round" />
+                <path d="M72 -6 C90 22 90 78 72 106" fill="none" stroke="rgba(176,26,39,0.92)" strokeWidth="2.6" strokeLinecap="round" />
+                {Array.from({ length: 8 }).map((_, index) => {
+                  const y = 16 + index * 9.6
+                  const leftX = 24 - Math.sin((index / 7) * Math.PI) * 6
+                  const rightX = 76 + Math.sin((index / 7) * Math.PI) * 6
                   return (
                     <g key={`stitch-${index}`}>
-                      <path d={`M${23 + (index % 2)} ${y} l-6 4`} stroke="rgba(176,26,39,0.86)" strokeWidth="1.8" strokeLinecap="round" />
-                      <path d={`M${77 - (index % 2)} ${y} l6 4`} stroke="rgba(176,26,39,0.86)" strokeWidth="1.8" strokeLinecap="round" />
+                      <path d={`M${leftX.toFixed(1)} ${y.toFixed(1)} l-5.8 -3.6`} stroke="rgba(176,26,39,0.86)" strokeWidth="1.7" strokeLinecap="round" />
+                      <path d={`M${leftX.toFixed(1)} ${(y + 2.6).toFixed(1)} l-5.8 3.6`} stroke="rgba(176,26,39,0.86)" strokeWidth="1.7" strokeLinecap="round" />
+                      <path d={`M${rightX.toFixed(1)} ${y.toFixed(1)} l5.8 -3.6`} stroke="rgba(176,26,39,0.86)" strokeWidth="1.7" strokeLinecap="round" />
+                      <path d={`M${rightX.toFixed(1)} ${(y + 2.6).toFixed(1)} l5.8 3.6`} stroke="rgba(176,26,39,0.86)" strokeWidth="1.7" strokeLinecap="round" />
                     </g>
                   )
                 })}
@@ -526,13 +530,14 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
             </span>
             <span className="ball-skin ball-soccer">
               <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-                <polygon points="50,28 67,40 61,60 39,60 33,40" fill="rgba(8,13,14,0.88)" />
-                <polygon points="50,3 62,18 50,28 38,18" fill="rgba(8,13,14,0.72)" />
-                <polygon points="93,38 80,52 67,40 71,24" fill="rgba(8,13,14,0.72)" />
-                <polygon points="78,91 60,82 61,60 78,55" fill="rgba(8,13,14,0.72)" />
-                <polygon points="22,91 40,82 39,60 22,55" fill="rgba(8,13,14,0.72)" />
-                <polygon points="7,38 20,52 33,40 29,24" fill="rgba(8,13,14,0.72)" />
-                <path d="M50 28 L50 3 M67 40 L93 38 M61 60 L78 91 M39 60 L22 91 M33 40 L7 38" fill="none" stroke="rgba(8,13,14,0.40)" strokeWidth="1.7" strokeLinecap="round" />
+                <path d="M50 29 L62.8 38.3 L57.9 53.4 L42.1 53.4 L37.2 38.3 Z" fill="rgba(8,13,14,0.90)" stroke="rgba(8,13,14,0.82)" strokeWidth="1.2" strokeLinejoin="round" />
+                <path d="M50 29 L50 9 M62.8 38.3 L82.2 32 M57.9 53.4 L70 72 M42.1 53.4 L30 72 M37.2 38.3 L17.8 32" fill="none" stroke="rgba(8,13,14,0.56)" strokeWidth="2" strokeLinecap="round" />
+                <polygon points="50,7 61,15 57,28 43,28 39,15" fill="rgba(8,13,14,0.76)" />
+                <polygon points="84,30 91,42 83,53 69,49 69,36" fill="rgba(8,13,14,0.76)" />
+                <polygon points="72,75 66,88 52,87 47,74 58,65" fill="rgba(8,13,14,0.76)" />
+                <polygon points="28,75 34,88 48,87 53,74 42,65" fill="rgba(8,13,14,0.76)" />
+                <polygon points="16,30 9,42 17,53 31,49 31,36" fill="rgba(8,13,14,0.76)" />
+                <path d="M43 28 L37.2 38.3 L31 36 M57 28 L62.8 38.3 L69 36 M69 49 L57.9 53.4 L58 65 M42 65 L42.1 53.4 L31 49 M47 74 L42.1 53.4 M53 74 L57.9 53.4" fill="none" stroke="rgba(8,13,14,0.28)" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </span>
             <span className="orb-shine" />
