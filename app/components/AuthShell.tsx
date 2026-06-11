@@ -15,7 +15,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   const [opened, setOpened] = useState(false)
 
   return (
-    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-single-circle-20260611">
+    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-smooth-circle-20260611">
       <style>{`
         html, body { min-height: 100%; background: #000404; }
         .auth-shell {
@@ -201,7 +201,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           overflow: hidden;
           background:
             radial-gradient(circle at 36% 27%, rgba(255,255,255,0.96) 0 5%, rgba(255,255,255,0.22) 11%, transparent 22%),
-            repeating-radial-gradient(ellipse at 50% 52%, rgba(255,255,255,0.10) 0 1px, transparent 1px 9px),
             linear-gradient(115deg, transparent 0 24%, rgba(255,255,255,0.18) 35%, transparent 46%),
             radial-gradient(circle at 28% 72%, rgba(47,255,185,0.58), transparent 24%),
             radial-gradient(circle at 72% 28%, rgba(38,170,255,0.72), transparent 31%),
