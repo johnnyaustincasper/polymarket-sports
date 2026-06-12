@@ -15,7 +15,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   const [opened, setOpened] = useState(false)
 
   return (
-    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-clean-ball-geometry-20260611">
+    <main className={`auth-shell ${opened ? 'auth-opened' : ''}`} data-auth-shell-version="orb-classic-soccer-20260612">
       <style>{`
         html, body { min-height: 100%; background: #000404; }
         .auth-shell {
@@ -530,14 +530,22 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
             </span>
             <span className="ball-skin ball-soccer">
               <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-                <path d="M50 29 L62.8 38.3 L57.9 53.4 L42.1 53.4 L37.2 38.3 Z" fill="rgba(8,13,14,0.90)" stroke="rgba(8,13,14,0.82)" strokeWidth="1.2" strokeLinejoin="round" />
-                <path d="M50 29 L50 9 M62.8 38.3 L82.2 32 M57.9 53.4 L70 72 M42.1 53.4 L30 72 M37.2 38.3 L17.8 32" fill="none" stroke="rgba(8,13,14,0.56)" strokeWidth="2" strokeLinecap="round" />
-                <polygon points="50,7 61,15 57,28 43,28 39,15" fill="rgba(8,13,14,0.76)" />
-                <polygon points="84,30 91,42 83,53 69,49 69,36" fill="rgba(8,13,14,0.76)" />
-                <polygon points="72,75 66,88 52,87 47,74 58,65" fill="rgba(8,13,14,0.76)" />
-                <polygon points="28,75 34,88 48,87 53,74 42,65" fill="rgba(8,13,14,0.76)" />
-                <polygon points="16,30 9,42 17,53 31,49 31,36" fill="rgba(8,13,14,0.76)" />
-                <path d="M43 28 L37.2 38.3 L31 36 M57 28 L62.8 38.3 L69 36 M69 49 L57.9 53.4 L58 65 M42 65 L42.1 53.4 L31 49 M47 74 L42.1 53.4 M53 74 L57.9 53.4" fill="none" stroke="rgba(8,13,14,0.28)" strokeWidth="1.5" strokeLinecap="round" />
+                <defs>
+                  <clipPath id="soccerOrbClip">
+                    <circle cx="50" cy="50" r="50" />
+                  </clipPath>
+                </defs>
+                <g clipPath="url(#soccerOrbClip)">
+                  <path d="M50 30 L67.1 42.4 L60.6 62.6 L39.4 62.6 L32.9 42.4 Z" fill="rgba(4,7,8,0.96)" stroke="rgba(0,0,0,0.96)" strokeWidth="1.15" strokeLinejoin="round" />
+                  <path d="M50 30 L50 7 M67.1 42.4 L90 34.5 M60.6 62.6 L73.8 82.8 M39.4 62.6 L26.2 82.8 M32.9 42.4 L10 34.5" fill="none" stroke="rgba(5,8,9,0.84)" strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M39.4 62.6 L26.2 82.8 L45.2 99.5 M60.6 62.6 L73.8 82.8 L54.8 99.5 M32.9 42.4 L10 34.5 L-1 51.5 M67.1 42.4 L90 34.5 L101 51.5" fill="none" stroke="rgba(5,8,9,0.40)" strokeWidth="1.55" strokeLinecap="round" />
+                  <polygon points="50,5 64,15.2 58.7,31.7 41.3,31.7 36,15.2" fill="rgba(4,7,8,0.92)" stroke="rgba(0,0,0,0.92)" strokeWidth="0.9" strokeLinejoin="round" />
+                  <polygon points="89.5,31 99.5,45 90.2,60.3 72.8,55.6 72.1,38.3" fill="rgba(4,7,8,0.90)" stroke="rgba(0,0,0,0.90)" strokeWidth="0.9" strokeLinejoin="round" />
+                  <polygon points="74.5,82.5 68.6,98.9 51.2,99.4 45.4,83 59.2,72.1" fill="rgba(4,7,8,0.88)" stroke="rgba(0,0,0,0.88)" strokeWidth="0.9" strokeLinejoin="round" />
+                  <polygon points="25.5,82.5 31.4,98.9 48.8,99.4 54.6,83 40.8,72.1" fill="rgba(4,7,8,0.88)" stroke="rgba(0,0,0,0.88)" strokeWidth="0.9" strokeLinejoin="round" />
+                  <polygon points="10.5,31 0.5,45 9.8,60.3 27.2,55.6 27.9,38.3" fill="rgba(4,7,8,0.90)" stroke="rgba(0,0,0,0.90)" strokeWidth="0.9" strokeLinejoin="round" />
+                  <path d="M41.3 31.7 L32.9 42.4 L27.9 38.3 M58.7 31.7 L67.1 42.4 L72.1 38.3 M72.8 55.6 L60.6 62.6 L59.2 72.1 M40.8 72.1 L39.4 62.6 L27.2 55.6 M45.4 83 L39.4 62.6 M54.6 83 L60.6 62.6" fill="none" stroke="rgba(255,255,255,0.26)" strokeWidth="1.05" strokeLinecap="round" />
+                </g>
               </svg>
             </span>
             <span className="orb-shine" />
