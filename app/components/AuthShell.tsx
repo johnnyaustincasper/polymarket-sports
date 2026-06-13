@@ -38,27 +38,30 @@ const PROP_TOKENS = [
 
 const BINARY_TOKENS = ['01101001', '10110010', '11001011', '00111010', '10010110', '11010100', '00101101', '11100110']
 
-const makeTokens = (offset: number) => Array.from({ length: 18 }, (_, i) => (
+const makeTokens = (offset: number) => Array.from({ length: 24 }, (_, i) => (
   i % 3 === 2 ? BINARY_TOKENS[(offset + i) % BINARY_TOKENS.length] : PROP_TOKENS[(offset + i * 2) % PROP_TOKENS.length]
 ))
 
+// Delays are small positive stagger only — no negative delays — so every
+// column starts at translateY(0) with its content fully filling the field,
+// and tokens stream in/out continuously from the viewport edges.
 const STREAMS: Stream[] = [
-  { left: -5, width: 132, duration: 42, delay: -8.0, direction: 'up', tone: 'cyan', depth: 'far', tokens: makeTokens(0) },
-  { left: 2, width: 124, duration: 28, delay: -2.5, direction: 'down', tone: 'mint', depth: 'near', tokens: makeTokens(3) },
-  { left: 9, width: 118, duration: 36, delay: -12.0, direction: 'up', tone: 'blue', depth: 'mid', tokens: makeTokens(6) },
-  { left: 16, width: 136, duration: 48, delay: -6.8, direction: 'down', tone: 'cyan', depth: 'far', tokens: makeTokens(9) },
-  { left: 23, width: 126, duration: 25, delay: -14.2, direction: 'up', tone: 'amber', depth: 'near', tokens: makeTokens(12) },
-  { left: 30, width: 120, duration: 39, delay: -4.4, direction: 'down', tone: 'mint', depth: 'mid', tokens: makeTokens(15) },
-  { left: 37, width: 138, duration: 44, delay: -18.0, direction: 'up', tone: 'blue', depth: 'far', tokens: makeTokens(18) },
-  { left: 44, width: 128, duration: 27, delay: -9.5, direction: 'down', tone: 'cyan', depth: 'near', tokens: makeTokens(21) },
-  { left: 51, width: 118, duration: 33, delay: -1.2, direction: 'up', tone: 'mint', depth: 'mid', tokens: makeTokens(24) },
-  { left: 58, width: 140, duration: 50, delay: -20.0, direction: 'down', tone: 'amber', depth: 'far', tokens: makeTokens(27) },
-  { left: 65, width: 126, duration: 24, delay: -5.6, direction: 'up', tone: 'cyan', depth: 'near', tokens: makeTokens(30) },
-  { left: 72, width: 122, duration: 37, delay: -16.4, direction: 'down', tone: 'blue', depth: 'mid', tokens: makeTokens(33) },
-  { left: 79, width: 134, duration: 46, delay: -11.1, direction: 'up', tone: 'mint', depth: 'far', tokens: makeTokens(36) },
-  { left: 86, width: 128, duration: 26, delay: -7.7, direction: 'down', tone: 'cyan', depth: 'near', tokens: makeTokens(39) },
-  { left: 93, width: 116, duration: 34, delay: -3.3, direction: 'up', tone: 'amber', depth: 'mid', tokens: makeTokens(42) },
-  { left: 100, width: 130, duration: 52, delay: -22.0, direction: 'down', tone: 'blue', depth: 'far', tokens: makeTokens(45) },
+  { left: -5, width: 132, duration: 42, delay: 0.0, direction: 'up', tone: 'cyan', depth: 'far', tokens: makeTokens(0) },
+  { left: 2, width: 124, duration: 28, delay: 0.6, direction: 'down', tone: 'mint', depth: 'near', tokens: makeTokens(3) },
+  { left: 9, width: 118, duration: 36, delay: 0.2, direction: 'up', tone: 'blue', depth: 'mid', tokens: makeTokens(6) },
+  { left: 16, width: 136, duration: 48, delay: 0.9, direction: 'down', tone: 'cyan', depth: 'far', tokens: makeTokens(9) },
+  { left: 23, width: 126, duration: 25, delay: 0.3, direction: 'up', tone: 'amber', depth: 'near', tokens: makeTokens(12) },
+  { left: 30, width: 120, duration: 39, delay: 0.7, direction: 'down', tone: 'mint', depth: 'mid', tokens: makeTokens(15) },
+  { left: 37, width: 138, duration: 44, delay: 0.4, direction: 'up', tone: 'blue', depth: 'far', tokens: makeTokens(18) },
+  { left: 44, width: 128, duration: 27, delay: 1.0, direction: 'down', tone: 'cyan', depth: 'near', tokens: makeTokens(21) },
+  { left: 51, width: 118, duration: 33, delay: 0.5, direction: 'up', tone: 'mint', depth: 'mid', tokens: makeTokens(24) },
+  { left: 58, width: 140, duration: 50, delay: 1.2, direction: 'down', tone: 'amber', depth: 'far', tokens: makeTokens(27) },
+  { left: 65, width: 126, duration: 24, delay: 0.1, direction: 'up', tone: 'cyan', depth: 'near', tokens: makeTokens(30) },
+  { left: 72, width: 122, duration: 37, delay: 0.8, direction: 'down', tone: 'blue', depth: 'mid', tokens: makeTokens(33) },
+  { left: 79, width: 134, duration: 46, delay: 0.3, direction: 'up', tone: 'mint', depth: 'far', tokens: makeTokens(36) },
+  { left: 86, width: 128, duration: 26, delay: 1.1, direction: 'down', tone: 'cyan', depth: 'near', tokens: makeTokens(39) },
+  { left: 93, width: 116, duration: 34, delay: 0.6, direction: 'up', tone: 'amber', depth: 'mid', tokens: makeTokens(42) },
+  { left: 100, width: 130, duration: 52, delay: 0.2, direction: 'down', tone: 'blue', depth: 'far', tokens: makeTokens(45) },
 ]
 
 const isBinary = (token: string) => /^[01]+$/.test(token)
@@ -72,7 +75,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   return (
     <main
       className={`war-shell${armed ? ' is-armed' : ''}`}
-      data-auth-shell-version="matrix-depth-20260613"
+      data-auth-shell-version="matrix-dense-streams-20260613"
     >
       <style>{`
         html, body { min-height: 100%; background: #04060a; }
@@ -115,13 +118,16 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
             radial-gradient(90% 60% at 50% 40%, rgba(47,157,255,0.10), transparent 62%);
           opacity: 0.85;
         }
+        /* Column is exactly 2x viewport tall and holds 48 spans (two identical
+           copies of 24 tokens). Flex evenly distributes so each copy occupies
+           exactly 100vh — a -100vh translate then loops seamlessly with no
+           gaps and no mid-cycle starts. */
         .matrix-col {
           position: absolute;
-          top: -54vh;
-          height: 280vh;
+          top: 0;
+          height: 200vh;
           display: flex;
           flex-direction: column;
-          gap: var(--gap, 13px);
           font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
           font-size: var(--size, 11px);
           font-weight: 760;
@@ -132,17 +138,24 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           filter: blur(var(--blur, 0px));
           will-change: transform, opacity;
           transform-style: preserve-3d;
+          transform-origin: 50% 50%;
           transition: opacity 700ms ease;
         }
         .is-armed .matrix-col { opacity: calc(var(--alpha, 0.62) + 0.08); }
         .matrix-col.up { animation: streamUp linear infinite; }
         .matrix-col.down { animation: streamDown linear infinite; }
-        .matrix-col span { display: block; line-height: 1.04; }
+        .matrix-col span {
+          flex: 1 1 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1.04;
+        }
         .matrix-col .bin { color: rgba(125,246,255,0.24); font-weight: 620; }
         .matrix-col .prop { color: rgba(214,242,255,0.72); }
-        .matrix-col.depth-far { --z: -360px; --scale: 0.58; --alpha: 0.32; --blur: 0.75px; --size: 8px; --gap: 9px; }
-        .matrix-col.depth-mid { --z: -80px; --scale: 0.92; --alpha: 0.58; --blur: 0.12px; --size: 11px; --gap: 12px; }
-        .matrix-col.depth-near { --z: 140px; --scale: 1.28; --alpha: 0.82; --blur: 0px; --size: 13px; --gap: 15px; }
+        .matrix-col.depth-far { --z: -360px; --scale: 0.58; --alpha: 0.32; --blur: 0.75px; --size: 8px; }
+        .matrix-col.depth-mid { --z: -80px; --scale: 0.92; --alpha: 0.58; --blur: 0.12px; --size: 11px; }
+        .matrix-col.depth-near { --z: 140px; --scale: 1.28; --alpha: 0.82; --blur: 0px; --size: 13px; }
         .matrix-col.depth-far .prop { opacity: 0.68; }
         .matrix-col.depth-mid .prop { opacity: 0.86; }
         .matrix-col.depth-near .prop { opacity: 1; font-weight: 860; }
@@ -151,12 +164,16 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .matrix-col.tone-mint .prop { color: var(--mint); text-shadow: 0 0 10px rgba(47,255,185,0.34); }
         .matrix-col.tone-amber .prop { color: var(--amber); text-shadow: 0 0 10px rgba(255,207,107,0.28); }
 
+        /* Up: column shifts up by exactly one copy (100vh) → new tokens
+           continuously enter from the viewport bottom. Seamless because
+           copy-A and copy-B are identical and stacked. */
         @keyframes streamUp {
           from { transform: translate3d(0, 0, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(-2deg); }
-          to { transform: translate3d(0, -50%, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(-2deg); }
+          to { transform: translate3d(0, -100vh, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(-2deg); }
         }
+        /* Down: mirror — column shifts down so tokens enter from the top. */
         @keyframes streamDown {
-          from { transform: translate3d(0, -50%, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(2deg); }
+          from { transform: translate3d(0, -100vh, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(2deg); }
           to { transform: translate3d(0, 0, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(2deg); }
         }
 
