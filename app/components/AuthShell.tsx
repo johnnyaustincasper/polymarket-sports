@@ -299,21 +299,20 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
 
         @media (max-width: 560px) {
           .wire-content { gap: 11px; align-content: start; padding: calc(env(safe-area-inset-top) + 10px) 13px calc(env(safe-area-inset-bottom) + 12px); }
-          .brand-logo { width: min(68vw, 206px); }
-          .wire-grid { gap: 12px; }
-          .wire-intro { gap: 8px; }
-          .eyebrow { font-size: 9px; letter-spacing: 0.22em; }
-          .wire-intro h1 { font-size: clamp(30px, 9.4vw, 40px); max-width: 13ch; }
-          .wire-sub { font-size: 12px; line-height: 1.38; max-width: 38ch; }
-          .wire-status { padding: 6px 11px; font-size: 9px; }
-          .lane-readout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 6px; }
-          .lane-readout button { width: 100%; min-height: 32px; justify-content: center; padding: 0 7px; font-size: 8.5px; letter-spacing: 0.06em; }
+          .brand-logo { width: min(62vw, 184px); }
+          .wire-grid { gap: 9px; }
+          .wire-intro { gap: 6px; }
+          .eyebrow { font-size: 8.5px; letter-spacing: 0.20em; }
+          .wire-intro h1 { font-size: clamp(28px, 8.7vw, 36px); max-width: 13ch; }
+          .wire-sub { font-size: 11.5px; line-height: 1.32; max-width: 36ch; }
+          .wire-status { padding: 5px 10px; font-size: 8.5px; }
+          .lane-readout { display: none; }
           .auth-slab { width: 100%; padding: 13px; border-radius: 22px; }
-          .auth-head { gap: 5px; margin-bottom: 10px; }
-          .auth-kicker { font-size: 9px; }
-          .auth-title { font-size: 21px; }
-          .auth-subtitle { font-size: 12px; line-height: 1.34; }
-          .auth-foot { margin-top: 9px; font-size: 9px; }
+          .auth-head { gap: 4px; margin-bottom: 8px; }
+          .auth-kicker { font-size: 8.5px; }
+          .auth-title { font-size: 20px; }
+          .auth-subtitle { display: none; }
+          .auth-foot { margin-top: 8px; font-size: 8.5px; }
           .auth-body form { gap: 8px !important; }
           .auth-body input { padding: 12px 15px !important; font-size: 15px !important; border-radius: 14px !important; line-height: 1.2 !important; }
           .cl-socialButtonsBlockButton, .cl-formButtonPrimary, .cl-formFieldInput { min-height: 44px !important; }
