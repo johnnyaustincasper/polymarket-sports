@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 type AuthShellProps = {
   eyebrow: string
@@ -11,6 +11,7 @@ type AuthShellProps = {
 
 type StreamTone = 'cyan' | 'blue' | 'mint' | 'amber'
 type StreamDirection = 'up' | 'down'
+type StreamDepth = 'far' | 'mid' | 'near'
 
 type Stream = {
   left: number
@@ -19,48 +20,45 @@ type Stream = {
   delay: number
   direction: StreamDirection
   tone: StreamTone
+  depth: StreamDepth
   tokens: string[]
 }
 
-// Transparent columns of player props mixed with binary, drifting up/down
-// behind the foreground terminal. No bordered panels — pure text streams.
+// Layered player-prop streams with binary mixed in. The depth setting
+// changes scale/opacity/blur/translateZ so the field feels dimensional.
+const PROP_TOKENS = [
+  'JOKIC 28.5 PTS', 'CURRY 4.5 3PM', 'TATUM 8.5 REB', 'EDWARDS 27.5 PTS',
+  'MAHOMES 287.5 YDS', 'JUDGE 1.5 HR', 'ALLEN 245.5 YDS', 'SGA 30.5 PTS',
+  'CHASE 7.5 REC', 'WEMBY 3.5 BLK', 'OHTANI 0.5 HR', 'BURROW 1.5 TD',
+  'DONCIC 9.5 AST', 'HENRY 92.5 YDS', 'GIANNIS 11.5 REB', 'KELCE 75.5 YDS',
+  'MCDAVID 1.5 PTS', 'COLE 7.5 K', 'HILL 88.5 YDS', 'BOOKER 6.5 AST',
+  'ACUNA 2.5 TB', 'BARKLEY 84.5 YDS', 'SKENES 8.5 K', 'JEFFERSON 6.5 REC',
+  'MATTHEWS 3.5 SOG', 'BETTS 1.5 H', 'SOTO 2.5 H', 'KUCHEROV 1.5 PTS',
+]
+
+const BINARY_TOKENS = ['01101001', '10110010', '11001011', '00111010', '10010110', '11010100', '00101101', '11100110']
+
+const makeTokens = (offset: number) => Array.from({ length: 18 }, (_, i) => (
+  i % 3 === 2 ? BINARY_TOKENS[(offset + i) % BINARY_TOKENS.length] : PROP_TOKENS[(offset + i * 2) % PROP_TOKENS.length]
+))
+
 const STREAMS: Stream[] = [
-  {
-    left: 2, width: 116, duration: 30, delay: 0.0, direction: 'up', tone: 'cyan',
-    tokens: ['JOKIC 28.5 PTS', '01101001', 'CURRY 4.5 3PM', '10110010', 'TATUM 8.5 REB', '11001011', 'EDWARDS 27.5 PTS', '00111010', 'MAHOMES 287.5 YDS', '10010110', 'JUDGE 1.5 HR', '11010100'],
-  },
-  {
-    left: 12, width: 128, duration: 38, delay: 1.6, direction: 'down', tone: 'mint',
-    tokens: ['ALLEN 245.5 YDS', '00101101', 'SGA 30.5 PTS', '11100110', 'CHASE 7.5 REC', '01010011', 'WEMBY 3.5 BLK', '10001110', 'OHTANI 0.5 HR', '11011001', 'BURROW 1.5 TD', '00110101'],
-  },
-  {
-    left: 22, width: 112, duration: 24, delay: 0.7, direction: 'up', tone: 'blue',
-    tokens: ['DONCIC 9.5 AST', '01110011', 'HENRY 92.5 YDS', '01101001', 'GIANNIS 11.5 REB', '10110010', 'KELCE 75.5 YDS', '11001011', 'MCDAVID 1.5 PTS', '00111010', 'COLE 7.5 K', '10010110'],
-  },
-  {
-    left: 32, width: 132, duration: 34, delay: 2.3, direction: 'down', tone: 'amber',
-    tokens: ['HILL 88.5 YDS', '11010100', 'BOOKER 6.5 AST', '00101101', 'ACUNA 2.5 TB', '11100110', 'BARKLEY 84.5 YDS', '01010011', 'SKENES 8.5 K', '10001110', 'TATUM 8.5 REB', '11011001'],
-  },
-  {
-    left: 44, width: 116, duration: 32, delay: 0.4, direction: 'up', tone: 'cyan',
-    tokens: ['JEFFERSON 6.5 REC', '00110101', 'MATTHEWS 3.5 SOG', '01110011', 'JOKIC 28.5 PTS', '01101001', 'BETTS 1.5 H', '10110010', 'CURRY 4.5 3PM', '11001011', 'SGA 30.5 PTS', '00111010'],
-  },
-  {
-    left: 56, width: 124, duration: 26, delay: 1.1, direction: 'down', tone: 'mint',
-    tokens: ['MAHOMES 287.5 YDS', '10010110', 'SOTO 2.5 H', '11010100', 'EDWARDS 27.5 PTS', '00101101', 'KUCHEROV 1.5 PTS', '11100110', 'BURROW 1.5 TD', '01010011', 'HENRY 92.5 YDS', '10001110'],
-  },
-  {
-    left: 68, width: 116, duration: 36, delay: 2.0, direction: 'up', tone: 'blue',
-    tokens: ['DONCIC 9.5 AST', '11011001', 'OHTANI 0.5 HR', '00110101', 'ALLEN 245.5 YDS', '01110011', 'WEMBY 3.5 BLK', '01101001', 'CHASE 7.5 REC', '10110010', 'COLE 7.5 K', '11001011'],
-  },
-  {
-    left: 78, width: 132, duration: 22, delay: 0.9, direction: 'down', tone: 'cyan',
-    tokens: ['JUDGE 1.5 HR', '00111010', 'KELCE 75.5 YDS', '10010110', 'MCDAVID 1.5 PTS', '11010100', 'GIANNIS 11.5 REB', '00101101', 'HILL 88.5 YDS', '11100110', 'ACUNA 2.5 TB', '01010011'],
-  },
-  {
-    left: 88, width: 116, duration: 30, delay: 1.4, direction: 'up', tone: 'amber',
-    tokens: ['JOKIC 28.5 PTS', '10001110', 'SKENES 8.5 K', '11011001', 'BARKLEY 84.5 YDS', '00110101', 'MATTHEWS 3.5 SOG', '01110011', 'TATUM 8.5 REB', '01101001', 'SGA 30.5 PTS', '10110010'],
-  },
+  { left: -5, width: 132, duration: 42, delay: -8.0, direction: 'up', tone: 'cyan', depth: 'far', tokens: makeTokens(0) },
+  { left: 2, width: 124, duration: 28, delay: -2.5, direction: 'down', tone: 'mint', depth: 'near', tokens: makeTokens(3) },
+  { left: 9, width: 118, duration: 36, delay: -12.0, direction: 'up', tone: 'blue', depth: 'mid', tokens: makeTokens(6) },
+  { left: 16, width: 136, duration: 48, delay: -6.8, direction: 'down', tone: 'cyan', depth: 'far', tokens: makeTokens(9) },
+  { left: 23, width: 126, duration: 25, delay: -14.2, direction: 'up', tone: 'amber', depth: 'near', tokens: makeTokens(12) },
+  { left: 30, width: 120, duration: 39, delay: -4.4, direction: 'down', tone: 'mint', depth: 'mid', tokens: makeTokens(15) },
+  { left: 37, width: 138, duration: 44, delay: -18.0, direction: 'up', tone: 'blue', depth: 'far', tokens: makeTokens(18) },
+  { left: 44, width: 128, duration: 27, delay: -9.5, direction: 'down', tone: 'cyan', depth: 'near', tokens: makeTokens(21) },
+  { left: 51, width: 118, duration: 33, delay: -1.2, direction: 'up', tone: 'mint', depth: 'mid', tokens: makeTokens(24) },
+  { left: 58, width: 140, duration: 50, delay: -20.0, direction: 'down', tone: 'amber', depth: 'far', tokens: makeTokens(27) },
+  { left: 65, width: 126, duration: 24, delay: -5.6, direction: 'up', tone: 'cyan', depth: 'near', tokens: makeTokens(30) },
+  { left: 72, width: 122, duration: 37, delay: -16.4, direction: 'down', tone: 'blue', depth: 'mid', tokens: makeTokens(33) },
+  { left: 79, width: 134, duration: 46, delay: -11.1, direction: 'up', tone: 'mint', depth: 'far', tokens: makeTokens(36) },
+  { left: 86, width: 128, duration: 26, delay: -7.7, direction: 'down', tone: 'cyan', depth: 'near', tokens: makeTokens(39) },
+  { left: 93, width: 116, duration: 34, delay: -3.3, direction: 'up', tone: 'amber', depth: 'mid', tokens: makeTokens(42) },
+  { left: 100, width: 130, duration: 52, delay: -22.0, direction: 'down', tone: 'blue', depth: 'far', tokens: makeTokens(45) },
 ]
 
 const isBinary = (token: string) => /^[01]+$/.test(token)
@@ -70,17 +68,11 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
 
   const arm = useCallback(() => setArmed(true), [])
 
-  // Subtle "board is live" heartbeat for the status light; opacity-only.
-  const [pulse, setPulse] = useState(false)
-  useEffect(() => {
-    const id = window.setInterval(() => setPulse(p => !p), 2600)
-    return () => window.clearInterval(id)
-  }, [])
 
   return (
     <main
       className={`war-shell${armed ? ' is-armed' : ''}`}
-      data-auth-shell-version="matrix-stream-20260613"
+      data-auth-shell-version="matrix-depth-20260613"
     >
       <style>{`
         html, body { min-height: 100%; background: #04060a; }
@@ -103,52 +95,72 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         }
         .war-shell *, .war-shell *::before, .war-shell *::after { box-sizing: border-box; }
 
-        /* ---- Transparent vertical streams: player props + binary ---- */
+        /* ---- 3D player-prop matrix field ---- */
         .matrix-streams {
           position: fixed;
-          inset: 0;
+          inset: -10vh -8vw;
           z-index: -2;
           pointer-events: none;
           overflow: hidden;
+          perspective: 820px;
+          perspective-origin: 50% 42%;
+          transform-style: preserve-3d;
+        }
+        .matrix-streams::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            linear-gradient(90deg, transparent 0%, rgba(125,246,255,0.04) 48%, transparent 100%),
+            radial-gradient(90% 60% at 50% 40%, rgba(47,157,255,0.10), transparent 62%);
+          opacity: 0.85;
         }
         .matrix-col {
           position: absolute;
-          top: 0;
-          height: 200vh;
+          top: -54vh;
+          height: 280vh;
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          gap: var(--gap, 13px);
           font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
+          font-size: var(--size, 11px);
+          font-weight: 760;
+          letter-spacing: 0.055em;
           text-align: center;
           white-space: nowrap;
-          opacity: 0.62;
-          will-change: transform;
+          opacity: var(--alpha, 0.62);
+          filter: blur(var(--blur, 0px));
+          will-change: transform, opacity;
+          transform-style: preserve-3d;
           transition: opacity 700ms ease;
         }
-        .is-armed .matrix-col { opacity: 0.78; }
+        .is-armed .matrix-col { opacity: calc(var(--alpha, 0.62) + 0.08); }
         .matrix-col.up { animation: streamUp linear infinite; }
         .matrix-col.down { animation: streamDown linear infinite; }
-        .matrix-col span { display: block; line-height: 1.05; }
-        .matrix-col .bin { color: rgba(125,246,255,0.30); font-weight: 600; }
-        .matrix-col .prop { color: rgba(214,242,255,0.7); }
-        .matrix-col.tone-cyan .prop { color: var(--cyan); text-shadow: 0 0 10px rgba(125,246,255,0.4); }
-        .matrix-col.tone-blue .prop { color: var(--blue); text-shadow: 0 0 10px rgba(47,157,255,0.35); }
-        .matrix-col.tone-mint .prop { color: var(--mint); text-shadow: 0 0 10px rgba(47,255,185,0.35); }
-        .matrix-col.tone-amber .prop { color: var(--amber); text-shadow: 0 0 10px rgba(255,207,107,0.30); }
+        .matrix-col span { display: block; line-height: 1.04; }
+        .matrix-col .bin { color: rgba(125,246,255,0.24); font-weight: 620; }
+        .matrix-col .prop { color: rgba(214,242,255,0.72); }
+        .matrix-col.depth-far { --z: -360px; --scale: 0.58; --alpha: 0.32; --blur: 0.75px; --size: 8px; --gap: 9px; }
+        .matrix-col.depth-mid { --z: -80px; --scale: 0.92; --alpha: 0.58; --blur: 0.12px; --size: 11px; --gap: 12px; }
+        .matrix-col.depth-near { --z: 140px; --scale: 1.28; --alpha: 0.82; --blur: 0px; --size: 13px; --gap: 15px; }
+        .matrix-col.depth-far .prop { opacity: 0.68; }
+        .matrix-col.depth-mid .prop { opacity: 0.86; }
+        .matrix-col.depth-near .prop { opacity: 1; font-weight: 860; }
+        .matrix-col.tone-cyan .prop { color: var(--cyan); text-shadow: 0 0 10px rgba(125,246,255,0.42); }
+        .matrix-col.tone-blue .prop { color: var(--blue); text-shadow: 0 0 10px rgba(47,157,255,0.36); }
+        .matrix-col.tone-mint .prop { color: var(--mint); text-shadow: 0 0 10px rgba(47,255,185,0.34); }
+        .matrix-col.tone-amber .prop { color: var(--amber); text-shadow: 0 0 10px rgba(255,207,107,0.28); }
 
         @keyframes streamUp {
-          from { transform: translateY(0); }
-          to { transform: translateY(-50%); }
+          from { transform: translate3d(0, 0, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(-2deg); }
+          to { transform: translate3d(0, -50%, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(-2deg); }
         }
         @keyframes streamDown {
-          from { transform: translateY(-50%); }
-          to { transform: translateY(0); }
+          from { transform: translate3d(0, -50%, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(2deg); }
+          to { transform: translate3d(0, 0, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(2deg); }
         }
 
-        /* Soft top/bottom fade for legibility — no center vignette / orb */
+        /* Legibility veil: keeps auth crisp while preserving the 3D field */
         .matrix-veil {
           position: fixed;
           inset: 0;
@@ -156,11 +168,11 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           pointer-events: none;
           background:
             linear-gradient(180deg,
-              rgba(4,6,10,0.78) 0%,
-              rgba(4,6,10,0.22) 18%,
-              rgba(4,6,10,0.18) 50%,
-              rgba(4,6,10,0.28) 78%,
-              rgba(4,6,10,0.82) 100%);
+              rgba(4,6,10,0.50) 0%,
+              rgba(4,6,10,0.10) 18%,
+              rgba(4,6,10,0.12) 50%,
+              rgba(4,6,10,0.20) 78%,
+              rgba(4,6,10,0.68) 100%);
         }
 
         /* ---- Foreground content ---- */
@@ -168,7 +180,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           position: relative;
           z-index: 2;
           min-height: 100dvh;
-          width: min(1140px, 100%);
+          width: min(760px, 100%);
           margin: 0 auto;
           display: grid;
           gap: 18px;
@@ -179,42 +191,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .war-brand { display: flex; justify-content: center; }
         .brand-logo { width: min(70vw, 268px); height: auto; display: block; filter: none; border: 0; border-radius: 0; background: transparent; }
 
-        .war-grid { display: grid; gap: 20px; align-items: center; }
-
-        .war-intro { display: grid; gap: 13px; min-width: 0; text-align: center; }
-        .eyebrow {
-          margin: 0; justify-self: center;
-          display: inline-flex; align-items: center; gap: 9px;
-          color: var(--cyan); font-size: 10px; font-weight: 950; letter-spacing: 0.32em; text-transform: uppercase;
-        }
-        .eyebrow .lock {
-          display: inline-flex; width: 13px; height: 13px;
-          color: var(--cyan);
-          filter: drop-shadow(0 0 8px rgba(125,246,255,0.55));
-        }
-        .war-intro h1 {
-          margin: 0; justify-self: center; max-width: 15ch;
-          font-size: clamp(34px, 8.4vw, 70px); line-height: 0.96; letter-spacing: -0.04em;
-          text-wrap: balance; text-shadow: 0 0 44px rgba(125,246,255,0.12), 0 22px 60px rgba(0,0,0,0.7);
-        }
-        .war-sub { margin: 0; justify-self: center; max-width: 50ch; color: rgba(214,242,255,0.72); font-size: clamp(13.5px, 2.3vw, 16px); line-height: 1.5; }
-
-        .war-status {
-          justify-self: center;
-          display: inline-flex; align-items: center; gap: 10px;
-          border-radius: 999px;
-          border: 1px solid rgba(125,246,255,0.20);
-          background: rgba(8,14,24,0.5);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          padding: 8px 14px;
-          font-size: 9.5px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase;
-          color: rgba(214,242,255,0.82);
-          transition: border-color 400ms ease, color 400ms ease, box-shadow 400ms ease;
-        }
-        .is-armed .war-status { border-color: rgba(47,255,185,0.4); color: #eafff6; box-shadow: 0 0 26px rgba(47,255,185,0.12); }
-        .status-light { width: 8px; height: 8px; border-radius: 999px; background: var(--mint); box-shadow: 0 0 12px rgba(47,255,185,0.8); opacity: 0.7; transition: opacity 600ms ease; }
-        .status-light.on { opacity: 1; }
+        .war-grid { display: grid; gap: 20px; align-items: center; justify-items: center; }
 
         /* ---- The secure access terminal (foreground) ---- */
         .terminal {
@@ -277,27 +254,17 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .cl-dividerRow { margin: 12px 0 !important; }
         .cl-footer { margin-top: 12px !important; }
 
-        /* ---- Desktop split ---- */
+        /* ---- Desktop ---- */
         @media (min-width: 920px) {
           .war-content { padding: 36px 32px; gap: 24px; }
-          .war-grid { grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.8fr); gap: 44px; align-items: center; }
-          .war-intro { text-align: left; }
-          .eyebrow, .war-intro h1, .war-sub, .war-status { justify-self: start; }
-          .war-intro h1 { max-width: 16ch; }
-          .terminal { justify-self: end; padding: 26px; }
-          .war-brand { justify-content: flex-start; }
+          .terminal { padding: 26px; }
         }
 
-        /* ---- iPhone-safe (390x844 and smaller): prioritize logo + hero + controls ---- */
+        /* ---- iPhone-safe (390x844 and smaller): prioritize logo + auth controls ---- */
         @media (max-width: 560px) {
-          .war-content { gap: 10px; align-content: start; padding: calc(env(safe-area-inset-top) + 10px) 13px calc(env(safe-area-inset-bottom) + 12px); }
-          .brand-logo { width: min(56vw, 160px); }
+          .war-content { gap: 9px; align-content: start; padding: calc(env(safe-area-inset-top) + 10px) 13px calc(env(safe-area-inset-bottom) + 12px); }
+          .brand-logo { width: min(54vw, 154px); }
           .war-grid { gap: 8px; }
-          .war-intro { gap: 5px; }
-          .eyebrow { font-size: 8px; letter-spacing: 0.20em; }
-          .war-intro h1 { font-size: clamp(24px, 7.6vw, 31px); max-width: 14ch; }
-          .war-sub { display: none; }
-          .war-status { padding: 4px 9px; font-size: 7.5px; }
           .terminal { width: 100%; padding: 12px; border-radius: 20px; }
           .terminal-bar { padding-bottom: 7px; margin-bottom: 8px; }
           .terminal-head { gap: 3px; margin-bottom: 7px; }
@@ -310,8 +277,11 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           .cl-socialButtonsBlockButton, .cl-formButtonPrimary, .cl-formFieldInput { min-height: 46px !important; }
           .cl-dividerRow { margin: 8px 0 !important; }
           .cl-footer { margin-top: 8px !important; }
-          /* Quiet the matrix behind the terminal on small screens */
-          .matrix-col { font-size: 10px; opacity: 0.48; }
+          /* Keep the field dense but readable behind the terminal on small screens */
+          .matrix-streams { inset: -8vh -20vw; perspective: 640px; }
+          .matrix-col.depth-far { --alpha: 0.36; --size: 7.5px; --scale: 0.54; }
+          .matrix-col.depth-mid { --alpha: 0.66; --size: 10.5px; --scale: 0.94; }
+          .matrix-col.depth-near { --alpha: 0.88; --size: 12.5px; --scale: 1.34; }
           .matrix-veil {
             background:
               linear-gradient(180deg,
@@ -325,16 +295,15 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
 
         @media (prefers-reduced-motion: reduce) {
           .matrix-col { animation: none !important; opacity: 0.42; }
-          .status-light { opacity: 0.92 !important; }
         }
       `}</style>
 
-      {/* Vertical streams: player props + binary, drifting up/down */}
+      {/* Layered 3D streams: player props + binary, drifting up/down */}
       <div className="matrix-streams" aria-hidden="true">
         {STREAMS.map((stream, idx) => (
           <div
             key={idx}
-            className={`matrix-col ${stream.direction} tone-${stream.tone}`}
+            className={`matrix-col ${stream.direction} tone-${stream.tone} depth-${stream.depth}`}
             style={{
               left: `${stream.left}%`,
               width: `${stream.width}px`,
@@ -368,27 +337,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         </div>
 
         <div className="war-grid">
-          <section className="war-intro" aria-label="Athlete Intelligence — secure access">
-            <p className="eyebrow">
-              <span className="lock" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" width="100%" height="100%">
-                  <rect x="4" y="10" width="16" height="11" rx="2.5" stroke="currentColor" strokeWidth="2" />
-                  <path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </span>
-              MEMBERS ONLY
-            </p>
-            <h1>The intelligence stream is live.</h1>
-            <p className="war-sub">
-              Verify access to step inside live player props, rotation shifts, and matchup reads as the feed runs.
-            </p>
-
-            <p className="war-status" aria-live="polite">
-              <span className={`status-light${pulse ? ' on' : ''}`} aria-hidden="true" />
-              LIVE PROP STREAM · ENCRYPTED FEED
-            </p>
-          </section>
-
           <aside
             className="terminal"
             aria-label="Secure access terminal"
