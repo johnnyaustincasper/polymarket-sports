@@ -9,27 +9,61 @@ type AuthShellProps = {
   children: React.ReactNode
 }
 
-type BoardRow = {
-  // vertical position inside the glass board, as a percentage
-  top: number
-  // animated value drift on a delay, opacity/transform only
+type StreamTone = 'cyan' | 'blue' | 'mint' | 'amber'
+type StreamDirection = 'up' | 'down'
+
+type Stream = {
+  left: number
+  width: number
+  duration: number
   delay: number
-  // relative widths of the row segments
-  label: number
-  bar: number
-  tag: 'up' | 'down' | 'hold'
+  direction: StreamDirection
+  tone: StreamTone
+  tokens: string[]
 }
 
-// Blurred live intel board rows sitting BEHIND the glass partition.
-const BOARD_ROWS: BoardRow[] = [
-  { top: 8, delay: 0.0, label: 58, bar: 72, tag: 'up' },
-  { top: 20, delay: 0.7, label: 44, bar: 54, tag: 'hold' },
-  { top: 32, delay: 1.3, label: 66, bar: 81, tag: 'down' },
-  { top: 44, delay: 0.4, label: 50, bar: 63, tag: 'up' },
-  { top: 56, delay: 1.8, label: 60, bar: 47, tag: 'hold' },
-  { top: 68, delay: 1.0, label: 40, bar: 76, tag: 'up' },
-  { top: 80, delay: 2.2, label: 54, bar: 58, tag: 'down' },
+// Transparent columns of player props mixed with binary, drifting up/down
+// behind the foreground terminal. No bordered panels — pure text streams.
+const STREAMS: Stream[] = [
+  {
+    left: 2, width: 116, duration: 30, delay: 0.0, direction: 'up', tone: 'cyan',
+    tokens: ['JOKIC 28.5 PTS', '01101001', 'CURRY 4.5 3PM', '10110010', 'TATUM 8.5 REB', '11001011', 'EDWARDS 27.5 PTS', '00111010', 'MAHOMES 287.5 YDS', '10010110', 'JUDGE 1.5 HR', '11010100'],
+  },
+  {
+    left: 12, width: 128, duration: 38, delay: 1.6, direction: 'down', tone: 'mint',
+    tokens: ['ALLEN 245.5 YDS', '00101101', 'SGA 30.5 PTS', '11100110', 'CHASE 7.5 REC', '01010011', 'WEMBY 3.5 BLK', '10001110', 'OHTANI 0.5 HR', '11011001', 'BURROW 1.5 TD', '00110101'],
+  },
+  {
+    left: 22, width: 112, duration: 24, delay: 0.7, direction: 'up', tone: 'blue',
+    tokens: ['DONCIC 9.5 AST', '01110011', 'HENRY 92.5 YDS', '01101001', 'GIANNIS 11.5 REB', '10110010', 'KELCE 75.5 YDS', '11001011', 'MCDAVID 1.5 PTS', '00111010', 'COLE 7.5 K', '10010110'],
+  },
+  {
+    left: 32, width: 132, duration: 34, delay: 2.3, direction: 'down', tone: 'amber',
+    tokens: ['HILL 88.5 YDS', '11010100', 'BOOKER 6.5 AST', '00101101', 'ACUNA 2.5 TB', '11100110', 'BARKLEY 84.5 YDS', '01010011', 'SKENES 8.5 K', '10001110', 'TATUM 8.5 REB', '11011001'],
+  },
+  {
+    left: 44, width: 116, duration: 32, delay: 0.4, direction: 'up', tone: 'cyan',
+    tokens: ['JEFFERSON 6.5 REC', '00110101', 'MATTHEWS 3.5 SOG', '01110011', 'JOKIC 28.5 PTS', '01101001', 'BETTS 1.5 H', '10110010', 'CURRY 4.5 3PM', '11001011', 'SGA 30.5 PTS', '00111010'],
+  },
+  {
+    left: 56, width: 124, duration: 26, delay: 1.1, direction: 'down', tone: 'mint',
+    tokens: ['MAHOMES 287.5 YDS', '10010110', 'SOTO 2.5 H', '11010100', 'EDWARDS 27.5 PTS', '00101101', 'KUCHEROV 1.5 PTS', '11100110', 'BURROW 1.5 TD', '01010011', 'HENRY 92.5 YDS', '10001110'],
+  },
+  {
+    left: 68, width: 116, duration: 36, delay: 2.0, direction: 'up', tone: 'blue',
+    tokens: ['DONCIC 9.5 AST', '11011001', 'OHTANI 0.5 HR', '00110101', 'ALLEN 245.5 YDS', '01110011', 'WEMBY 3.5 BLK', '01101001', 'CHASE 7.5 REC', '10110010', 'COLE 7.5 K', '11001011'],
+  },
+  {
+    left: 78, width: 132, duration: 22, delay: 0.9, direction: 'down', tone: 'cyan',
+    tokens: ['JUDGE 1.5 HR', '00111010', 'KELCE 75.5 YDS', '10010110', 'MCDAVID 1.5 PTS', '11010100', 'GIANNIS 11.5 REB', '00101101', 'HILL 88.5 YDS', '11100110', 'ACUNA 2.5 TB', '01010011'],
+  },
+  {
+    left: 88, width: 116, duration: 30, delay: 1.4, direction: 'up', tone: 'amber',
+    tokens: ['JOKIC 28.5 PTS', '10001110', 'SKENES 8.5 K', '11011001', 'BARKLEY 84.5 YDS', '00110101', 'MATTHEWS 3.5 SOG', '01110011', 'TATUM 8.5 REB', '01101001', 'SGA 30.5 PTS', '10110010'],
+  },
 ]
+
+const isBinary = (token: string) => /^[01]+$/.test(token)
 
 export default function AuthShell({ eyebrow, title, subtitle, children }: AuthShellProps) {
   const [armed, setArmed] = useState(false)
@@ -46,7 +80,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   return (
     <main
       className={`war-shell${armed ? ' is-armed' : ''}`}
-      data-auth-shell-version="locked-war-room-20260613"
+      data-auth-shell-version="matrix-stream-20260613"
     >
       <style>{`
         html, body { min-height: 100%; background: #04060a; }
@@ -56,7 +90,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           --mint: #2fffb9;
           --amber: #ffcf6b;
           --ink: #04060a;
-          --glass-line: rgba(125,246,255,0.14);
           min-height: 100vh;
           min-height: 100svh;
           min-height: 100dvh;
@@ -65,101 +98,69 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           isolation: isolate;
           color: #f2f8ff;
           background:
-            radial-gradient(130% 90% at 50% -18%, rgba(47,157,255,0.14), transparent 58%),
-            radial-gradient(80% 70% at 92% 120%, rgba(47,255,185,0.07), transparent 55%),
-            linear-gradient(168deg, #060b14 0%, #05080f 52%, #03050a 100%);
+            linear-gradient(180deg, #060b14 0%, #05080f 52%, #03050a 100%);
           font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
         }
         .war-shell *, .war-shell *::before, .war-shell *::after { box-sizing: border-box; }
 
-        /* ---- Room depth: perspective hallway lines (inline SVG) ---- */
-        .room-depth {
-          position: fixed;
-          inset: 0;
-          z-index: -3;
-          width: 100%;
-          height: 100%;
-          pointer-events: none;
-          opacity: 0.55;
-        }
-
-        /* ---- The glass partition with the live board behind it ---- */
-        .glass-wall {
+        /* ---- Transparent vertical streams: player props + binary ---- */
+        .matrix-streams {
           position: fixed;
           inset: 0;
           z-index: -2;
           pointer-events: none;
           overflow: hidden;
         }
-        /* The live intel board (blurred, behind glass) */
-        .board {
+        .matrix-col {
           position: absolute;
-          top: 8%;
-          left: 50%;
-          transform: translateX(-50%);
-          width: min(1240px, 132%);
-          height: 78%;
-          opacity: 0.36;
+          top: 0;
+          height: 200vh;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-align: center;
+          white-space: nowrap;
+          opacity: 0.62;
+          will-change: transform;
           transition: opacity 700ms ease;
         }
-        .is-armed .board { opacity: 0.48; }
-        .board-panel {
-          position: absolute;
-          border-radius: 16px;
-          border: 1px solid rgba(125,246,255,0.16);
-          background: linear-gradient(180deg, rgba(12,24,40,0.62), rgba(5,11,20,0.5));
-          box-shadow: 0 30px 70px rgba(0,0,0,0.5);
-          overflow: hidden;
-        }
-        .panel-a { left: 4%; top: 0; width: 40%; height: 100%; }
-        .panel-b { left: 47%; top: 4%; width: 30%; height: 88%; }
-        .panel-c { left: 79%; top: 10%; width: 17%; height: 74%; }
+        .is-armed .matrix-col { opacity: 0.78; }
+        .matrix-col.up { animation: streamUp linear infinite; }
+        .matrix-col.down { animation: streamDown linear infinite; }
+        .matrix-col span { display: block; line-height: 1.05; }
+        .matrix-col .bin { color: rgba(125,246,255,0.30); font-weight: 600; }
+        .matrix-col .prop { color: rgba(214,242,255,0.7); }
+        .matrix-col.tone-cyan .prop { color: var(--cyan); text-shadow: 0 0 10px rgba(125,246,255,0.4); }
+        .matrix-col.tone-blue .prop { color: var(--blue); text-shadow: 0 0 10px rgba(47,157,255,0.35); }
+        .matrix-col.tone-mint .prop { color: var(--mint); text-shadow: 0 0 10px rgba(47,255,185,0.35); }
+        .matrix-col.tone-amber .prop { color: var(--amber); text-shadow: 0 0 10px rgba(255,207,107,0.30); }
 
-        .board-row {
-          position: absolute;
-          left: 7%;
-          right: 7%;
-          height: 9%;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          animation: rowDrift 6.5s ease-in-out infinite;
+        @keyframes streamUp {
+          from { transform: translateY(0); }
+          to { transform: translateY(-50%); }
         }
-        .row-dot { width: 7px; height: 7px; border-radius: 999px; flex: none; }
-        .row-dot.up { background: var(--mint); }
-        .row-dot.down { background: var(--amber); }
-        .row-dot.hold { background: var(--cyan); }
-        .row-label { height: 7px; border-radius: 999px; background: rgba(214,242,255,0.32); }
-        .row-bar { height: 9px; border-radius: 999px; margin-left: auto; background: linear-gradient(90deg, rgba(125,246,255,0.5), rgba(47,157,255,0.25)); }
-
-        .board-spark {
-          position: absolute;
-          left: 8%;
-          right: 8%;
-          bottom: 10%;
-          height: 26%;
-          opacity: 0.7;
+        @keyframes streamDown {
+          from { transform: translateY(-50%); }
+          to { transform: translateY(0); }
         }
 
-        /* Glass reflection streaks across the partition */
-        .glass-sheen {
-          position: fixed;
-          inset: 0;
-          z-index: -2;
-          pointer-events: none;
-          background:
-            linear-gradient(104deg, transparent 0%, rgba(125,246,255,0.05) 18%, transparent 30%, transparent 60%, rgba(255,255,255,0.04) 72%, transparent 84%);
-          mix-blend-mode: screen;
-        }
-        /* Darkening veil so the foreground terminal reads as "outside the room" */
-        .room-veil {
+        /* Soft top/bottom fade for legibility — no center vignette / orb */
+        .matrix-veil {
           position: fixed;
           inset: 0;
           z-index: -1;
           pointer-events: none;
           background:
-            radial-gradient(78% 64% at 50% 46%, transparent 0%, rgba(4,6,10,0.5) 70%, rgba(4,6,10,0.86) 100%),
-            linear-gradient(180deg, rgba(4,6,10,0.42), transparent 24%, transparent 66%, rgba(4,6,10,0.6));
+            linear-gradient(180deg,
+              rgba(4,6,10,0.78) 0%,
+              rgba(4,6,10,0.22) 18%,
+              rgba(4,6,10,0.18) 50%,
+              rgba(4,6,10,0.28) 78%,
+              rgba(4,6,10,0.82) 100%);
         }
 
         /* ---- Foreground content ---- */
@@ -276,17 +277,6 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .cl-dividerRow { margin: 12px 0 !important; }
         .cl-footer { margin-top: 12px !important; }
 
-        /* ---- Animations: opacity / transform only ---- */
-        @keyframes rowDrift {
-          0%, 100% { transform: translateX(0); opacity: 0.82; }
-          50% { transform: translateX(6px); opacity: 1; }
-        }
-        @keyframes depthGlow {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 0.7; }
-        }
-        .depth-haze { animation: depthGlow 7s ease-in-out infinite; }
-
         /* ---- Desktop split ---- */
         @media (min-width: 920px) {
           .war-content { padding: 36px 32px; gap: 24px; }
@@ -320,115 +310,53 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           .cl-socialButtonsBlockButton, .cl-formButtonPrimary, .cl-formFieldInput { min-height: 46px !important; }
           .cl-dividerRow { margin: 8px 0 !important; }
           .cl-footer { margin-top: 8px !important; }
-          /* Hide decorative board side panels behind glass on small screens */
-          .panel-c { display: none; }
-          .board { opacity: 0.4; }
+          /* Quiet the matrix behind the terminal on small screens */
+          .matrix-col { font-size: 10px; opacity: 0.48; }
+          .matrix-veil {
+            background:
+              linear-gradient(180deg,
+                rgba(4,6,10,0.88) 0%,
+                rgba(4,6,10,0.42) 16%,
+                rgba(4,6,10,0.36) 50%,
+                rgba(4,6,10,0.46) 80%,
+                rgba(4,6,10,0.9) 100%);
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .board-row, .depth-haze { animation: none !important; }
-          .board-row { opacity: 0.92; }
+          .matrix-col { animation: none !important; opacity: 0.42; }
           .status-light { opacity: 0.92 !important; }
         }
       `}</style>
 
-      {/* Perspective room depth — vanishing-point hallway lines */}
-      <svg
-        className="room-depth"
-        viewBox="0 0 1200 820"
-        preserveAspectRatio="xMidYMid slice"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <defs>
-          <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(125,246,255,0.02)" />
-            <stop offset="50%" stopColor="rgba(125,246,255,0.22)" />
-            <stop offset="100%" stopColor="rgba(125,246,255,0.02)" />
-          </linearGradient>
-          <radialGradient id="depthHaze" cx="50%" cy="40%" r="60%">
-            <stop offset="0%" stopColor="rgba(47,157,255,0.16)" />
-            <stop offset="100%" stopColor="rgba(47,157,255,0)" />
-          </radialGradient>
-        </defs>
-
-        <rect className="depth-haze" x="0" y="0" width="1200" height="820" fill="url(#depthHaze)" />
-
-        {/* Floor + ceiling perspective lines converging to center vanishing point */}
-        <g stroke="url(#lineGrad)" strokeWidth="1.1" fill="none">
-          {[0, 120, 240, 360, 480].map((x) => (
-            <line key={`fl-${x}`} x1={x} y1="820" x2="600" y2="410" />
-          ))}
-          {[1200, 1080, 960, 840, 720].map((x) => (
-            <line key={`fr-${x}`} x1={x} y1="820" x2="600" y2="410" />
-          ))}
-          {[0, 120, 240, 360, 480].map((x) => (
-            <line key={`cl-${x}`} x1={x} y1="0" x2="600" y2="410" />
-          ))}
-          {[1200, 1080, 960, 840, 720].map((x) => (
-            <line key={`cr-${x}`} x1={x} y1="0" x2="600" y2="410" />
-          ))}
-        </g>
-      </svg>
-
-      {/* Live intel board sitting behind the glass partition */}
-      <div className="glass-wall" aria-hidden="true">
-        <div className="board">
-          <div className="board-panel panel-a">
-            {BOARD_ROWS.map((row) => (
-              <div
-                key={`a-${row.top}`}
-                className="board-row"
-                style={{ top: `${row.top}%`, animationDelay: `${row.delay}s` }}
-              >
-                <span className={`row-dot ${row.tag}`} />
-                <span className="row-label" style={{ width: `${row.label}px` }} />
-                <span className="row-bar" style={{ width: `${row.bar}px` }} />
-              </div>
+      {/* Vertical streams: player props + binary, drifting up/down */}
+      <div className="matrix-streams" aria-hidden="true">
+        {STREAMS.map((stream, idx) => (
+          <div
+            key={idx}
+            className={`matrix-col ${stream.direction} tone-${stream.tone}`}
+            style={{
+              left: `${stream.left}%`,
+              width: `${stream.width}px`,
+              animationDuration: `${stream.duration}s`,
+              animationDelay: `${stream.delay}s`,
+            }}
+          >
+            {stream.tokens.map((token, i) => (
+              <span key={`a-${i}`} className={isBinary(token) ? 'bin' : 'prop'}>
+                {token}
+              </span>
+            ))}
+            {stream.tokens.map((token, i) => (
+              <span key={`b-${i}`} className={isBinary(token) ? 'bin' : 'prop'}>
+                {token}
+              </span>
             ))}
           </div>
-
-          <div className="board-panel panel-b">
-            {BOARD_ROWS.slice(0, 5).map((row) => (
-              <div
-                key={`b-${row.top}`}
-                className="board-row"
-                style={{ top: `${row.top + 4}%`, animationDelay: `${row.delay + 0.5}s` }}
-              >
-                <span className={`row-dot ${row.tag}`} />
-                <span className="row-label" style={{ width: `${row.label * 0.7}px` }} />
-                <span className="row-bar" style={{ width: `${row.bar * 0.7}px` }} />
-              </div>
-            ))}
-            <svg className="board-spark" viewBox="0 0 240 80" preserveAspectRatio="none" aria-hidden="true">
-              <polyline
-                points="0,60 30,40 60,52 90,24 120,38 150,18 180,34 210,12 240,28"
-                fill="none"
-                stroke="rgba(47,255,185,0.55)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-
-          <div className="board-panel panel-c">
-            {BOARD_ROWS.slice(0, 6).map((row) => (
-              <div
-                key={`c-${row.top}`}
-                className="board-row"
-                style={{ top: `${row.top + 2}%`, animationDelay: `${row.delay + 1.1}s` }}
-              >
-                <span className={`row-dot ${row.tag}`} />
-                <span className="row-bar" style={{ width: `${row.bar * 0.5}px`, marginLeft: '0' }} />
-              </div>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
 
-      <div className="glass-sheen" aria-hidden="true" />
-      <div className="room-veil" aria-hidden="true" />
+      <div className="matrix-veil" aria-hidden="true" />
 
       <div className="war-content">
         <div className="war-brand">
@@ -440,7 +368,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         </div>
 
         <div className="war-grid">
-          <section className="war-intro" aria-label="Athlete Intelligence — secure room entrance">
+          <section className="war-intro" aria-label="Athlete Intelligence — secure access">
             <p className="eyebrow">
               <span className="lock" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" width="100%" height="100%">
@@ -450,14 +378,14 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
               </span>
               MEMBERS ONLY
             </p>
-            <h1>The intelligence room is locked.</h1>
+            <h1>The intelligence stream is live.</h1>
             <p className="war-sub">
-              Verify access to enter live player context, rotation shifts, and matchup reads before the board settles.
+              Verify access to step inside live player props, rotation shifts, and matchup reads as the feed runs.
             </p>
 
             <p className="war-status" aria-live="polite">
               <span className={`status-light${pulse ? ' on' : ''}`} aria-hidden="true" />
-              SECURE ROOM · LIVE BOARD BEHIND GLASS
+              LIVE PROP STREAM · ENCRYPTED FEED
             </p>
           </section>
 
@@ -485,9 +413,9 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
 
             <div className="terminal-head">
               <p className="term-kicker">{eyebrow || 'Verify access'}</p>
-              <h2 className="term-title">{title || 'Enter the intelligence room'}</h2>
+              <h2 className="term-title">{title || 'Enter the intelligence stream'}</h2>
               <p className="term-subtitle">
-                {subtitle || 'Verify access to enter the live player-intelligence board.'}
+                {subtitle || 'Verify access to enter the live player-intelligence feed.'}
               </p>
             </div>
 
