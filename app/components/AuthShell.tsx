@@ -301,16 +301,16 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         /* ---- iPhone-safe (390x844 and smaller): prioritize logo + hero + controls ---- */
         @media (max-width: 560px) {
           .war-content { gap: 10px; align-content: start; padding: calc(env(safe-area-inset-top) + 10px) 13px calc(env(safe-area-inset-bottom) + 12px); }
-          .brand-logo { width: min(60vw, 178px); }
-          .war-grid { gap: 9px; }
-          .war-intro { gap: 6px; }
-          .eyebrow { font-size: 8.5px; letter-spacing: 0.22em; }
-          .war-intro h1 { font-size: clamp(26px, 8.2vw, 34px); max-width: 14ch; }
-          .war-sub { font-size: 11.5px; line-height: 1.34; max-width: 38ch; }
-          .war-status { padding: 5px 10px; font-size: 8px; }
-          .terminal { width: 100%; padding: 14px; border-radius: 20px; }
-          .terminal-bar { padding-bottom: 9px; margin-bottom: 10px; }
-          .terminal-head { gap: 4px; margin-bottom: 9px; }
+          .brand-logo { width: min(56vw, 160px); }
+          .war-grid { gap: 8px; }
+          .war-intro { gap: 5px; }
+          .eyebrow { font-size: 8px; letter-spacing: 0.20em; }
+          .war-intro h1 { font-size: clamp(24px, 7.6vw, 31px); max-width: 14ch; }
+          .war-sub { display: none; }
+          .war-status { padding: 4px 9px; font-size: 7.5px; }
+          .terminal { width: 100%; padding: 12px; border-radius: 20px; }
+          .terminal-bar { padding-bottom: 7px; margin-bottom: 8px; }
+          .terminal-head { gap: 3px; margin-bottom: 7px; }
           .term-kicker { font-size: 8.5px; }
           .term-title { font-size: 19px; }
           .term-subtitle { display: none; }
