@@ -17,7 +17,7 @@ type Stream = {
   left: number
   width: number
   duration: number
-  delay: number
+  phase: number
   direction: StreamDirection
   tone: StreamTone
   depth: StreamDepth
@@ -42,26 +42,28 @@ const makeTokens = (offset: number) => Array.from({ length: 24 }, (_, i) => (
   i % 3 === 2 ? BINARY_TOKENS[(offset + i) % BINARY_TOKENS.length] : PROP_TOKENS[(offset + i * 2) % PROP_TOKENS.length]
 ))
 
-// Delays are small positive stagger only — no negative delays — so every
-// column starts at translateY(0) with its content fully filling the field,
-// and tokens stream in/out continuously from the viewport edges.
+// Phase is a 0..1 fraction translated to a NEGATIVE animation-delay so
+// every column is mid-cycle at t=0. No column ever sits frozen, no
+// staggered release, no "popping in" — just a continuous waterfall from
+// the first frame. Phases are distributed pseudo-randomly so columns
+// desync visually while all animating from the start.
 const STREAMS: Stream[] = [
-  { left: -5, width: 132, duration: 42, delay: 0.0, direction: 'up', tone: 'cyan', depth: 'far', tokens: makeTokens(0) },
-  { left: 2, width: 124, duration: 28, delay: 0.6, direction: 'down', tone: 'mint', depth: 'near', tokens: makeTokens(3) },
-  { left: 9, width: 118, duration: 36, delay: 0.2, direction: 'up', tone: 'blue', depth: 'mid', tokens: makeTokens(6) },
-  { left: 16, width: 136, duration: 48, delay: 0.9, direction: 'down', tone: 'cyan', depth: 'far', tokens: makeTokens(9) },
-  { left: 23, width: 126, duration: 25, delay: 0.3, direction: 'up', tone: 'amber', depth: 'near', tokens: makeTokens(12) },
-  { left: 30, width: 120, duration: 39, delay: 0.7, direction: 'down', tone: 'mint', depth: 'mid', tokens: makeTokens(15) },
-  { left: 37, width: 138, duration: 44, delay: 0.4, direction: 'up', tone: 'blue', depth: 'far', tokens: makeTokens(18) },
-  { left: 44, width: 128, duration: 27, delay: 1.0, direction: 'down', tone: 'cyan', depth: 'near', tokens: makeTokens(21) },
-  { left: 51, width: 118, duration: 33, delay: 0.5, direction: 'up', tone: 'mint', depth: 'mid', tokens: makeTokens(24) },
-  { left: 58, width: 140, duration: 50, delay: 1.2, direction: 'down', tone: 'amber', depth: 'far', tokens: makeTokens(27) },
-  { left: 65, width: 126, duration: 24, delay: 0.1, direction: 'up', tone: 'cyan', depth: 'near', tokens: makeTokens(30) },
-  { left: 72, width: 122, duration: 37, delay: 0.8, direction: 'down', tone: 'blue', depth: 'mid', tokens: makeTokens(33) },
-  { left: 79, width: 134, duration: 46, delay: 0.3, direction: 'up', tone: 'mint', depth: 'far', tokens: makeTokens(36) },
-  { left: 86, width: 128, duration: 26, delay: 1.1, direction: 'down', tone: 'cyan', depth: 'near', tokens: makeTokens(39) },
-  { left: 93, width: 116, duration: 34, delay: 0.6, direction: 'up', tone: 'amber', depth: 'mid', tokens: makeTokens(42) },
-  { left: 100, width: 130, duration: 52, delay: 0.2, direction: 'down', tone: 'blue', depth: 'far', tokens: makeTokens(45) },
+  { left: -5, width: 132, duration: 44, phase: 0.00, direction: 'up', tone: 'cyan', depth: 'far', tokens: makeTokens(0) },
+  { left: 2, width: 124, duration: 30, phase: 0.43, direction: 'down', tone: 'mint', depth: 'near', tokens: makeTokens(3) },
+  { left: 9, width: 118, duration: 36, phase: 0.17, direction: 'up', tone: 'blue', depth: 'mid', tokens: makeTokens(6) },
+  { left: 16, width: 136, duration: 48, phase: 0.78, direction: 'down', tone: 'cyan', depth: 'far', tokens: makeTokens(9) },
+  { left: 23, width: 126, duration: 26, phase: 0.29, direction: 'up', tone: 'amber', depth: 'near', tokens: makeTokens(12) },
+  { left: 30, width: 120, duration: 40, phase: 0.61, direction: 'down', tone: 'mint', depth: 'mid', tokens: makeTokens(15) },
+  { left: 37, width: 138, duration: 46, phase: 0.34, direction: 'up', tone: 'blue', depth: 'far', tokens: makeTokens(18) },
+  { left: 44, width: 128, duration: 28, phase: 0.86, direction: 'down', tone: 'cyan', depth: 'near', tokens: makeTokens(21) },
+  { left: 51, width: 118, duration: 34, phase: 0.49, direction: 'up', tone: 'mint', depth: 'mid', tokens: makeTokens(24) },
+  { left: 58, width: 140, duration: 50, phase: 0.95, direction: 'down', tone: 'amber', depth: 'far', tokens: makeTokens(27) },
+  { left: 65, width: 126, duration: 24, phase: 0.08, direction: 'up', tone: 'cyan', depth: 'near', tokens: makeTokens(30) },
+  { left: 72, width: 122, duration: 38, phase: 0.71, direction: 'down', tone: 'blue', depth: 'mid', tokens: makeTokens(33) },
+  { left: 79, width: 134, duration: 46, phase: 0.22, direction: 'up', tone: 'mint', depth: 'far', tokens: makeTokens(36) },
+  { left: 86, width: 128, duration: 26, phase: 0.93, direction: 'down', tone: 'cyan', depth: 'near', tokens: makeTokens(39) },
+  { left: 93, width: 116, duration: 34, phase: 0.55, direction: 'up', tone: 'amber', depth: 'mid', tokens: makeTokens(42) },
+  { left: 100, width: 130, duration: 52, phase: 0.13, direction: 'down', tone: 'blue', depth: 'far', tokens: makeTokens(45) },
 ]
 
 const isBinary = (token: string) => /^[01]+$/.test(token)
@@ -75,7 +77,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   return (
     <main
       className={`war-shell${armed ? ' is-armed' : ''}`}
-      data-auth-shell-version="matrix-dense-streams-20260613"
+      data-auth-shell-version="matrix-conveyor-glass-20260613"
     >
       <style>{`
         html, body { min-height: 100%; background: #04060a; }
@@ -118,14 +120,18 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
             radial-gradient(90% 60% at 50% 40%, rgba(47,157,255,0.10), transparent 62%);
           opacity: 0.85;
         }
-        /* Column is exactly 2x viewport tall and holds 48 spans (two identical
-           copies of 24 tokens). Flex evenly distributes so each copy occupies
-           exactly 100vh — a -100vh translate then loops seamlessly with no
-           gaps and no mid-cycle starts. */
+        /* Column is exactly 3x viewport tall and holds 72 spans (three
+           identical copies of 24 tokens). Flex evenly distributes so each
+           copy occupies 100vh. We translate by -100vh per cycle, so at
+           every moment of the cycle at least two full copies cover the
+           viewport region — no edge gap, no pop-in. Because the three
+           copies are byte-identical, the loop transition from
+           translateY(-100vh) back to translateY(0) is visually a no-op:
+           the viewport sees the same content before and after. */
         .matrix-col {
           position: absolute;
           top: 0;
-          height: 200vh;
+          height: 300vh;
           display: flex;
           flex-direction: column;
           font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -136,12 +142,11 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           white-space: nowrap;
           opacity: var(--alpha, 0.62);
           filter: blur(var(--blur, 0px));
-          will-change: transform, opacity;
+          will-change: transform;
           transform-style: preserve-3d;
           transform-origin: 50% 50%;
-          transition: opacity 700ms ease;
+          backface-visibility: hidden;
         }
-        .is-armed .matrix-col { opacity: calc(var(--alpha, 0.62) + 0.08); }
         .matrix-col.up { animation: streamUp linear infinite; }
         .matrix-col.down { animation: streamDown linear infinite; }
         .matrix-col span {
@@ -164,9 +169,10 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .matrix-col.tone-mint .prop { color: var(--mint); text-shadow: 0 0 10px rgba(47,255,185,0.34); }
         .matrix-col.tone-amber .prop { color: var(--amber); text-shadow: 0 0 10px rgba(255,207,107,0.28); }
 
-        /* Up: column shifts up by exactly one copy (100vh) → new tokens
-           continuously enter from the viewport bottom. Seamless because
-           copy-A and copy-B are identical and stacked. */
+        /* Up: column shifts up by exactly one copy (100vh) → tokens slide
+           continuously upward and new ones replace them from below. The
+           loop point is invisible because all three stacked copies are
+           identical. */
         @keyframes streamUp {
           from { transform: translate3d(0, 0, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(-2deg); }
           to { transform: translate3d(0, -100vh, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(-2deg); }
@@ -177,7 +183,9 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           to { transform: translate3d(0, 0, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(2deg); }
         }
 
-        /* Legibility veil: keeps auth crisp while preserving the 3D field */
+        /* Legibility veil: dialed back so more of the matrix shows through
+           the glass card. The card's own backdrop-filter handles local
+           contrast for the auth controls. */
         .matrix-veil {
           position: fixed;
           inset: 0;
@@ -185,11 +193,11 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           pointer-events: none;
           background:
             linear-gradient(180deg,
-              rgba(4,6,10,0.50) 0%,
-              rgba(4,6,10,0.10) 18%,
-              rgba(4,6,10,0.12) 50%,
-              rgba(4,6,10,0.20) 78%,
-              rgba(4,6,10,0.68) 100%);
+              rgba(4,6,10,0.42) 0%,
+              rgba(4,6,10,0.06) 18%,
+              rgba(4,6,10,0.08) 50%,
+              rgba(4,6,10,0.16) 78%,
+              rgba(4,6,10,0.60) 100%);
         }
 
         /* ---- Foreground content ---- */
@@ -208,55 +216,72 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .war-brand { display: flex; justify-content: center; }
         .brand-logo { width: min(70vw, 268px); height: auto; display: block; filter: none; border: 0; border-radius: 0; background: transparent; }
 
-        .war-grid { display: grid; gap: 20px; align-items: center; justify-items: center; }
+        .war-grid { display: grid; gap: 16px; align-items: center; justify-items: center; }
 
-        /* ---- The secure access terminal (foreground) ---- */
+        /* ---- The secure access terminal (true glass) ----
+           Smaller footprint + lighter translucent fill + heavier blur so
+           the prop matrix behind it stays visible. Border/glow do the
+           framing work the opaque background used to do. */
         .terminal {
           position: relative;
           justify-self: center;
-          width: min(444px, 100%);
-          border-radius: 24px;
-          padding: 22px;
-          background: linear-gradient(180deg, rgba(11,20,34,0.82), rgba(5,10,18,0.88));
-          backdrop-filter: blur(22px) saturate(1.18);
-          -webkit-backdrop-filter: blur(22px) saturate(1.18);
-          border: 1px solid rgba(125,246,255,0.24);
+          width: min(360px, 100%);
+          border-radius: 20px;
+          padding: 14px 16px 16px;
+          background:
+            linear-gradient(180deg, rgba(13,22,38,0.30) 0%, rgba(6,12,22,0.40) 100%);
+          backdrop-filter: blur(30px) saturate(1.32);
+          -webkit-backdrop-filter: blur(30px) saturate(1.32);
+          border: 1px solid rgba(125,246,255,0.22);
           box-shadow:
-            0 0 0 1px rgba(255,255,255,0.04) inset,
-            0 34px 90px rgba(0,0,0,0.62);
-          transition: border-color 450ms ease, box-shadow 450ms ease, transform 450ms ease;
+            0 1px 0 rgba(255,255,255,0.06) inset,
+            0 0 0 1px rgba(125,246,255,0.04) inset,
+            0 22px 60px rgba(0,0,0,0.50);
+          transition: border-color 450ms ease, box-shadow 450ms ease;
+        }
+        .terminal::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+          background: linear-gradient(160deg, rgba(255,255,255,0.07), rgba(255,255,255,0) 42%);
+          mix-blend-mode: screen;
+          opacity: 0.7;
         }
         .is-armed .terminal {
-          border-color: rgba(125,246,255,0.4);
+          border-color: rgba(125,246,255,0.40);
           box-shadow:
-            0 0 0 1px rgba(255,255,255,0.06) inset,
-            0 34px 100px rgba(0,0,0,0.66),
-            0 0 56px rgba(47,157,255,0.16);
+            0 1px 0 rgba(255,255,255,0.08) inset,
+            0 0 0 1px rgba(125,246,255,0.06) inset,
+            0 22px 70px rgba(0,0,0,0.55),
+            0 0 44px rgba(47,157,255,0.16);
         }
 
-        /* Terminal header bar: status lights + clearance label */
+        /* Terminal header bar: status lights + clearance label, compact */
         .terminal-bar {
-          display: flex; align-items: center; gap: 8px;
-          padding-bottom: 12px; margin-bottom: 14px;
-          border-bottom: 1px solid rgba(125,246,255,0.12);
+          display: flex; align-items: center; gap: 7px;
+          padding-bottom: 7px; margin-bottom: 9px;
+          border-bottom: 1px solid rgba(125,246,255,0.10);
+          position: relative;
         }
-        .bar-lights { display: inline-flex; gap: 5px; }
-        .bar-lights i { width: 7px; height: 7px; border-radius: 999px; display: inline-block; opacity: 0.85; }
+        .bar-lights { display: inline-flex; gap: 4px; }
+        .bar-lights i { width: 6px; height: 6px; border-radius: 999px; display: inline-block; opacity: 0.9; }
         .bar-lights i:nth-child(1) { background: var(--mint); }
         .bar-lights i:nth-child(2) { background: var(--cyan); }
         .bar-lights i:nth-child(3) { background: rgba(214,242,255,0.4); }
-        .bar-label { margin-left: auto; font-size: 9px; font-weight: 900; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(214,242,255,0.5); display: inline-flex; align-items: center; gap: 6px; }
-        .bar-label .lock { width: 11px; height: 11px; color: var(--cyan); }
+        .bar-label { margin-left: auto; font-size: 8.5px; font-weight: 900; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(214,242,255,0.55); display: inline-flex; align-items: center; gap: 5px; }
+        .bar-label .lock { width: 10px; height: 10px; color: var(--cyan); }
 
-        .terminal-head { display: grid; gap: 6px; text-align: center; margin-bottom: 14px; }
+        .terminal-head { display: grid; gap: 4px; text-align: center; margin-bottom: 10px; position: relative; }
         .terminal-head p { margin: 0; }
-        .term-kicker { color: var(--cyan); font-size: 9.5px; font-weight: 950; letter-spacing: 0.22em; text-transform: uppercase; }
-        .term-title { margin: 0; color: #f2f8ff; font-size: clamp(21px, 5.2vw, 28px); line-height: 1.02; letter-spacing: -0.03em; }
-        .term-subtitle { color: rgba(214,242,255,0.64); font-size: 12.5px; line-height: 1.45; }
+        .term-kicker { color: var(--cyan); font-size: 9px; font-weight: 950; letter-spacing: 0.22em; text-transform: uppercase; }
+        .term-title { margin: 0; color: #f2f8ff; font-size: clamp(19px, 4.6vw, 23px); line-height: 1.04; letter-spacing: -0.03em; }
+        .term-subtitle { color: rgba(214,242,255,0.62); font-size: 12px; line-height: 1.42; }
 
-        .terminal-body { position: relative; z-index: 1; display: grid; gap: 12px; }
-        .terminal-foot { margin: 14px 0 0; display: flex; justify-content: center; align-items: center; gap: 7px; color: rgba(214,242,255,0.42); font-size: 9.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-        .terminal-foot .lock { width: 11px; height: 11px; color: rgba(214,242,255,0.5); }
+        .terminal-body { position: relative; z-index: 1; display: grid; gap: 10px; }
+        .terminal-foot { margin: 10px 0 0; display: flex; justify-content: center; align-items: center; gap: 6px; color: rgba(214,242,255,0.42); font-size: 8.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; position: relative; }
+        .terminal-foot .lock { width: 10px; height: 10px; color: rgba(214,242,255,0.5); }
 
         .war-foot { text-align: center; color: rgba(214,242,255,0.36); font-size: 9.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding-bottom: 4px; }
 
@@ -264,17 +289,17 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .cl-rootBox, .cl-card, .cl-cardBox { width: 100% !important; max-width: 100% !important; }
         .cl-card { padding: 0 !important; background: transparent !important; box-shadow: none !important; }
         .cl-cardBox { box-shadow: none !important; }
-        .cl-socialButtonsBlockButton { min-height: 48px !important; border-radius: 13px !important; background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025)) !important; border-color: rgba(125,246,255,0.22) !important; }
-        .cl-socialButtonsBlockButton:hover { background: rgba(125,246,255,0.1) !important; }
-        .cl-formButtonPrimary { min-height: 48px !important; border-radius: 13px !important; background: linear-gradient(135deg, #7df6ff, #2f9dff 58%, #2fffb9) !important; box-shadow: 0 16px 34px rgba(47,157,255,0.24), 0 0 24px rgba(125,246,255,0.18) !important; }
-        .cl-formFieldInput { border-radius: 13px !important; min-height: 48px !important; border-color: rgba(125,246,255,0.24) !important; }
-        .cl-dividerRow { margin: 12px 0 !important; }
-        .cl-footer { margin-top: 12px !important; }
+        .cl-socialButtonsBlockButton { min-height: 46px !important; border-radius: 12px !important; background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025)) !important; border-color: rgba(125,246,255,0.22) !important; }
+        .cl-socialButtonsBlockButton:hover { background: rgba(125,246,255,0.10) !important; }
+        .cl-formButtonPrimary { min-height: 46px !important; border-radius: 12px !important; background: linear-gradient(135deg, #7df6ff, #2f9dff 58%, #2fffb9) !important; box-shadow: 0 16px 34px rgba(47,157,255,0.24), 0 0 24px rgba(125,246,255,0.18) !important; }
+        .cl-formFieldInput { border-radius: 12px !important; min-height: 46px !important; border-color: rgba(125,246,255,0.24) !important; }
+        .cl-dividerRow { margin: 10px 0 !important; }
+        .cl-footer { margin-top: 10px !important; }
 
         /* ---- Desktop ---- */
         @media (min-width: 920px) {
           .war-content { padding: 36px 32px; gap: 24px; }
-          .terminal { padding: 26px; }
+          .terminal { padding: 16px 18px 18px; }
         }
 
         /* ---- iPhone-safe (390x844 and smaller): prioritize logo + auth controls ---- */
@@ -282,16 +307,16 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           .war-content { gap: 9px; align-content: start; padding: calc(env(safe-area-inset-top) + 10px) 13px calc(env(safe-area-inset-bottom) + 12px); }
           .brand-logo { width: min(54vw, 154px); }
           .war-grid { gap: 8px; }
-          .terminal { width: 100%; padding: 12px; border-radius: 20px; }
-          .terminal-bar { padding-bottom: 7px; margin-bottom: 8px; }
+          .terminal { width: 100%; padding: 11px 12px 12px; border-radius: 18px; }
+          .terminal-bar { padding-bottom: 6px; margin-bottom: 7px; }
           .terminal-head { gap: 3px; margin-bottom: 7px; }
           .term-kicker { font-size: 8.5px; }
-          .term-title { font-size: 19px; }
+          .term-title { font-size: 18px; }
           .term-subtitle { display: none; }
-          .terminal-foot { margin-top: 9px; font-size: 8.5px; }
+          .terminal-foot { margin-top: 8px; font-size: 8.5px; }
           .terminal-body form { gap: 8px !important; }
-          .terminal-body input { padding: 12px 15px !important; font-size: 16px !important; border-radius: 13px !important; line-height: 1.2 !important; }
-          .cl-socialButtonsBlockButton, .cl-formButtonPrimary, .cl-formFieldInput { min-height: 46px !important; }
+          .terminal-body input { padding: 12px 15px !important; font-size: 16px !important; border-radius: 12px !important; line-height: 1.2 !important; }
+          .cl-socialButtonsBlockButton, .cl-formButtonPrimary, .cl-formFieldInput { min-height: 44px !important; }
           .cl-dividerRow { margin: 8px 0 !important; }
           .cl-footer { margin-top: 8px !important; }
           /* Keep the field dense but readable behind the terminal on small screens */
@@ -302,11 +327,11 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           .matrix-veil {
             background:
               linear-gradient(180deg,
-                rgba(4,6,10,0.88) 0%,
-                rgba(4,6,10,0.42) 16%,
-                rgba(4,6,10,0.36) 50%,
-                rgba(4,6,10,0.46) 80%,
-                rgba(4,6,10,0.9) 100%);
+                rgba(4,6,10,0.78) 0%,
+                rgba(4,6,10,0.34) 16%,
+                rgba(4,6,10,0.30) 50%,
+                rgba(4,6,10,0.38) 80%,
+                rgba(4,6,10,0.82) 100%);
           }
         }
 
@@ -325,7 +350,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
               left: `${stream.left}%`,
               width: `${stream.width}px`,
               animationDuration: `${stream.duration}s`,
-              animationDelay: `${stream.delay}s`,
+              animationDelay: `${(-stream.phase * stream.duration).toFixed(3)}s`,
             }}
           >
             {stream.tokens.map((token, i) => (
@@ -335,6 +360,11 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
             ))}
             {stream.tokens.map((token, i) => (
               <span key={`b-${i}`} className={isBinary(token) ? 'bin' : 'prop'}>
+                {token}
+              </span>
+            ))}
+            {stream.tokens.map((token, i) => (
+              <span key={`c-${i}`} className={isBinary(token) ? 'bin' : 'prop'}>
                 {token}
               </span>
             ))}
