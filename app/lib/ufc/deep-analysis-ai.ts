@@ -259,7 +259,7 @@ export async function buildUFCFightResearchContext(fight: UFCFight, event?: UFCE
           hasWinner ? `Market context only: ${expectedWinner} around ${expectedPct}%.` : 'No reliable winner market found; matchup read still generated from fighter data.',
           poly?.hasTotal ? `Totals market: over ${poly.totalLine} at ${Math.round(Number(poly.overOdds || 0) * 100)}%, under at ${Math.round(Number(poly.underOdds || 0) * 100)}%.` : '',
         ].filter(Boolean),
-        risks: ['MMA variance: one knockdown/submission can erase a correct read.', 'External injury/camp/news context is limited when Brave Search is unavailable or invalid.'],
+        risks: ['MMA variance: one knockdown/submission can erase a correct read.', 'Late injury, camp, travel, or weigh-in information can change the matchup read quickly.'],
         watchouts: ['Late line movement', 'Weigh-in/body-language news', 'Confirmed camp/injury reports'],
       },
       bettingAngles: [{

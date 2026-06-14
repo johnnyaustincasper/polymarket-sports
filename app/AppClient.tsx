@@ -5061,6 +5061,15 @@ function buildUfcFighterEdges(fighter: UFCFighterDossier, opponent: UFCFighterDo
   }
 }
 
+function sanitizeUfcPublicText(text: string): string {
+  return String(text || '')
+    .replace(/External injury\/camp\/news context is limited when Brave Search is unavailable or invalid\.?/ig, 'Late injury, camp, travel, or weigh-in information can change the matchup read quickly.')
+    .replace(/No valid Brave Search context available; rely on ESPN profile\/history and market data\.?/ig, 'Verified fighter profile and recent history are the baseline; late news can still move the read.')
+    .replace(/Brave Search/ig, 'external research')
+    .replace(/unavailable or invalid/ig, 'limited')
+    .replace(/pass/ig, 'low-confidence matchup watch')
+}
+
 function sanitizeUfcVisibleAnalysis(analysis: UFCEventDeepAnalysis): UFCEventDeepAnalysis {
   const fights = (analysis.fights || []).map(fight => {
     const fallbackPick = fight.ai?.pick && fight.ai.pick.toLowerCase() !== 'pass' ? fight.ai.pick : fight.fighterA.name
@@ -5070,16 +5079,17 @@ function sanitizeUfcVisibleAnalysis(analysis: UFCEventDeepAnalysis): UFCEventDee
         ...fight.ai,
         pick: fallbackPick,
         confidence: fight.ai?.confidence === 'pass' ? 'lean' : fight.ai?.confidence,
-        thesis: (fight.ai?.thesis || '').replace(/pass/ig, 'low-confidence matchup watch') || `${fallbackPick} has the current matchup edge from fighter profile and style context.`,
-        why: (fight.ai?.why || []).map(item => item.replace(/pass/ig, 'low-confidence matchup watch')),
-        risks: (fight.ai?.risks || []).map(item => item.replace(/pass/ig, 'low-confidence matchup watch')),
+        thesis: sanitizeUfcPublicText(fight.ai?.thesis || '') || `${fallbackPick} has the current matchup edge from fighter profile and style context.`,
+        why: (fight.ai?.why || []).map(sanitizeUfcPublicText),
+        risks: (fight.ai?.risks || []).map(sanitizeUfcPublicText),
+        watchouts: (fight.ai?.watchouts || []).map(sanitizeUfcPublicText),
       },
       bettingAngles: (fight.bettingAngles || []).map(angle => ({
         ...angle,
-        label: (angle.label || `${fallbackPick} matchup edge`).replace(/pass/ig, 'matchup watch'),
+        label: sanitizeUfcPublicText(angle.label || `${fallbackPick} matchup edge`).replace(/low-confidence matchup watch/ig, 'matchup watch'),
         marketType: angle.marketType === 'pass' ? 'moneyline' : angle.marketType,
         side: angle.side?.toLowerCase() === 'pass' ? fallbackPick : angle.side,
-        rationale: (angle.rationale || '').replace(/pass/ig, 'low-confidence matchup watch'),
+        rationale: sanitizeUfcPublicText(angle.rationale || ''),
         maxRisk: angle.maxRisk === 'avoid' ? 'small' : angle.maxRisk,
       })),
     }
@@ -5089,9 +5099,9 @@ function sanitizeUfcVisibleAnalysis(analysis: UFCEventDeepAnalysis): UFCEventDee
     fights,
     cardSummary: {
       ...analysis.cardSummary,
-      bestLooks: (analysis.cardSummary?.bestLooks || []).map(item => item.replace(/pass/ig, 'matchup watch')),
-      fadeTheHype: analysis.cardSummary?.fadeTheHype || [],
-      passFights: (analysis.cardSummary?.passFights || []).map(item => item.replace(/pass/ig, 'low-confidence matchup watch')),
+      bestLooks: (analysis.cardSummary?.bestLooks || []).map(item => sanitizeUfcPublicText(item).replace(/low-confidence matchup watch/ig, 'matchup watch')),
+      fadeTheHype: (analysis.cardSummary?.fadeTheHype || []).map(sanitizeUfcPublicText),
+      passFights: (analysis.cardSummary?.passFights || []).map(sanitizeUfcPublicText),
     },
   }
 }
