@@ -4467,7 +4467,7 @@ interface UFCFighterRecentFight {
   opponent: string; date: string; result: 'win' | 'loss' | 'draw' | 'no_contest' | 'unknown'; method: string; round: number | null; time: string; notes: string
 }
 interface UFCFighterDossier {
-  name: string; record: string; age: number | null; height: string; weight?: string; reach: string; stance?: string; style?: string; fightingStyle?: string; country: string; ranking: number | null
+  name: string; record: string; age: number | null; height: string; weight?: string; reach: string; stance?: string | { text?: string; displayName?: string; name?: string }; style?: string | { text?: string; displayName?: string; name?: string }; fightingStyle?: string | { text?: string; displayName?: string; name?: string }; country: string; ranking: number | null
   lastFightSummary: string; lastFive: UFCFighterRecentFight[]; finishingProfile: { koTko: number; submission: number; decision: number; unknown: number; summary: string }
   strengths: string[]; concerns: string[]; hype: { level: 'low' | 'medium' | 'high'; why: string[]; possibleMarketDistortion: string }
   narrative: { beefOrStory: string; campNews: string; injuryOrLayoffNotes: string }
@@ -4959,8 +4959,9 @@ function summarizeUfcRecentForm(dossier: UFCFighterDossier) {
   return `${last} · Last five: ${profile}`
 }
 
-function cleanUfcValue(value?: string | number | null, fallback = '—') {
-  const text = String(value ?? '').trim()
+function cleanUfcValue(value?: string | number | { text?: string; displayName?: string; name?: string } | null, fallback = '—') {
+  const raw = typeof value === 'object' && value !== null ? (value.text || value.displayName || value.name || '') : value
+  const text = String(raw ?? '').trim()
   if (!text || text.toLowerCase() === 'unknown' || text.toLowerCase() === 'null') return fallback
   return text
 }
@@ -4984,6 +4985,12 @@ function ufcStyleLabel(dossier: UFCFighterDossier) {
   return cleanUfcValue(dossier.fightingStyle || dossier.style || dossier.stance, 'Style not listed')
 }
 
+function getUfcDossierRecord(dossier: UFCFighterDossier, recordLookup?: Record<string, string>) {
+  const direct = cleanUfcValue(dossier.record, '')
+  if (direct) return direct
+  return cleanUfcValue(recordLookup?.[normalizeUfcName(dossier.name)], '—')
+}
+
 function ufcCompareMetric(label: string, a: UFCFighterDossier, b: UFCFighterDossier, getValue: (d: UFCFighterDossier) => string, getScore?: (d: UFCFighterDossier) => number | null) {
   const aValue = getValue(a)
   const bValue = getValue(b)
@@ -4996,15 +5003,15 @@ function ufcCompareMetric(label: string, a: UFCFighterDossier, b: UFCFighterDoss
   return { label, aValue, bValue, advantage }
 }
 
-function buildUfcComparisonRows(fight: UFCFightDeepAnalysis) {
+function buildUfcComparisonRows(fight: UFCFightDeepAnalysis, recordLookup?: Record<string, string>) {
   const { fighterA: a, fighterB: b } = fight
   return [
     ufcCompareMetric('Height', a, b, d => cleanUfcValue(d.height), d => parseUfcInches(d.height)),
     ufcCompareMetric('Reach', a, b, d => cleanUfcValue(d.reach), d => parseUfcInches(d.reach)),
     ufcCompareMetric('Weight', a, b, d => cleanUfcValue(d.weight, fight.weightClass || '—')),
-    ufcCompareMetric('Record', a, b, d => cleanUfcValue(d.record), d => parseUfcRecordWins(d.record)?.wins ?? null),
+    ufcCompareMetric('Record', a, b, d => getUfcDossierRecord(d, recordLookup), d => parseUfcRecordWins(getUfcDossierRecord(d, recordLookup))?.wins ?? null),
     ufcCompareMetric('Style', a, b, d => ufcStyleLabel(d)),
-  ]
+  ].filter(row => row.aValue !== '—' || row.bValue !== '—')
 }
 
 function buildUfcFighterEdges(fighter: UFCFighterDossier, opponent: UFCFighterDossier) {
@@ -5039,6 +5046,7 @@ function KalshiUFCSection() {
   const [error, setError] = useState<string | null>(null)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [loadedFightIds, setLoadedFightIds] = useState<Record<string, boolean>>({})
+  const [ufcRecordLookup, setUfcRecordLookup] = useState<Record<string, string>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -5054,11 +5062,26 @@ function KalshiUFCSection() {
       fetch(`/api/ufc-analysis?ts=${Date.now()}`, { cache: 'no-store' })
         .then(r => r.json().catch(() => null))
         .catch(() => null),
+      fetch(`/api/ufc?ts=${Date.now()}`, { cache: 'no-store' })
+        .then(r => r.json().catch(() => []))
+        .catch(() => []),
     ])
-      .then(([kalshi, analysis]) => {
+      .then(([kalshi, analysis, ufcEvents]) => {
         if (cancelled) return
         setData(kalshi)
         setDeepAnalysis(analysis?.available && analysis?.analysis ? analysis.analysis : null)
+        const records: Record<string, string> = {}
+        if (Array.isArray(ufcEvents)) {
+          for (const event of ufcEvents as UFCEvent[]) {
+            for (const cardFight of event.fights || []) {
+              for (const fighter of [cardFight.fighterA, cardFight.fighterB]) {
+                const record = cleanUfcValue(fighter?.record, '')
+                if (fighter?.name && record) records[normalizeUfcName(fighter.name)] = record
+              }
+            }
+          }
+        }
+        setUfcRecordLookup(records)
       })
       .catch(e => { if (!cancelled) setError(e?.message || 'Kalshi UFC unavailable') })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -5135,12 +5158,11 @@ function KalshiUFCSection() {
                 {deepFight ? (
                   <>
                     {(() => {
-                      const comparisonRows = buildUfcComparisonRows(deepFight)
+                      const comparisonRows = buildUfcComparisonRows(deepFight, ufcRecordLookup)
                       const aEdges = buildUfcFighterEdges(deepFight.fighterA, deepFight.fighterB)
                       const bEdges = buildUfcFighterEdges(deepFight.fighterB, deepFight.fighterA)
                       const risks = (deepFight.ai.risks?.length ? deepFight.ai.risks : deepFight.ai.watchouts || []).slice(0, 3)
                       const reasons = (deepFight.ai.why?.length ? deepFight.ai.why : [deepFight.ai.thesis]).filter(Boolean).slice(0, 3)
-                      const primaryAngle = deepFight.bettingAngles?.[0]
                       return (
                         <div style={{ display: 'grid', gap: 10 }}>
                           <div style={{ borderRadius: 18, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 22px rgba(125,246,255,0.08)' }}>
@@ -5209,17 +5231,12 @@ function KalshiUFCSection() {
                             ))}
                           </div>
 
-                          {(primaryAngle || winnerMarkets.length > 0) && (
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
-                              {primaryAngle && <div style={{ borderRadius: 14, padding: 10, background: 'rgba(125,246,255,0.05)', border: '1px solid rgba(125,246,255,0.18)' }}>
-                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Intel plan</div>
-                                <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.4 }}><b>{primaryAngle.label}:</b> {primaryAngle.side} — {primaryAngle.rationale}</div>
-                                <div style={{ color: primaryAngle.maxRisk === 'avoid' ? C.gold : C.textSecondary, fontSize: 9, marginTop: 5, fontWeight: 850 }}>{primaryAngle.maxRisk} risk</div>
-                              </div>}
-                              {winnerMarkets.length > 0 && <div style={{ borderRadius: 14, padding: 10, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
+                          {winnerMarkets.length > 0 && (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
+                              <div style={{ borderRadius: 14, padding: 10, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
                                 <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Market check</div>
                                 {winnerMarkets.slice(0, 2).map(m => <div key={m.ticker} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, color: C.textSecondary, fontSize: 10, marginTop: 4 }}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.fighter}</span><span style={{ color: C.green, fontWeight: 950 }}>{m.yesAsk}%</span></div>)}
-                              </div>}
+                              </div>
                             </div>
                           )}
                         </div>
