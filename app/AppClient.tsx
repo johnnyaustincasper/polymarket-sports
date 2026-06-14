@@ -4467,7 +4467,7 @@ interface UFCFighterRecentFight {
   opponent: string; date: string; result: 'win' | 'loss' | 'draw' | 'no_contest' | 'unknown'; method: string; round: number | null; time: string; notes: string
 }
 interface UFCFighterDossier {
-  name: string; record: string; age: number | null; height: string; reach: string; country: string; ranking: number | null
+  name: string; record: string; age: number | null; height: string; weight?: string; reach: string; stance?: string; style?: string; fightingStyle?: string; country: string; ranking: number | null
   lastFightSummary: string; lastFive: UFCFighterRecentFight[]; finishingProfile: { koTko: number; submission: number; decision: number; unknown: number; summary: string }
   strengths: string[]; concerns: string[]; hype: { level: 'low' | 'medium' | 'high'; why: string[]; possibleMarketDistortion: string }
   narrative: { beefOrStory: string; campNews: string; injuryOrLayoffNotes: string }
@@ -4959,6 +4959,77 @@ function summarizeUfcRecentForm(dossier: UFCFighterDossier) {
   return `${last} · Last five: ${profile}`
 }
 
+function cleanUfcValue(value?: string | number | null, fallback = '—') {
+  const text = String(value ?? '').trim()
+  if (!text || text.toLowerCase() === 'unknown' || text.toLowerCase() === 'null') return fallback
+  return text
+}
+
+function parseUfcInches(value?: string | null) {
+  const text = cleanUfcValue(value, '')
+  if (!text) return null
+  const feetInches = text.match(/(\d+)\s*['’]\s*(\d+)/)
+  if (feetInches) return Number(feetInches[1]) * 12 + Number(feetInches[2])
+  const numeric = text.match(/\d+(?:\.\d+)?/)
+  return numeric ? Number(numeric[0]) : null
+}
+
+function parseUfcRecordWins(value?: string | null) {
+  const text = cleanUfcValue(value, '')
+  const match = text.match(/(\d+)\s*[-–]\s*(\d+)/)
+  return match ? { wins: Number(match[1]), losses: Number(match[2]) } : null
+}
+
+function ufcStyleLabel(dossier: UFCFighterDossier) {
+  return cleanUfcValue(dossier.fightingStyle || dossier.style || dossier.stance, 'Style not listed')
+}
+
+function ufcCompareMetric(label: string, a: UFCFighterDossier, b: UFCFighterDossier, getValue: (d: UFCFighterDossier) => string, getScore?: (d: UFCFighterDossier) => number | null) {
+  const aValue = getValue(a)
+  const bValue = getValue(b)
+  let advantage: 'a' | 'b' | 'even' = 'even'
+  if (getScore) {
+    const aScore = getScore(a)
+    const bScore = getScore(b)
+    if (aScore != null && bScore != null && Math.abs(aScore - bScore) > 0.4) advantage = aScore > bScore ? 'a' : 'b'
+  }
+  return { label, aValue, bValue, advantage }
+}
+
+function buildUfcComparisonRows(fight: UFCFightDeepAnalysis) {
+  const { fighterA: a, fighterB: b } = fight
+  return [
+    ufcCompareMetric('Height', a, b, d => cleanUfcValue(d.height), d => parseUfcInches(d.height)),
+    ufcCompareMetric('Reach', a, b, d => cleanUfcValue(d.reach), d => parseUfcInches(d.reach)),
+    ufcCompareMetric('Weight', a, b, d => cleanUfcValue(d.weight, fight.weightClass || '—')),
+    ufcCompareMetric('Record', a, b, d => cleanUfcValue(d.record), d => parseUfcRecordWins(d.record)?.wins ?? null),
+    ufcCompareMetric('Style', a, b, d => ufcStyleLabel(d)),
+  ]
+}
+
+function buildUfcFighterEdges(fighter: UFCFighterDossier, opponent: UFCFighterDossier) {
+  const advantages = [...(fighter.strengths || [])].filter(Boolean).slice(0, 2)
+  const disadvantages = [...(fighter.concerns || [])].filter(Boolean).slice(0, 2)
+  const reach = parseUfcInches(fighter.reach)
+  const opponentReach = parseUfcInches(opponent.reach)
+  if (reach != null && opponentReach != null && Math.abs(reach - opponentReach) >= 1) {
+    const diff = Math.abs(reach - opponentReach)
+    if (reach > opponentReach) advantages.unshift(`${diff}" reach edge at range`)
+    else disadvantages.unshift(`gives up ${diff}" of reach`)
+  }
+  const height = parseUfcInches(fighter.height)
+  const opponentHeight = parseUfcInches(opponent.height)
+  if (height != null && opponentHeight != null && Math.abs(height - opponentHeight) >= 1) {
+    const diff = Math.abs(height - opponentHeight)
+    if (height > opponentHeight) advantages.unshift(`${diff}" taller frame`)
+    else disadvantages.unshift(`${diff}" shorter frame`)
+  }
+  return {
+    advantages: advantages.length ? advantages.slice(0, 3) : ['No clear physical/stat edge listed'],
+    disadvantages: disadvantages.length ? disadvantages.slice(0, 3) : ['No major red flag listed'],
+  }
+}
+
 function KalshiUFCSection() {
   const cols = useColCount()
   const isMobile = useIsMobile()
@@ -5063,54 +5134,97 @@ function KalshiUFCSection() {
               <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
                 {deepFight ? (
                   <>
-                    <div style={{ borderRadius: 18, padding: 13, background: 'linear-gradient(135deg, rgba(125,246,255,0.14), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.32)', boxShadow: '0 0 22px rgba(125,246,255,0.09)' }}>
-                      <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Athlete read</div>
-                      <div style={{ color: C.textPrimary, fontSize: isMobile ? 18 : 22, fontWeight: 950, lineHeight: 1.08 }}>{deepFight.ai.confidence === 'pass' ? 'Pass this fight' : `Lean ${deepFight.ai.pick}`}</div>
-                      <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.5, marginTop: 8 }}>{deepFight.ai.thesis}</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
-                        <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 9, fontWeight: 950, textTransform: 'uppercase' }}>{deepFight.ai.confidence}</span>
-                        <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: 9, fontWeight: 900 }}>{deepFight.weightClass}</span>
-                        <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textPrimary, fontSize: 9, fontWeight: 900 }}>{deepFight.ai.method || deepFight.market.expectedMethod}</span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
-                      <div style={{ borderRadius: 15, padding: 11, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(125,246,255,0.20)' }}>
-                        <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>Why this side</div>
-                        {(deepFight.ai.why?.length ? deepFight.ai.why : [deepFight.ai.thesis]).slice(0, 4).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, marginBottom: 5 }}>• {item}</div>)}
-                      </div>
-                      <div style={{ borderRadius: 15, padding: 11, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.20)' }}>
-                        <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>What can kill it</div>
-                        {(deepFight.ai.risks?.length ? deepFight.ai.risks : deepFight.ai.watchouts || []).slice(0, 4).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, marginBottom: 5 }}>• {item}</div>)}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
-                      {[deepFight.fighterA, deepFight.fighterB].map(dossier => (
-                        <div key={dossier.name} style={{ borderRadius: 15, padding: 11, background: 'rgba(255,255,255,0.035)', border: `1px solid ${C.border}` }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-                            <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{dossier.name}</div>
-                            <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{dossier.age ? `${dossier.age} yrs` : ''}{dossier.reach && dossier.reach !== 'unknown' ? ` · ${dossier.reach} reach` : ''}</div>
+                    {(() => {
+                      const comparisonRows = buildUfcComparisonRows(deepFight)
+                      const aEdges = buildUfcFighterEdges(deepFight.fighterA, deepFight.fighterB)
+                      const bEdges = buildUfcFighterEdges(deepFight.fighterB, deepFight.fighterA)
+                      const risks = (deepFight.ai.risks?.length ? deepFight.ai.risks : deepFight.ai.watchouts || []).slice(0, 3)
+                      const reasons = (deepFight.ai.why?.length ? deepFight.ai.why : [deepFight.ai.thesis]).filter(Boolean).slice(0, 3)
+                      const primaryAngle = deepFight.bettingAngles?.[0]
+                      return (
+                        <div style={{ display: 'grid', gap: 10 }}>
+                          <div style={{ borderRadius: 18, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 22px rgba(125,246,255,0.08)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Fight brief</div>
+                                <div style={{ color: C.textPrimary, fontSize: isMobile ? 18 : 23, fontWeight: 950, lineHeight: 1.05 }}>{deepFight.ai.confidence === 'pass' ? 'Pass / wait for cleaner number' : `Lean ${deepFight.ai.pick}`}</div>
+                              </div>
+                              <div style={{ flexShrink: 0, display: 'grid', gap: 5, justifyItems: 'end' }}>
+                                <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 9, fontWeight: 950, textTransform: 'uppercase' }}>{deepFight.ai.confidence}</span>
+                                <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>{deepFight.weightClass}</span>
+                              </div>
+                            </div>
+                            <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45, marginTop: 9 }}>{deepFight.ai.thesis}</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.15fr 0.85fr', gap: 9, marginTop: 12 }}>
+                              <div style={{ display: 'grid', gap: 5 }}>
+                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Why / style read</div>
+                                {reasons.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.35 }}>• {item}</div>)}
+                              </div>
+                              <div style={{ display: 'grid', gap: 5, padding: 10, borderRadius: 13, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.18)' }}>
+                                <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Kill switch</div>
+                                {(risks.length ? risks : ['No clean risk note listed yet']).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 7 }}>{summarizeUfcRecentForm(dossier)}</div>
-                          {(dossier.strengths?.length > 0 || dossier.concerns?.length > 0) && <div style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.4, marginTop: 7 }}><b style={{ color: C.green }}>Plus:</b> {(dossier.strengths || []).slice(0, 2).join(', ') || '—'} <br /><b style={{ color: C.gold }}>Concern:</b> {(dossier.concerns || []).slice(0, 2).join(', ') || '—'}</div>}
+
+                          <div style={{ borderRadius: 16, padding: isMobile ? 10 : 12, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(125,246,255,0.18)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px minmax(0, 1fr)', gap: 7, alignItems: 'center', marginBottom: 8 }}>
+                              <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deepFight.fighterA.name}</div>
+                              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', textAlign: 'center' }}>Compare</div>
+                              <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deepFight.fighterB.name}</div>
+                            </div>
+                            <div style={{ display: 'grid', gap: 5 }}>
+                              {comparisonRows.map(row => (
+                                <div key={row.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px minmax(0, 1fr)', gap: 7, alignItems: 'center', padding: '7px 0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                  <div style={{ color: row.advantage === 'a' ? C.green : C.textPrimary, fontSize: 10, fontWeight: row.advantage === 'a' ? 950 : 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.aValue}</div>
+                                  <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', textAlign: 'center' }}>{row.label}</div>
+                                  <div style={{ color: row.advantage === 'b' ? C.green : C.textPrimary, fontSize: 10, fontWeight: row.advantage === 'b' ? 950 : 850, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.bValue}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
+                            {[
+                              { dossier: deepFight.fighterA, edges: aEdges },
+                              { dossier: deepFight.fighterB, edges: bEdges },
+                            ].map(({ dossier, edges }) => (
+                              <div key={dossier.name} style={{ borderRadius: 15, padding: 11, background: 'rgba(255,255,255,0.032)', border: `1px solid ${C.border}` }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                                  <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{dossier.name}</div>
+                                  <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{dossier.age ? `${dossier.age} yrs` : ''}{dossier.reach && dossier.reach !== 'unknown' ? ` · ${dossier.reach} reach` : ''}</div>
+                                </div>
+                                <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.38, marginTop: 7 }}>{summarizeUfcRecentForm(dossier)}</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 9 }}>
+                                  <div>
+                                    <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>Advantages</div>
+                                    {edges.advantages.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 9, lineHeight: 1.3, marginBottom: 3 }}>• {item}</div>)}
+                                  </div>
+                                  <div>
+                                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>Problems</div>
+                                    {edges.disadvantages.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 9, lineHeight: 1.3, marginBottom: 3 }}>• {item}</div>)}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {(primaryAngle || winnerMarkets.length > 0) && (
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
+                              {primaryAngle && <div style={{ borderRadius: 14, padding: 10, background: 'rgba(125,246,255,0.05)', border: '1px solid rgba(125,246,255,0.18)' }}>
+                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Intel plan</div>
+                                <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.4 }}><b>{primaryAngle.label}:</b> {primaryAngle.side} — {primaryAngle.rationale}</div>
+                                <div style={{ color: primaryAngle.maxRisk === 'avoid' ? C.gold : C.textSecondary, fontSize: 9, marginTop: 5, fontWeight: 850 }}>{primaryAngle.maxRisk} risk</div>
+                              </div>}
+                              {winnerMarkets.length > 0 && <div style={{ borderRadius: 14, padding: 10, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
+                                <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Market check</div>
+                                {winnerMarkets.slice(0, 2).map(m => <div key={m.ticker} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, color: C.textSecondary, fontSize: 10, marginTop: 4 }}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.fighter}</span><span style={{ color: C.green, fontWeight: 950 }}>{m.yesAsk}%</span></div>)}
+                              </div>}
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-
-                    {deepFight.bettingAngles?.length > 0 && (
-                      <div style={{ display: 'grid', gap: 7, borderRadius: 15, padding: 11, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.22)' }}>
-                        <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Intel plan</div>
-                        {deepFight.bettingAngles.slice(0, 3).map(angle => <div key={`${angle.label}-${angle.side}`} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}><b>{angle.label}:</b> {angle.side} — {angle.rationale} <span style={{ color: angle.maxRisk === 'avoid' ? C.gold : C.textSecondary }}>({angle.maxRisk} risk)</span></div>)}
-                      </div>
-                    )}
-
-                    {winnerMarkets.length > 0 && (
-                      <div style={{ display: 'grid', gap: 6, borderRadius: 13, padding: 10, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
-                        <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Market check — secondary context</div>
-                        {winnerMarkets.slice(0, 2).map(m => <div key={m.ticker} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, color: C.textSecondary, fontSize: 10 }}><span>{m.fighter}</span><span style={{ color: C.green, fontWeight: 950 }}>{m.yesAsk}%</span></div>)}
-                      </div>
-                    )}
+                      )
+                    })()}
                   </>
                 ) : intel ? (
                   <div style={{ borderRadius: 16, padding: 12, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.26)' }}>
