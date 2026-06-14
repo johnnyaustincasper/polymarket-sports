@@ -405,33 +405,12 @@ function AppPropMatrixBackdrop() {
   return (
     <div
       aria-hidden="true"
-      data-app-prop-matrix="blurred-svg-visible-20260613"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 0,
-        pointerEvents: 'none',
-        overflow: 'hidden',
-        contain: 'strict',
-      }}
+      data-app-prop-matrix="blurred-svg-animated-20260613"
+      className="app-prop-matrix-backdrop"
     >
-      <div style={{
-        position: 'absolute',
-        inset: '-8vh -18vw',
-        backgroundImage: APP_MATRIX_SVG,
-        backgroundRepeat: 'repeat',
-        backgroundSize: '760px 860px',
-        filter: 'blur(3px)',
-        opacity: 0.92,
-        transform: 'translate3d(0,0,0)',
-        maskImage: 'linear-gradient(180deg, transparent 0%, black 12%, black 76%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, black 12%, black 76%, transparent 100%)',
-      }} />
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'radial-gradient(ellipse 80% 38% at 50% 4%, rgba(125,246,255,0.045), transparent 62%), linear-gradient(180deg, rgba(3,5,0,0.34), rgba(3,5,0,0.58) 42%, rgba(3,5,0,0.76))',
-      }} />
+      <div className="app-prop-matrix-layer app-prop-matrix-layer-a" style={{ backgroundImage: APP_MATRIX_SVG }} />
+      <div className="app-prop-matrix-layer app-prop-matrix-layer-b" style={{ backgroundImage: APP_MATRIX_SVG }} />
+      <div className="app-prop-matrix-veil" />
     </div>
   )
 }

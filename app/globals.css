@@ -69,3 +69,61 @@ body { background: transparent !important; min-height: 100dvh; }
   pointer-events: none;
   z-index: 9;
 }
+
+/* ── App prop matrix backdrop — animated, decorative only ───── */
+.app-prop-matrix-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+}
+
+.app-prop-matrix-layer {
+  position: absolute;
+  inset: -14vh -22vw;
+  background-repeat: repeat;
+  background-size: 760px 860px;
+  filter: blur(3px);
+  transform: translate3d(0, 0, 0);
+  will-change: background-position;
+  mask-image: linear-gradient(180deg, transparent 0%, black 12%, black 78%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, black 12%, black 78%, transparent 100%);
+}
+
+.app-prop-matrix-layer-a {
+  opacity: 1;
+  animation: appPropMatrixDriftA 28s linear infinite;
+}
+
+.app-prop-matrix-layer-b {
+  opacity: 0.52;
+  background-size: 620px 720px;
+  filter: blur(4px);
+  mix-blend-mode: screen;
+  animation: appPropMatrixDriftB 46s linear infinite;
+}
+
+.app-prop-matrix-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 38% at 50% 4%, rgba(125,246,255,0.035), transparent 62%), linear-gradient(180deg, rgba(3,5,0,0.24), rgba(3,5,0,0.46) 42%, rgba(3,5,0,0.68));
+}
+
+@keyframes appPropMatrixDriftA {
+  from { background-position: 0 0; }
+  to { background-position: 0 860px; }
+}
+
+@keyframes appPropMatrixDriftB {
+  from { background-position: 220px -180px; }
+  to { background-position: -180px 540px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-prop-matrix-layer-a,
+  .app-prop-matrix-layer-b {
+    animation: none;
+  }
+}
