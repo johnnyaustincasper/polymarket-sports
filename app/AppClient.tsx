@@ -5235,23 +5235,24 @@ function KalshiUFCSection() {
                       return (
                         <div style={{ display: 'grid', gap: 10 }}>
                           <div style={{ borderRadius: 18, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 22px rgba(125,246,255,0.08)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) auto', gap: 10, alignItems: 'start' }}>
                               <div style={{ minWidth: 0 }}>
-                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Fight brief</div>
-                                <div style={{ color: C.textPrimary, fontSize: isMobile ? 18 : 23, fontWeight: 950, lineHeight: 1.05 }}>{deepFight.ai.pick && deepFight.ai.pick.toLowerCase() !== 'pass' ? `Matchup edge: ${deepFight.ai.pick}` : `Matchup edge: ${deepFight.fighterA.name}`}</div>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 999, padding: '4px 8px', background: 'rgba(125,246,255,0.09)', border: '1px solid rgba(125,246,255,0.22)', color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Fight brief</div>
+                                <div style={{ color: C.textPrimary, fontSize: isMobile ? 19 : 24, fontWeight: 950, lineHeight: 1.04 }}>{deepFight.ai.pick && deepFight.ai.pick.toLowerCase() !== 'pass' ? deepFight.ai.pick : deepFight.fighterA.name}</div>
+                                <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 5 }}>Matchup edge</div>
                               </div>
-                              <div style={{ flexShrink: 0, display: 'grid', gap: 5, justifyItems: 'end' }}>
+                              <div style={{ flexShrink: 0, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
                                 <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 9, fontWeight: 950, textTransform: 'uppercase' }}>{deepFight.ai.confidence === 'pass' ? 'lean' : deepFight.ai.confidence}</span>
-                                <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>{deepFight.weightClass}</span>
+                                <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>{deepFight.weightClass}</span>
                               </div>
                             </div>
-                            <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45, marginTop: 9 }}>{deepFight.ai.thesis}</div>
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.15fr 0.85fr', gap: 9, marginTop: 12 }}>
-                              <div style={{ display: 'grid', gap: 5 }}>
-                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Why / style read</div>
+                            <div style={{ marginTop: 11, padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.08)', color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}>{deepFight.ai.thesis}</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9, marginTop: 10 }}>
+                              <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.18)' }}>
+                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Edge signals</div>
                                 {reasons.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.35 }}>• {item}</div>)}
                               </div>
-                              <div style={{ display: 'grid', gap: 5, padding: 10, borderRadius: 13, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.18)' }}>
+                              <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'linear-gradient(135deg, rgba(255,83,83,0.08), rgba(255,215,0,0.045))', border: '1px solid rgba(255,83,83,0.22)' }}>
                                 <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Kill switch</div>
                                 {(risks.length ? risks : ['No clean risk note listed yet']).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
                               </div>
