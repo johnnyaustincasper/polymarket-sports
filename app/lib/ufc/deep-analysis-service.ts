@@ -75,12 +75,11 @@ function buildMarketContext(fight: UFCFight, kalshiIntel?: KalshiUFCFightIntel) 
 
 function summarizeCard(event: UFCEvent, fights: UFCFightDeepAnalysis[]): UFCEventDeepAnalysis['cardSummary'] {
   const bestLooks = fights
-    .flatMap(fight => fight.bettingAngles.map(angle => `${fight.fighterA.name} vs ${fight.fighterB.name}: ${angle.label} — ${angle.side}`))
-    .filter(line => !/pass/i.test(line))
+    .flatMap(fight => fight.bettingAngles.map(angle => `${fight.fighterA.name} vs ${fight.fighterB.name}: ${angle.label.replace(/pass/ig, 'matchup watch')} — ${angle.side.toLowerCase() === 'pass' ? fight.ai.pick : angle.side}`))
     .slice(0, 4)
   const passFights = fights
-    .filter(fight => fight.ai.confidence === 'pass' || fight.bettingAngles.some(angle => angle.marketType === 'pass'))
-    .map(fight => `${fight.fighterA.name} vs ${fight.fighterB.name}`)
+    .filter(fight => fight.ai.confidence === 'lean' || fight.bettingAngles.some(angle => angle.maxRisk === 'avoid'))
+    .map(fight => `${fight.fighterA.name} vs ${fight.fighterB.name}: low-confidence matchup watch`)
     .slice(0, 4)
   const fadeTheHype = fights
     .flatMap(fight => [fight.fighterA, fight.fighterB]

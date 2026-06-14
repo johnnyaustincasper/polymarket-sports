@@ -78,7 +78,8 @@ describe('UFC deep analysis service', () => {
       }),
     })
     expect(analysis.status).toBe('partial')
-    expect(analysis.fights[0].ai.confidence).toBe('pass')
+    expect(analysis.fights[0].ai.confidence).toBe('lean')
+    expect(analysis.fights[0].ai.pick).not.toBe('pass')
     expect(analysis.fights[0].ai.thesis).toContain('Validation downgrade')
   })
 })

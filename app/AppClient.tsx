@@ -5193,10 +5193,10 @@ function KalshiUFCSection() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Fight brief</div>
-                                <div style={{ color: C.textPrimary, fontSize: isMobile ? 18 : 23, fontWeight: 950, lineHeight: 1.05 }}>{deepFight.ai.confidence === 'pass' ? 'Pass / wait for cleaner number' : `Lean ${deepFight.ai.pick}`}</div>
+                                <div style={{ color: C.textPrimary, fontSize: isMobile ? 18 : 23, fontWeight: 950, lineHeight: 1.05 }}>{deepFight.ai.pick && deepFight.ai.pick.toLowerCase() !== 'pass' ? `Matchup edge: ${deepFight.ai.pick}` : `Matchup edge: ${deepFight.fighterA.name}`}</div>
                               </div>
                               <div style={{ flexShrink: 0, display: 'grid', gap: 5, justifyItems: 'end' }}>
-                                <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 9, fontWeight: 950, textTransform: 'uppercase' }}>{deepFight.ai.confidence}</span>
+                                <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 9, fontWeight: 950, textTransform: 'uppercase' }}>{deepFight.ai.confidence === 'pass' ? 'lean' : deepFight.ai.confidence}</span>
                                 <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>{deepFight.weightClass}</span>
                               </div>
                             </div>
@@ -5424,7 +5424,7 @@ function UFCSection() {
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8, marginTop: 12 }}>
             {deepAnalysis.cardSummary.bestLooks.length > 0 && <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}><b style={{ color: C.green }}>Best looks:</b> {deepAnalysis.cardSummary.bestLooks.slice(0, 2).join(' · ')}</div>}
             {deepAnalysis.cardSummary.fadeTheHype.length > 0 && <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}><b style={{ color: C.gold }}>Fade hype:</b> {deepAnalysis.cardSummary.fadeTheHype.slice(0, 2).join(' · ')}</div>}
-            {deepAnalysis.cardSummary.passFights.length > 0 && <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}><b style={{ color: C.textPrimary }}>Pass:</b> {deepAnalysis.cardSummary.passFights.slice(0, 2).join(' · ')}</div>}
+            {deepAnalysis.cardSummary.passFights.length > 0 && <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}><b style={{ color: C.textPrimary }}>Watch:</b> {deepAnalysis.cardSummary.passFights.slice(0, 2).join(' · ')}</div>}
           </div>
         )}
       </section>

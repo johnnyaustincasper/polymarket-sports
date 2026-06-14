@@ -29,6 +29,53 @@ function dedupeResults(results: BraveSearchResult[]): BraveSearchResult[] {
   return out.slice(0, 10)
 }
 
+function parseRecordWins(record?: string): number {
+  const match = String(record || '').match(/(\d+)\s*-\s*(\d+)/)
+  return match ? Number(match[1]) : 0
+}
+
+function methodScore(dossier?: Partial<UFCFightDeepAnalysis['fighterA']>): number {
+  const text = [
+    dossier?.fightingStyle || dossier?.style || '',
+    ...(dossier?.strengths || []),
+    ...((dossier?.lastFive || []) as any[]).map(f => `${f?.result || ''} ${f?.method || ''}`),
+  ].join(' ').toLowerCase()
+  let score = 0
+  score += (text.match(/win/g) || []).length * 1.2
+  score += (text.match(/ko|tko|knockout/g) || []).length * 1.4
+  score += (text.match(/submission|choke|armbar|bjj/g) || []).length * 1.2
+  score -= (text.match(/loss|ko loss|knockout loss/g) || []).length * 1.5
+  if (/undefeated/.test(text)) score += 2
+  if (/pressure|power|wrestling|bjj|boxing|muay thai|kickboxing|sambo/.test(text)) score += 1
+  return score
+}
+
+function profileScore(fighter: UFCFight['fighterA'], dossier?: Partial<UFCFightDeepAnalysis['fighterA']>): number {
+  let score = parseRecordWins(dossier?.record || fighter.record) * 0.15
+  if (typeof dossier?.age === 'number') {
+    if (dossier.age >= 27 && dossier.age <= 34) score += 2
+    if (dossier.age >= 36) score -= 1.5
+  }
+  score += methodScore(dossier)
+  return score
+}
+
+function buildMatchupJudgement(fight: UFCFight, a?: Partial<UFCFightDeepAnalysis['fighterA']>, b?: Partial<UFCFightDeepAnalysis['fighterB']>, marketWinner = 'unknown') {
+  const aScore = profileScore(fight.fighterA, a)
+  const bScore = profileScore(fight.fighterB, b)
+  const pick = aScore >= bScore ? fight.fighterA.name : fight.fighterB.name
+  const edge = Math.abs(aScore - bScore)
+  const favoriteMatches = marketWinner !== 'unknown' && marketWinner === pick
+  const confidence: 'lean' | 'solid' | 'strong' = edge >= 5 && favoriteMatches ? 'solid' : edge >= 8 ? 'solid' : 'lean'
+  const other = pick === fight.fighterA.name ? fight.fighterB.name : fight.fighterA.name
+  const why = [
+    `${pick} gets the matchup read from fighter profile, recent method history, age curve, and style notes — not just the price.`,
+    favoriteMatches ? `Market agrees with the fighter read, which confirms but does not create the pick.` : marketWinner !== 'unknown' ? `Market leans ${marketWinner}, but the fighter read still points to ${pick}; treat this as an upset/contrarian watch.` : 'No clean winner market is needed for this read.',
+    `${other}'s path is still live if they force their best phase early, so the edge should be sized by matchup confidence, not blind odds confidence.`,
+  ]
+  return { pick, confidence, thesis: `${pick} has the cleaner matchup profile over ${other}. This is a fighter-first read; market pricing is secondary context.`, why }
+}
+
 async function braveSearch(query: string, env: Record<string, string | undefined>): Promise<BraveSearchResult[]> {
   const token = env.BRAVE_API_KEY || env.BRAVE_SEARCH_API_KEY
   if (!configured(token)) return []
@@ -184,10 +231,9 @@ export async function buildUFCFightResearchContext(fight: UFCFight, event?: UFCE
   const expectedMethod = poly?.hasTotal
     ? `${Math.round(Number(poly.overOdds || 0) * 100)}% over ${poly.totalLine}, ${Math.round(Number(poly.underOdds || 0) * 100)}% under ${poly.totalLine}`
     : 'unknown'
-  const pick = hasWinner && expectedPct !== null && expectedPct >= 53 ? expectedWinner : 'pass'
-  const thesis = hasWinner
-    ? `ESPN profile/history context loaded. Current market expectation is ${expectedWinner} around ${expectedPct}%${expectedPct !== null && expectedPct < 53 ? ', effectively a coin flip, so this is a pass until a stronger edge appears' : ''}. Review last-five method history and recent-fight notes before staking.`
-    : 'ESPN profile/history context loaded, but no reliable winner market is available; treat as research-only/pass.'
+  const judgement = buildMatchupJudgement(fight, espnA.dossier, espnB.dossier, expectedWinner)
+  const pick = judgement.pick
+  const thesis = judgement.thesis
 
   return {
     context: [espnA.context, espnB.context, braveContext].join('\n\n'),
@@ -205,22 +251,23 @@ export async function buildUFCFightResearchContext(fight: UFCFight, event?: UFCE
         pick,
         method: expectedMethod,
         roundOrTiming: 'unknown',
-        confidence: pick === 'pass' ? 'pass' : 'lean',
+        confidence: judgement.confidence,
         thesis,
         why: [
+          ...judgement.why,
           'ESPN profile and last-five fight history are available for both fighters.',
-          hasWinner ? `Market expectation: ${expectedWinner} around ${expectedPct}%.` : 'No reliable winner market found.',
+          hasWinner ? `Market context only: ${expectedWinner} around ${expectedPct}%.` : 'No reliable winner market found; matchup read still generated from fighter data.',
           poly?.hasTotal ? `Totals market: over ${poly.totalLine} at ${Math.round(Number(poly.overOdds || 0) * 100)}%, under at ${Math.round(Number(poly.underOdds || 0) * 100)}%.` : '',
         ].filter(Boolean),
         risks: ['MMA variance: one knockdown/submission can erase a correct read.', 'External injury/camp/news context is limited when Brave Search is unavailable or invalid.'],
         watchouts: ['Late line movement', 'Weigh-in/body-language news', 'Confirmed camp/injury reports'],
       },
       bettingAngles: [{
-        label: pick === 'pass' ? 'Pass — market too tight / verify news' : `${pick} lean`,
-        marketType: pick === 'pass' ? 'pass' : 'moneyline',
+        label: `${pick} matchup edge`,
+        marketType: 'moneyline',
         side: pick,
         rationale: thesis,
-        maxRisk: pick === 'pass' ? 'avoid' : 'small',
+        maxRisk: judgement.confidence === 'lean' ? 'small' : 'normal',
       }],
       sources: Array.from(new Set([...espnA.sources, ...espnB.sources, ...results.map(item => item.url).filter(Boolean)])).slice(0, 10),
     },
@@ -246,17 +293,17 @@ Requirements:
 - Include each fighter's actual fighting style/training base as fightingStyle/style, e.g. "wrestling", "brawler", "BJJ", "Muay Thai", "boxing", "kickboxing". Do not use stance words like Orthodox/Southpaw as style.
 - Include hype, narrative, beef/storyline, camp news, injury/layoff notes, and possible market distortion.
 - Include expected winner from market/public consensus and expected method.
-- Include your model pick, method, timing, confidence, why bullets, risks, watchouts, and read/pass recommendation.
+- Include your model pick, method, timing, confidence, why bullets, risks, watchouts, and matchup judgement.
 - Include source URLs from the research context in sources when they support the claims.
 - If a fact is not found, return "unknown" instead of guessing. Do not fabricate exact last 5 results.
-- You may still make a conservative fight pick from style/market/context if enough support exists, but use confidence "lean" unless evidence is strong.
+- Always provide a fighter-first matchup judgement. Do not answer "pass" as the pick; if evidence is thin, use confidence "lean" and explain what would flip the read.
 
 Return JSON matching this shape (omit nothing; use "unknown"/[] when needed):
 {
   "fighterA": { "name": "${fighterA}", "record": "", "age": null, "height": "", "reach": "", "style": "", "fightingStyle": "", "country": "", "ranking": null, "lastFightSummary": "", "lastFive": [], "strengths": [], "concerns": [], "hype": { "level": "low", "why": [], "possibleMarketDistortion": "unknown" }, "narrative": { "beefOrStory": "unknown", "campNews": "unknown", "injuryOrLayoffNotes": "unknown" } },
   "fighterB": { "name": "${fighterB}", "record": "", "age": null, "height": "", "reach": "", "style": "", "fightingStyle": "", "country": "", "ranking": null, "lastFightSummary": "", "lastFive": [], "strengths": [], "concerns": [], "hype": { "level": "low", "why": [], "possibleMarketDistortion": "unknown" }, "narrative": { "beefOrStory": "unknown", "campNews": "unknown", "injuryOrLayoffNotes": "unknown" } },
   "market": { "expectedWinner": "unknown", "expectedMethod": "unknown", "priceNotes": [] },
-  "ai": { "pick": "pass", "method": "unknown", "roundOrTiming": "unknown", "confidence": "pass", "thesis": "", "why": [], "risks": [], "watchouts": [] },
+  "ai": { "pick": "${fighterA}", "method": "unknown", "roundOrTiming": "unknown", "confidence": "lean", "thesis": "", "why": [], "risks": [], "watchouts": [] },
   "bettingAngles": [],
   "sources": []
 }`

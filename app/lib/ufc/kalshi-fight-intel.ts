@@ -117,7 +117,7 @@ export function buildKalshiUFCFightIntel(markets: KalshiUFCMarketForIntel[]): Ka
       label: 'Method clue',
       market: `${compactTitle(topMethod)} · ${pct(topMethod.yesAsk)}%`,
       reason: 'The board is hinting at a finish path, but method props need stronger style confirmation than winner markets.',
-      risk: 'Exact method markets are fragile; pass if the fighter can win multiple ways.',
+      risk: 'Exact method markets are fragile; keep sizing small if the fighter can win multiple ways.',
       confidence: confidenceFor(topMethod, topMethod.yesAsk - (methods[1]?.yesAsk || 0)),
       ticker: topMethod.ticker,
     })

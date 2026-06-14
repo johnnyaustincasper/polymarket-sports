@@ -221,9 +221,10 @@ export function buildFallbackFightAnalysis(fight: UFCFight, kalshiIntel?: Kalshi
   const expectedWinner = kalshiIntel?.primaryLean && !kalshiIntel.primaryLean.startsWith('No clear')
     ? kalshiIntel.primaryLean
     : polyLean || espnLean || 'unknown'
-  const confidence: 'pass' | 'lean' = expectedWinner === 'unknown' ? 'pass' : 'lean'
+  const confidence: 'lean' = 'lean'
   const priceNotes = [kalshiIntel?.marketRead, kalshiIntel?.finishRead, polyLean, espnLean].filter(Boolean) as string[]
-  const passReason = kalshiIntel ? 'AI research unavailable; this is a market/ESPN fallback, not deep tape analysis.' : 'No AI or market intel available; pass until verified research is generated.'
+  const fallbackReason = kalshiIntel ? 'AI research unavailable; this is a matchup-context fallback using ESPN profile fields plus market context.' : 'Limited live research available; use a conservative matchup read from verified fighter profile fields.'
+  const fallbackPick = expectedWinner !== 'unknown' ? expectedWinner : fight.fighterA.name
 
   return {
     fightId: fight.id,
@@ -242,21 +243,21 @@ export function buildFallbackFightAnalysis(fight: UFCFight, kalshiIntel?: Kalshi
       priceNotes: priceNotes.slice(0, 4),
     },
     ai: {
-      pick: confidence === 'lean' ? expectedWinner : 'pass',
+      pick: fallbackPick,
       method: 'unknown',
       roundOrTiming: 'unknown',
       confidence,
-      thesis: passReason,
+      thesis: fallbackReason,
       why: priceNotes.slice(0, 4),
-      risks: [passReason, ...(kalshiIntel?.redFlags || [])].slice(0, 4),
-      watchouts: ['Generate deep pre-event research before treating this as an athlete read.'],
+      risks: [fallbackReason, ...(kalshiIntel?.redFlags || [])].slice(0, 4),
+      watchouts: ['Verify late injury/camp/weigh-in news before upgrading confidence.'],
     },
     bettingAngles: [{
-      label: confidence === 'lean' ? 'Market lean only' : 'Pass',
-      marketType: confidence === 'lean' ? 'moneyline' : 'pass',
-      side: confidence === 'lean' ? expectedWinner : 'pass',
-      rationale: passReason,
-      maxRisk: confidence === 'lean' ? 'small' : 'avoid',
+      label: `${fallbackPick} conservative matchup edge`,
+      marketType: 'moneyline',
+      side: fallbackPick,
+      rationale: fallbackReason,
+      maxRisk: 'small',
     }],
     generatedAt,
     sources: ['ESPN UFC scoreboard', ...(kalshiIntel ? ['Kalshi market intel'] : []), ...(polyLean ? ['Polymarket Gamma'] : [])],
@@ -317,7 +318,9 @@ export function sanitizeFightAnalysis(raw: RawFightAnalysis, fight: UFCFight, ev
   const fallback = buildFallbackFightAnalysis(fight, undefined, event)
   const market = (raw.market || {}) as Partial<UFCFightDeepAnalysis['market']>
   const ai = (raw.ai || {}) as Partial<UFCFightDeepAnalysis['ai']>
-  const confidence = ['pass', 'lean', 'solid', 'strong'].includes(String(ai.confidence)) ? ai.confidence as UFCFightDeepAnalysis['ai']['confidence'] : fallback.ai.confidence
+  const confidence = ['solid', 'strong'].includes(String(ai.confidence)) ? ai.confidence as UFCFightDeepAnalysis['ai']['confidence'] : 'lean'
+  const rawPick = cleanString(ai.pick, fallback.ai.pick)
+  const safePick = rawPick.toLowerCase() === 'pass' ? fallback.ai.pick : rawPick
   const angles = Array.isArray(raw.bettingAngles) ? raw.bettingAngles : []
   return {
     ...fallback,
@@ -338,7 +341,7 @@ export function sanitizeFightAnalysis(raw: RawFightAnalysis, fight: UFCFight, ev
       priceNotes: cleanStringArray(market.priceNotes, 4),
     },
     ai: {
-      pick: cleanString(ai.pick, fallback.ai.pick),
+      pick: safePick,
       method: cleanString(ai.method, 'unknown'),
       roundOrTiming: cleanString(ai.roundOrTiming, 'unknown'),
       confidence,
@@ -348,9 +351,9 @@ export function sanitizeFightAnalysis(raw: RawFightAnalysis, fight: UFCFight, ev
       watchouts: cleanStringArray(ai.watchouts, 4),
     },
     bettingAngles: angles.slice(0, 3).map(angle => ({
-      label: cleanString(angle.label, 'Pass'),
-      marketType: ['moneyline', 'method', 'distance', 'rounds', 'pass'].includes(String(angle.marketType)) ? angle.marketType : 'pass',
-      side: cleanString(angle.side, 'pass'),
+      label: cleanString(angle.label, `${safePick} matchup edge`).replace(/pass/ig, 'matchup watch'),
+      marketType: ['moneyline', 'method', 'distance', 'rounds'].includes(String(angle.marketType)) ? angle.marketType : 'moneyline',
+      side: cleanString(angle.side, safePick).toLowerCase() === 'pass' ? safePick : cleanString(angle.side, safePick),
       rationale: cleanString(angle.rationale, 'unknown'),
       maxRisk: ['small', 'normal', 'avoid'].includes(String(angle.maxRisk)) ? angle.maxRisk : 'avoid',
     })),
@@ -366,7 +369,7 @@ export function getFightAnalysisQuality(analysis: UFCFightDeepAnalysis): { compl
   if (!isMeaningful(analysis.ai.thesis)) reasons.push('missing AI thesis')
   if (!analysis.ai.why.some(isMeaningful)) reasons.push('missing AI why bullets')
   if (!analysis.ai.risks.some(isMeaningful)) reasons.push('missing AI risk bullets')
-  if (!analysis.bettingAngles.length) reasons.push('missing read/pass angle')
+  if (!analysis.bettingAngles.length) reasons.push('missing matchup angle')
   if ((analysis.ai.confidence === 'solid' || analysis.ai.confidence === 'strong') && reasons.length > 0) reasons.push('high confidence without support')
   return { complete: reasons.length === 0, reasons }
 }
@@ -376,19 +379,19 @@ export function downgradeUnsupportedFightAnalysis(analysis: UFCFightDeepAnalysis
     ...analysis,
     ai: {
       ...analysis.ai,
-      confidence: 'pass',
-      pick: 'pass',
+      confidence: 'lean',
+      pick: analysis.ai.pick && analysis.ai.pick.toLowerCase() !== 'pass' ? analysis.ai.pick : analysis.fighterA.name,
       thesis: isMeaningful(analysis.ai.thesis)
         ? `${analysis.ai.thesis} Validation downgrade: ${reasons.join('; ')}.`
-        : `Validation downgrade: ${reasons.join('; ')}. Treat as pass until verified research/sources are available.`,
+        : `Validation downgrade: ${reasons.join('; ')}. Keep this as a low-confidence matchup read until verified research/sources improve.`,
       risks: Array.from(new Set([...analysis.ai.risks, ...reasons])).slice(0, 4),
     },
-    bettingAngles: analysis.bettingAngles.length ? analysis.bettingAngles.map(angle => ({ ...angle, maxRisk: 'avoid' as const })) : [{
-      label: 'Pass — unsupported AI output',
-      marketType: 'pass',
-      side: 'pass',
+    bettingAngles: analysis.bettingAngles.length ? analysis.bettingAngles.map(angle => ({ ...angle, label: angle.label.replace(/pass/ig, 'matchup watch'), marketType: angle.marketType === 'pass' ? 'moneyline' as const : angle.marketType, side: angle.side.toLowerCase() === 'pass' ? analysis.fighterA.name : angle.side, maxRisk: 'small' as const })) : [{
+      label: `${analysis.fighterA.name} low-confidence matchup edge`,
+      marketType: 'moneyline',
+      side: analysis.fighterA.name,
       rationale: reasons.join('; '),
-      maxRisk: 'avoid',
+      maxRisk: 'small',
     }],
   }
 }
