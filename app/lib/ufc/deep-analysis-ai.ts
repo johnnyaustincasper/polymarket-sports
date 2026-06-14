@@ -127,6 +127,8 @@ async function fetchEspnFighterContext(fighter: UFCFight['fighterA']): Promise<E
       height: athlete.displayHeight || fighter.height || '',
       reach: athlete.displayReach || fighter.reach || '',
       stance: athlete.stance || undefined,
+      style: athlete.displayFightingStyle || undefined,
+      fightingStyle: athlete.displayFightingStyle || undefined,
       country: athlete.citizenship || athlete.flag || fighter.country || '',
       ranking: fighter.ranking,
       lastFightSummary: lastFight ? `${lastFight.result.toUpperCase()} vs ${lastFight.opponent} by ${lastFight.method} at ${lastFight.notes}.` : 'unknown',
@@ -241,6 +243,7 @@ ${researchContext}
 Requirements:
 - Include both fighters by name: ${fighterA} and ${fighterB}.
 - Use the research context above to identify each fighter's last fight summary and last 5 fight results with method, round/time if available, opponent, date if available, and notes.
+- Include each fighter's actual fighting style/training base as fightingStyle/style, e.g. "wrestling", "brawler", "BJJ", "Muay Thai", "boxing", "kickboxing". Do not use stance words like Orthodox/Southpaw as style.
 - Include hype, narrative, beef/storyline, camp news, injury/layoff notes, and possible market distortion.
 - Include expected winner from market/public consensus and expected method.
 - Include your model pick, method, timing, confidence, why bullets, risks, watchouts, and read/pass recommendation.
@@ -250,8 +253,8 @@ Requirements:
 
 Return JSON matching this shape (omit nothing; use "unknown"/[] when needed):
 {
-  "fighterA": { "name": "${fighterA}", "record": "", "age": null, "height": "", "reach": "", "country": "", "ranking": null, "lastFightSummary": "", "lastFive": [], "strengths": [], "concerns": [], "hype": { "level": "low", "why": [], "possibleMarketDistortion": "unknown" }, "narrative": { "beefOrStory": "unknown", "campNews": "unknown", "injuryOrLayoffNotes": "unknown" } },
-  "fighterB": { "name": "${fighterB}", "record": "", "age": null, "height": "", "reach": "", "country": "", "ranking": null, "lastFightSummary": "", "lastFive": [], "strengths": [], "concerns": [], "hype": { "level": "low", "why": [], "possibleMarketDistortion": "unknown" }, "narrative": { "beefOrStory": "unknown", "campNews": "unknown", "injuryOrLayoffNotes": "unknown" } },
+  "fighterA": { "name": "${fighterA}", "record": "", "age": null, "height": "", "reach": "", "style": "", "fightingStyle": "", "country": "", "ranking": null, "lastFightSummary": "", "lastFive": [], "strengths": [], "concerns": [], "hype": { "level": "low", "why": [], "possibleMarketDistortion": "unknown" }, "narrative": { "beefOrStory": "unknown", "campNews": "unknown", "injuryOrLayoffNotes": "unknown" } },
+  "fighterB": { "name": "${fighterB}", "record": "", "age": null, "height": "", "reach": "", "style": "", "fightingStyle": "", "country": "", "ranking": null, "lastFightSummary": "", "lastFive": [], "strengths": [], "concerns": [], "hype": { "level": "low", "why": [], "possibleMarketDistortion": "unknown" }, "narrative": { "beefOrStory": "unknown", "campNews": "unknown", "injuryOrLayoffNotes": "unknown" } },
   "market": { "expectedWinner": "unknown", "expectedMethod": "unknown", "priceNotes": [] },
   "ai": { "pick": "pass", "method": "unknown", "roundOrTiming": "unknown", "confidence": "pass", "thesis": "", "why": [], "risks": [], "watchouts": [] },
   "bettingAngles": [],

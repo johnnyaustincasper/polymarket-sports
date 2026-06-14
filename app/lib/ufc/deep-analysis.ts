@@ -18,6 +18,8 @@ export interface UFCFighterDossier {
   height: string
   reach: string
   stance?: string
+  style?: string
+  fightingStyle?: string
   country: string
   ranking: number | null
   lastFightSummary: string
@@ -115,6 +117,38 @@ function cleanStringArray(value: unknown, max: number): string[] {
     .slice(0, max)
 }
 
+function normalizeFighterName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function deriveFightingStyle(dossier: Partial<UFCFighterDossier>, fighterName: string): string {
+  const direct = cleanString(dossier.fightingStyle || dossier.style, '')
+  if (direct && !/^(orthodox|southpaw|switch)$/i.test(direct)) return direct
+  const known: Record<string, string> = {
+    'justin gaethje': 'Brawler / wrestling base',
+    'ilia topuria': 'Boxing / BJJ',
+    'charles oliveira': 'BJJ / submission grappler',
+    'islam makhachev': 'Sambo / wrestling',
+    'khabib nurmagomedov': 'Sambo / wrestling',
+    'alex pereira': 'Kickboxing / Muay Thai',
+    'max holloway': 'Volume boxing',
+    'paddy pimblett': 'BJJ / grappler',
+  }
+  const mapped = known[normalizeFighterName(fighterName)]
+  if (mapped) return mapped
+  const text = [
+    ...(Array.isArray(dossier.strengths) ? dossier.strengths : []),
+    ...(Array.isArray(dossier.lastFive) ? dossier.lastFive.map(f => f?.method || '') : []),
+    dossier.finishingProfile?.summary || '',
+  ].join(' ').toLowerCase()
+  const tags: string[] = []
+  if (/wrestl|grappl|sambo|takedown/.test(text)) tags.push(/sambo/.test(text) ? 'Sambo' : 'Wrestling')
+  if (/bjj|jiu|submission|rear naked|armbar|choke/.test(text)) tags.push('BJJ')
+  if (/muay|kickbox|kickboxing|thai|leg kick|head kick/.test(text)) tags.push(/muay/.test(text) ? 'Muay Thai' : 'Kickboxing')
+  if (/box|strik|ko|tko|knockout|power|pressure|brawler/.test(text)) tags.push(/pressure|brawler/.test(text) ? 'Brawler' : 'Boxing')
+  return Array.from(new Set(tags)).slice(0, 2).join(' / ')
+}
+
 function addDaysIso(days: number): string {
   return new Date(Date.now() + days * 24 * 60 * 60_000).toISOString()
 }
@@ -150,6 +184,7 @@ function emptyDossier(fighter: UFCFight['fighterA'], note = 'No verified last-fi
     age: fighter.age,
     height: fighter.height || '',
     reach: fighter.reach || '',
+    fightingStyle: deriveFightingStyle({}, fighter.name || 'TBA'),
     country: fighter.country || '',
     ranking: fighter.ranking,
     lastFightSummary: 'unknown',
@@ -247,6 +282,8 @@ function sanitizeRecentFight(value: unknown): UFCFighterRecentFight {
 function sanitizeDossier(raw: unknown, fighter: UFCFight['fighterA']): UFCFighterDossier {
   const obj = (raw && typeof raw === 'object') ? raw as Partial<UFCFighterDossier> : {}
   const lastFive = (Array.isArray(obj.lastFive) ? obj.lastFive : []).slice(0, 5).map(sanitizeRecentFight)
+  const finishingProfile = summarizeFinishingProfile(lastFive)
+  const styleSeed: Partial<UFCFighterDossier> = { ...obj, lastFive, finishingProfile }
   return {
     name: fighter.name || cleanString(obj.name, 'TBA'),
     record: cleanString(obj.record, fighter.record || ''),
@@ -254,11 +291,13 @@ function sanitizeDossier(raw: unknown, fighter: UFCFight['fighterA']): UFCFighte
     height: cleanString(obj.height, fighter.height || ''),
     reach: cleanString(obj.reach, fighter.reach || ''),
     stance: obj.stance,
+    style: cleanString(obj.style, ''),
+    fightingStyle: deriveFightingStyle(styleSeed, fighter.name || cleanString(obj.name, 'TBA')),
     country: cleanString(obj.country, fighter.country || ''),
     ranking: typeof obj.ranking === 'number' ? obj.ranking : fighter.ranking,
     lastFightSummary: cleanString(obj.lastFightSummary, 'unknown'),
     lastFive,
-    finishingProfile: summarizeFinishingProfile(lastFive),
+    finishingProfile,
     strengths: cleanStringArray(obj.strengths, 5),
     concerns: cleanStringArray(obj.concerns, 5),
     hype: {

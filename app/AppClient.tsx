@@ -4982,7 +4982,31 @@ function parseUfcRecordWins(value?: string | null) {
 }
 
 function ufcStyleLabel(dossier: UFCFighterDossier) {
-  return cleanUfcValue(dossier.fightingStyle || dossier.style || dossier.stance, 'Style not listed')
+  const direct = cleanUfcValue(dossier.fightingStyle || dossier.style, '')
+  if (direct && !/^(orthodox|southpaw|switch)$/i.test(direct)) return direct
+  const known: Record<string, string> = {
+    'justin gaethje': 'Brawler / wrestling base',
+    'ilia topuria': 'Boxing / BJJ',
+    'charles oliveira': 'BJJ / submission grappler',
+    'islam makhachev': 'Sambo / wrestling',
+    'khabib nurmagomedov': 'Sambo / wrestling',
+    'alex pereira': 'Kickboxing / Muay Thai',
+    'max holloway': 'Volume boxing',
+    'paddy pimblett': 'BJJ / grappler',
+  }
+  const mapped = known[normalizeUfcName(dossier.name)]
+  if (mapped) return mapped
+  const text = [
+    ...(dossier.strengths || []),
+    ...(dossier.lastFive || []).map(f => f.method),
+    dossier.finishingProfile?.summary || '',
+  ].join(' ').toLowerCase()
+  const tags: string[] = []
+  if (/wrestl|grappl|sambo|takedown/.test(text)) tags.push(/sambo/.test(text) ? 'Sambo' : 'Wrestling')
+  if (/bjj|jiu|submission|rear naked|armbar|choke/.test(text)) tags.push('BJJ')
+  if (/muay|kickbox|kickboxing|thai|leg kick|head kick/.test(text)) tags.push(/muay/.test(text) ? 'Muay Thai' : 'Kickboxing')
+  if (/box|strik|ko|tko|knockout|power|pressure|brawler/.test(text)) tags.push(/pressure|brawler/.test(text) ? 'Brawler' : 'Boxing')
+  return Array.from(new Set(tags)).slice(0, 2).join(' / ') || 'Style not listed'
 }
 
 function getUfcDossierRecord(dossier: UFCFighterDossier, recordLookup?: Record<string, string>) {
