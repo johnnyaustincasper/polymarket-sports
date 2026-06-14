@@ -374,6 +374,68 @@ const SURFACE = {
   shadow: '0 18px 60px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
+
+const APP_MATRIX_TOKENS = [
+  'JOKIC 28.5 PTS', 'CURRY 4.5 3PM', 'TATUM 8.5 REB', 'EDWARDS 27.5 PTS',
+  'MAHOMES 287.5 YDS', 'JUDGE 1.5 HR', 'ALLEN 245.5 YDS', 'SGA 30.5 PTS',
+  'CHASE 7.5 REC', 'WEMBY 3.5 BLK', 'OHTANI 0.5 HR', 'BURROW 1.5 TD',
+  'DONCIC 9.5 AST', 'HENRY 92.5 YDS', 'GIANNIS 11.5 REB', 'KELCE 75.5 YDS',
+  'MCDAVID 1.5 PTS', 'COLE 7.5 K', 'HILL 88.5 YDS', 'BOOKER 6.5 AST',
+  'ACUNA 2.5 TB', 'BARKLEY 84.5 YDS', 'SKENES 8.5 K', 'JEFFERSON 6.5 REC',
+  '01101001', '10110010', '11001011', '00111010', '10010110', '11010100',
+]
+
+const APP_MATRIX_SVG = (() => {
+  const colors = ['#7df6ff', '#2fffb9', '#d6f2ff', '#ffcf6b', '#2f9dff']
+  const rows = Array.from({ length: 24 }, (_, row) => {
+    const y = 26 + row * 34
+    const cells = Array.from({ length: 8 }, (_, col) => {
+      const token = APP_MATRIX_TOKENS[(row * 3 + col * 5) % APP_MATRIX_TOKENS.length]
+      const x = -42 + col * 92 + ((row + col) % 2) * 10
+      const opacity = token.includes('0') || token.includes('1') && /^\d+$/.test(token) ? 0.20 : 0.34 - ((row + col) % 3) * 0.055
+      return `<text x="${x}" y="${y}" fill="${colors[(row + col) % colors.length]}" fill-opacity="${opacity.toFixed(2)}">${token}</text>`
+    }).join('')
+    return cells
+  }).join('')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="760" height="860" viewBox="0 0 760 860"><rect width="760" height="860" fill="none"/><g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" font-weight="800" letter-spacing="1.1">${rows}</g></svg>`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+})()
+
+function AppPropMatrixBackdrop() {
+  return (
+    <div
+      aria-hidden="true"
+      data-app-prop-matrix="blurred-svg-static-20260613"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 0,
+        pointerEvents: 'none',
+        overflow: 'hidden',
+        contain: 'strict',
+      }}
+    >
+      <div style={{
+        position: 'absolute',
+        inset: '-8vh -18vw',
+        backgroundImage: APP_MATRIX_SVG,
+        backgroundRepeat: 'repeat',
+        backgroundSize: '760px 860px',
+        filter: 'blur(5px)',
+        opacity: 0.58,
+        transform: 'translate3d(0,0,0)',
+        maskImage: 'linear-gradient(180deg, transparent 0%, black 12%, black 76%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, black 12%, black 76%, transparent 100%)',
+      }} />
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'radial-gradient(ellipse 80% 38% at 50% 4%, rgba(125,246,255,0.07), transparent 62%), linear-gradient(180deg, rgba(3,5,0,0.50), rgba(3,5,0,0.76) 42%, rgba(3,5,0,0.88))',
+      }} />
+    </div>
+  )
+}
+
 function TeamBadge({ abbr, name, sport, size = 40, selected = false, compact = false }: { abbr?: string | null; name?: string | null; sport?: TeamBadgeSport | null; size?: number; selected?: boolean; compact?: boolean }) {
   const tone = getTeamBadgeTone(sport)
   const text = getTeamBadgeText(abbr)
@@ -6261,7 +6323,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   return (
     <main style={{ minHeight: '100vh', background: C.bg, color: C.textPrimary, position: 'relative', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <style>{GLOBAL_STYLES}</style>
-      {/* Soft logo glow background */}
+      {/* Soft ambient app texture: blurred prop matrix + logo glow */}
+      <AppPropMatrixBackdrop />
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
         background: 'radial-gradient(ellipse 80% 60% at 0% -10%, rgba(125,246,255,0.14) 0%, transparent 62%), radial-gradient(ellipse 70% 50% at 60% -10%, rgba(125,246,255,0.05) 0%, transparent 70%)',
