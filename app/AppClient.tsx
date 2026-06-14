@@ -392,7 +392,7 @@ const APP_MATRIX_SVG = (() => {
     const cells = Array.from({ length: 8 }, (_, col) => {
       const token = APP_MATRIX_TOKENS[(row * 3 + col * 5) % APP_MATRIX_TOKENS.length]
       const x = -42 + col * 92 + ((row + col) % 2) * 10
-      const opacity = token.includes('0') || token.includes('1') && /^\d+$/.test(token) ? 0.20 : 0.34 - ((row + col) % 3) * 0.055
+      const opacity = token.includes('0') || token.includes('1') && /^\d+$/.test(token) ? 0.32 : 0.52 - ((row + col) % 3) * 0.07
       return `<text x="${x}" y="${y}" fill="${colors[(row + col) % colors.length]}" fill-opacity="${opacity.toFixed(2)}">${token}</text>`
     }).join('')
     return cells
@@ -405,7 +405,7 @@ function AppPropMatrixBackdrop() {
   return (
     <div
       aria-hidden="true"
-      data-app-prop-matrix="blurred-svg-static-20260613"
+      data-app-prop-matrix="blurred-svg-visible-20260613"
       style={{
         position: 'fixed',
         inset: 0,
@@ -421,8 +421,8 @@ function AppPropMatrixBackdrop() {
         backgroundImage: APP_MATRIX_SVG,
         backgroundRepeat: 'repeat',
         backgroundSize: '760px 860px',
-        filter: 'blur(5px)',
-        opacity: 0.58,
+        filter: 'blur(3px)',
+        opacity: 0.92,
         transform: 'translate3d(0,0,0)',
         maskImage: 'linear-gradient(180deg, transparent 0%, black 12%, black 76%, transparent 100%)',
         WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, black 12%, black 76%, transparent 100%)',
@@ -430,7 +430,7 @@ function AppPropMatrixBackdrop() {
       <div style={{
         position: 'absolute',
         inset: 0,
-        background: 'radial-gradient(ellipse 80% 38% at 50% 4%, rgba(125,246,255,0.07), transparent 62%), linear-gradient(180deg, rgba(3,5,0,0.50), rgba(3,5,0,0.76) 42%, rgba(3,5,0,0.88))',
+        background: 'radial-gradient(ellipse 80% 38% at 50% 4%, rgba(125,246,255,0.045), transparent 62%), linear-gradient(180deg, rgba(3,5,0,0.34), rgba(3,5,0,0.58) 42%, rgba(3,5,0,0.76))',
       }} />
     </div>
   )
