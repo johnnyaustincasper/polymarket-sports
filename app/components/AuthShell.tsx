@@ -77,7 +77,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   return (
     <main
       className={`war-shell${armed ? ' is-armed' : ''}`}
-      data-auth-shell-version="matrix-conveyor-glass-20260613"
+      data-auth-shell-version="matrix-stable-2d-20260613"
     >
       <style>{`
         html, body { min-height: 100%; background: #04060a; }
@@ -100,16 +100,17 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         }
         .war-shell *, .war-shell *::before, .war-shell *::after { box-sizing: border-box; }
 
-        /* ---- 3D player-prop matrix field ---- */
+        /* ---- Stable player-prop matrix field ----
+           Keep this 2D. The previous 3D perspective/rotate/translateZ stack
+           made some mobile columns rasterize as 10k+px layers, which caused
+           hitching, clipped/disappearing streams, and crooked-looking text. */
         .matrix-streams {
           position: fixed;
-          inset: -10vh -8vw;
+          inset: -12vh -22vw;
           z-index: -2;
           pointer-events: none;
           overflow: hidden;
-          perspective: 820px;
-          perspective-origin: 50% 42%;
-          transform-style: preserve-3d;
+          contain: strict;
         }
         .matrix-streams::before {
           content: "";
@@ -131,7 +132,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .matrix-col {
           position: absolute;
           top: 0;
-          height: 300vh;
+          height: 300dvh;
           display: flex;
           flex-direction: column;
           font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -141,11 +142,12 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           text-align: center;
           white-space: nowrap;
           opacity: var(--alpha, 0.62);
-          filter: blur(var(--blur, 0px));
+          filter: none;
           will-change: transform;
-          transform-style: preserve-3d;
+          transform: translate3d(0, 0, 0);
           transform-origin: 50% 50%;
           backface-visibility: hidden;
+          contain: layout paint style;
         }
         .matrix-col.up { animation: streamUp linear infinite; }
         .matrix-col.down { animation: streamDown linear infinite; }
@@ -158,9 +160,9 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         }
         .matrix-col .bin { color: rgba(125,246,255,0.24); font-weight: 620; }
         .matrix-col .prop { color: rgba(214,242,255,0.72); }
-        .matrix-col.depth-far { --z: -360px; --scale: 0.58; --alpha: 0.32; --blur: 0.75px; --size: 8px; }
-        .matrix-col.depth-mid { --z: -80px; --scale: 0.92; --alpha: 0.58; --blur: 0.12px; --size: 11px; }
-        .matrix-col.depth-near { --z: 140px; --scale: 1.28; --alpha: 0.82; --blur: 0px; --size: 13px; }
+        .matrix-col.depth-far { --alpha: 0.30; --size: 8px; }
+        .matrix-col.depth-mid { --alpha: 0.56; --size: 10.5px; }
+        .matrix-col.depth-near { --alpha: 0.78; --size: 12px; }
         .matrix-col.depth-far .prop { opacity: 0.68; }
         .matrix-col.depth-mid .prop { opacity: 0.86; }
         .matrix-col.depth-near .prop { opacity: 1; font-weight: 860; }
@@ -174,13 +176,13 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
            loop point is invisible because all three stacked copies are
            identical. */
         @keyframes streamUp {
-          from { transform: translate3d(0, 0, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(-2deg); }
-          to { transform: translate3d(0, -100vh, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(-2deg); }
+          from { transform: translate3d(0, 0, 0); }
+          to { transform: translate3d(0, -100dvh, 0); }
         }
         /* Down: mirror — column shifts down so tokens enter from the top. */
         @keyframes streamDown {
-          from { transform: translate3d(0, -100vh, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(2deg); }
-          to { transform: translate3d(0, 0, var(--z, 0px)) scale(var(--scale, 1)) rotateX(18deg) rotateZ(2deg); }
+          from { transform: translate3d(0, -100dvh, 0); }
+          to { transform: translate3d(0, 0, 0); }
         }
 
         /* Legibility veil: dialed back so more of the matrix shows through
@@ -320,10 +322,10 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           .cl-dividerRow { margin: 8px 0 !important; }
           .cl-footer { margin-top: 8px !important; }
           /* Keep the field dense but readable behind the terminal on small screens */
-          .matrix-streams { inset: -8vh -20vw; perspective: 640px; }
-          .matrix-col.depth-far { --alpha: 0.36; --size: 7.5px; --scale: 0.54; }
-          .matrix-col.depth-mid { --alpha: 0.66; --size: 10.5px; --scale: 0.94; }
-          .matrix-col.depth-near { --alpha: 0.88; --size: 12.5px; --scale: 1.34; }
+          .matrix-streams { inset: -10vh -24vw; }
+          .matrix-col.depth-far { --alpha: 0.34; --size: 7.5px; }
+          .matrix-col.depth-mid { --alpha: 0.64; --size: 10px; }
+          .matrix-col.depth-near { --alpha: 0.82; --size: 11.5px; }
           .matrix-veil {
             background:
               linear-gradient(180deg,
