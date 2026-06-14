@@ -77,7 +77,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
   return (
     <main
       className={`war-shell${armed ? ' is-armed' : ''}`}
-      data-auth-shell-version="matrix-no-card-20260613"
+      data-auth-shell-version="matrix-conveyor-glass-20260613"
     >
       <style>{`
         html, body { min-height: 100%; background: #04060a; }
@@ -218,28 +218,44 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
 
         .war-grid { display: grid; gap: 16px; align-items: center; justify-items: center; }
 
-        /* ---- Secure access controls — intentionally no enclosing card ----
-           The user's mobile render showed the old glass terminal as a visible
-           box. Keep the auth controls readable, but remove every parent-card
-           primitive that can expose a rectangle: fill, border, shadow,
-           backdrop-filter, and pseudo-overlay. */
+        /* ---- The secure access terminal (true glass) ----
+           Smaller footprint + lighter translucent fill + heavier blur so
+           the prop matrix behind it stays visible. Border/glow do the
+           framing work the opaque background used to do. */
         .terminal {
           position: relative;
           justify-self: center;
           width: min(360px, 100%);
-          border-radius: 0;
-          padding: 0;
-          background: transparent;
-          backdrop-filter: none;
-          -webkit-backdrop-filter: none;
-          border: 0;
-          box-shadow: none;
-          transition: none;
+          border-radius: 20px;
+          padding: 14px 16px 16px;
+          background:
+            linear-gradient(180deg, rgba(13,22,38,0.30) 0%, rgba(6,12,22,0.40) 100%);
+          backdrop-filter: blur(30px) saturate(1.32);
+          -webkit-backdrop-filter: blur(30px) saturate(1.32);
+          border: 1px solid rgba(125,246,255,0.22);
+          box-shadow:
+            0 1px 0 rgba(255,255,255,0.06) inset,
+            0 0 0 1px rgba(125,246,255,0.04) inset,
+            0 22px 60px rgba(0,0,0,0.50);
+          transition: border-color 450ms ease, box-shadow 450ms ease;
         }
-        .terminal::before { content: none; }
+        .terminal::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+          background: linear-gradient(160deg, rgba(255,255,255,0.07), rgba(255,255,255,0) 42%);
+          mix-blend-mode: screen;
+          opacity: 0.7;
+        }
         .is-armed .terminal {
-          border-color: transparent;
-          box-shadow: none;
+          border-color: rgba(125,246,255,0.40);
+          box-shadow:
+            0 1px 0 rgba(255,255,255,0.08) inset,
+            0 0 0 1px rgba(125,246,255,0.06) inset,
+            0 22px 70px rgba(0,0,0,0.55),
+            0 0 44px rgba(47,157,255,0.16);
         }
 
         /* Terminal header bar: status lights + clearance label, compact */
@@ -270,12 +286,9 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .war-foot { text-align: center; color: rgba(214,242,255,0.36); font-size: 9.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding-bottom: 4px; }
 
         /* ---- Clerk surface — concise, working ---- */
-        .cl-rootBox, .cl-card, .cl-cardBox { width: 100% !important; max-width: 100% !important; background: transparent !important; }
-        .cl-rootBox, .cl-card, .cl-cardBox, .cl-main, .cl-footer { border-radius: 0 !important; box-shadow: none !important; border: 0 !important; }
-        .cl-cardBox { overflow: visible !important; }
-        .cl-card { padding: 0 !important; }
-        .cl-footer { margin-top: 10px !important; background: transparent !important; }
-        .cl-footer::before, .cl-footer::after { content: none !important; }
+        .cl-rootBox, .cl-card, .cl-cardBox { width: 100% !important; max-width: 100% !important; }
+        .cl-card { padding: 0 !important; background: transparent !important; box-shadow: none !important; }
+        .cl-cardBox { box-shadow: none !important; }
         .cl-socialButtonsBlockButton { min-height: 46px !important; border-radius: 12px !important; background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025)) !important; border-color: rgba(125,246,255,0.22) !important; }
         .cl-socialButtonsBlockButton:hover { background: rgba(125,246,255,0.10) !important; }
         .cl-formButtonPrimary { min-height: 46px !important; border-radius: 12px !important; background: linear-gradient(135deg, #7df6ff, #2f9dff 58%, #2fffb9) !important; box-shadow: 0 16px 34px rgba(47,157,255,0.24), 0 0 24px rgba(125,246,255,0.18) !important; }
@@ -294,7 +307,7 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           .war-content { gap: 9px; align-content: start; padding: calc(env(safe-area-inset-top) + 10px) 13px calc(env(safe-area-inset-bottom) + 12px); }
           .brand-logo { width: min(54vw, 154px); }
           .war-grid { gap: 8px; }
-          .terminal { width: 100%; padding: 0; border-radius: 0; }
+          .terminal { width: 100%; padding: 11px 12px 12px; border-radius: 18px; }
           .terminal-bar { padding-bottom: 6px; margin-bottom: 7px; }
           .terminal-head { gap: 3px; margin-bottom: 7px; }
           .term-kicker { font-size: 8.5px; }
