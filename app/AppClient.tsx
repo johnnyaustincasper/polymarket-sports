@@ -5039,8 +5039,8 @@ function buildUfcComparisonRows(fight: UFCFightDeepAnalysis, recordLookup?: Reco
 }
 
 function buildUfcFighterEdges(fighter: UFCFighterDossier, opponent: UFCFighterDossier) {
-  const advantages = [...(fighter.strengths || [])].filter(Boolean).slice(0, 2)
-  const disadvantages = [...(fighter.concerns || [])].filter(Boolean).slice(0, 2)
+  const advantages = [...(fighter.strengths || [])]
+  const disadvantages = [...(fighter.concerns || [])]
   const reach = parseUfcInches(fighter.reach)
   const opponentReach = parseUfcInches(opponent.reach)
   if (reach != null && opponentReach != null && Math.abs(reach - opponentReach) >= 1) {
@@ -5058,6 +5058,41 @@ function buildUfcFighterEdges(fighter: UFCFighterDossier, opponent: UFCFighterDo
   return {
     advantages: advantages.length ? advantages.slice(0, 3) : ['No clear physical/stat edge listed'],
     disadvantages: disadvantages.length ? disadvantages.slice(0, 3) : ['No major red flag listed'],
+  }
+}
+
+function sanitizeUfcVisibleAnalysis(analysis: UFCEventDeepAnalysis): UFCEventDeepAnalysis {
+  const fights = (analysis.fights || []).map(fight => {
+    const fallbackPick = fight.ai?.pick && fight.ai.pick.toLowerCase() !== 'pass' ? fight.ai.pick : fight.fighterA.name
+    return {
+      ...fight,
+      ai: {
+        ...fight.ai,
+        pick: fallbackPick,
+        confidence: fight.ai?.confidence === 'pass' ? 'lean' : fight.ai?.confidence,
+        thesis: (fight.ai?.thesis || '').replace(/pass/ig, 'low-confidence matchup watch') || `${fallbackPick} has the current matchup edge from fighter profile and style context.`,
+        why: (fight.ai?.why || []).map(item => item.replace(/pass/ig, 'low-confidence matchup watch')),
+        risks: (fight.ai?.risks || []).map(item => item.replace(/pass/ig, 'low-confidence matchup watch')),
+      },
+      bettingAngles: (fight.bettingAngles || []).map(angle => ({
+        ...angle,
+        label: (angle.label || `${fallbackPick} matchup edge`).replace(/pass/ig, 'matchup watch'),
+        marketType: angle.marketType === 'pass' ? 'moneyline' : angle.marketType,
+        side: angle.side?.toLowerCase() === 'pass' ? fallbackPick : angle.side,
+        rationale: (angle.rationale || '').replace(/pass/ig, 'low-confidence matchup watch'),
+        maxRisk: angle.maxRisk === 'avoid' ? 'small' : angle.maxRisk,
+      })),
+    }
+  })
+  return {
+    ...analysis,
+    fights,
+    cardSummary: {
+      ...analysis.cardSummary,
+      bestLooks: (analysis.cardSummary?.bestLooks || []).map(item => item.replace(/pass/ig, 'matchup watch')),
+      fadeTheHype: analysis.cardSummary?.fadeTheHype || [],
+      passFights: (analysis.cardSummary?.passFights || []).map(item => item.replace(/pass/ig, 'low-confidence matchup watch')),
+    },
   }
 }
 
@@ -5093,7 +5128,7 @@ function KalshiUFCSection() {
       .then(([kalshi, analysis, ufcEvents]) => {
         if (cancelled) return
         setData(kalshi)
-        setDeepAnalysis(analysis?.available && analysis?.analysis ? analysis.analysis : null)
+        setDeepAnalysis(analysis?.available && analysis?.analysis ? sanitizeUfcVisibleAnalysis(analysis.analysis) : null)
         const records: Record<string, string> = {}
         if (Array.isArray(ufcEvents)) {
           for (const event of ufcEvents as UFCEvent[]) {
