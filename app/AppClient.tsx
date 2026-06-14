@@ -5756,11 +5756,11 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
   const activeAccent = sportAccent(sport)
   const [sportsOpen, setSportsOpen] = useState(false)
   const sports: { value: SupportedSport | 'ufc'; label: string }[] = [
-    { value: 'nba', label: 'NBA' },
     { value: 'mlb', label: 'MLB' },
+    { value: 'ufc', label: 'UFC' },
     { value: 'nfl', label: 'NFL' },
     { value: 'nhl', label: 'NHL' },
-    { value: 'ufc', label: 'UFC' },
+    { value: 'nba', label: 'NBA' },
   ]
   const sportLabel = sport === 'ncaaf' || sport === 'ncaab' ? 'NCAA' : sport.toUpperCase()
   const switchSport = (s: SupportedSport | 'ufc') => { setSport(s); if (isMobile) setSportsOpen(false) }
@@ -6049,7 +6049,7 @@ function espnRequestDateForChicagoDay(yyyymmdd: string): string {
 export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const today = chicagoYmd()
   const [date, setDate] = useState(today)
-  const [sport, setSport] = useState<SupportedSport | 'ufc'>('nba')
+  const [sport, setSport] = useState<SupportedSport | 'ufc'>('mlb')
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
   const [mobileDockTab, setMobileDockTab] = useState<MobileDockTab>('slate')
   const [mobileDockPanel, setMobileDockPanel] = useState<'sport' | 'dates' | null>(null)
@@ -6145,7 +6145,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       let resolvedDate = date
       let newGames: Game[] = []
 
-      if (!startupSportResolvedRef.current && provider === 'kalshi' && sport === 'nba') {
+      if (!startupSportResolvedRef.current && provider === 'kalshi' && sport === 'mlb') {
         startupSportResolvedRef.current = true
         const startup = await resolveStartupSport({
           initialDate: date,

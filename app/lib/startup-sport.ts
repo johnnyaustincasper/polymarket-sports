@@ -1,6 +1,6 @@
 import type { SupportedSport } from './sports-utils'
 
-export const STARTUP_SPORT_FALLBACK_ORDER = ['nba', 'mlb', 'nhl', 'nfl'] as const satisfies readonly SupportedSport[]
+export const STARTUP_SPORT_FALLBACK_ORDER = ['mlb', 'nfl', 'nhl', 'nba'] as const satisfies readonly SupportedSport[]
 
 type StartupSport = (typeof STARTUP_SPORT_FALLBACK_ORDER)[number]
 
