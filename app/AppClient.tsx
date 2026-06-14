@@ -4953,10 +4953,55 @@ function getUfcWinnerMarkets(fight: KalshiUFCFight) {
   return fight.markets.filter(m => m.category === 'Winner').sort((a, b) => (b.yesAsk || 0) - (a.yesAsk || 0))
 }
 
+function isUsefulUfcText(value?: string | number | null) {
+  const text = String(value ?? '').trim().toLowerCase()
+  return Boolean(text && !['unknown', 'null', '—', '-'].includes(text))
+}
+
+function hasUsefulUfcRecentFight(fight?: UFCFighterRecentFight | null) {
+  if (!fight) return false
+  return isUsefulUfcText(fight.opponent) || isUsefulUfcText(fight.method) || isUsefulUfcText(fight.date) || isUsefulUfcText(fight.notes) || fight.result !== 'unknown' || fight.round != null
+}
+
+function cleanUfcRecentFights(dossier: UFCFighterDossier) {
+  return (dossier.lastFive || []).filter(hasUsefulUfcRecentFight).slice(0, 5)
+}
+
+function formatUfcRecentFight(fight: UFCFighterRecentFight) {
+  const result = fight.result && fight.result !== 'unknown' ? fight.result.toUpperCase().replace('NO_CONTEST', 'NC') : '—'
+  const opponent = cleanUfcValue(fight.opponent, 'opponent unknown')
+  const method = cleanUfcValue(fight.method, 'method unknown')
+  const round = fight.round ? `R${fight.round}` : ''
+  const time = cleanUfcValue(fight.time, '')
+  const date = cleanUfcValue(fight.date, '')
+  return `${result} vs ${opponent} · ${method}${round || time ? ` (${[round, time].filter(Boolean).join(' ')})` : ''}${date ? ` · ${date}` : ''}`
+}
+
 function summarizeUfcRecentForm(dossier: UFCFighterDossier) {
-  const last = dossier.lastFightSummary && dossier.lastFightSummary !== 'unknown' ? dossier.lastFightSummary : 'Last fight unavailable'
-  const profile = dossier.finishingProfile?.summary && dossier.finishingProfile.summary !== 'unknown' ? dossier.finishingProfile.summary : 'Finish profile unavailable'
-  return `${last} · Last five: ${profile}`
+  const recent = cleanUfcRecentFights(dossier)
+  const last = dossier.lastFightSummary && dossier.lastFightSummary !== 'unknown' ? dossier.lastFightSummary : (recent[0] ? formatUfcRecentFight(recent[0]) : 'Last fight unavailable')
+  const profile = dossier.finishingProfile?.summary && dossier.finishingProfile.summary !== 'unknown' && !/^\d+ unknown$/i.test(dossier.finishingProfile.summary) ? dossier.finishingProfile.summary : `${recent.length}/5 verified recent fights loaded`
+  return `${last} · Recent method profile: ${profile}`
+}
+
+function buildUfcEdgeSignals(fight: UFCFightDeepAnalysis, winnerMarkets: KalshiUFCMarket[]) {
+  const pick = fight.ai.pick && fight.ai.pick.toLowerCase() !== 'pass' ? fight.ai.pick : fight.fighterA.name
+  const chosen = normalizeUfcName(pick) === normalizeUfcName(fight.fighterB.name) ? fight.fighterB : fight.fighterA
+  const opponent = chosen.name === fight.fighterA.name ? fight.fighterB : fight.fighterA
+  const chosenRecent = cleanUfcRecentFights(chosen)
+  const opponentRecent = cleanUfcRecentFights(opponent)
+  const signals: string[] = []
+  if (chosen.lastFightSummary && chosen.lastFightSummary !== 'unknown') signals.push(`${chosen.name} last fight: ${chosen.lastFightSummary}`)
+  if (opponent.lastFightSummary && opponent.lastFightSummary !== 'unknown') signals.push(`${opponent.name} last fight: ${opponent.lastFightSummary}`)
+  if (chosenRecent.length || opponentRecent.length) signals.push(`Recent tape loaded: ${chosen.name} ${chosenRecent.length}/5 verified rows, ${opponent.name} ${opponentRecent.length}/5.`)
+  const chosenStyle = ufcStyleLabel(chosen)
+  const opponentStyle = ufcStyleLabel(opponent)
+  if (chosenStyle !== 'Style not listed' || opponentStyle !== 'Style not listed') signals.push(`Style clash: ${chosen.name} ${chosenStyle} vs ${opponent.name} ${opponentStyle}.`)
+  const reach = parseUfcInches(chosen.reach)
+  const oppReach = parseUfcInches(opponent.reach)
+  if (reach != null && oppReach != null && Math.abs(reach - oppReach) >= 2) signals.push(`${Math.abs(reach - oppReach)}\" reach swing ${reach > oppReach ? `toward ${chosen.name}` : `against ${chosen.name}`}.`)
+  if (winnerMarkets.length >= 2) signals.push(`Market check only: ${winnerMarkets[0].fighter || winnerMarkets[0].title} ${winnerMarkets[0].yesAsk}% vs ${winnerMarkets[1].fighter || winnerMarkets[1].title} ${winnerMarkets[1].yesAsk}%.`)
+  return signals.length ? signals.slice(0, 5) : ['Need verified recent-fight rows before upgrading this beyond a low-confidence matchup watch.']
 }
 
 function cleanUfcValue(value?: string | number | { text?: string; displayName?: string; name?: string } | null, fallback = '—') {
@@ -5063,8 +5108,13 @@ function buildUfcFighterEdges(fighter: UFCFighterDossier, opponent: UFCFighterDo
 
 function sanitizeUfcPublicText(text: string): string {
   return String(text || '')
+    .replace(/ESPN profile\/history context loaded\.\s*/ig, '')
+    .replace(/Review last-five method history and recent[- ]fight notes before staking\.?/ig, 'Use the recent fight log and style clash below before upgrading confidence.')
+    .replace(/Current market expectation is ([^.]+)\./ig, 'Market is only a price check: $1.')
     .replace(/External injury\/camp\/news context is limited when Brave Search is unavailable or invalid\.?/ig, 'Late injury, camp, travel, or weigh-in information can change the matchup read quickly.')
     .replace(/No valid Brave Search context available; rely on ESPN profile\/history and market data\.?/ig, 'Verified fighter profile and recent history are the baseline; late news can still move the read.')
+    .replace(/ESPN profile and last-five fight history are available for both fighters\.?/ig, 'Recent form should be judged from the actual fight log, not data availability.')
+    .replace(/Market expectation:/ig, 'Market check only:')
     .replace(/Brave Search/ig, 'external research')
     .replace(/unavailable or invalid/ig, 'limited')
     .replace(/pass/ig, 'low-confidence matchup watch')
@@ -5073,8 +5123,12 @@ function sanitizeUfcPublicText(text: string): string {
 function sanitizeUfcVisibleAnalysis(analysis: UFCEventDeepAnalysis): UFCEventDeepAnalysis {
   const fights = (analysis.fights || []).map(fight => {
     const fallbackPick = fight.ai?.pick && fight.ai.pick.toLowerCase() !== 'pass' ? fight.ai.pick : fight.fighterA.name
+    const fighterARecent = cleanUfcRecentFights(fight.fighterA)
+    const fighterBRecent = cleanUfcRecentFights(fight.fighterB)
     return {
       ...fight,
+      fighterA: { ...fight.fighterA, lastFive: fighterARecent },
+      fighterB: { ...fight.fighterB, lastFive: fighterBRecent },
       ai: {
         ...fight.ai,
         pick: fallbackPick,
@@ -5231,7 +5285,9 @@ function KalshiUFCSection() {
                       const aEdges = buildUfcFighterEdges(deepFight.fighterA, deepFight.fighterB)
                       const bEdges = buildUfcFighterEdges(deepFight.fighterB, deepFight.fighterA)
                       const risks = (deepFight.ai.risks?.length ? deepFight.ai.risks : deepFight.ai.watchouts || []).slice(0, 3)
-                      const reasons = (deepFight.ai.why?.length ? deepFight.ai.why : [deepFight.ai.thesis]).filter(Boolean).slice(0, 3)
+                      const edgeSignals = buildUfcEdgeSignals(deepFight, winnerMarkets)
+                      const aRecent = cleanUfcRecentFights(deepFight.fighterA)
+                      const bRecent = cleanUfcRecentFights(deepFight.fighterB)
                       return (
                         <div style={{ display: 'grid', gap: 10 }}>
                           <div style={{ borderRadius: 18, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 22px rgba(125,246,255,0.08)' }}>
@@ -5249,14 +5305,36 @@ function KalshiUFCSection() {
                             <div style={{ marginTop: 11, padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.08)', color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}>{deepFight.ai.thesis}</div>
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9, marginTop: 10 }}>
                               <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.18)' }}>
-                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Edge signals</div>
-                                {reasons.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.35 }}>• {item}</div>)}
+                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Matchup signals</div>
+                                {edgeSignals.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.35 }}>• {item}</div>)}
                               </div>
                               <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'linear-gradient(135deg, rgba(255,83,83,0.08), rgba(255,215,0,0.045))', border: '1px solid rgba(255,83,83,0.22)' }}>
                                 <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Kill switch</div>
                                 {(risks.length ? risks : ['No clean risk note listed yet']).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
                               </div>
                             </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
+                            {[
+                              { dossier: deepFight.fighterA, recent: aRecent },
+                              { dossier: deepFight.fighterB, recent: bRecent },
+                            ].map(({ dossier, recent }) => (
+                              <div key={`${dossier.name}-recent`} style={{ borderRadius: 15, padding: 11, background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(125,246,255,0.18)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 7 }}>
+                                  <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950 }}>{dossier.name}</div>
+                                  <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Recent fight log</div>
+                                </div>
+                                {recent.length > 0 ? recent.map((row, idx) => (
+                                  <div key={`${dossier.name}-recent-${idx}`} style={{ display: 'grid', gridTemplateColumns: '34px minmax(0,1fr)', gap: 7, padding: '6px 0', borderTop: idx === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
+                                    <div style={{ color: row.result === 'win' ? C.green : row.result === 'loss' ? '#ff7474' : C.gold, fontSize: 9, fontWeight: 950, textTransform: 'uppercase' }}>{row.result === 'unknown' ? '—' : row.result.replace('no_contest', 'NC')}</div>
+                                    <div style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.32 }}>{formatUfcRecentFight(row)}</div>
+                                  </div>
+                                )) : (
+                                  <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4 }}>No verified last-five rows in the current cache. Last known: {cleanUfcValue(dossier.lastFightSummary, 'not listed')}</div>
+                                )}
+                              </div>
+                            ))}
                           </div>
 
                           <div style={{ borderRadius: 16, padding: isMobile ? 10 : 12, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(125,246,255,0.18)' }}>

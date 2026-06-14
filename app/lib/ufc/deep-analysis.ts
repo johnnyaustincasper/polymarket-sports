@@ -280,9 +280,13 @@ function sanitizeRecentFight(value: unknown): UFCFighterRecentFight {
   }
 }
 
+function hasMeaningfulRecentFight(fight: UFCFighterRecentFight): boolean {
+  return [fight.opponent, fight.date, fight.method, fight.notes].some(isMeaningful) || fight.result !== 'unknown' || fight.round !== null
+}
+
 function sanitizeDossier(raw: unknown, fighter: UFCFight['fighterA']): UFCFighterDossier {
   const obj = (raw && typeof raw === 'object') ? raw as Partial<UFCFighterDossier> : {}
-  const lastFive = (Array.isArray(obj.lastFive) ? obj.lastFive : []).slice(0, 5).map(sanitizeRecentFight)
+  const lastFive = (Array.isArray(obj.lastFive) ? obj.lastFive : []).slice(0, 5).map(sanitizeRecentFight).filter(hasMeaningfulRecentFight)
   const finishingProfile = summarizeFinishingProfile(lastFive)
   const styleSeed: Partial<UFCFighterDossier> = { ...obj, lastFive, finishingProfile }
   return {
