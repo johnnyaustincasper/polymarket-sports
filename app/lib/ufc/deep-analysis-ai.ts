@@ -327,6 +327,38 @@ export function parseUFCResearchJson(text: string): UFCResearchParseResult {
   }
 }
 
+function mergeRecentFightRows(baselineRows: any[] = [], aiRows: any[] = []): any[] {
+  const max = Math.max(baselineRows.length, aiRows.length)
+  const merged: any[] = []
+  for (let i = 0; i < max; i += 1) {
+    const baseline = baselineRows[i] || {}
+    const ai = aiRows[i] || {}
+    const aiResult = normalizeResult(ai.result)
+    const baselineResult = normalizeResult(baseline.result)
+    merged.push({
+      ...baseline,
+      ...ai,
+      result: aiResult !== 'unknown' ? aiResult : baselineResult,
+      opponent: ai.opponent || baseline.opponent,
+      date: ai.date || baseline.date,
+      method: ai.method || baseline.method,
+      round: ai.round ?? baseline.round ?? null,
+      time: ai.time || baseline.time,
+      notes: ai.notes || baseline.notes,
+    })
+  }
+  return merged.slice(0, 5)
+}
+
+function mergeFighterDossierWithBaseline(baseline: any = {}, ai: any = {}) {
+  return {
+    ...baseline,
+    ...ai,
+    lastFive: mergeRecentFightRows(Array.isArray(baseline.lastFive) ? baseline.lastFive : [], Array.isArray(ai.lastFive) ? ai.lastFive : []),
+    lastFightSummary: ai.lastFightSummary && !/unknown/i.test(String(ai.lastFightSummary)) ? ai.lastFightSummary : baseline.lastFightSummary,
+  }
+}
+
 export async function researchUFCFightWithAi(fight: UFCFight, event?: UFCEvent, marketContext?: unknown, options?: {
   env?: Record<string, string | undefined>
   clients?: Parameters<typeof completeWithAi>[0]['clients']
@@ -364,8 +396,8 @@ export async function researchUFCFightWithAi(fight: UFCFight, event?: UFCEvent, 
     data: {
       ...research.baseline,
       ...parsed.data,
-      fighterA: { ...research.baseline?.fighterA, ...parsed.data.fighterA },
-      fighterB: { ...research.baseline?.fighterB, ...parsed.data.fighterB },
+      fighterA: mergeFighterDossierWithBaseline(research.baseline?.fighterA, parsed.data.fighterA),
+      fighterB: mergeFighterDossierWithBaseline(research.baseline?.fighterB, parsed.data.fighterB),
       market: { ...research.baseline?.market, ...parsed.data.market },
       ai: aiLooksEmpty ? baselineAi : { ...baselineAi, ...parsedAi },
       bettingAngles: parsed.data.bettingAngles?.length ? parsed.data.bettingAngles : research.baseline?.bettingAngles,
