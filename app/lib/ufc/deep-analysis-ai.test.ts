@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildUFCFightResearchPrompt, parseUFCResearchJson } from './deep-analysis-ai'
+import { buildUFCFightResearchPrompt, classifyFightThesis, parseUFCResearchJson } from './deep-analysis-ai'
 import type { UFCEvent, UFCFight } from './events'
 
 const fight: UFCFight = {
@@ -35,5 +35,45 @@ describe('UFC deep analysis AI helpers', () => {
     for (const term of ['alex silva', 'ben cruz', 'last 5', 'hype', 'beef', 'last fight', 'expected winner', 'method', 'unknown']) {
       expect(prompt).toContain(term)
     }
+  })
+
+  it('prompt requires unique market thesis fields', () => {
+    const prompt = buildUFCFightResearchPrompt(fight, event, { market: 'test' }).toLowerCase()
+    for (const term of ['thesistype', 'why the market might be wrong', 'profilelayer', 'matchuplayer', 'marketedgelayer', 'marketread', 'whymarketmaybewrong', 'killswitch', 'chalk_tax', 'grappling_path', 'early_ko_chaos']) {
+      expect(prompt).toContain(term)
+    }
+  })
+
+  it('classifies live underdog power as early_ko_chaos', () => {
+    const dogFight = {
+      ...fight,
+      polyOdds: { ...fight.polyOdds, hasWinner: true, fighterAWin: 0.72, fighterBWin: 0.28 },
+    }
+    const thesis = classifyFightThesis(
+      dogFight,
+      'Ben Cruz',
+      'Alex Silva',
+      { fightingStyle: 'boxing power', lastFive: [{ result: 'win', method: 'KO/TKO', notes: 'knockout power' }] as any },
+      { fightingStyle: 'kickboxing' },
+    )
+    expect(thesis.thesisType).toBe('early_ko_chaos')
+    expect(thesis.whyMarketMayBeWrong.join(' ').toLowerCase()).toContain('first-round')
+    expect(thesis.killSwitch.length).toBeGreaterThan(0)
+  })
+
+  it('classifies expensive favorite risk as chalk_tax', () => {
+    const chalkFight = {
+      ...fight,
+      polyOdds: { ...fight.polyOdds, hasWinner: true, fighterAWin: 0.3, fighterBWin: 0.7 },
+    }
+    const thesis = classifyFightThesis(
+      chalkFight,
+      'Alex Silva',
+      'Ben Cruz',
+      { fightingStyle: 'well-rounded' },
+      { fightingStyle: 'boxing' },
+    )
+    expect(thesis.thesisType).toBe('chalk_tax')
+    expect(thesis.marketEdgeLayer.toLowerCase()).toContain('chalk')
   })
 })

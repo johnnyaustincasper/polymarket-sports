@@ -1,6 +1,6 @@
 import { completeWithAi, type AiMessage } from '../ai-provider'
 import type { UFCEvent, UFCFight } from './events'
-import type { UFCFightDeepAnalysis } from './deep-analysis'
+import type { UFCFightDeepAnalysis, UFCFightThesisType } from './deep-analysis'
 
 export type UFCResearchParseResult =
   | { available: true; data: Partial<UFCFightDeepAnalysis> }
@@ -60,6 +60,156 @@ function profileScore(fighter: UFCFight['fighterA'], dossier?: Partial<UFCFightD
   return score
 }
 
+type ThesisDraft = {
+  thesisType: UFCFightThesisType
+  profileLayer: string
+  matchupLayer: string
+  marketEdgeLayer: string
+  marketRead: string
+  whyMarketMayBeWrong: string[]
+  killSwitch: string[]
+}
+
+function marketPctFor(fight: UFCFight, name: string): number | null {
+  const poly = fight.polyOdds
+  if (!poly?.hasWinner || poly.fighterAWin === null || poly.fighterBWin === null) return null
+  if (name === fight.fighterA.name) return Number(poly.fighterAWin)
+  if (name === fight.fighterB.name) return Number(poly.fighterBWin)
+  return null
+}
+
+function fighterText(dossier?: Partial<UFCFightDeepAnalysis['fighterA']>): string {
+  return [
+    dossier?.fightingStyle,
+    dossier?.style,
+    dossier?.finishingProfile?.summary,
+    ...(dossier?.strengths || []),
+    ...(dossier?.concerns || []),
+    ...((dossier?.lastFive || []) as any[]).map(f => `${f?.result || ''} ${f?.method || ''} ${f?.notes || ''}`),
+  ].join(' ').toLowerCase()
+}
+
+function pctLabel(value: number | null): string {
+  return value === null || !Number.isFinite(value) ? 'unknown' : `${Math.round(value * 100)}%`
+}
+
+export function classifyFightThesis(
+  fight: UFCFight,
+  pick: string,
+  other: string,
+  pickDossier?: Partial<UFCFightDeepAnalysis['fighterA']>,
+  otherDossier?: Partial<UFCFightDeepAnalysis['fighterA']>,
+): ThesisDraft {
+  const pickText = fighterText(pickDossier)
+  const otherText = fighterText(otherDossier)
+  const pickMarketPct = marketPctFor(fight, pick)
+  const otherMarketPct = marketPctFor(fight, other)
+  const pickIsDog = pickMarketPct !== null && pickMarketPct < 0.5
+  const otherIsChalk = otherMarketPct !== null && otherMarketPct >= 0.65
+  const pickAge = pickDossier?.age
+  const otherAge = otherDossier?.age
+
+  const hasGrappling = /wrestl|grappl|sambo|takedown|bjj|submission|choke|armbar|jiu/.test(pickText)
+  const hasPower = /ko|tko|knockout|power|strik|boxing|kickbox|muay|brawler/.test(pickText)
+  const otherDurabilityConcern = /ko loss|knockout loss|finished|loss|dropped/.test(otherText)
+  const hasCardio = /cardio|pace|pressure|volume|decision|late/.test(pickText)
+  const otherCardioConcern = /gas|tired|cardio|late loss|faded/.test(otherText)
+
+  if ((hasCardio || otherCardioConcern) && !pickIsDog) {
+    return {
+      thesisType: 'cardio_edge',
+      profileLayer: `${pick}'s profile points to pace, volume, or late-fight stability as the separator.`,
+      matchupLayer: `${other} has to keep the fight efficient; extended exchanges and repeated resets favor ${pick}.`,
+      marketEdgeLayer: `If the market is anchored to early danger, it may be undervaluing ${pick}'s minute-winning and late-round equity.`,
+      marketRead: `${pick} is priced around ${pctLabel(pickMarketPct)}; the bet only works if the pace edge shows up before volatility does.`,
+      whyMarketMayBeWrong: [`Pace and cardio edges compound after the market's opening read.`, `${pick} can make a close fight less random by owning the longer exchanges.`],
+      killSwitch: [`Kill the bet if ${pick} cannot control tempo in round one.`, `Downgrade if ${other} forces low-volume grappling/control instead of pace.`],
+    }
+  }
+
+  if (pickIsDog && hasPower) {
+    return {
+      thesisType: 'early_ko_chaos',
+      profileLayer: `${pick} has enough finishing/power indicators to make a low-probability early damage path relevant.`,
+      matchupLayer: `${other} can still be the cleaner side, but striking exchanges create volatility before the favorite can bank control time.`,
+      marketEdgeLayer: `If the market is pricing ${other} as safer, it may be underpricing early KO variance for ${pick}.`,
+      marketRead: `${pick} is priced around ${pctLabel(pickMarketPct)}, so this is an upset/chaos thesis, not a favorite thesis.`,
+      whyMarketMayBeWrong: [`The board may be over-weighting the likely winner and under-weighting the first-round damage branch.`, `${pick}'s best path does not need five clean rounds; it needs one high-leverage exchange.`],
+      killSwitch: [`Kill the bet if ${pick} looks compromised at weigh-ins or steams out of underdog range.`, `Avoid exact-method exposure if ${other} shows a credible wrestling-first safety plan.`],
+    }
+  }
+
+  if (pickIsDog && hasGrappling) {
+    return {
+      thesisType: 'submission_live_dog',
+      profileLayer: `${pick}'s grappling/submission profile gives them a non-linear win condition.`,
+      matchupLayer: `${other} may win minutes standing, but one scramble or takedown can flip the script.`,
+      marketEdgeLayer: `The market may be too focused on overall win probability and not enough on ${pick}'s grappling path.`,
+      marketRead: `${pick} near ${pctLabel(pickMarketPct)} implies the submission/control path is being treated as secondary.`,
+      whyMarketMayBeWrong: [`Grappling paths can cash without matching the broader striking optics.`, `If ${other} accepts clinches or scrambles, the underdog price can go stale quickly.`],
+      killSwitch: [`Kill the bet if ${other}'s takedown defense/scramble prep looks sharp early.`, `Do not chase if submission props or moneyline move sharply before entry.`],
+    }
+  }
+
+  if (otherIsChalk) {
+    return {
+      thesisType: 'chalk_tax',
+      profileLayer: `${pick} has enough profile support to question whether ${other}'s favorite price is inflated.`,
+      matchupLayer: `${other} may be the public side, but the matchup is not clean enough to justify paying a big premium.`,
+      marketEdgeLayer: `${other} around ${pctLabel(otherMarketPct)} creates chalk-tax risk if live alternate paths remain.`,
+      marketRead: `${other} is the market favorite; this read is about price fragility, not pretending ${pick} is risk-free.`,
+      whyMarketMayBeWrong: [`The market may be paying for name value, highlights, or public comfort instead of the actual risk distribution.`, `${pick} only needs to make the fight messy for an expensive favorite ticket to become unattractive.`],
+      killSwitch: [`Pass if ${other}'s price drops into a fairer range before entry.`, `Pass if late news confirms a clean stylistic advantage for ${other}.`],
+    }
+  }
+
+  if (hasGrappling) {
+    return {
+      thesisType: pickText.includes('wrestl') || pickText.includes('takedown') ? 'wrestling_control' : 'grappling_path',
+      profileLayer: `${pick}'s profile points to wrestling/grappling as the most important lever.`,
+      matchupLayer: `${pick} can change the fight if they force clinches, mat returns, or submission threats instead of a neutral kickboxing match.`,
+      marketEdgeLayer: `If the market is reading this as a generic winner market, it may be missing how much control time can swing rounds.`,
+      marketRead: `${pick} is priced around ${pctLabel(pickMarketPct)}. The question is whether that price captures control-time upside.`,
+      whyMarketMayBeWrong: [`Control and grappling pressure can make striking metrics less predictive.`, `A single takedown-heavy round can reshape live pricing and decision equity.`],
+      killSwitch: [`Kill the bet if ${pick} cannot win first-layer entries early.`, `Downgrade if referee standups or cage positioning neutralize control time.`],
+    }
+  }
+
+  if (hasPower || otherDurabilityConcern) {
+    return {
+      thesisType: 'durability_gap',
+      profileLayer: `${pick} has the more dangerous damage profile in the available recent-method/style data.`,
+      matchupLayer: `${other} has to manage defensive responsibility; repeated pocket exchanges favor the cleaner damage path.`,
+      marketEdgeLayer: `The market may be too comfortable with minute-winning while discounting durability risk.`,
+      marketRead: `${pick} around ${pctLabel(pickMarketPct)} leaves room if damage equity is understated.`,
+      whyMarketMayBeWrong: [`Markets often price the more stable minute-winner while underpricing damage spikes.`, `${pick}'s path can appear low-volume until one exchange changes the fight.`],
+      killSwitch: [`Pass if ${pick} looks slow, depleted, or unable to close distance.`, `Avoid if the price rises without corresponding method/finish confirmation.`],
+    }
+  }
+
+  if (typeof pickAge === 'number' && typeof otherAge === 'number' && pickAge < otherAge - 4) {
+    return {
+      thesisType: 'speed_edge',
+      profileLayer: `${pick}'s age/profile suggests a possible speed and reaction-time edge.`,
+      matchupLayer: `${other} may need to slow the fight down; open-space exchanges favor the faster athlete.`,
+      marketEdgeLayer: `If the market is leaning on résumé, it may be slow to price athletic decline or speed differential.`,
+      marketRead: `${pick} around ${pctLabel(pickMarketPct)} is attractive only if the speed gap is visible early.`,
+      whyMarketMayBeWrong: [`Résumé-based pricing can lag when the faster fighter dictates exchanges.`, `Speed edges show up before traditional stats catch them.`],
+      killSwitch: [`Kill if ${pick} is backing straight up or losing first-contact exchanges.`, `Pass if ${other} shows a clear wrestling/control plan.`],
+    }
+  }
+
+  return {
+    thesisType: 'volume_decision',
+    profileLayer: `${pick} has the steadier profile read from available record, age, style, and recent-method context.`,
+    matchupLayer: `${pick}'s safest path is to win minutes, avoid chaos, and force ${other} into lower-percentage offense.`,
+    marketEdgeLayer: `The edge is modest unless the market price discounts the steadier round-winning side.`,
+    marketRead: `${pick} is priced around ${pctLabel(pickMarketPct)}; this is a small edge unless the number is better than the matchup read.`,
+    whyMarketMayBeWrong: [`The market may be overreacting to finish upside while underpricing round-to-round control.`, `If ${pick} owns pace and shot selection, the fight can look less volatile than the headline odds imply.`],
+    killSwitch: [`Kill if ${pick} cannot control pace in round one.`, `Downgrade if ${other}'s power or grappling threat forces low-volume hesitation.`],
+  }
+}
+
 function buildMatchupJudgement(fight: UFCFight, a?: Partial<UFCFightDeepAnalysis['fighterA']>, b?: Partial<UFCFightDeepAnalysis['fighterB']>, marketWinner = 'unknown') {
   const aScore = profileScore(fight.fighterA, a)
   const bScore = profileScore(fight.fighterB, b)
@@ -68,12 +218,11 @@ function buildMatchupJudgement(fight: UFCFight, a?: Partial<UFCFightDeepAnalysis
   const favoriteMatches = marketWinner !== 'unknown' && marketWinner === pick
   const confidence: 'lean' | 'solid' | 'strong' = edge >= 5 && favoriteMatches ? 'solid' : edge >= 8 ? 'solid' : 'lean'
   const other = pick === fight.fighterA.name ? fight.fighterB.name : fight.fighterA.name
-  const why = [
-    `${pick} gets the matchup read from fighter profile, recent method history, age curve, and style notes — not just the price.`,
-    favoriteMatches ? `Market agrees with the fighter read, which confirms but does not create the pick.` : marketWinner !== 'unknown' ? `Market leans ${marketWinner}, but the fighter read still points to ${pick}; treat this as an upset/contrarian watch.` : 'No clean winner market is needed for this read.',
-    `${other}'s path is still live if they force their best phase early, so the edge should be sized by matchup confidence, not blind odds confidence.`,
-  ]
-  return { pick, confidence, thesis: `${pick} has the cleaner matchup profile over ${other}. This is a fighter-first read; market pricing is secondary context.`, why }
+  const pickDossier = pick === fight.fighterA.name ? a : b
+  const otherDossier = pick === fight.fighterA.name ? b : a
+  const thesisDraft = classifyFightThesis(fight, pick, other, pickDossier, otherDossier)
+  const why = [thesisDraft.profileLayer, thesisDraft.matchupLayer, thesisDraft.marketEdgeLayer, ...thesisDraft.whyMarketMayBeWrong.slice(0, 1)]
+  return { pick, confidence, thesis: `${pick} over ${other}: ${thesisDraft.marketEdgeLayer}`, why, ...thesisDraft }
 }
 
 async function braveSearch(query: string, env: Record<string, string | undefined>): Promise<BraveSearchResult[]> {
@@ -252,15 +401,21 @@ export async function buildUFCFightResearchContext(fight: UFCFight, event?: UFCE
         method: expectedMethod,
         roundOrTiming: 'unknown',
         confidence: judgement.confidence,
+        thesisType: judgement.thesisType,
         thesis,
+        profileLayer: judgement.profileLayer,
+        matchupLayer: judgement.matchupLayer,
+        marketEdgeLayer: judgement.marketEdgeLayer,
+        marketRead: judgement.marketRead,
+        whyMarketMayBeWrong: judgement.whyMarketMayBeWrong,
+        killSwitch: judgement.killSwitch,
         why: [
           ...judgement.why,
-          'ESPN profile and last-five fight history are available for both fighters.',
-          hasWinner ? `Market context only: ${expectedWinner} around ${expectedPct}%.` : 'No reliable winner market found; matchup read still generated from fighter data.',
+          hasWinner ? `Market context: ${expectedWinner} around ${expectedPct}%.` : 'No reliable winner market found; matchup read still generated from fighter data.',
           poly?.hasTotal ? `Totals market: over ${poly.totalLine} at ${Math.round(Number(poly.overOdds || 0) * 100)}%, under at ${Math.round(Number(poly.underOdds || 0) * 100)}%.` : '',
         ].filter(Boolean),
-        risks: ['MMA variance: one knockdown/submission can erase a correct read.', 'Late injury, camp, travel, or weigh-in information can change the matchup read quickly.'],
-        watchouts: ['Late line movement', 'Weigh-in/body-language news', 'Confirmed camp/injury reports'],
+        risks: ['MMA variance: one knockdown/submission can erase a correct read.', ...judgement.killSwitch].slice(0, 4),
+        watchouts: [...judgement.killSwitch.slice(0, 2), 'Late line movement', 'Weigh-in/body-language news'].slice(0, 4),
       },
       bettingAngles: [{
         label: `${pick} matchup edge`,
@@ -294,6 +449,11 @@ Requirements:
 - Include hype, narrative, beef/storyline, camp news, injury/layoff notes, and possible market distortion.
 - Include expected winner from market/public consensus and expected method.
 - Include your model pick, method, timing, confidence, why bullets, risks, watchouts, and matchup judgement.
+- Assign exactly one thesisType from: speed_edge, cardio_edge, chalk_tax, grappling_path, early_ko_chaos, durability_gap, wrestling_control, submission_live_dog, volume_decision, market_too_thin.
+- Explain why the market might be wrong, not merely who is favored.
+- Fill profileLayer with the fighter-specific profile reason, matchupLayer with the style-vs-style reason, and marketEdgeLayer with the price/market reason.
+- Fill marketRead with the current market interpretation, whyMarketMayBeWrong with concrete fight-specific bullets, and killSwitch with concrete conditions that would invalidate the bet.
+- Avoid generic phrases like "cleaner matchup profile", "fighter-first read", and "market pricing is secondary".
 - Include source URLs from the research context in sources when they support the claims.
 - If a fact is not found, return "unknown" instead of guessing. Do not fabricate exact last 5 results.
 - Always provide a fighter-first matchup judgement. Do not answer "pass" as the pick; if evidence is thin, use confidence "lean" and explain what would flip the read.
@@ -303,7 +463,7 @@ Return JSON matching this shape (omit nothing; use "unknown"/[] when needed):
   "fighterA": { "name": "${fighterA}", "record": "", "age": null, "height": "", "reach": "", "style": "", "fightingStyle": "", "country": "", "ranking": null, "lastFightSummary": "", "lastFive": [], "strengths": [], "concerns": [], "hype": { "level": "low", "why": [], "possibleMarketDistortion": "unknown" }, "narrative": { "beefOrStory": "unknown", "campNews": "unknown", "injuryOrLayoffNotes": "unknown" } },
   "fighterB": { "name": "${fighterB}", "record": "", "age": null, "height": "", "reach": "", "style": "", "fightingStyle": "", "country": "", "ranking": null, "lastFightSummary": "", "lastFive": [], "strengths": [], "concerns": [], "hype": { "level": "low", "why": [], "possibleMarketDistortion": "unknown" }, "narrative": { "beefOrStory": "unknown", "campNews": "unknown", "injuryOrLayoffNotes": "unknown" } },
   "market": { "expectedWinner": "unknown", "expectedMethod": "unknown", "priceNotes": [] },
-  "ai": { "pick": "${fighterA}", "method": "unknown", "roundOrTiming": "unknown", "confidence": "lean", "thesis": "", "why": [], "risks": [], "watchouts": [] },
+  "ai": { "pick": "${fighterA}", "method": "unknown", "roundOrTiming": "unknown", "confidence": "lean", "thesisType": "market_too_thin", "thesis": "", "profileLayer": "", "matchupLayer": "", "marketEdgeLayer": "", "marketRead": "", "whyMarketMayBeWrong": [], "killSwitch": [], "why": [], "risks": [], "watchouts": [] },
   "bettingAngles": [],
   "sources": []
 }`
@@ -335,7 +495,7 @@ export async function researchUFCFightWithAi(fight: UFCFight, event?: UFCEvent, 
   const research = await buildUFCFightResearchContext(fight, event, env)
   const prompt = buildUFCFightResearchPrompt(fight, event, marketContext, research.context)
   const messages: AiMessage[] = [
-    { role: 'system', content: 'You are an MMA research analyst. Return strict JSON only. Use unknown when facts are not found; do not fabricate exact fight logs.' },
+    { role: 'system', content: 'You are an MMA betting-market analyst. Return strict JSON only. Use unknown when facts are not found; do not fabricate exact fight logs. Every fight must have a specific thesis type, market-mispricing explanation, and kill switch.' },
     { role: 'user', content: prompt },
   ]
   const completion = await completeWithAi({
@@ -343,11 +503,13 @@ export async function researchUFCFightWithAi(fight: UFCFight, event?: UFCEvent, 
     env,
     clients: options?.clients,
     maxTokens: 3500,
-    temperature: 0.1,
+    temperature: 0.25,
   })
   if (!completion.available) {
     const error = 'error' in completion ? completion.error : 'AI provider unavailable'
-    return { available: false, data: null, error }
+    return research.baseline
+      ? { available: true, data: { ...research.baseline, sources: research.sources } }
+      : { available: false, data: null, error }
   }
   const parsed = parseUFCResearchJson(completion.text)
   if (!parsed.available) {

@@ -16,7 +16,7 @@ const event: UFCEvent = { id: `event-${Date.now()}`, name: 'UFC Test', date: '20
 function cached(id: string, cachedEvent?: UFCEvent): UFCEventDeepAnalysis {
   const sourceEvent = cachedEvent || { ...event, id, name: 'Cached', date: '2026-01-01T00:00:00Z' }
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     eventId: id,
     eventName: sourceEvent.name,
     eventDate: sourceEvent.date,
@@ -29,7 +29,7 @@ function cached(id: string, cachedEvent?: UFCEvent): UFCEventDeepAnalysis {
 
 describe('UFC deep analysis service', () => {
   it('cache key includes schema version', () => {
-    expect(getUFCAnalysisCacheKey('abc')).toBe('ufc:deep-analysis:v1:abc')
+    expect(getUFCAnalysisCacheKey('abc')).toBe('ufc:deep-analysis:v2:abc')
   })
 
   it('writes and reads cached analysis', async () => {
@@ -74,7 +74,7 @@ describe('UFC deep analysis service', () => {
         available: true,
         provider: 'anthropic',
         model: 'claude-test',
-        data: { ai: { pick: 'Alex Silva', method: 'unknown', roundOrTiming: 'unknown', confidence: 'strong', thesis: '', why: [], risks: [], watchouts: [] }, sources: [], bettingAngles: [] },
+        data: { ai: { pick: 'Alex Silva', method: 'unknown', roundOrTiming: 'unknown', confidence: 'strong', thesisType: 'market_too_thin', thesis: '', profileLayer: '', matchupLayer: '', marketEdgeLayer: '', marketRead: '', whyMarketMayBeWrong: [], killSwitch: [], why: [], risks: [], watchouts: [] }, sources: [], bettingAngles: [] },
       }),
     })
     expect(analysis.status).toBe('partial')
