@@ -4976,19 +4976,28 @@ function cleanUfcRecentFights(dossier: UFCFighterDossier) {
   return (dossier.lastFive || []).filter(hasUsefulUfcRecentFight).slice(0, 5)
 }
 
-function formatUfcRecentFight(fight: UFCFighterRecentFight) {
-  const result = fight.result && fight.result !== 'unknown' ? fight.result.toUpperCase().replace('NO_CONTEST', 'NC') : '—'
+function getUfcRecentFightOutcome(fight: UFCFighterRecentFight, fighterName: string) {
+  const opponent = cleanUfcValue(fight.opponent, 'opponent unknown')
+  if (fight.result === 'win') return { label: 'WIN', winner: fighterName, tone: 'win' as const }
+  if (fight.result === 'loss') return { label: 'LOSS', winner: opponent, tone: 'loss' as const }
+  if (fight.result === 'draw') return { label: 'DRAW', winner: 'No winner', tone: 'neutral' as const }
+  if (fight.result === 'no_contest') return { label: 'NC', winner: 'No winner', tone: 'neutral' as const }
+  return { label: '—', winner: 'Winner unknown', tone: 'neutral' as const }
+}
+
+function formatUfcRecentFight(fight: UFCFighterRecentFight, fighterName: string) {
+  const outcome = getUfcRecentFightOutcome(fight, fighterName)
   const opponent = cleanUfcValue(fight.opponent, 'opponent unknown')
   const method = cleanUfcValue(fight.method, 'method unknown')
   const round = fight.round ? `R${fight.round}` : ''
   const time = cleanUfcValue(fight.time, '')
   const date = cleanUfcValue(fight.date, '')
-  return `${result} vs ${opponent} · ${method}${round || time ? ` (${[round, time].filter(Boolean).join(' ')})` : ''}${date ? ` · ${date}` : ''}`
+  return `${outcome.label} vs ${opponent} · Winner: ${outcome.winner} · ${method}${round || time ? ` (${[round, time].filter(Boolean).join(' ')})` : ''}${date ? ` · ${date}` : ''}`
 }
 
 function summarizeUfcRecentForm(dossier: UFCFighterDossier) {
   const recent = cleanUfcRecentFights(dossier)
-  const last = dossier.lastFightSummary && dossier.lastFightSummary !== 'unknown' ? dossier.lastFightSummary : (recent[0] ? formatUfcRecentFight(recent[0]) : 'Last fight unavailable')
+  const last = dossier.lastFightSummary && dossier.lastFightSummary !== 'unknown' ? dossier.lastFightSummary : (recent[0] ? formatUfcRecentFight(recent[0], dossier.name) : 'Last fight unavailable')
   const profile = dossier.finishingProfile?.summary && dossier.finishingProfile.summary !== 'unknown' && !/^\d+ unknown$/i.test(dossier.finishingProfile.summary) ? dossier.finishingProfile.summary : `${recent.length}/5 verified recent fights loaded`
   return `${last} · Recent method profile: ${profile}`
 }
@@ -5334,12 +5343,19 @@ function KalshiUFCSection() {
                                   <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950 }}>{dossier.name}</div>
                                   <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Recent fight log</div>
                                 </div>
-                                {recent.length > 0 ? recent.map((row, idx) => (
-                                  <div key={`${dossier.name}-recent-${idx}`} style={{ display: 'grid', gridTemplateColumns: '34px minmax(0,1fr)', gap: 7, padding: '6px 0', borderTop: idx === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
-                                    <div style={{ color: row.result === 'win' ? C.green : row.result === 'loss' ? '#ff7474' : C.gold, fontSize: 9, fontWeight: 950, textTransform: 'uppercase' }}>{row.result === 'unknown' ? '—' : row.result.replace('no_contest', 'NC')}</div>
-                                    <div style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.32 }}>{formatUfcRecentFight(row)}</div>
-                                  </div>
-                                )) : (
+                                {recent.length > 0 ? recent.map((row, idx) => {
+                                  const outcome = getUfcRecentFightOutcome(row, dossier.name)
+                                  const outcomeColor = outcome.tone === 'win' ? C.green : outcome.tone === 'loss' ? '#ff7474' : C.gold
+                                  return (
+                                    <div key={`${dossier.name}-recent-${idx}`} style={{ display: 'grid', gridTemplateColumns: '58px minmax(0,1fr)', gap: 8, padding: '7px 0', borderTop: idx === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
+                                      <div style={{ display: 'grid', gap: 3, alignContent: 'start' }}>
+                                        <div style={{ color: outcomeColor, fontSize: 10, fontWeight: 950, textTransform: 'uppercase' }}>{outcome.label}</div>
+                                        <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850, lineHeight: 1.15 }}>{outcome.winner === 'No winner' || outcome.winner === 'Winner unknown' ? outcome.winner : `Winner: ${outcome.winner}`}</div>
+                                      </div>
+                                      <div style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.32 }}>{formatUfcRecentFight(row, dossier.name)}</div>
+                                    </div>
+                                  )
+                                }) : (
                                   <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4 }}>No verified last-five rows in the current cache. Last known: {cleanUfcValue(dossier.lastFightSummary, 'not listed')}</div>
                                 )}
                               </div>
