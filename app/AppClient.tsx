@@ -5124,6 +5124,79 @@ function buildUfcFighterEdges(fighter: UFCFighterDossier, opponent: UFCFighterDo
   }
 }
 
+function countUfcRecentResults(dossier: UFCFighterDossier) {
+  const rows = cleanUfcRecentFights(dossier)
+  return {
+    wins: rows.filter(row => row.result === 'win').length,
+    losses: rows.filter(row => row.result === 'loss').length,
+    finishes: rows.filter(row => /ko|tko|sub|submission|choke|armbar/i.test(cleanUfcValue(row.method, ''))).length,
+    decisions: rows.filter(row => /dec/i.test(cleanUfcValue(row.method, ''))).length,
+    rows,
+  }
+}
+
+function buildUfcWinnerPath(fighter: UFCFighterDossier, opponent: UFCFighterDossier) {
+  const style = ufcStyleLabel(fighter)
+  const recent = countUfcRecentResults(fighter)
+  const opponentRecent = countUfcRecentResults(opponent)
+  const path: string[] = []
+  if (/wrestl|grappl|sambo/i.test(style)) path.push('Win minutes with entries, clinch pressure, top control, and mat returns.')
+  if (/bjj|submission/i.test(style) || fighter.finishingProfile?.submission) path.push('Threaten back takes/scrambles so the opponent cannot strike freely.')
+  if (/box|strik|kickbox|muay|brawler/i.test(style)) path.push('Keep exchanges in preferred striking range and make the cleaner damage optics obvious.')
+  if (recent.finishes >= 2) path.push(`Lean into proven finishing equity: ${recent.finishes} recent finish-method rows on the log.`)
+  if (recent.decisions >= 3) path.push('Bank rounds with volume, cage control, and safe exits instead of chasing one big moment.')
+  if (opponentRecent.losses >= 2) path.push(`Attack the phase where ${opponent.name}'s recent form has been leaking rounds.`)
+  return path.length ? path.slice(0, 3) : [`Make this fight happen in ${style === 'Style not listed' ? 'their cleanest phase' : style.toLowerCase()} and avoid giving away easy optics.`]
+}
+
+function buildUfcHowHeLoses(fighter: UFCFighterDossier, opponent: UFCFighterDossier) {
+  const style = ufcStyleLabel(fighter)
+  const opponentStyle = ufcStyleLabel(opponent)
+  const recent = countUfcRecentResults(fighter)
+  const risks: string[] = []
+  if (recent.losses >= 2) risks.push(`${fighter.name} has multiple recent losses on the log; slow starts or repeatable defensive leaks matter here.`)
+  if (/strik|box|kickbox|muay|brawler/i.test(style) && /wrestl|grappl|bjj|submission|sambo/i.test(opponentStyle)) risks.push(`${opponent.name} can flip the read if takedowns/clinch control remove clean striking space.`)
+  if (/wrestl|grappl|bjj|submission|sambo/i.test(style) && /strik|box|kickbox|muay|brawler/i.test(opponentStyle)) risks.push(`${opponent.name} can win if they deny entries and force long-range damage exchanges.`)
+  const reach = parseUfcInches(fighter.reach)
+  const opponentReach = parseUfcInches(opponent.reach)
+  if (reach != null && opponentReach != null && opponentReach - reach >= 2) risks.push(`${fighter.name} gives up ${opponentReach - reach}" reach, so pocket entries have to be timed instead of forced.`)
+  return risks.length ? risks.slice(0, 3) : [`${opponent.name}'s path is live if they own the first phase and make ${fighter.name} chase the fight.`]
+}
+
+function buildUfcStyleClash(fight: UFCFightDeepAnalysis) {
+  const aStyle = ufcStyleLabel(fight.fighterA)
+  const bStyle = ufcStyleLabel(fight.fighterB)
+  const pick = fight.ai.pick && fight.ai.pick.toLowerCase() !== 'pass' ? fight.ai.pick : fight.fighterA.name
+  const other = ufcNameMatches(pick, fight.fighterA.name) ? fight.fighterB.name : fight.fighterA.name
+  return `${fight.fighterA.name} brings ${aStyle.toLowerCase()} against ${fight.fighterB.name}'s ${bStyle.toLowerCase()}. The read favors ${pick} if they keep the fight in their best phase; ${other} makes it dangerous by forcing the opposite phase early.`
+}
+
+function buildUfcPriceDiscipline(fight: UFCFightDeepAnalysis, winnerMarkets: KalshiUFCMarket[]) {
+  const pick = fight.ai.pick && fight.ai.pick.toLowerCase() !== 'pass' ? fight.ai.pick : fight.fighterA.name
+  const pickMarket = winnerMarkets.find(m => ufcNameMatches(m.fighter || m.title || '', pick))
+  if (!pickMarket) return `${pick} is the matchup lean; use market price as confirmation only, not the reason for the pick.`
+  const price = Number(pickMarket.yesAsk || 0)
+  if (price >= 75) return `${pick} may be the right side, but ${price}% is expensive for MMA variance. Demand a very clean style edge before paying that.`
+  if (price >= 65) return `${pick} is aligned with the market at ${price}%. Usable only if the style clash supports it — not a blind favorite click.`
+  if (price <= 45) return `${pick} is priced like a live dog/discount at ${price}%. That is only interesting if the winner path below is realistic.`
+  return `${pick} sits in a playable price band around ${price}%; confidence should come from the matchup, not the board.`
+}
+
+function buildUfcComparisonBars(fight: UFCFightDeepAnalysis) {
+  const { fighterA: a, fighterB: b } = fight
+  const aRecent = countUfcRecentResults(a)
+  const bRecent = countUfcRecentResults(b)
+  const choose = (winner: 'a' | 'b' | 'even') => ({ winner })
+  const aReach = parseUfcInches(a.reach)
+  const bReach = parseUfcInches(b.reach)
+  return [
+    { label: 'Recent form', ...choose(aRecent.wins - aRecent.losses > bRecent.wins - bRecent.losses ? 'a' : bRecent.wins - bRecent.losses > aRecent.wins - aRecent.losses ? 'b' : 'even'), aText: `${aRecent.wins}-${aRecent.losses}`, bText: `${bRecent.wins}-${bRecent.losses}` },
+    { label: 'Finish threat', ...choose(aRecent.finishes > bRecent.finishes ? 'a' : bRecent.finishes > aRecent.finishes ? 'b' : 'even'), aText: `${aRecent.finishes} recent`, bText: `${bRecent.finishes} recent` },
+    { label: 'Reach', ...choose(aReach != null && bReach != null && Math.abs(aReach - bReach) >= 1 ? (aReach > bReach ? 'a' : 'b') : 'even'), aText: cleanUfcValue(a.reach), bText: cleanUfcValue(b.reach) },
+    { label: 'Style read', ...choose(ufcNameMatches(fight.ai.pick || '', a.name) ? 'a' : ufcNameMatches(fight.ai.pick || '', b.name) ? 'b' : 'even'), aText: ufcStyleLabel(a), bText: ufcStyleLabel(b) },
+  ]
+}
+
 function sanitizeUfcPublicText(text: string): string {
   return String(text || '')
     .replace(/ESPN profile\/history context loaded\.\s*/ig, '')
@@ -5306,6 +5379,13 @@ function KalshiUFCSection() {
                       const edgeSignals = buildUfcEdgeSignals(deepFight, winnerMarkets)
                       const aRecent = cleanUfcRecentFights(deepFight.fighterA)
                       const bRecent = cleanUfcRecentFights(deepFight.fighterB)
+                      const styleClash = buildUfcStyleClash(deepFight)
+                      const priceDiscipline = buildUfcPriceDiscipline(deepFight, winnerMarkets)
+                      const comparisonBars = buildUfcComparisonBars(deepFight)
+                      const aPath = buildUfcWinnerPath(deepFight.fighterA, deepFight.fighterB)
+                      const bPath = buildUfcWinnerPath(deepFight.fighterB, deepFight.fighterA)
+                      const aLoss = buildUfcHowHeLoses(deepFight.fighterA, deepFight.fighterB)
+                      const bLoss = buildUfcHowHeLoses(deepFight.fighterB, deepFight.fighterA)
                       return (
                         <div style={{ display: 'grid', gap: 10 }}>
                           <div style={{ borderRadius: 18, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 22px rgba(125,246,255,0.08)' }}>
@@ -5321,6 +5401,44 @@ function KalshiUFCSection() {
                               </div>
                             </div>
                             <div style={{ marginTop: 11, padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.08)', color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}>{deepFight.ai.thesis}</div>
+                            <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+                              <div style={{ padding: 11, borderRadius: 14, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.18)' }}>
+                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Style clash</div>
+                                <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.42 }}>{styleClash}</div>
+                              </div>
+                              <div style={{ padding: 11, borderRadius: 14, background: 'rgba(255,255,255,0.032)', border: `1px solid ${C.border}` }}>
+                                <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Price discipline</div>
+                                <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.42 }}>{priceDiscipline}</div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'grid', gap: 7, marginTop: 10, padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(125,246,255,0.16)' }}>
+                              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Fast comparison</div>
+                              {comparisonBars.map(row => (
+                                <div key={row.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 88px minmax(0,1fr)', gap: 8, alignItems: 'center', paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                  <div style={{ color: row.winner === 'a' ? C.green : C.textPrimary, fontSize: 10, fontWeight: row.winner === 'a' ? 950 : 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.aText}</div>
+                                  <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', textAlign: 'center' }}>{row.label}</div>
+                                  <div style={{ color: row.winner === 'b' ? C.green : C.textPrimary, fontSize: 10, fontWeight: row.winner === 'b' ? 950 : 850, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.bText}</div>
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9, marginTop: 10 }}>
+                              {[
+                                { dossier: deepFight.fighterA, path: aPath, loses: aLoss },
+                                { dossier: deepFight.fighterB, path: bPath, loses: bLoss },
+                              ].map(({ dossier, path, loses }) => (
+                                <div key={`${dossier.name}-paths`} style={{ display: 'grid', gap: 9, padding: 11, borderRadius: 14, background: 'rgba(255,255,255,0.028)', border: `1px solid ${C.border}` }}>
+                                  <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{dossier.name}</div>
+                                  <div>
+                                    <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Winner path</div>
+                                    {path.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.34, marginTop: 3 }}>• {item}</div>)}
+                                  </div>
+                                  <div>
+                                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>How he loses</div>
+                                    {loses.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.34, marginTop: 3 }}>• {item}</div>)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9, marginTop: 10 }}>
                               <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.18)' }}>
                                 <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Matchup signals</div>
