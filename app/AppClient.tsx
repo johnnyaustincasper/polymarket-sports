@@ -4476,12 +4476,12 @@ interface UFCFightDeepAnalysis {
   fightId: string; eventId: string; eventName: string; eventDate: string; weightClass: string; isMainEvent: boolean
   fighterA: UFCFighterDossier; fighterB: UFCFighterDossier
   market: { expectedWinner: string; expectedMethod: string; kalshiLean?: string; polymarketLean?: string; priceNotes: string[] }
-  ai: { pick: string; method: string; roundOrTiming: string; confidence: 'pass' | 'lean' | 'solid' | 'strong'; thesisType?: 'speed_edge' | 'cardio_edge' | 'wrestling_control' | 'grappling_path' | 'submission_live_dog' | 'durability_gap' | 'volume_decision' | 'chalk_tax' | 'stale_line' | 'market_too_thin' | 'early_ko_chaos'; thesis: string; profileLayer?: string; matchupLayer?: string; marketEdgeLayer?: string; marketRead?: string; whyMarketMayBeWrong?: string[]; killSwitch?: string[]; why: string[]; risks: string[]; watchouts: string[] }
+  ai: { pick: string; method: string; roundOrTiming: string; confidence: 'pass' | 'lean' | 'solid' | 'strong'; thesis: string; why: string[]; risks: string[]; watchouts: string[] }
   bettingAngles: Array<{ label: string; marketType: 'moneyline' | 'method' | 'distance' | 'rounds' | 'pass'; side: string; rationale: string; maxRisk: 'small' | 'normal' | 'avoid' }>
   generatedAt: string; sources: string[]; staleAfter: string
 }
 interface UFCEventDeepAnalysis {
-  schemaVersion: 2; eventId: string; eventName: string; eventDate: string; generatedAt: string; status: 'missing' | 'partial' | 'complete' | 'stale'
+  schemaVersion: 1; eventId: string; eventName: string; eventDate: string; generatedAt: string; status: 'missing' | 'partial' | 'complete' | 'stale'
   fights: UFCFightDeepAnalysis[]; cardSummary: { headline: string; bestLooks: string[]; fadeTheHype: string[]; passFights: string[] }
 }
 
@@ -4991,25 +4991,16 @@ function buildUfcEdgeSignals(fight: UFCFightDeepAnalysis, winnerMarkets: KalshiU
   const chosenRecent = cleanUfcRecentFights(chosen)
   const opponentRecent = cleanUfcRecentFights(opponent)
   const signals: string[] = []
-  const addSignal = (value: unknown, prefix = '') => {
-    const cleaned = sanitizeUfcPublicText(String(value || '')).trim()
-    if (isUsefulUfcText(cleaned)) signals.push(prefix ? `${prefix}${cleaned}` : cleaned)
-  }
-  addSignal(fight.ai.profileLayer)
-  addSignal(fight.ai.matchupLayer)
-  addSignal(fight.ai.marketEdgeLayer)
-  addSignal(fight.ai.marketRead, 'Market read: ')
-  for (const bullet of fight.ai.whyMarketMayBeWrong || []) addSignal(bullet, 'Market may be wrong: ')
-  if (chosen.lastFightSummary && chosen.lastFightSummary !== 'unknown') addSignal(`${chosen.name} last fight: ${chosen.lastFightSummary}`)
-  if (opponent.lastFightSummary && opponent.lastFightSummary !== 'unknown') addSignal(`${opponent.name} last fight: ${opponent.lastFightSummary}`)
-  if (chosenRecent.length || opponentRecent.length) addSignal(`Recent tape loaded: ${chosen.name} ${chosenRecent.length}/5 verified rows, ${opponent.name} ${opponentRecent.length}/5.`)
+  if (chosen.lastFightSummary && chosen.lastFightSummary !== 'unknown') signals.push(`${chosen.name} last fight: ${chosen.lastFightSummary}`)
+  if (opponent.lastFightSummary && opponent.lastFightSummary !== 'unknown') signals.push(`${opponent.name} last fight: ${opponent.lastFightSummary}`)
+  if (chosenRecent.length || opponentRecent.length) signals.push(`Recent tape loaded: ${chosen.name} ${chosenRecent.length}/5 verified rows, ${opponent.name} ${opponentRecent.length}/5.`)
   const chosenStyle = ufcStyleLabel(chosen)
   const opponentStyle = ufcStyleLabel(opponent)
-  if (chosenStyle !== 'Style not listed' || opponentStyle !== 'Style not listed') addSignal(`Style clash: ${chosen.name} ${chosenStyle} vs ${opponent.name} ${opponentStyle}.`)
+  if (chosenStyle !== 'Style not listed' || opponentStyle !== 'Style not listed') signals.push(`Style clash: ${chosen.name} ${chosenStyle} vs ${opponent.name} ${opponentStyle}.`)
   const reach = parseUfcInches(chosen.reach)
   const oppReach = parseUfcInches(opponent.reach)
-  if (reach != null && oppReach != null && Math.abs(reach - oppReach) >= 2) addSignal(`${Math.abs(reach - oppReach)}\" reach swing ${reach > oppReach ? `toward ${chosen.name}` : `against ${chosen.name}`}.`)
-  if (winnerMarkets.length >= 2) addSignal(`Market check only: ${winnerMarkets[0].fighter || winnerMarkets[0].title} ${winnerMarkets[0].yesAsk}% vs ${winnerMarkets[1].fighter || winnerMarkets[1].title} ${winnerMarkets[1].yesAsk}%.`)
+  if (reach != null && oppReach != null && Math.abs(reach - oppReach) >= 2) signals.push(`${Math.abs(reach - oppReach)}\" reach swing ${reach > oppReach ? `toward ${chosen.name}` : `against ${chosen.name}`}.`)
+  if (winnerMarkets.length >= 2) signals.push(`Market check only: ${winnerMarkets[0].fighter || winnerMarkets[0].title} ${winnerMarkets[0].yesAsk}% vs ${winnerMarkets[1].fighter || winnerMarkets[1].title} ${winnerMarkets[1].yesAsk}%.`)
   return signals.length ? signals.slice(0, 5) : ['Need verified recent-fight rows before upgrading this beyond a low-confidence matchup watch.']
 }
 
@@ -5130,9 +5121,6 @@ function sanitizeUfcPublicText(text: string): string {
 }
 
 function sanitizeUfcVisibleAnalysis(analysis: UFCEventDeepAnalysis): UFCEventDeepAnalysis {
-  const sanitizeUfcList = (items?: string[]) => (items || [])
-    .map(item => sanitizeUfcPublicText(item).trim())
-    .filter(isUsefulUfcText)
   const fights = (analysis.fights || []).map(fight => {
     const fallbackPick = fight.ai?.pick && fight.ai.pick.toLowerCase() !== 'pass' ? fight.ai.pick : fight.fighterA.name
     const fighterARecent = cleanUfcRecentFights(fight.fighterA)
@@ -5146,15 +5134,9 @@ function sanitizeUfcVisibleAnalysis(analysis: UFCEventDeepAnalysis): UFCEventDee
         pick: fallbackPick,
         confidence: fight.ai?.confidence === 'pass' ? 'lean' : fight.ai?.confidence,
         thesis: sanitizeUfcPublicText(fight.ai?.thesis || '') || `${fallbackPick} has the current matchup edge from fighter profile and style context.`,
-        profileLayer: sanitizeUfcPublicText(fight.ai?.profileLayer || ''),
-        matchupLayer: sanitizeUfcPublicText(fight.ai?.matchupLayer || ''),
-        marketEdgeLayer: sanitizeUfcPublicText(fight.ai?.marketEdgeLayer || ''),
-        marketRead: sanitizeUfcPublicText(fight.ai?.marketRead || ''),
-        whyMarketMayBeWrong: sanitizeUfcList(fight.ai?.whyMarketMayBeWrong),
-        killSwitch: sanitizeUfcList(fight.ai?.killSwitch),
-        why: sanitizeUfcList(fight.ai?.why),
-        risks: sanitizeUfcList(fight.ai?.risks),
-        watchouts: sanitizeUfcList(fight.ai?.watchouts),
+        why: (fight.ai?.why || []).map(sanitizeUfcPublicText),
+        risks: (fight.ai?.risks || []).map(sanitizeUfcPublicText),
+        watchouts: (fight.ai?.watchouts || []).map(sanitizeUfcPublicText),
       },
       bettingAngles: (fight.bettingAngles || []).map(angle => ({
         ...angle,
@@ -5302,7 +5284,7 @@ function KalshiUFCSection() {
                       const comparisonRows = buildUfcComparisonRows(deepFight, ufcRecordLookup)
                       const aEdges = buildUfcFighterEdges(deepFight.fighterA, deepFight.fighterB)
                       const bEdges = buildUfcFighterEdges(deepFight.fighterB, deepFight.fighterA)
-                      const risks = (deepFight.ai.killSwitch?.length ? deepFight.ai.killSwitch : deepFight.ai.risks?.length ? deepFight.ai.risks : deepFight.ai.watchouts || []).slice(0, 3)
+                      const risks = (deepFight.ai.risks?.length ? deepFight.ai.risks : deepFight.ai.watchouts || []).slice(0, 3)
                       const edgeSignals = buildUfcEdgeSignals(deepFight, winnerMarkets)
                       const aRecent = cleanUfcRecentFights(deepFight.fighterA)
                       const bRecent = cleanUfcRecentFights(deepFight.fighterB)
@@ -5313,7 +5295,7 @@ function KalshiUFCSection() {
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 999, padding: '4px 8px', background: 'rgba(125,246,255,0.09)', border: '1px solid rgba(125,246,255,0.22)', color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Fight brief</div>
                                 <div style={{ color: C.textPrimary, fontSize: isMobile ? 19 : 24, fontWeight: 950, lineHeight: 1.04 }}>{deepFight.ai.pick && deepFight.ai.pick.toLowerCase() !== 'pass' ? deepFight.ai.pick : deepFight.fighterA.name}</div>
-                                <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 5 }}>{(deepFight.ai.thesisType || 'matchup_edge').replace(/_/g, ' ')}</div>
+                                <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 5 }}>Matchup edge</div>
                               </div>
                               <div style={{ flexShrink: 0, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
                                 <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 9, fontWeight: 950, textTransform: 'uppercase' }}>{deepFight.ai.confidence === 'pass' ? 'lean' : deepFight.ai.confidence}</span>

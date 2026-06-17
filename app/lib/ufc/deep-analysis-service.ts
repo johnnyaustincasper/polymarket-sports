@@ -7,7 +7,7 @@ import type { KalshiUFCFightIntel } from './kalshi-fight-intel'
 const UFC_DEEP_ANALYSIS_TTL_MS = 10 * 24 * 60 * 60_000
 
 export function getUFCAnalysisCacheKey(eventId: string): string {
-  return `ufc:deep-analysis:v2:${eventId}`
+  return `ufc:deep-analysis:v1:${eventId}`
 }
 
 function isExpiredIso(value: string | undefined, now = Date.now()): boolean {
@@ -23,11 +23,9 @@ function isInvalidIso(value: string | undefined): boolean {
 
 export function validateCachedUFCEventAnalysis(analysis: UFCEventDeepAnalysis, event?: UFCEvent): UFCEventDeepAnalysis {
   const staleReasons: string[] = []
-  if (analysis.schemaVersion !== 2) staleReasons.push('schema version mismatch')
+  if (analysis.schemaVersion !== 1) staleReasons.push('schema version mismatch')
   if (isInvalidIso(analysis.generatedAt)) staleReasons.push('invalid generatedAt')
-  if (!Array.isArray(analysis.fights)) return { ...analysis, status: 'stale', fights: [] } as UFCEventDeepAnalysis
   if (analysis.fights.some(fight => isExpiredIso(fight.staleAfter))) staleReasons.push('fight staleAfter expired/invalid')
-  if (analysis.fights.some(fight => !fight.ai?.thesisType || !fight.ai?.profileLayer || !fight.ai?.matchupLayer || !fight.ai?.marketEdgeLayer || !fight.ai?.marketRead || !Array.isArray(fight.ai?.whyMarketMayBeWrong) || !Array.isArray(fight.ai?.killSwitch))) staleReasons.push('missing v2 thesis fields')
   if (event) {
     if (analysis.eventId !== event.id) staleReasons.push('event id mismatch')
     if (analysis.eventName !== event.name) staleReasons.push('event name mismatch')
@@ -72,12 +70,6 @@ function buildMarketContext(fight: UFCFight, kalshiIntel?: KalshiUFCFightIntel) 
     espnMoneyLine: { [fight.fighterA.name]: fight.moneyLineA, [fight.fighterB.name]: fight.moneyLineB },
     polymarket: fight.polyOdds,
     kalshiIntel,
-    marketQuestions: {
-      favorite: kalshiIntel?.primaryLean,
-      finishRead: kalshiIntel?.finishRead,
-      redFlags: kalshiIntel?.redFlags || [],
-      recommendedLooks: kalshiIntel?.recommendedLooks || [],
-    },
   }
 }
 
@@ -143,7 +135,7 @@ export async function buildUFCEventDeepAnalysis(event: UFCEvent, options: BuildU
   }
 
   const analysis: UFCEventDeepAnalysis = {
-    schemaVersion: 2,
+    schemaVersion: 1,
     eventId: event.id,
     eventName: event.name,
     eventDate: event.date,

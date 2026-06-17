@@ -45,18 +45,6 @@ export interface UFCFighterDossier {
   }
 }
 
-export type UFCFightThesisType =
-  | 'speed_edge'
-  | 'cardio_edge'
-  | 'chalk_tax'
-  | 'grappling_path'
-  | 'early_ko_chaos'
-  | 'durability_gap'
-  | 'wrestling_control'
-  | 'submission_live_dog'
-  | 'volume_decision'
-  | 'market_too_thin'
-
 export interface UFCFightDeepAnalysis {
   fightId: string
   eventId: string
@@ -78,14 +66,7 @@ export interface UFCFightDeepAnalysis {
     method: string
     roundOrTiming: string
     confidence: 'pass' | 'lean' | 'solid' | 'strong'
-    thesisType: UFCFightThesisType
     thesis: string
-    profileLayer: string
-    matchupLayer: string
-    marketEdgeLayer: string
-    marketRead: string
-    whyMarketMayBeWrong: string[]
-    killSwitch: string[]
     why: string[]
     risks: string[]
     watchouts: string[]
@@ -103,7 +84,7 @@ export interface UFCFightDeepAnalysis {
 }
 
 export interface UFCEventDeepAnalysis {
-  schemaVersion: 2
+  schemaVersion: 1
   eventId: string
   eventName: string
   eventDate: string
@@ -134,12 +115,6 @@ function cleanStringArray(value: unknown, max: number): string[] {
     .map(item => cleanString(item, ''))
     .filter(Boolean)
     .slice(0, max)
-}
-
-const UFC_THESIS_TYPES: UFCFightThesisType[] = ['speed_edge', 'cardio_edge', 'chalk_tax', 'grappling_path', 'early_ko_chaos', 'durability_gap', 'wrestling_control', 'submission_live_dog', 'volume_decision', 'market_too_thin']
-
-function cleanThesisType(value: unknown): UFCFightThesisType {
-  return UFC_THESIS_TYPES.includes(value as UFCFightThesisType) ? value as UFCFightThesisType : 'market_too_thin'
 }
 
 function normalizeFighterName(value: string): string {
@@ -239,19 +214,6 @@ function espnMoneylineLean(fight: UFCFight): string | null {
   return `${winner} by ESPN moneyline (${fight.moneyLineA}/${fight.moneyLineB})`
 }
 
-function resolvePickName(fight: UFCFight, marketText?: string | null): string {
-  const text = normalizeFighterName(String(marketText || ''))
-  const a = normalizeFighterName(fight.fighterA.name)
-  const b = normalizeFighterName(fight.fighterB.name)
-  if (a && text.includes(a)) return fight.fighterA.name
-  if (b && text.includes(b)) return fight.fighterB.name
-  const aLast = a.split(' ').at(-1) || ''
-  const bLast = b.split(' ').at(-1) || ''
-  if (aLast && text.split(' ').includes(aLast)) return fight.fighterA.name
-  if (bLast && text.split(' ').includes(bLast)) return fight.fighterB.name
-  return fight.fighterA.name
-}
-
 export function buildFallbackFightAnalysis(fight: UFCFight, kalshiIntel?: KalshiUFCFightIntel, event?: UFCEvent): UFCFightDeepAnalysis {
   const generatedAt = new Date().toISOString()
   const polyLean = polymarketLean(fight)
@@ -262,7 +224,7 @@ export function buildFallbackFightAnalysis(fight: UFCFight, kalshiIntel?: Kalshi
   const confidence: 'lean' = 'lean'
   const priceNotes = [kalshiIntel?.marketRead, kalshiIntel?.finishRead, polyLean, espnLean].filter(Boolean) as string[]
   const fallbackReason = kalshiIntel ? 'AI research unavailable; this is a matchup-context fallback using ESPN profile fields plus market context.' : 'Limited live research available; use a conservative matchup read from verified fighter profile fields.'
-  const fallbackPick = expectedWinner !== 'unknown' ? resolvePickName(fight, expectedWinner) : fight.fighterA.name
+  const fallbackPick = expectedWinner !== 'unknown' ? expectedWinner : fight.fighterA.name
 
   return {
     fightId: fight.id,
@@ -285,14 +247,7 @@ export function buildFallbackFightAnalysis(fight: UFCFight, kalshiIntel?: Kalshi
       method: 'unknown',
       roundOrTiming: 'unknown',
       confidence,
-      thesisType: 'market_too_thin',
       thesis: fallbackReason,
-      profileLayer: 'Verified fighter profile data is limited, so do not upgrade this beyond a lean.',
-      matchupLayer: 'No reliable style-vs-style edge has been confirmed from research context.',
-      marketEdgeLayer: priceNotes.length ? `Market context available: ${priceNotes.slice(0, 2).join(' ')}` : 'No reliable market edge available.',
-      marketRead: expectedWinner !== 'unknown' ? `Market/fallback lean points to ${expectedWinner}, but this is not a complete fighter thesis.` : 'No clean market winner read.',
-      whyMarketMayBeWrong: ['Fallback analysis has insufficient live fighter-specific research to challenge the market with confidence.'],
-      killSwitch: ['Do not bet if late injury, camp, weigh-in, or line movement contradicts the fallback lean.'],
       why: priceNotes.slice(0, 4),
       risks: [fallbackReason, ...(kalshiIntel?.redFlags || [])].slice(0, 4),
       watchouts: ['Verify late injury/camp/weigh-in news before upgrading confidence.'],
@@ -394,14 +349,7 @@ export function sanitizeFightAnalysis(raw: RawFightAnalysis, fight: UFCFight, ev
       method: cleanString(ai.method, 'unknown'),
       roundOrTiming: cleanString(ai.roundOrTiming, 'unknown'),
       confidence,
-      thesisType: cleanThesisType(ai.thesisType || fallback.ai.thesisType),
       thesis: cleanString(ai.thesis, fallback.ai.thesis),
-      profileLayer: cleanString(ai.profileLayer, fallback.ai.profileLayer),
-      matchupLayer: cleanString(ai.matchupLayer, fallback.ai.matchupLayer),
-      marketEdgeLayer: cleanString(ai.marketEdgeLayer, fallback.ai.marketEdgeLayer),
-      marketRead: cleanString(ai.marketRead, fallback.ai.marketRead),
-      whyMarketMayBeWrong: cleanStringArray(ai.whyMarketMayBeWrong, 4),
-      killSwitch: cleanStringArray(ai.killSwitch, 4),
       why: cleanStringArray(ai.why, 4),
       risks: cleanStringArray(ai.risks, 4),
       watchouts: cleanStringArray(ai.watchouts, 4),
@@ -423,18 +371,9 @@ export function getFightAnalysisQuality(analysis: UFCFightDeepAnalysis): { compl
   const reasons: string[] = []
   if (!analysis.sources.some(isMeaningful)) reasons.push('missing meaningful sources')
   if (!isMeaningful(analysis.ai.thesis)) reasons.push('missing AI thesis')
-  if (!isMeaningful(analysis.ai.profileLayer)) reasons.push('missing profile layer')
-  if (!isMeaningful(analysis.ai.matchupLayer)) reasons.push('missing matchup layer')
-  if (!isMeaningful(analysis.ai.marketEdgeLayer)) reasons.push('missing market edge layer')
-  if (!isMeaningful(analysis.ai.marketRead)) reasons.push('missing market read')
-  if (!analysis.ai.whyMarketMayBeWrong.some(isMeaningful)) reasons.push('missing why-market-may-be-wrong bullets')
-  if (!analysis.ai.killSwitch.some(isMeaningful)) reasons.push('missing kill switch')
   if (!analysis.ai.why.some(isMeaningful)) reasons.push('missing AI why bullets')
   if (!analysis.ai.risks.some(isMeaningful)) reasons.push('missing AI risk bullets')
   if (!analysis.bettingAngles.length) reasons.push('missing matchup angle')
-  const templatedPhrases = ['cleaner matchup profile', 'fighter-first read', 'market pricing is secondary context', 'recent method history, age curve, and style notes']
-  if (templatedPhrases.some(phrase => analysis.ai.thesis.toLowerCase().includes(phrase))) reasons.push('generic templated thesis')
-  if (analysis.ai.thesisType === 'market_too_thin' && analysis.ai.confidence !== 'lean') reasons.push('thin-market thesis cannot be solid/strong')
   if ((analysis.ai.confidence === 'solid' || analysis.ai.confidence === 'strong') && reasons.length > 0) reasons.push('high confidence without support')
   return { complete: reasons.length === 0, reasons }
 }
