@@ -4935,8 +4935,17 @@ function ufcNameMatches(shortName: string, fullName: string) {
   const short = normalizeUfcName(shortName)
   const full = normalizeUfcName(fullName)
   if (!short || !full) return false
-  const fullParts = full.split(' ')
-  return full === short || full.includes(short) || fullParts[fullParts.length - 1] === short
+  if (full === short || full.includes(short) || short.includes(full)) return true
+  const shortParts = short.split(' ').filter(Boolean)
+  const fullParts = full.split(' ').filter(Boolean)
+  const fullLast = fullParts[fullParts.length - 1]
+  const shortLast = shortParts[shortParts.length - 1]
+  if (fullLast && (short === fullLast || shortParts.includes(fullLast))) return true
+  if (shortLast && (full === shortLast || fullParts.includes(shortLast))) return true
+  const weakTokens = new Set(['de', 'da', 'dos', 'do', 'del', 'la', 'le', 'the', 'jr', 'sr'])
+  const shortStrong = shortParts.filter(part => part.length >= 4 && !weakTokens.has(part))
+  const fullStrong = new Set(fullParts.filter(part => part.length >= 4 && !weakTokens.has(part)))
+  return shortStrong.some(part => fullStrong.has(part))
 }
 
 function findDeepAnalysisForKalshiFight(fight: KalshiUFCFight, analyses: UFCFightDeepAnalysis[]) {
