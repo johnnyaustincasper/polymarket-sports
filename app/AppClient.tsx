@@ -4545,6 +4545,7 @@ function UFCIntelPanel({ fight, onClose, deepAnalysis, analysisStatus }: { fight
   const isMobile = useIsMobile()
   const [intel, setIntel] = useState<UFCIntel | null>(deepAnalysis ? null : null)
   const [loading, setLoading] = useState(false)
+  const [activeDeepSection, setActiveDeepSection] = useState<'decision' | 'style' | 'paths' | 'market' | 'form' | 'risk' | 'logs'>('decision')
 
   useEffect(() => {
     if (deepAnalysis) {
@@ -4587,50 +4588,154 @@ function UFCIntelPanel({ fight, onClose, deepAnalysis, analysisStatus }: { fight
         <button onClick={onClose} style={{ color: C.textSecondary, fontSize: 16, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`, cursor: 'pointer' }}>×</button>
       </div>
 
-      {deepAnalysis && (
-        <div style={{ maxWidth: 1200, margin: '0 auto 14px', display: 'grid', gap: 10 }}>
-          <div style={{ borderRadius: 18, padding: 16, background: 'linear-gradient(135deg, rgba(125,246,255,0.12), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.30)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-              <span style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Cached deep analysis · {deepAnalysis.ai.confidence}</span>
-              <span style={{ color: C.textSecondary, fontSize: 9 }}>Generated {new Date(deepAnalysis.generatedAt).toLocaleString()}</span>
-            </div>
-            <div style={{ color: C.textPrimary, fontSize: 17, fontWeight: 950, lineHeight: 1.25 }}>{deepAnalysis.ai.pick} by {deepAnalysis.ai.method}</div>
-            <div style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.55, marginTop: 8 }}>{deepAnalysis.ai.thesis}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginTop: 12 }}>
-              <div style={{ borderRadius: 14, padding: 12, background: 'rgba(0,0,0,0.18)', border: `1px solid ${C.border}` }}>
-                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>Why we like it</div>
-                {(deepAnalysis.ai.why || []).slice(0, 4).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, marginBottom: 5 }}>• {item}</div>)}
-              </div>
-              <div style={{ borderRadius: 14, padding: 12, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.18)' }}>
-                <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>What can kill it</div>
-                {(deepAnalysis.ai.risks || []).slice(0, 4).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, marginBottom: 5 }}>• {item}</div>)}
-              </div>
-            </div>
+      {deepAnalysis && (() => {
+        const sections: Array<{ key: typeof activeDeepSection; label: string; icon: string }> = [
+          { key: 'decision', label: 'Decision', icon: '🎯' },
+          { key: 'style', label: 'Style', icon: '⚔️' },
+          { key: 'paths', label: 'Paths', icon: '🧭' },
+          { key: 'market', label: 'Market', icon: '💸' },
+          { key: 'form', label: 'Form', icon: '📼' },
+          { key: 'risk', label: 'Risk', icon: '⚠️' },
+          { key: 'logs', label: 'Logs', icon: '📋' },
+        ]
+        const comparisonRows = buildUfcComparisonRows(deepAnalysis)
+        const fighterEdges = [
+          { fighter: deepAnalysis.fighterA, opponent: deepAnalysis.fighterB, edges: buildUfcFighterEdges(deepAnalysis.fighterA, deepAnalysis.fighterB) },
+          { fighter: deepAnalysis.fighterB, opponent: deepAnalysis.fighterA, edges: buildUfcFighterEdges(deepAnalysis.fighterB, deepAnalysis.fighterA) },
+        ]
+        const priceNotes = deepAnalysis.market?.priceNotes || []
+        const marketAngles = (deepAnalysis.bettingAngles || []).slice(0, 3)
+        const PanelCard = ({ children, tone = 'default' }: { children: React.ReactNode; tone?: 'default' | 'gold' | 'hot' }) => (
+          <div style={{
+            borderRadius: 16, padding: isMobile ? 12 : 15,
+            background: tone === 'hot' ? 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.03))' : tone === 'gold' ? 'rgba(255,215,0,0.045)' : 'rgba(8,12,5,0.9)',
+            border: tone === 'hot' ? '1px solid rgba(125,246,255,0.26)' : tone === 'gold' ? '1px solid rgba(255,215,0,0.18)' : `1px solid ${C.border}`
+          }}>
+            {children}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
-            {[deepAnalysis.fighterA, deepAnalysis.fighterB].map(dossier => (
-              <div key={dossier.name} style={{ borderRadius: 16, padding: 12, background: 'rgba(8,12,5,0.9)', border: `1px solid ${C.border}` }}>
-                <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950 }}>{dossier.name}</div>
-                <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 5 }}>{dossier.lastFightSummary || 'Last fight: unknown'}</div>
-                <div style={{ color: C.green, fontSize: 10, fontWeight: 900, marginTop: 8 }}>{dossier.finishingProfile?.summary || 'Last 5 finishes: unknown'}</div>
-                {dossier.hype?.why?.length > 0 && <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, marginTop: 6 }}>Hype: {dossier.hype.why.slice(0, 2).join(' · ')}</div>}
-                {dossier.narrative?.beefOrStory && dossier.narrative.beefOrStory !== 'unknown' && <div style={{ color: C.gold, fontSize: 10, lineHeight: 1.45, marginTop: 6 }}>Story: {dossier.narrative.beefOrStory}</div>}
+        )
+        const BulletList = ({ items, color = C.textPrimary }: { items: string[]; color?: string }) => (
+          <div style={{ display: 'grid', gap: 7 }}>
+            {items.filter(Boolean).slice(0, 5).map((item, i) => (
+              <div key={`${item}-${i}`} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <span style={{ color: C.purple, fontSize: 9, fontWeight: 900, flexShrink: 0, marginTop: 2 }}>◆</span>
+                <p style={{ color, fontSize: 11, lineHeight: 1.5 }}>{item}</p>
               </div>
             ))}
           </div>
-          {deepAnalysis.bettingAngles?.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-              {deepAnalysis.bettingAngles.slice(0, 3).map(angle => (
-                <div key={`${angle.label}-${angle.side}`} style={{ borderRadius: 14, padding: 11, background: 'rgba(125,246,255,0.06)', border: '1px solid rgba(125,246,255,0.20)' }}>
-                  <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase' }}>{angle.label}</div>
-                  <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950, marginTop: 5 }}>{angle.side}</div>
-                  <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 5 }}>{angle.rationale}</div>
-                </div>
+        )
+        const renderActiveSection = () => {
+          if (activeDeepSection === 'decision') return (
+            <PanelCard tone="hot">
+              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>Decision read · {deepAnalysis.ai.confidence}</div>
+              <div style={{ color: C.textPrimary, fontSize: 18, fontWeight: 950, lineHeight: 1.2 }}>{deepAnalysis.ai.pick} · {deepAnalysis.ai.method}</div>
+              <div style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.55, marginTop: 9 }}>{deepAnalysis.ai.thesis}</div>
+              {deepAnalysis.ai.why?.length > 0 && <div style={{ marginTop: 12 }}><BulletList items={deepAnalysis.ai.why} /></div>}
+            </PanelCard>
+          )
+          if (activeDeepSection === 'style') return (
+            <PanelCard>
+              <div style={{ color: C.cyan, fontSize: 8, fontWeight: 950, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>Style clash</div>
+              <p style={{ color: C.textPrimary, fontSize: 12, lineHeight: 1.55, marginBottom: 12 }}>{buildUfcStyleClash(deepAnalysis)}</p>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {comparisonRows.map(row => (
+                  <div key={row.label} style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', padding: '8px 10px', borderRadius: 12, background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <span style={{ color: row.advantage === 'a' ? C.green : C.textSecondary, fontSize: 10, fontWeight: 800 }}>{row.aValue}</span>
+                    <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', textAlign: 'center' }}>{row.label}</span>
+                    <span style={{ color: row.advantage === 'b' ? C.green : C.textSecondary, fontSize: 10, fontWeight: 800, textAlign: 'right' }}>{row.bValue}</span>
+                  </div>
+                ))}
+              </div>
+            </PanelCard>
+          )
+          if (activeDeepSection === 'paths') return (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+              {fighterEdges.map(({ fighter, opponent, edges }) => (
+                <PanelCard key={fighter.name}>
+                  <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950, marginBottom: 8 }}>{fighter.name} path</div>
+                  <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase', marginBottom: 6 }}>How they win</div>
+                  <BulletList items={buildUfcWinnerPath(fighter, opponent)} />
+                  <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase', margin: '12px 0 6px' }}>How it breaks</div>
+                  <BulletList items={buildUfcHowHeLoses(fighter, opponent)} color={C.textSecondary} />
+                </PanelCard>
               ))}
             </div>
-          )}
-        </div>
-      )}
+          )
+          if (activeDeepSection === 'market') return (
+            <PanelCard tone="hot">
+              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>Market check · secondary input</div>
+              <p style={{ color: C.textPrimary, fontSize: 12, lineHeight: 1.55 }}>{buildUfcPriceDiscipline(deepAnalysis, [])}</p>
+              {priceNotes.length > 0 && <div style={{ marginTop: 12 }}><BulletList items={priceNotes} /></div>}
+              {marketAngles.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8, marginTop: 12 }}>
+                {marketAngles.map(angle => (
+                  <div key={`${angle.label}-${angle.side}`} style={{ borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(125,246,255,0.16)' }}>
+                    <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{angle.label}</div>
+                    <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950, marginTop: 5 }}>{angle.side}</div>
+                    <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 5 }}>{angle.rationale}</div>
+                  </div>
+                ))}
+              </div>}
+            </PanelCard>
+          )
+          if (activeDeepSection === 'form') return (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+              {[deepAnalysis.fighterA, deepAnalysis.fighterB].map(dossier => (
+                <PanelCard key={dossier.name}>
+                  <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950 }}>{dossier.name}</div>
+                  <div style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45, marginTop: 6 }}>{summarizeUfcRecentForm(dossier)}</div>
+                  <div style={{ color: C.green, fontSize: 10, fontWeight: 900, marginTop: 8 }}>{dossier.finishingProfile?.summary || 'Last 5 finishes unavailable'}</div>
+                </PanelCard>
+              ))}
+            </div>
+          )
+          if (activeDeepSection === 'risk') return (
+            <PanelCard tone="gold">
+              <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>Risk / kill conditions</div>
+              <BulletList items={[...(deepAnalysis.ai.risks || []), ...(deepAnalysis.ai.watchouts || [])]} />
+            </PanelCard>
+          )
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+              {[deepAnalysis.fighterA, deepAnalysis.fighterB].map(dossier => {
+                const rows = cleanUfcRecentFights(dossier)
+                return (
+                  <PanelCard key={dossier.name}>
+                    <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 950, marginBottom: 8 }}>{dossier.name} log</div>
+                    {rows.length ? <BulletList items={rows.map(row => formatUfcRecentFight(row, dossier.name))} /> : <p style={{ color: C.textSecondary, fontSize: 11 }}>Verified recent-fight rows unavailable.</p>}
+                  </PanelCard>
+                )
+              })}
+            </div>
+          )
+        }
+
+        return (
+          <div style={{ maxWidth: 1200, margin: '0 auto 14px', display: 'grid', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Cached deep analysis · {deepAnalysis.ai.confidence}</span>
+              <span style={{ color: C.textSecondary, fontSize: 9 }}>Generated {new Date(deepAnalysis.generatedAt).toLocaleString()}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
+              {sections.map(section => {
+                const active = activeDeepSection === section.key
+                return (
+                  <button key={section.key} onClick={e => { e.stopPropagation(); setActiveDeepSection(section.key) }} style={{
+                    flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 5,
+                    borderRadius: 999, padding: '7px 11px', cursor: 'pointer',
+                    background: active ? 'rgba(125,246,255,0.14)' : 'rgba(255,255,255,0.045)',
+                    border: `1px solid ${active ? 'rgba(125,246,255,0.42)' : 'rgba(255,255,255,0.10)'}`,
+                    color: active ? C.green : C.textSecondary,
+                    fontSize: 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase'
+                  }}>
+                    <span>{section.icon}</span>{section.label}
+                  </button>
+                )
+              })}
+            </div>
+            {renderActiveSection()}
+          </div>
+        )
+      })()}
 
       {!deepAnalysis && analysisStatus && (
         <div style={{ maxWidth: 900, margin: '0 auto 14px', borderRadius: 16, padding: 12, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.18)', color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>
