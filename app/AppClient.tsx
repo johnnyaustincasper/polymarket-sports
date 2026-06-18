@@ -4877,6 +4877,7 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive, deepAnalysis }: 
   fight: UFCFight; totalFights: number; onOpenIntel: () => void; isActive: boolean; deepAnalysis?: UFCFightDeepAnalysis | null
 }) {
   const isMobile = useIsMobile()
+  const [activeCardSection, setActiveCardSection] = useState<'decision' | 'style' | 'paths' | 'market' | 'risk'>('decision')
   const boutLabel = getBoutLabel(fight, totalFights)
   const boutColor = fight.isMainEvent ? UFC_RED : fight.boutOrder === 2 ? C.gold : fight.boutOrder <= Math.ceil(totalFights / 2) ? C.purple : C.textSecondary
   const statusColor = fight.status === 'in' ? C.green : fight.status === 'post' ? C.textSecondary : C.gold
@@ -4948,14 +4949,53 @@ function FightCard({ fight, totalFights, onOpenIntel, isActive, deepAnalysis }: 
         <Fighter f={b} side="right" />
       </div>
 
-      {/* Deep analysis quick read */}
-      {deepAnalysis && (
-        <div style={{ marginTop: 12, padding: '10px 11px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.03))', border: '1px solid rgba(125,246,255,0.24)' }}>
-          <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Deep preview pick</div>
-          <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950, marginTop: 4 }}>{deepAnalysis.ai.pick} · {deepAnalysis.ai.method}</div>
-          <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4, marginTop: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{deepAnalysis.ai.thesis}</div>
-        </div>
-      )}
+      {/* Deep analysis section controls */}
+      {deepAnalysis && (() => {
+        const sections: Array<{ key: typeof activeCardSection; label: string }> = [
+          { key: 'decision', label: 'Decision' },
+          { key: 'style', label: 'Style' },
+          { key: 'paths', label: 'Paths' },
+          { key: 'market', label: 'Market' },
+          { key: 'risk', label: 'Risk' },
+        ]
+        const winnerMarkets: KalshiUFCMarket[] = []
+        const chosen = ufcNameMatches(deepAnalysis.ai.pick || '', deepAnalysis.fighterB.name) ? deepAnalysis.fighterB : deepAnalysis.fighterA
+        const opponent = chosen.name === deepAnalysis.fighterA.name ? deepAnalysis.fighterB : deepAnalysis.fighterA
+        const sectionText = activeCardSection === 'decision'
+          ? deepAnalysis.ai.thesis
+          : activeCardSection === 'style'
+            ? buildUfcStyleClash(deepAnalysis)
+            : activeCardSection === 'paths'
+              ? buildUfcWinnerPath(chosen, opponent).slice(0, 2).join(' ')
+              : activeCardSection === 'market'
+                ? buildUfcPriceDiscipline(deepAnalysis, winnerMarkets)
+                : (deepAnalysis.ai.risks || deepAnalysis.ai.watchouts || []).slice(0, 2).join(' ') || `${opponent.name} is live if they force the fight into their best phase.`
+        return (
+          <div style={{ marginTop: 12, padding: '10px 11px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.03))', border: '1px solid rgba(125,246,255,0.24)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <div>
+                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Deep preview · {activeCardSection}</div>
+                <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950, marginTop: 4 }}>{deepAnalysis.ai.pick} · {deepAnalysis.ai.method}</div>
+              </div>
+              <button onClick={e => { e.stopPropagation(); onOpenIntel() }} style={{ fontSize: 8, padding: '4px 7px', borderRadius: 999, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(125,246,255,0.22)', color: C.green, fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap' }}>{isActive ? 'CLOSE FULL' : 'FULL'}</button>
+            </div>
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2, marginBottom: 8 }}>
+              {sections.map(section => {
+                const active = activeCardSection === section.key
+                return (
+                  <button key={section.key} onClick={e => { e.stopPropagation(); setActiveCardSection(section.key) }} style={{
+                    flex: '0 0 auto', borderRadius: 999, padding: '5px 8px', cursor: 'pointer',
+                    background: active ? 'rgba(125,246,255,0.16)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${active ? 'rgba(125,246,255,0.42)' : 'rgba(255,255,255,0.10)'}`,
+                    color: active ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase'
+                  }}>{section.label}</button>
+                )
+              })}
+            </div>
+            <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45, display: '-webkit-box', WebkitLineClamp: activeCardSection === 'decision' ? 3 : 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{sectionText}</div>
+          </div>
+        )
+      })()}
 
       {/* Polymarket odds + market read */}
       {(() => {
