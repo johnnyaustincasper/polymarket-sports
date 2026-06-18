@@ -5405,6 +5405,7 @@ function KalshiUFCSection() {
   const [error, setError] = useState<string | null>(null)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [loadedFightIds, setLoadedFightIds] = useState<Record<string, boolean>>({})
+  const [activeKalshiSections, setActiveKalshiSections] = useState<Record<string, 'decision' | 'style' | 'paths' | 'market' | 'form' | 'risk'>>({})
   const [ufcRecordLookup, setUfcRecordLookup] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -5531,33 +5532,33 @@ function KalshiUFCSection() {
                       const bPath = buildUfcWinnerPath(deepFight.fighterB, deepFight.fighterA)
                       const aLoss = buildUfcHowHeLoses(deepFight.fighterA, deepFight.fighterB)
                       const bLoss = buildUfcHowHeLoses(deepFight.fighterB, deepFight.fighterA)
-                      return (
-                        <div style={{ display: 'grid', gap: 10 }}>
-                          <div style={{ borderRadius: 18, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 22px rgba(125,246,255,0.08)' }}>
+                      const activeSection = activeKalshiSections[fight.id] || 'decision'
+                      const tabs: Array<{ key: typeof activeSection; label: string }> = [
+                        { key: 'decision', label: 'Decision' },
+                        { key: 'style', label: 'Style' },
+                        { key: 'paths', label: 'Paths' },
+                        { key: 'market', label: 'Market' },
+                        { key: 'form', label: 'Form' },
+                        { key: 'risk', label: 'Risk' },
+                      ]
+                      const renderTab = () => {
+                        if (activeSection === 'decision') return (
+                          <div style={{ display: 'grid', gap: 10 }}>
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) auto', gap: 10, alignItems: 'start' }}>
                               <div style={{ minWidth: 0 }}>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 999, padding: '4px 8px', background: 'rgba(125,246,255,0.09)', border: '1px solid rgba(125,246,255,0.22)', color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>Fight brief</div>
                                 <div style={{ color: C.textPrimary, fontSize: isMobile ? 19 : 24, fontWeight: 950, lineHeight: 1.04 }}>{deepFight.ai.pick && deepFight.ai.pick.toLowerCase() !== 'pass' ? deepFight.ai.pick : deepFight.fighterA.name}</div>
-                                <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 5 }}>Matchup edge</div>
+                                <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 5 }}>{deepFight.ai.method} · {deepFight.ai.confidence === 'pass' ? 'lean' : deepFight.ai.confidence}</div>
                               </div>
-                              <div style={{ flexShrink: 0, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
-                                <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(125,246,255,0.10)', border: `1px solid ${C.borderHot}`, color: C.green, fontSize: 9, fontWeight: 950, textTransform: 'uppercase' }}>{deepFight.ai.confidence === 'pass' ? 'lean' : deepFight.ai.confidence}</span>
-                                <span style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>{deepFight.weightClass}</span>
-                              </div>
+                              <span style={{ width: 'fit-content', borderRadius: 999, padding: '5px 8px', background: 'rgba(255,255,255,0.045)', border: `1px solid ${C.border}`, color: C.textSecondary, fontSize: 9, fontWeight: 900 }}>{deepFight.weightClass}</span>
                             </div>
-                            <div style={{ marginTop: 11, padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.08)', color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}>{deepFight.ai.thesis}</div>
-                            <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-                              <div style={{ padding: 11, borderRadius: 14, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.18)' }}>
-                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Style clash</div>
-                                <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.42 }}>{styleClash}</div>
-                              </div>
-                              <div style={{ padding: 11, borderRadius: 14, background: 'rgba(255,255,255,0.032)', border: `1px solid ${C.border}` }}>
-                                <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Price discipline</div>
-                                <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.42 }}>{priceDiscipline}</div>
-                              </div>
-                            </div>
-                            <div style={{ display: 'grid', gap: 7, marginTop: 10, padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(125,246,255,0.16)' }}>
-                              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Fast comparison</div>
+                            <div style={{ padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.08)', color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}>{deepFight.ai.thesis}</div>
+                            {edgeSignals.length > 0 && <div style={{ display: 'grid', gap: 6 }}>{edgeSignals.slice(0, 3).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}</div>}
+                          </div>
+                        )
+                        if (activeSection === 'style') return (
+                          <div style={{ display: 'grid', gap: 9 }}>
+                            <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}>{styleClash}</div>
+                            <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(125,246,255,0.16)' }}>
                               {comparisonBars.map(row => (
                                 <div key={row.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 88px minmax(0,1fr)', gap: 8, alignItems: 'center', paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                                   <div style={{ color: row.winner === 'a' ? C.green : C.textPrimary, fontSize: 10, fontWeight: row.winner === 'a' ? 950 : 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.aText}</div>
@@ -5566,115 +5567,65 @@ function KalshiUFCSection() {
                                 </div>
                               ))}
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9, marginTop: 10 }}>
-                              {[
-                                { dossier: deepFight.fighterA, path: aPath, loses: aLoss },
-                                { dossier: deepFight.fighterB, path: bPath, loses: bLoss },
-                              ].map(({ dossier, path, loses }) => (
-                                <div key={`${dossier.name}-paths`} style={{ display: 'grid', gap: 9, padding: 11, borderRadius: 14, background: 'rgba(255,255,255,0.028)', border: `1px solid ${C.border}` }}>
-                                  <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{dossier.name}</div>
-                                  <div>
-                                    <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Winner path</div>
-                                    {path.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.34, marginTop: 3 }}>• {item}</div>)}
-                                  </div>
-                                  <div>
-                                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>How he loses</div>
-                                    {loses.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.34, marginTop: 3 }}>• {item}</div>)}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9, marginTop: 10 }}>
-                              <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.18)' }}>
-                                <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Matchup signals</div>
-                                {edgeSignals.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.35 }}>• {item}</div>)}
-                              </div>
-                              <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'linear-gradient(135deg, rgba(255,83,83,0.08), rgba(255,215,0,0.045))', border: '1px solid rgba(255,83,83,0.22)' }}>
-                                <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Kill switch</div>
-                                {(risks.length ? risks : ['No clean risk note listed yet']).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
-                              </div>
-                            </div>
                           </div>
-
+                        )
+                        if (activeSection === 'paths') return (
+                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9 }}>
+                            {[
+                              { dossier: deepFight.fighterA, path: aPath, loses: aLoss },
+                              { dossier: deepFight.fighterB, path: bPath, loses: bLoss },
+                            ].map(({ dossier, path, loses }) => (
+                              <div key={`${dossier.name}-paths`} style={{ display: 'grid', gap: 9, padding: 11, borderRadius: 14, background: 'rgba(255,255,255,0.028)', border: `1px solid ${C.border}` }}>
+                                <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{dossier.name}</div>
+                                <div><div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Winner path</div>{path.slice(0, 3).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.34, marginTop: 3 }}>• {item}</div>)}</div>
+                                <div><div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>How he loses</div>{loses.slice(0, 2).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.34, marginTop: 3 }}>• {item}</div>)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                        if (activeSection === 'market') return (
+                          <div style={{ display: 'grid', gap: 9 }}>
+                            <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.42 }}>{priceDiscipline}</div>
+                            {winnerMarkets.length > 0 && <div style={{ borderRadius: 14, padding: 10, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
+                              <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Market check</div>
+                              {winnerMarkets.slice(0, 2).map(m => <div key={m.ticker} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, color: C.textSecondary, fontSize: 10, marginTop: 4 }}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.fighter}</span><span style={{ color: C.green, fontWeight: 950 }}>{m.yesAsk}%</span></div>)}
+                            </div>}
+                          </div>
+                        )
+                        if (activeSection === 'form') return (
                           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
                             {[
                               { dossier: deepFight.fighterA, recent: aRecent },
                               { dossier: deepFight.fighterB, recent: bRecent },
                             ].map(({ dossier, recent }) => (
                               <div key={`${dossier.name}-recent`} style={{ borderRadius: 15, padding: 11, background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(125,246,255,0.18)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 7 }}>
-                                  <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950 }}>{dossier.name}</div>
-                                  <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Recent fight log</div>
-                                </div>
-                                {recent.length > 0 ? recent.map((row, idx) => {
-                                  const outcome = getUfcRecentFightOutcome(row, dossier.name)
-                                  const outcomeColor = outcome.tone === 'win' ? C.green : outcome.tone === 'loss' ? '#ff7474' : C.gold
-                                  return (
-                                    <div key={`${dossier.name}-recent-${idx}`} style={{ display: 'grid', gridTemplateColumns: '58px minmax(0,1fr)', gap: 8, padding: '7px 0', borderTop: idx === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
-                                      <div style={{ display: 'grid', gap: 3, alignContent: 'start' }}>
-                                        <div style={{ color: outcomeColor, fontSize: 10, fontWeight: 950, textTransform: 'uppercase' }}>{outcome.label}</div>
-                                        <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850, lineHeight: 1.15 }}>{outcome.winner === 'No winner' || outcome.winner === 'Winner unknown' ? outcome.winner : `Winner: ${outcome.winner}`}</div>
-                                      </div>
-                                      <div style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.32 }}>{formatUfcRecentFight(row, dossier.name)}</div>
-                                    </div>
-                                  )
-                                }) : (
-                                  <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4 }}>No verified last-five rows in the current cache. Last known: {cleanUfcValue(dossier.lastFightSummary, 'not listed')}</div>
-                                )}
+                                <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950, marginBottom: 7 }}>{dossier.name}</div>
+                                {recent.length > 0 ? recent.slice(0, 3).map((row, idx) => <div key={`${dossier.name}-recent-${idx}`} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.32, padding: '6px 0', borderTop: idx === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>{formatUfcRecentFight(row, dossier.name)}</div>) : <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4 }}>No verified last-five rows in the current cache.</div>}
                               </div>
                             ))}
                           </div>
-
-                          <div style={{ borderRadius: 16, padding: isMobile ? 10 : 12, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(125,246,255,0.18)' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px minmax(0, 1fr)', gap: 7, alignItems: 'center', marginBottom: 8 }}>
-                              <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deepFight.fighterA.name}</div>
-                              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', textAlign: 'center' }}>Compare</div>
-                              <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deepFight.fighterB.name}</div>
-                            </div>
-                            <div style={{ display: 'grid', gap: 5 }}>
-                              {comparisonRows.map(row => (
-                                <div key={row.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 72px minmax(0, 1fr)', gap: 7, alignItems: 'center', padding: '7px 0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                  <div style={{ color: row.advantage === 'a' ? C.green : C.textPrimary, fontSize: 10, fontWeight: row.advantage === 'a' ? 950 : 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.aValue}</div>
-                                  <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', textAlign: 'center' }}>{row.label}</div>
-                                  <div style={{ color: row.advantage === 'b' ? C.green : C.textPrimary, fontSize: 10, fontWeight: row.advantage === 'b' ? 950 : 850, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.bValue}</div>
-                                </div>
-                              ))}
-                            </div>
+                        )
+                        return (
+                          <div style={{ display: 'grid', gap: 8 }}>
+                            {(risks.length ? risks : ['No clean risk note listed yet']).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
+                            {deepFight.ai.watchouts?.slice(0, 2).map(item => <div key={item} style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
                           </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
-                            {[
-                              { dossier: deepFight.fighterA, edges: aEdges },
-                              { dossier: deepFight.fighterB, edges: bEdges },
-                            ].map(({ dossier, edges }) => (
-                              <div key={dossier.name} style={{ borderRadius: 15, padding: 11, background: 'rgba(255,255,255,0.032)', border: `1px solid ${C.border}` }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-                                  <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{dossier.name}</div>
-                                  <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{dossier.age ? `${dossier.age} yrs` : ''}{dossier.reach && dossier.reach !== 'unknown' ? ` · ${dossier.reach} reach` : ''}</div>
-                                </div>
-                                <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.38, marginTop: 7 }}>{summarizeUfcRecentForm(dossier)}</div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 9 }}>
-                                  <div>
-                                    <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>Advantages</div>
-                                    {edges.advantages.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 9, lineHeight: 1.3, marginBottom: 3 }}>• {item}</div>)}
-                                  </div>
-                                  <div>
-                                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>Problems</div>
-                                    {edges.disadvantages.map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 9, lineHeight: 1.3, marginBottom: 3 }}>• {item}</div>)}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {winnerMarkets.length > 0 && (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
-                              <div style={{ borderRadius: 14, padding: 10, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
-                                <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>Market check</div>
-                                {winnerMarkets.slice(0, 2).map(m => <div key={m.ticker} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, color: C.textSecondary, fontSize: 10, marginTop: 4 }}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.fighter}</span><span style={{ color: C.green, fontWeight: 950 }}>{m.yesAsk}%</span></div>)}
+                        )
+                      }
+                      return (
+                        <div style={{ display: 'grid', gap: 10 }}>
+                          <div style={{ borderRadius: 18, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 22px rgba(125,246,255,0.08)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 999, padding: '4px 8px', background: 'rgba(125,246,255,0.09)', border: '1px solid rgba(125,246,255,0.22)', color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Fight brief · {activeSection}</div>
+                              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
+                                {tabs.map(tab => {
+                                  const active = activeSection === tab.key
+                                  return <button key={tab.key} onClick={() => setActiveKalshiSections(prev => ({ ...prev, [fight.id]: tab.key }))} style={{ flex: '0 0 auto', borderRadius: 999, padding: '5px 8px', cursor: 'pointer', background: active ? 'rgba(125,246,255,0.16)' : 'rgba(255,255,255,0.04)', border: `1px solid ${active ? 'rgba(125,246,255,0.42)' : 'rgba(255,255,255,0.10)'}`, color: active ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{tab.label}</button>
+                                })}
                               </div>
                             </div>
-                          )}
+                            {renderTab()}
+                          </div>
                         </div>
                       )
                     })()}
