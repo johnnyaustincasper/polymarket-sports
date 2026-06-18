@@ -1,0 +1,6 @@
+backups/
+marketing/
+node_modules/
+.next/
+.git/
+*.log
