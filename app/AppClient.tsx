@@ -5412,39 +5412,44 @@ function KalshiUFCSection() {
     let cancelled = false
     setLoading(true)
     setError(null)
+
     Promise.all([
-      fetch(`/api/ufc-kalshi?ts=${Date.now()}`, { cache: 'no-store' })
-        .then(async r => {
-          const d = await r.json().catch(() => ({}))
-          if (!r.ok) throw new Error(d?.error || `Kalshi UFC scan failed (${r.status})`)
-          return d
-        }),
-      fetch(`/api/ufc-analysis?ts=${Date.now()}`, { cache: 'no-store' })
+      fetch('/api/ufc-analysis')
         .then(r => r.json().catch(() => null))
         .catch(() => null),
-      fetch(`/api/ufc?ts=${Date.now()}`, { cache: 'no-store' })
+      fetch('/api/ufc')
         .then(r => r.json().catch(() => []))
         .catch(() => []),
-    ])
-      .then(([kalshi, analysis, ufcEvents]) => {
-        if (cancelled) return
-        setData(kalshi)
-        setDeepAnalysis(analysis?.available && analysis?.analysis ? sanitizeUfcVisibleAnalysis(analysis.analysis) : null)
-        const records: Record<string, string> = {}
-        if (Array.isArray(ufcEvents)) {
-          for (const event of ufcEvents as UFCEvent[]) {
-            for (const cardFight of event.fights || []) {
-              for (const fighter of [cardFight.fighterA, cardFight.fighterB]) {
-                const record = cleanUfcValue(fighter?.record, '')
-                if (fighter?.name && record) records[normalizeUfcName(fighter.name)] = record
-              }
+    ]).then(([analysis, ufcEvents]) => {
+      if (cancelled) return
+      setDeepAnalysis(analysis?.available && analysis?.analysis ? sanitizeUfcVisibleAnalysis(analysis.analysis) : null)
+      const records: Record<string, string> = {}
+      if (Array.isArray(ufcEvents)) {
+        for (const event of ufcEvents as UFCEvent[]) {
+          for (const cardFight of event.fights || []) {
+            for (const fighter of [cardFight.fighterA, cardFight.fighterB]) {
+              const record = cleanUfcValue(fighter?.record, '')
+              if (fighter?.name && record) records[normalizeUfcName(fighter.name)] = record
             }
           }
         }
-        setUfcRecordLookup(records)
+      }
+      setUfcRecordLookup(records)
+    })
+
+    fetch('/api/ufc-kalshi')
+      .then(async r => {
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(d?.error || `Kalshi UFC scan failed (${r.status})`)
+        return d
+      })
+      .then(kalshi => {
+        if (cancelled) return
+        setData(kalshi)
       })
       .catch(e => { if (!cancelled) setError(e?.message || 'Kalshi UFC unavailable') })
       .finally(() => { if (!cancelled) setLoading(false) })
+
     return () => { cancelled = true }
   }, [])
 
@@ -5616,7 +5621,7 @@ function KalshiUFCSection() {
                       return (
                         <div style={{ display: 'grid', gap: 10 }}>
                           <div style={{ borderRadius: 20, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.028))', border: '1px solid rgba(125,246,255,0.26)', boxShadow: activeSection ? '0 0 26px rgba(125,246,255,0.10)' : '0 0 14px rgba(125,246,255,0.04)' }}>
-                            <style>{`@keyframes ufcPillGlow { 0%, 100% { opacity: .24; } 50% { opacity: .74; } }`}</style>
+                            <style>{`@keyframes ufcPillGlow { 0%, 100% { opacity: .18; } 50% { opacity: .56; } } @media (prefers-reduced-motion: reduce) { .ufc-analysis-glow { animation: none !important; opacity: .28 !important; } }`}</style>
                             <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 9 }}>Tap a section to expand fight analysis</div>
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: isMobile ? 8 : 10 }}>
                               {tabs.map(tab => {
@@ -5627,7 +5632,7 @@ function KalshiUFCSection() {
                                   else next[fight.id] = tab.key
                                   return next
                                 })} style={{ position: 'relative', overflow: 'hidden', minHeight: isMobile ? 52 : 58, borderRadius: 999, padding: isMobile ? '8px 10px' : '9px 12px', cursor: 'pointer', background: active ? 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.22), rgba(125,246,255,0.20) 42%, rgba(125,246,255,0.07))' : 'linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025))', border: `1px solid ${active ? 'rgba(125,246,255,0.72)' : 'rgba(125,246,255,0.24)'}`, color: active ? C.green : C.textPrimary, fontSize: isMobile ? 10 : 11, fontWeight: 950, letterSpacing: '0.06em', textTransform: 'uppercase', boxShadow: active ? '0 0 22px rgba(125,246,255,0.20), inset 0 0 18px rgba(125,246,255,0.08)' : '0 8px 18px rgba(0,0,0,0.22)', transform: active ? 'translateY(-1px) scale(1.02)' : 'translateY(0) scale(1)', transition: 'transform 180ms ease, box-shadow 220ms ease, border-color 220ms ease, background 220ms ease' }}>
-                                  <span aria-hidden="true" style={{ position: 'absolute', inset: 3, borderRadius: 999, background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.24) 0%, rgba(125,246,255,0.22) 38%, rgba(125,246,255,0.08) 66%, transparent 82%)', filter: 'blur(0.2px)', mixBlendMode: 'screen', animation: `ufcPillGlow ${2.6 + (tabs.findIndex(t => t.key === tab.key) * 0.12)}s ease-in-out infinite`, animationDelay: `${tabs.findIndex(t => t.key === tab.key) * 0.12}s`, pointerEvents: 'none' }} />
+                                  <span aria-hidden="true" className="ufc-analysis-glow" style={{ position: 'absolute', inset: 3, borderRadius: 999, background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.20) 0%, rgba(125,246,255,0.18) 42%, rgba(125,246,255,0.06) 68%, transparent 84%)', mixBlendMode: 'screen', animation: `ufcPillGlow ${2.8 + (tabs.findIndex(t => t.key === tab.key) * 0.12)}s ease-in-out infinite`, animationDelay: `${tabs.findIndex(t => t.key === tab.key) * 0.12}s`, pointerEvents: 'none', willChange: 'opacity' }} />
                                   <span style={{ position: 'relative', zIndex: 1, display: 'block', lineHeight: 1.05 }}>{tab.label}</span>
                                   <span style={{ position: 'relative', zIndex: 1, display: 'block', marginTop: 3, color: active ? C.textPrimary : C.textSecondary, fontSize: 7, fontWeight: 900, letterSpacing: '0.10em' }}>{tab.hint}</span>
                                 </button>

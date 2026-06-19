@@ -6,6 +6,9 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const KALSHI_API = 'https://external-api.kalshi.com/trade-api/v2'
+const CACHE_MS = 30_000
+let cachedPayload: any | null = null
+let cachedAt = 0
 
 const UFC_SERIES = [
   { ticker: 'KXUFCFIGHT', category: 'Winner', priority: 1 },
@@ -102,12 +105,16 @@ export async function GET(req: NextRequest) {
   if (rateLimited) return rateLimited
 
   try {
+    const now = Date.now()
+    if (cachedPayload && now - cachedAt < CACHE_MS) {
+      return NextResponse.json(cachedPayload, { headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120' } })
+    }
+
     const byFight = new Map<string, any>()
     const scannedBySeries: Record<string, number> = {}
 
-    for (const series of UFC_SERIES) {
-      await sleep(650)
-      const markets = await fetchSeries(series.ticker)
+    const seriesResults = await Promise.all(UFC_SERIES.map(async series => ({ series, markets: await fetchSeries(series.ticker) })))
+    for (const { series, markets } of seriesResults) {
       scannedBySeries[series.ticker] = markets.length
       for (const m of markets) {
         const ticker = String(m.ticker || '')
@@ -166,13 +173,16 @@ export async function GET(req: NextRequest) {
         return b.markets.length - a.markets.length
       })
 
-    return NextResponse.json({
+    const payload = {
       available: fights.length > 0,
       series: UFC_SERIES.map(s => s.ticker),
       scanned: Object.values(scannedBySeries).reduce((a, b) => a + b, 0),
       scannedBySeries,
       fights,
-    })
+    }
+    cachedPayload = payload
+    cachedAt = Date.now()
+    return NextResponse.json(payload, { headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120' } })
   } catch (err) {
     console.error('UFC Kalshi error:', err)
     return NextResponse.json({ available: false, series: UFC_SERIES.map(s => s.ticker), scanned: 0, scannedBySeries: {}, fights: [], error: 'Failed to fetch Kalshi UFC markets' }, { status: 500 })
