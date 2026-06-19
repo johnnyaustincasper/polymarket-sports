@@ -5405,7 +5405,7 @@ function KalshiUFCSection() {
   const [error, setError] = useState<string | null>(null)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [loadedFightIds, setLoadedFightIds] = useState<Record<string, boolean>>({})
-  const [activeKalshiSections, setActiveKalshiSections] = useState<Record<string, 'decision' | 'style' | 'paths' | 'market' | 'form' | 'risk'>>({})
+  const [activeKalshiSections, setActiveKalshiSections] = useState<Record<string, 'decision' | 'style' | 'pathsRisk' | 'market' | 'form'>>({})
   const [ufcRecordLookup, setUfcRecordLookup] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -5532,14 +5532,13 @@ function KalshiUFCSection() {
                       const bPath = buildUfcWinnerPath(deepFight.fighterB, deepFight.fighterA)
                       const aLoss = buildUfcHowHeLoses(deepFight.fighterA, deepFight.fighterB)
                       const bLoss = buildUfcHowHeLoses(deepFight.fighterB, deepFight.fighterA)
-                      const activeSection = activeKalshiSections[fight.id] || 'decision'
-                      const tabs: Array<{ key: typeof activeSection; label: string }> = [
-                        { key: 'decision', label: 'Decision' },
-                        { key: 'style', label: 'Style' },
-                        { key: 'paths', label: 'Paths' },
-                        { key: 'market', label: 'Market' },
-                        { key: 'form', label: 'Form' },
-                        { key: 'risk', label: 'Risk' },
+                      const activeSection = activeKalshiSections[fight.id]
+                      const tabs: Array<{ key: 'decision' | 'style' | 'pathsRisk' | 'market' | 'form'; label: string; hint: string }> = [
+                        { key: 'decision', label: 'Decision', hint: 'lean' },
+                        { key: 'style', label: 'Style', hint: 'clash' },
+                        { key: 'pathsRisk', label: 'Paths + Risk', hint: 'how + danger' },
+                        { key: 'market', label: 'Market', hint: 'price' },
+                        { key: 'form', label: 'Form', hint: 'last 5' },
                       ]
                       const renderTab = () => {
                         if (activeSection === 'decision') return (
@@ -5569,18 +5568,25 @@ function KalshiUFCSection() {
                             </div>
                           </div>
                         )
-                        if (activeSection === 'paths') return (
-                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9 }}>
-                            {[
-                              { dossier: deepFight.fighterA, path: aPath, loses: aLoss },
-                              { dossier: deepFight.fighterB, path: bPath, loses: bLoss },
-                            ].map(({ dossier, path, loses }) => (
-                              <div key={`${dossier.name}-paths`} style={{ display: 'grid', gap: 9, padding: 11, borderRadius: 14, background: 'rgba(255,255,255,0.028)', border: `1px solid ${C.border}` }}>
-                                <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{dossier.name}</div>
-                                <div><div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Winner path</div>{path.slice(0, 3).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.34, marginTop: 3 }}>• {item}</div>)}</div>
-                                <div><div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>How he loses</div>{loses.slice(0, 2).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.34, marginTop: 3 }}>• {item}</div>)}</div>
-                              </div>
-                            ))}
+                        if (activeSection === 'pathsRisk') return (
+                          <div style={{ display: 'grid', gap: 9 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9 }}>
+                              {[
+                                { dossier: deepFight.fighterA, path: aPath, loses: aLoss },
+                                { dossier: deepFight.fighterB, path: bPath, loses: bLoss },
+                              ].map(({ dossier, path, loses }) => (
+                                <div key={`${dossier.name}-paths`} style={{ display: 'grid', gap: 9, padding: 11, borderRadius: 14, background: 'rgba(255,255,255,0.028)', border: `1px solid ${C.border}` }}>
+                                  <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 950 }}>{dossier.name}</div>
+                                  <div><div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>Winner path</div>{path.slice(0, 3).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.34, marginTop: 3 }}>• {item}</div>)}</div>
+                                  <div><div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5 }}>How he loses</div>{loses.slice(0, 2).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.34, marginTop: 3 }}>• {item}</div>)}</div>
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'linear-gradient(135deg, rgba(255,83,83,0.08), rgba(255,215,0,0.045))', border: '1px solid rgba(255,83,83,0.22)' }}>
+                              <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Risk / kill conditions</div>
+                              {(risks.length ? risks : ['No clean risk note listed yet']).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
+                              {deepFight.ai.watchouts?.slice(0, 2).map(item => <div key={item} style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
+                            </div>
                           </div>
                         )
                         if (activeSection === 'market') return (
@@ -5605,26 +5611,33 @@ function KalshiUFCSection() {
                             ))}
                           </div>
                         )
-                        return (
-                          <div style={{ display: 'grid', gap: 8 }}>
-                            {(risks.length ? risks : ['No clean risk note listed yet']).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
-                            {deepFight.ai.watchouts?.slice(0, 2).map(item => <div key={item} style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
-                          </div>
-                        )
+                        return null
                       }
                       return (
                         <div style={{ display: 'grid', gap: 10 }}>
-                          <div style={{ borderRadius: 18, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 22px rgba(125,246,255,0.08)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 999, padding: '4px 8px', background: 'rgba(125,246,255,0.09)', border: '1px solid rgba(125,246,255,0.22)', color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Fight brief · {activeSection}</div>
-                              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
-                                {tabs.map(tab => {
-                                  const active = activeSection === tab.key
-                                  return <button key={tab.key} onClick={() => setActiveKalshiSections(prev => ({ ...prev, [fight.id]: tab.key }))} style={{ flex: '0 0 auto', borderRadius: 999, padding: '5px 8px', cursor: 'pointer', background: active ? 'rgba(125,246,255,0.16)' : 'rgba(255,255,255,0.04)', border: `1px solid ${active ? 'rgba(125,246,255,0.42)' : 'rgba(255,255,255,0.10)'}`, color: active ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{tab.label}</button>
-                                })}
+                          <div style={{ borderRadius: 20, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.028))', border: '1px solid rgba(125,246,255,0.26)', boxShadow: activeSection ? '0 0 26px rgba(125,246,255,0.10)' : '0 0 14px rgba(125,246,255,0.04)' }}>
+                            <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 9 }}>Tap a section to expand fight analysis</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))', gap: isMobile ? 8 : 10 }}>
+                              {tabs.map(tab => {
+                                const active = activeSection === tab.key
+                                return <button key={tab.key} onClick={() => setActiveKalshiSections(prev => {
+                                  const next = { ...prev }
+                                  if (next[fight.id] === tab.key) delete next[fight.id]
+                                  else next[fight.id] = tab.key
+                                  return next
+                                })} style={{ minHeight: isMobile ? 52 : 58, borderRadius: 999, padding: isMobile ? '8px 10px' : '9px 12px', cursor: 'pointer', background: active ? 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.22), rgba(125,246,255,0.20) 42%, rgba(125,246,255,0.07))' : 'linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025))', border: `1px solid ${active ? 'rgba(125,246,255,0.72)' : 'rgba(125,246,255,0.24)'}`, color: active ? C.green : C.textPrimary, fontSize: isMobile ? 10 : 11, fontWeight: 950, letterSpacing: '0.06em', textTransform: 'uppercase', boxShadow: active ? '0 0 22px rgba(125,246,255,0.20), inset 0 0 18px rgba(125,246,255,0.08)' : '0 8px 18px rgba(0,0,0,0.22)', transform: active ? 'translateY(-1px) scale(1.02)' : 'translateY(0) scale(1)', transition: 'transform 180ms ease, box-shadow 220ms ease, border-color 220ms ease, background 220ms ease' }}>
+                                  <span style={{ display: 'block', lineHeight: 1.05 }}>{tab.label}</span>
+                                  <span style={{ display: 'block', marginTop: 3, color: active ? C.textPrimary : C.textSecondary, fontSize: 7, fontWeight: 900, letterSpacing: '0.10em' }}>{tab.hint}</span>
+                                </button>
+                              })}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateRows: activeSection ? '1fr' : '0fr', opacity: activeSection ? 1 : 0, transform: activeSection ? 'translateY(0)' : 'translateY(-6px)', transition: 'grid-template-rows 260ms ease, opacity 220ms ease, transform 260ms ease', marginTop: activeSection ? 12 : 0 }}>
+                              <div style={{ overflow: 'hidden' }}>
+                                <div style={{ borderRadius: 16, padding: isMobile ? 11 : 13, background: 'rgba(0,0,0,0.24)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                  {activeSection ? renderTab() : null}
+                                </div>
                               </div>
                             </div>
-                            {renderTab()}
                           </div>
                         </div>
                       )
