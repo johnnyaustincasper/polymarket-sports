@@ -5405,7 +5405,7 @@ function KalshiUFCSection() {
   const [error, setError] = useState<string | null>(null)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [loadedFightIds, setLoadedFightIds] = useState<Record<string, boolean>>({})
-  const [activeKalshiSections, setActiveKalshiSections] = useState<Record<string, 'decision' | 'style' | 'pathsRisk' | 'market' | 'form'>>({})
+  const [activeKalshiSections, setActiveKalshiSections] = useState<Record<string, 'decision' | 'style' | 'pathsRisk' | 'market'>>({})
   const [ufcRecordLookup, setUfcRecordLookup] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -5533,12 +5533,11 @@ function KalshiUFCSection() {
                       const aLoss = buildUfcHowHeLoses(deepFight.fighterA, deepFight.fighterB)
                       const bLoss = buildUfcHowHeLoses(deepFight.fighterB, deepFight.fighterA)
                       const activeSection = activeKalshiSections[fight.id]
-                      const tabs: Array<{ key: 'decision' | 'style' | 'pathsRisk' | 'market' | 'form'; label: string; hint: string }> = [
-                        { key: 'decision', label: 'Decision', hint: 'lean' },
+                      const tabs: Array<{ key: 'decision' | 'style' | 'pathsRisk' | 'market'; label: string; hint: string }> = [
+                        { key: 'decision', label: 'Decision', hint: 'lean + form' },
                         { key: 'style', label: 'Style', hint: 'clash' },
                         { key: 'pathsRisk', label: 'Paths + Risk', hint: 'how + danger' },
                         { key: 'market', label: 'Market', hint: 'price' },
-                        { key: 'form', label: 'Form', hint: 'last 5' },
                       ]
                       const renderTab = () => {
                         if (activeSection === 'decision') return (
@@ -5552,6 +5551,20 @@ function KalshiUFCSection() {
                             </div>
                             <div style={{ padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.08)', color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}>{deepFight.ai.thesis}</div>
                             {edgeSignals.length > 0 && <div style={{ display: 'grid', gap: 6 }}>{edgeSignals.slice(0, 3).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}</div>}
+                            <div style={{ display: 'grid', gap: 8, padding: 11, borderRadius: 14, background: 'rgba(125,246,255,0.045)', border: '1px solid rgba(125,246,255,0.18)' }}>
+                              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Recent form</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
+                                {[
+                                  { dossier: deepFight.fighterA, recent: aRecent },
+                                  { dossier: deepFight.fighterB, recent: bRecent },
+                                ].map(({ dossier, recent }) => (
+                                  <div key={`${dossier.name}-decision-form`} style={{ borderRadius: 13, padding: 9, background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                                    <div style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950, marginBottom: 5 }}>{dossier.name}</div>
+                                    {recent.length > 0 ? recent.slice(0, 2).map((row, idx) => <div key={`${dossier.name}-decision-recent-${idx}`} style={{ color: C.textPrimary, fontSize: 9, lineHeight: 1.3, padding: '4px 0', borderTop: idx === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>{formatUfcRecentFight(row, dossier.name)}</div>) : <div style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.35 }}>No verified last-five rows yet.</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         )
                         if (activeSection === 'style') return (
@@ -5598,26 +5611,14 @@ function KalshiUFCSection() {
                             </div>}
                           </div>
                         )
-                        if (activeSection === 'form') return (
-                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
-                            {[
-                              { dossier: deepFight.fighterA, recent: aRecent },
-                              { dossier: deepFight.fighterB, recent: bRecent },
-                            ].map(({ dossier, recent }) => (
-                              <div key={`${dossier.name}-recent`} style={{ borderRadius: 15, padding: 11, background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(125,246,255,0.18)' }}>
-                                <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950, marginBottom: 7 }}>{dossier.name}</div>
-                                {recent.length > 0 ? recent.slice(0, 3).map((row, idx) => <div key={`${dossier.name}-recent-${idx}`} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.32, padding: '6px 0', borderTop: idx === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>{formatUfcRecentFight(row, dossier.name)}</div>) : <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.4 }}>No verified last-five rows in the current cache.</div>}
-                              </div>
-                            ))}
-                          </div>
-                        )
                         return null
                       }
                       return (
                         <div style={{ display: 'grid', gap: 10 }}>
                           <div style={{ borderRadius: 20, padding: isMobile ? 12 : 15, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(255,255,255,0.028))', border: '1px solid rgba(125,246,255,0.26)', boxShadow: activeSection ? '0 0 26px rgba(125,246,255,0.10)' : '0 0 14px rgba(125,246,255,0.04)' }}>
+                            <style>{`@keyframes ufcCrackHeadlight { 0% { transform: translateX(-145%) rotate(-11deg); opacity: 0; } 16% { opacity: .9; } 52% { opacity: .95; } 100% { transform: translateX(245%) rotate(-11deg); opacity: 0; } } @keyframes ufcCrackPulse { 0%, 100% { opacity: .24; } 50% { opacity: .72; } }`}</style>
                             <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 9 }}>Tap a section to expand fight analysis</div>
-                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))', gap: isMobile ? 8 : 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: isMobile ? 8 : 10 }}>
                               {tabs.map(tab => {
                                 const active = activeSection === tab.key
                                 return <button key={tab.key} onClick={() => setActiveKalshiSections(prev => {
@@ -5625,9 +5626,11 @@ function KalshiUFCSection() {
                                   if (next[fight.id] === tab.key) delete next[fight.id]
                                   else next[fight.id] = tab.key
                                   return next
-                                })} style={{ minHeight: isMobile ? 52 : 58, borderRadius: 999, padding: isMobile ? '8px 10px' : '9px 12px', cursor: 'pointer', background: active ? 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.22), rgba(125,246,255,0.20) 42%, rgba(125,246,255,0.07))' : 'linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025))', border: `1px solid ${active ? 'rgba(125,246,255,0.72)' : 'rgba(125,246,255,0.24)'}`, color: active ? C.green : C.textPrimary, fontSize: isMobile ? 10 : 11, fontWeight: 950, letterSpacing: '0.06em', textTransform: 'uppercase', boxShadow: active ? '0 0 22px rgba(125,246,255,0.20), inset 0 0 18px rgba(125,246,255,0.08)' : '0 8px 18px rgba(0,0,0,0.22)', transform: active ? 'translateY(-1px) scale(1.02)' : 'translateY(0) scale(1)', transition: 'transform 180ms ease, box-shadow 220ms ease, border-color 220ms ease, background 220ms ease' }}>
-                                  <span style={{ display: 'block', lineHeight: 1.05 }}>{tab.label}</span>
-                                  <span style={{ display: 'block', marginTop: 3, color: active ? C.textPrimary : C.textSecondary, fontSize: 7, fontWeight: 900, letterSpacing: '0.10em' }}>{tab.hint}</span>
+                                })} style={{ position: 'relative', overflow: 'hidden', minHeight: isMobile ? 52 : 58, borderRadius: 999, padding: isMobile ? '8px 10px' : '9px 12px', cursor: 'pointer', background: active ? 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.22), rgba(125,246,255,0.20) 42%, rgba(125,246,255,0.07))' : 'linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025))', border: `1px solid ${active ? 'rgba(125,246,255,0.72)' : 'rgba(125,246,255,0.24)'}`, color: active ? C.green : C.textPrimary, fontSize: isMobile ? 10 : 11, fontWeight: 950, letterSpacing: '0.06em', textTransform: 'uppercase', boxShadow: active ? '0 0 22px rgba(125,246,255,0.20), inset 0 0 18px rgba(125,246,255,0.08)' : '0 8px 18px rgba(0,0,0,0.22)', transform: active ? 'translateY(-1px) scale(1.02)' : 'translateY(0) scale(1)', transition: 'transform 180ms ease, box-shadow 220ms ease, border-color 220ms ease, background 220ms ease' }}>
+                                  <span aria-hidden="true" style={{ position: 'absolute', left: 8, right: 8, top: '50%', height: 1, background: 'linear-gradient(90deg, transparent, rgba(125,246,255,0.36), rgba(255,255,255,0.34), rgba(125,246,255,0.30), transparent)', transform: 'translateY(-50%) rotate(-11deg)', animation: 'ufcCrackPulse 2.4s ease-in-out infinite', pointerEvents: 'none' }} />
+                                  <span aria-hidden="true" style={{ position: 'absolute', top: -10, bottom: -10, left: 0, width: '42%', background: 'linear-gradient(100deg, transparent 0%, rgba(125,246,255,0.05) 30%, rgba(255,255,255,0.55) 48%, rgba(125,246,255,0.28) 54%, transparent 72%)', filter: 'blur(0.2px)', mixBlendMode: 'screen', animation: `ufcCrackHeadlight ${2.6 + (tabs.findIndex(t => t.key === tab.key) * 0.18)}s ease-in-out infinite`, animationDelay: `${tabs.findIndex(t => t.key === tab.key) * 0.16}s`, pointerEvents: 'none' }} />
+                                  <span style={{ position: 'relative', zIndex: 1, display: 'block', lineHeight: 1.05 }}>{tab.label}</span>
+                                  <span style={{ position: 'relative', zIndex: 1, display: 'block', marginTop: 3, color: active ? C.textPrimary : C.textSecondary, fontSize: 7, fontWeight: 900, letterSpacing: '0.10em' }}>{tab.hint}</span>
                                 </button>
                               })}
                             </div>
@@ -6107,7 +6110,7 @@ function TeamsDirectoryPanel({ sport, isMobile }: { sport: SupportedSport | 'ufc
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))', gap: 8, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: 8, marginBottom: 14 }}>
             {(stats.length ? stats : [{ label: 'Roster', value: String(roster.length) }]).map((stat, statIdx) => {
               const expandedLabel = expandTeamStatLabel(stat.label)
               return (
