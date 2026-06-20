@@ -215,10 +215,10 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
           padding: max(20px, env(safe-area-inset-top)) 18px max(22px, env(safe-area-inset-bottom));
         }
 
-        .war-brand { display: flex; justify-content: center; }
+        .war-brand { display: flex; justify-content: center; align-items: center; min-width: 0; }
         .brand-logo { width: min(70vw, 268px); height: auto; display: block; filter: none; border: 0; border-radius: 0; background: transparent; }
 
-        .war-grid { display: grid; gap: 16px; align-items: center; justify-items: center; }
+        .war-grid { display: grid; gap: 16px; align-items: center; justify-items: center; min-width: 0; }
 
         /* ---- The secure access terminal (true glass) ----
            Smaller footprint + lighter translucent fill + heavier blur so
@@ -298,10 +298,37 @@ export default function AuthShell({ eyebrow, title, subtitle, children }: AuthSh
         .cl-dividerRow { margin: 10px 0 !important; }
         .cl-footer { margin-top: 10px !important; }
 
-        /* ---- Desktop ---- */
+        /* ---- iPad landscape / desktop ----
+           The login card cannot sit under the logo on short desktop/tablet
+           viewports; stacked layout pushed the Clerk terminal below center.
+           Split the hero and auth terminal into two centered columns. */
         @media (min-width: 920px) {
-          .war-content { padding: 36px 32px; gap: 24px; }
-          .terminal { padding: 16px 18px 18px; }
+          .war-content {
+            width: min(1080px, 100%);
+            grid-template-columns: minmax(300px, 1fr) minmax(360px, 420px);
+            align-items: center;
+            align-content: center;
+            justify-content: center;
+            gap: clamp(28px, 5vw, 74px);
+            padding: max(14px, env(safe-area-inset-top)) 38px max(14px, env(safe-area-inset-bottom));
+          }
+          .war-brand { justify-content: flex-end; }
+          .brand-logo { width: min(32vw, 386px); }
+          .war-grid { justify-items: stretch; }
+          .terminal { width: 100%; padding: 16px 18px 18px; }
+          .war-foot { grid-column: 1 / -1; margin-top: -6px; }
+        }
+
+        @media (min-width: 920px) and (max-height: 720px) {
+          .war-content { padding-top: 10px; padding-bottom: 10px; }
+          .brand-logo { width: min(26vw, 320px); }
+          .terminal { padding: 13px 16px 15px; }
+          .terminal-bar { padding-bottom: 6px; margin-bottom: 7px; }
+          .terminal-head { margin-bottom: 8px; }
+          .term-subtitle { font-size: 11.5px; line-height: 1.34; }
+          .terminal-body { gap: 8px; }
+          .terminal-foot { margin-top: 8px; }
+          .war-foot { display: none; }
         }
 
         /* ---- iPhone-safe (390x844 and smaller): prioritize logo + auth controls ---- */
