@@ -27,6 +27,7 @@ import { computeSignalDeltas, type SignalDelta, type SignalDeltaSnapshot } from 
 import type { LiquidityGrade } from './lib/signals/liquidity'
 import { buildAlertRulesForWatchItem, buildWatchKey, evaluateAlerts, watchlistReducer, type AlertEvent, type AlertRule, type WatchItem, type WatchSnapshot } from './lib/watchlist/alerts'
 import { getFighterPhotoUrl, isWeightClassOpenByDefault } from './lib/ufc/fighters-directory'
+import { buildUfcComboCards } from './lib/ufc/fight-combo-cards'
 import { CARD_EXPORT_ROOT_SELECTOR, cardExportStatusLabel, shareOrDownloadCardImage, type CardExportStatus } from './lib/card-image-export'
 
 const BetTracker = dynamic(() => import('./components/BetTracker'), { ssr: false })
@@ -5457,9 +5458,62 @@ function KalshiUFCSection() {
   if (error) return <p style={{ color: C.gold, fontSize: 12 }}>Kalshi UFC unavailable: {error}</p>
   const fights = data?.fights || []
   if (!fights.length) return <p style={{ color: C.textSecondary, fontSize: 13, textAlign: 'center', padding: '48px 0' }}>No live Kalshi UFC contracts found.</p>
+  const comboCards = buildUfcComboCards(fights, deepAnalysis?.fights || [])
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16, alignItems: 'start' }}>
+      {comboCards.length > 0 && (
+        <section style={{ gridColumn: '1 / -1', borderRadius: isMobile ? 18 : 24, padding: isMobile ? 13 : 16, background: 'linear-gradient(135deg, rgba(125,246,255,0.105), rgba(8,12,5,0.94) 42%, rgba(255,215,0,0.055))', border: '1px solid rgba(125,246,255,0.28)', boxShadow: '0 18px 48px rgba(0,0,0,0.42)', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>UFC Fight Cards · curated multi-leg looks</div>
+              <h3 style={{ color: C.textPrimary, fontSize: isMobile ? 19 : 26, fontWeight: 950, lineHeight: 1.05, marginTop: 5 }}>Combinations worth a deeper look</h3>
+              <p style={{ color: C.textSecondary, fontSize: isMobile ? 10 : 12, lineHeight: 1.45, marginTop: 6, maxWidth: 760 }}>Built from cached fighter analysis + live winner-market prices. This is not a favorite stack: each leg needs a matchup lean, executable price, and enough size to avoid a fake edge.</p>
+            </div>
+            <span style={{ flexShrink: 0, borderRadius: 999, padding: '6px 10px', background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,215,0,0.25)', color: C.gold, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Confirm lines before entry</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+            {comboCards.map(card => (
+              <article key={card.id} style={{ borderRadius: 18, padding: isMobile ? 12 : 14, background: card.risk === 'Aggressive' ? 'linear-gradient(145deg, rgba(255,215,0,0.08), rgba(8,12,5,0.96))' : card.risk === 'Balanced' ? 'linear-gradient(145deg, rgba(125,246,255,0.075), rgba(8,12,5,0.96))' : 'linear-gradient(145deg, rgba(47,255,185,0.07), rgba(8,12,5,0.96))', border: `1px solid ${card.risk === 'Aggressive' ? 'rgba(255,215,0,0.24)' : 'rgba(125,246,255,0.22)'}`, display: 'grid', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: card.risk === 'Aggressive' ? C.gold : C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{card.label}</div>
+                    <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, lineHeight: 1.1, marginTop: 4 }}>{card.title}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ color: C.green, fontSize: isMobile ? 18 : 22, fontWeight: 950, lineHeight: 1 }}>{card.payoutLabel.split(' ')[0]}</div>
+                    <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginTop: 2 }}>est. return</div>
+                  </div>
+                </div>
+                <p style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.45 }}>{card.thesis}</p>
+                <div style={{ display: 'grid', gap: 7 }}>
+                  {card.legs.map((leg, idx) => (
+                    <a key={leg.ticker} href={leg.url || undefined} target={leg.url ? '_blank' : undefined} rel={leg.url ? 'noreferrer' : undefined} onClick={e => { if (!leg.url) e.preventDefault(); e.stopPropagation() }} style={{ textDecoration: 'none', borderRadius: 13, padding: '8px 9px', background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gridTemplateColumns: 'auto minmax(0,1fr) auto', gap: 8, alignItems: 'center' }}>
+                      <span style={{ width: 20, height: 20, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(125,246,255,0.10)', color: C.green, fontSize: 9, fontWeight: 950 }}>{idx + 1}</span>
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: 'block', color: C.textPrimary, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{leg.fighter}</span>
+                        <span style={{ display: 'block', color: C.textSecondary, fontSize: 8, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{leg.matchup}</span>
+                      </span>
+                      <span style={{ textAlign: 'right' }}>
+                        <span style={{ display: 'block', color: C.green, fontSize: 14, fontWeight: 950 }}>{leg.price}%</span>
+                        <span style={{ display: 'block', color: C.textSecondary, fontSize: 7, fontWeight: 900 }}>{Math.round(leg.available).toLocaleString()} size</span>
+                      </span>
+                    </a>
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gap: 6, paddingTop: 2 }}>
+                  <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase' }}>Why these legs</div>
+                  {card.legs.slice(0, 2).map(leg => <p key={`${leg.ticker}-why`} style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.35 }}>• {leg.statisticalWhy}</p>)}
+                </div>
+                <div style={{ borderRadius: 12, padding: 9, background: card.risk === 'Aggressive' ? 'rgba(255,215,0,0.055)' : 'rgba(255,255,255,0.035)', border: `1px solid ${card.risk === 'Aggressive' ? 'rgba(255,215,0,0.18)' : 'rgba(255,255,255,0.08)'}` }}>
+                  <div style={{ color: card.risk === 'Aggressive' ? C.gold : C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{card.risk}</div>
+                  <div style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.35, marginTop: 4 }}>{card.legs[0]?.risk}</div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       {fights.map(fight => {
         const totalSize = fight.markets.reduce((sum, m) => sum + (m.yesAskSize || 0), 0)
         const groups = groupUfcMarkets(fight.markets)
