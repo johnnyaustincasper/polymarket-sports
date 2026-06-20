@@ -50,6 +50,32 @@ export async function setCachedUFCEventAnalysis(eventId: string, analysis: UFCEv
   await setJsonCache(getUFCAnalysisCacheKey(eventId), analysis, UFC_DEEP_ANALYSIS_TTL_MS)
 }
 
+export function buildBaselineUFCEventAnalysis(event: UFCEvent, staleStatus: string): UFCEventDeepAnalysis {
+  const fights: UFCFightDeepAnalysis[] = event.fights.map(fight => buildFallbackFightAnalysis(fight, undefined, event))
+  const bestLooks = fights
+    .map(fight => `${fight.fighterA.name} vs ${fight.fighterB.name}: ${fight.ai.pick} matchup lean`)
+    .slice(0, 4)
+  const matchupWatches = fights
+    .map(fight => `${fight.fighterA.name} vs ${fight.fighterB.name}: verify late news/weigh-ins before upgrading`)
+    .slice(0, 4)
+
+  return {
+    schemaVersion: 1,
+    eventId: event.id,
+    eventName: event.name,
+    eventDate: event.date,
+    generatedAt: new Date().toISOString(),
+    status: 'partial',
+    fights,
+    cardSummary: {
+      headline: `${event.name}: baseline UFC matchup snapshot (${staleStatus})`,
+      bestLooks,
+      fadeTheHype: [],
+      passFights: matchupWatches,
+    },
+  }
+}
+
 export async function getNextUFCEventForAnalysis(events?: UFCEvent[]): Promise<UFCEvent | null> {
   const list = events || await fetchUFCEvents()
   const actionable = list.filter(event => event.status !== 'post')

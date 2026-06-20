@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceRateLimit } from '@/app/lib/rate-limit'
 import { fetchUFCEvents } from '@/app/lib/ufc/events'
-import { getCachedUFCEventAnalysis, getNextUFCEventForAnalysis } from '@/app/lib/ufc/deep-analysis-service'
+import { buildBaselineUFCEventAnalysis, getCachedUFCEventAnalysis, getNextUFCEventForAnalysis } from '@/app/lib/ufc/deep-analysis-service'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -27,15 +27,18 @@ export async function GET(req: NextRequest) {
 
     const cached = await getCachedUFCEventAnalysis(event.id, event)
     if (!cached || cached.status === 'stale') {
+      const status = cached?.status || 'missing'
       return NextResponse.json({
-        available: false,
-        status: cached?.status || 'missing',
+        available: true,
+        status: 'partial',
+        sourceStatus: status,
         eventId: event.id,
         eventName: event.name,
         eventDate: event.date,
+        analysis: buildBaselineUFCEventAnalysis(event, status),
         message: cached?.status === 'stale'
-          ? 'Deep UFC analysis is stale and needs to be regenerated for this card.'
-          : 'Deep UFC analysis has not been generated for this card yet.',
+          ? 'Deep UFC analysis cache is stale; serving ESPN-backed baseline until regenerated.'
+          : 'Deep UFC analysis cache is missing; serving ESPN-backed baseline until regenerated.',
       })
     }
 
