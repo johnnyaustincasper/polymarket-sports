@@ -39,6 +39,18 @@ describe('classifySignalDecision', () => {
     expect(classifySignalDecision({ tier: 'A', edge: -0.01, liquidityGrade: 'deep', now }).decision).toBe('pass')
   })
 
+  it('does not show pass language for MLB signals with weak or kill-tier setup', () => {
+    const kill = classifySignalDecision({ sport: 'mlb', tier: 'KILL', edge: 0.20, liquidityGrade: 'deep', now })
+    const weak = classifySignalDecision({ sport: 'mlb', tier: 'A', edge: -0.01, liquidityGrade: 'deep', now })
+
+    expect(kill.decision).toBe('watch')
+    expect(kill.label).toBe('Needs better setup')
+    expect(`${kill.label} ${kill.reason}`).not.toMatch(/pass/i)
+    expect(weak.decision).toBe('watch')
+    expect(weak.label).toBe('Price watch')
+    expect(`${weak.label} ${weak.reason}`).not.toMatch(/pass/i)
+  })
+
   it('marks stale generated signals stale before other positive classifications', () => {
     const result = classifySignalDecision({
       tier: 'A',

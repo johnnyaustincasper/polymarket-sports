@@ -3,6 +3,7 @@ import type { LiquidityGrade } from './liquidity'
 export type SignalDecision = 'actionable' | 'watch' | 'pass' | 'stale' | 'trap' | 'thin'
 
 export interface ClassifySignalDecisionInput {
+  sport?: string | null
   tier?: 'A' | 'B' | 'WATCH' | 'KILL'
   edge?: number | null
   ask?: number | null
@@ -57,11 +58,20 @@ function result(decision: SignalDecision, label: string, reason: string): Signal
   return { decision, label, reason }
 }
 
+function isMlbSignal(sport: string | null | undefined) {
+  return String(sport || '').trim().toLowerCase() === 'mlb'
+}
+
+function mlbNonPass(label: string, reason: string): SignalDecisionResult {
+  return result('watch', label, reason)
+}
+
 export function classifySignalDecision(input: ClassifySignalDecisionInput): SignalDecisionResult {
   const now = input.now ?? new Date()
   const flags = normalizedFlags(input.flags)
   const tier = input.tier ?? 'WATCH'
   const edge = input.edge
+  const mlb = isMlbSignal(input.sport)
 
   if (flags.has('stale') || isGeneratedAtStale(input.generatedAt, now)) {
     return result('stale', 'Stale signal', 'Signal is stale; refresh before acting.')
@@ -76,10 +86,12 @@ export function classifySignalDecision(input: ClassifySignalDecisionInput): Sign
   }
 
   if (tier === 'KILL') {
+    if (mlb) return mlbNonPass('Needs better setup', 'Baseball read is not clean enough yet; wait for lineup spot, starter handedness, park/weather, or a softer number.')
     return result('pass', 'Pass', 'Kill-tier signal; no entry.')
   }
 
   if (!isFiniteNumber(edge) || edge <= 0) {
+    if (mlb) return mlbNonPass('Price watch', 'The baseball case needs a better number or stronger matchup context before it becomes a real look.')
     return result('pass', 'Pass', 'No positive edge available.')
   }
 
@@ -95,6 +107,7 @@ export function classifySignalDecision(input: ClassifySignalDecisionInput): Sign
     return result('watch', 'Watch signal', 'Positive value gap, but keep on watch until tier, line, or liquidity improves.')
   }
 
+  if (mlb) return mlbNonPass('Small lean', 'There is a baseball angle, but the number is thin; confirm lineup, opposing starter, and park/weather before trusting it.')
   return result('pass', 'Pass', 'Value gap is below the watch threshold.')
 }
 

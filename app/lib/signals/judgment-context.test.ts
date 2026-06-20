@@ -158,6 +158,34 @@ describe('signal judgment context', () => {
     expect(context?.summaryBullets[0]).toBe('Last game: 6 hits + runs + RBIs.')
     expect(context?.trend.last5HitRate).toBe(1)
     expect(context?.sportSpecificNotes?.[0]).toContain('baseball')
+    expect(context?.whyPlayerBullets.join(' ')).toContain('full-offense involvement')
+    expect(context?.whyPlayerBullets.join(' ')).toContain('lineup spot and team run environment')
+    expect(context?.whyPlayerBullets.join(' ')).toContain('park/weather')
+    expect(context?.whyPlayerBullets.join(' ')).not.toMatch(/raw odds|market price|Pass/i)
     expect(context?.decisionSections.find(section => section.title === 'PROP NUMBER')?.rows.join(' ')).toContain("Today's prop: 3+ hits + runs + rbis")
+  })
+
+  it('adds baseball-specific context for pitcher strikeout reads', () => {
+    const last12 = [
+      { eventId: 'p1', date: '2026-06-01', opponent: 'SEA', stats: { strikeouts: 8 } },
+      { eventId: 'p2', date: '2026-05-26', opponent: 'TEX', stats: { strikeouts: 6 } },
+      { eventId: 'p3', date: '2026-05-20', opponent: 'HOU', stats: { strikeouts: 4 } },
+      { eventId: 'p4', date: '2026-05-14', opponent: 'OAK', stats: { strikeouts: 7 } },
+      { eventId: 'p5', date: '2026-05-08', opponent: 'LAA', stats: { strikeouts: 5 } },
+    ]
+
+    const context = buildJudgmentContext({
+      player: 'Tarik Skubal',
+      metric: 'strikeouts',
+      label: '6+ strikeouts',
+      line: 6,
+      last12,
+    })
+
+    const why = context?.whyPlayerBullets.join(' ') || ''
+    expect(why).toContain('pitcher workload/swing-miss driven')
+    expect(why).toContain('opponent K-rate')
+    expect(why).toContain('umpire zone')
+    expect(why).not.toMatch(/odds|market|Pass/i)
   })
 })

@@ -366,6 +366,48 @@ function whyPlayerRows(input: {
     ].filter(Boolean).slice(0, 3)
   }
 
+  if (metricKey === 'hits' || metricKey === 'total bases') {
+    const statLabel = metricKey === 'hits' ? 'hits' : 'total bases'
+    return [
+      `${input.player}'s case is contact/quality-of-contact driven: ${fmt(input.lastGame.value)} ${statLabel} last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${currentProp}.`,
+      `${numberRead} For MLB, this is not just recent form — confirm batting-order slot, opposing starter handedness, and whether the park/weather helps balls carry.`,
+      `Baseball risk check: if he drops in the order, sits against the handedness matchup, or weather suppresses offense, downgrade the read.`,
+    ].filter(Boolean).slice(0, 3)
+  }
+
+  if (metricKey === 'hits + runs + rbis' || metricKey === 'hits+runs+rbis' || metricKey === 'h+r+rbi') {
+    return [
+      `${input.player}'s case is full-offense involvement: ${fmt(input.lastGame.value)} hits+runs+RBIs last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${currentProp}.`,
+      `${numberRead} This needs either table-setting, run production, or both — lineup spot and team run environment matter more than the surface number.`,
+      `Baseball risk check: downgrade if he bats lower than expected, faces a tough same-handed starter, or the game total/park/weather turns pitcher-friendly.`,
+    ].filter(Boolean).slice(0, 3)
+  }
+
+  if (metricKey === 'rbis' || metricKey === 'rbi' || metricKey === 'runs') {
+    const role = metricKey === 'runs' ? 'table-setting/run-scoring' : 'run-production'
+    return [
+      `${input.player}'s case is ${role} driven: ${fmt(input.lastGame.value)} ${metricLabel} last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${currentProp}.`,
+      `${numberRead} For this MLB prop, the deeper read is lineup context: who hits around him, starter handedness, and team scoring environment.`,
+      `Baseball risk check: if the lineup around him is weak or the opposing starter profile suppresses traffic, treat it as only a lean.`,
+    ].filter(Boolean).slice(0, 3)
+  }
+
+  if (metricKey === 'home runs') {
+    return [
+      `${input.player}'s case is power/outlier driven: ${fmt(input.lastGame.value)} HR last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${currentProp}.`,
+      `${numberRead} Home-run looks need more than price: check barrel/power form, pitcher fly-ball weakness, handedness, park, and weather carry.`,
+      `Baseball risk check: this is naturally volatile; downgrade hard if the park/weather or pitcher profile suppresses power.`,
+    ].filter(Boolean).slice(0, 3)
+  }
+
+  if (metricKey === 'strikeouts') {
+    return [
+      `${input.player}'s case is pitcher workload/swing-miss driven: ${fmt(input.lastGame.value)} strikeouts last game, ${fmtAvg(input.last5Avg)} over the last 5, and ${hitText} cleared ${currentProp}.`,
+      `${numberRead} The deeper MLB read is pitch count, opponent K-rate, handedness splits, umpire zone, and whether he is likely to work deep enough.`,
+      `Baseball risk check: quick hooks, low pitch count, contact-heavy opponent, or bad weather can turn this into a thin lean.`,
+    ].filter(Boolean).slice(0, 3)
+  }
+
   const profile = metricNoun(input.metric)
   return [
     input.line != null

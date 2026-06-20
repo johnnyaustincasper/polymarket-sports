@@ -267,6 +267,7 @@ function enrichSignal(signal: ModelSignal, generatedAt: string): ModelSignal {
     liquidityWarnings: liquidity.warnings,
   })
   const decision = classifySignalDecision({
+    sport: signal.sport,
     tier: signal.tier,
     edge: centsToProbability(signal.edge),
     ask: centsToProbability(ask),

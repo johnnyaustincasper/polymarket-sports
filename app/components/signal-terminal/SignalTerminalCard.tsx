@@ -181,6 +181,7 @@ export default function SignalTerminalCard({
 }: SignalTerminalCardProps) {
   const tier = signal.tier ?? 'WATCH'
   const decision = classifySignalDecision({
+    sport: signal.sport,
     tier: safeTier(tier),
     edge: toProbability(signal.edge),
     ask: toProbability(signal.ask),
