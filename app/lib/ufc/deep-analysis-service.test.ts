@@ -35,7 +35,7 @@ describe('UFC deep analysis service', () => {
   it('writes and reads cached analysis', async () => {
     const analysis = cached(`${event.id}-cache`)
     await setCachedUFCEventAnalysis(analysis.eventId, analysis)
-    await expect(getCachedUFCEventAnalysis(analysis.eventId)).resolves.toMatchObject({ eventId: analysis.eventId, status: 'complete' })
+    await expect(getCachedUFCEventAnalysis(analysis.eventId)).resolves.toMatchObject({ eventId: analysis.eventId, status: 'stale' })
   })
 
   it('marks cached analysis stale when event metadata/fight ids or staleAfter do not match current card', async () => {
@@ -50,12 +50,15 @@ describe('UFC deep analysis service', () => {
     await expect(getCachedUFCEventAnalysis(wrongCard.eventId, { ...currentEvent, id: wrongCard.eventId, date: '2026-08-01T00:00:00Z' })).resolves.toMatchObject({ status: 'stale' })
   })
 
-  it('returns existing fresh cache unless force=true', async () => {
+  it('treats old market-only fallback cache as stale even when force=false', async () => {
     const cachedEvent = { ...event, id: `${event.id}-existing` }
     const analysis = cached(cachedEvent.id, cachedEvent)
     await setCachedUFCEventAnalysis(analysis.eventId, analysis)
-    const fromCache = await buildUFCEventDeepAnalysis(cachedEvent, { researchFight: async () => { throw new Error('should not run') } })
-    expect(fromCache.cardSummary.headline).toBe('cached')
+    const fromCache = await buildUFCEventDeepAnalysis(cachedEvent, {
+      researchFight: async () => ({ available: false, data: null, error: 'ai failed' }),
+      save: false,
+    })
+    expect(fromCache.cardSummary.headline).toBe('UFC Test: 1 fight deep-analysis snapshot')
 
     const rebuilt = await buildUFCEventDeepAnalysis(cachedEvent, {
       force: true,

@@ -1,7 +1,7 @@
 import { getJsonCache, setJsonCache } from '../durable-cache'
 import { buildFallbackFightAnalysis, downgradeUnsupportedFightAnalysis, getFightAnalysisQuality, sanitizeFightAnalysis, type UFCEventDeepAnalysis, type UFCFightDeepAnalysis } from './deep-analysis'
 import { fetchUFCEvents, type UFCEvent, type UFCFight } from './events'
-import { researchUFCFightWithAi } from './deep-analysis-ai'
+import { buildUFCFightResearchContext, researchUFCFightWithAi } from './deep-analysis-ai'
 import type { KalshiUFCFightIntel } from './kalshi-fight-intel'
 
 const UFC_DEEP_ANALYSIS_TTL_MS = 10 * 24 * 60 * 60_000
@@ -38,6 +38,13 @@ export function validateCachedUFCEventAnalysis(analysis: UFCEventDeepAnalysis, e
       if (fight.eventId !== event.id || fight.eventName !== event.name || fight.eventDate !== event.date) staleReasons.push(`fight metadata mismatch ${fight.fightId}`)
     }
   }
+  if (analysis.fights.some(fight => /fallback only|full fighter research is unavailable|market context only/i.test([
+    fight.ai?.thesis,
+    ...(fight.ai?.risks || []),
+    ...(fight.bettingAngles || []).map(angle => angle.rationale),
+  ].filter(Boolean).join(' ')))) {
+    staleReasons.push('stale market-only fallback analysis')
+  }
   return staleReasons.length ? { ...analysis, status: 'stale' } : analysis
 }
 
@@ -73,6 +80,48 @@ export function buildBaselineUFCEventAnalysis(event: UFCEvent, staleStatus: stri
       fadeTheHype: [],
       passFights: matchupWatches,
     },
+  }
+}
+
+export async function buildRuntimeBaselineUFCEventAnalysis(event: UFCEvent, staleStatus: string): Promise<UFCEventDeepAnalysis> {
+  const generatedAt = new Date().toISOString()
+  const fights: UFCFightDeepAnalysis[] = []
+
+  for (const fight of event.fights) {
+    const fallback = buildFallbackFightAnalysis(fight, undefined, event)
+    try {
+      const research = await buildUFCFightResearchContext(fight, event)
+      const baseline = research.baseline
+      if (baseline) {
+        fights.push(sanitizeFightAnalysis({
+          ...fallback,
+          ...baseline,
+          eventId: event.id,
+          eventName: event.name,
+          eventDate: event.date,
+          market: { ...fallback.market, ...baseline.market },
+          ai: { ...fallback.ai, ...baseline.ai },
+          bettingAngles: baseline.bettingAngles || fallback.bettingAngles,
+          sources: baseline.sources || research.sources,
+          generatedAt,
+        }, fight, event))
+        continue
+      }
+    } catch {
+      // Keep the deterministic fallback below. The route must remain available.
+    }
+    fights.push(fallback)
+  }
+
+  return {
+    schemaVersion: 1,
+    eventId: event.id,
+    eventName: event.name,
+    eventDate: event.date,
+    generatedAt,
+    status: 'partial',
+    fights,
+    cardSummary: summarizeCard(event, fights),
   }
 }
 

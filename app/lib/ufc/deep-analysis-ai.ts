@@ -379,7 +379,10 @@ export async function researchUFCFightWithAi(fight: UFCFight, event?: UFCEvent, 
   })
   if (!completion.available) {
     const error = 'error' in completion ? completion.error : 'AI provider unavailable'
-    return { available: false, data: null, error }
+    if (research.baseline) {
+      return { available: true, data: { ...research.baseline, sources: research.sources } }
+    }
+    return { available: false as const, data: null, error }
   }
   const parsed = parseUFCResearchJson(completion.text)
   if (!parsed.available) {
