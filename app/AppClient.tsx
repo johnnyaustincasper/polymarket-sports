@@ -27,7 +27,7 @@ import { computeSignalDeltas, type SignalDelta, type SignalDeltaSnapshot } from 
 import type { LiquidityGrade } from './lib/signals/liquidity'
 import { buildAlertRulesForWatchItem, buildWatchKey, evaluateAlerts, watchlistReducer, type AlertEvent, type AlertRule, type WatchItem, type WatchSnapshot } from './lib/watchlist/alerts'
 import { getFighterPhotoUrl, isWeightClassOpenByDefault } from './lib/ufc/fighters-directory'
-import { buildUfcComboCards } from './lib/ufc/fight-combo-cards'
+import type { UfcSettledSignalCard } from './lib/ufc/shared-signal-board'
 import { CARD_EXPORT_ROOT_SELECTOR, cardExportStatusLabel, shareOrDownloadCardImage, type CardExportStatus } from './lib/card-image-export'
 
 const BetTracker = dynamic(() => import('./components/BetTracker'), { ssr: false })
@@ -3307,27 +3307,30 @@ function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { 
 function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [cards, setCards] = useState<ReturnType<typeof buildUfcComboCards>>([])
+  const [cards, setCards] = useState<UfcSettledSignalCard[]>([])
+  const [history, setHistory] = useState<Array<{ id: string; cardLabel: string; legNumber: number; matchup: string; fighter: string; outcome: string; resultLabel: string; updatedAt: string }>>([])
+  const [boardMeta, setBoardMeta] = useState<{ capturedAt?: string; updatedAt?: string; status?: string; eventName?: string } | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
-    Promise.all([
-      fetch('/api/ufc-analysis', { cache: 'no-store' }).then(r => r.json().catch(() => null)).catch(() => null),
-      fetch('/api/ufc-kalshi', { cache: 'no-store' }).then(r => r.json().catch(() => null)).catch(() => null),
-    ]).then(([analysis, kalshi]) => {
-      if (cancelled) return
-      if (!analysis?.available || !analysis?.analysis) throw new Error('UFC fight analysis is not available yet')
-      const nextCards = buildUfcComboCards(kalshi?.fights || [], analysis.analysis?.fights || [])
-      setCards(nextCards)
-    }).catch(err => {
-      if (!cancelled) setError(err instanceof Error ? err.message : 'UFC signals unavailable')
-    }).finally(() => { if (!cancelled) setLoading(false) })
+    fetch('/api/ufc-signals', { cache: 'no-store' })
+      .then(r => r.json().catch(() => null))
+      .then(payload => {
+        if (cancelled) return
+        if (!payload?.available) throw new Error(payload?.message || 'UFC shared signals are not available yet')
+        setCards(payload.cards || [])
+        setHistory(payload.history || [])
+        setBoardMeta({ capturedAt: payload.capturedAt, updatedAt: payload.updatedAt, status: payload.status, eventName: payload.eventName })
+      }).catch(err => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'UFC signals unavailable')
+      }).finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [])
 
-  if (loading) return <LoadingMarketCards cols={1} count={3} label="UFC Signals" detail="Building curated fight-card combinations from live prices and fighter analysis." />
+  if (loading) return <LoadingMarketCards cols={1} count={3} label="UFC Signals" detail="Loading the shared captured board so every member sees the same signal." />
   if (error) return <p style={{ color: C.gold, fontSize: 12 }}>UFC Signals unavailable: {error}</p>
   if (!cards.length) return <p style={{ color: C.textSecondary, fontSize: 13, textAlign: 'center', padding: '48px 0' }}>No UFC fight-card combinations qualify yet.</p>
 
@@ -3337,7 +3340,8 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
         <div style={{ minWidth: 0 }}>
           <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>UFC Signals · curated multi-leg fight cards</div>
           <h3 style={{ color: C.textPrimary, fontSize: isMobile ? 19 : 26, fontWeight: 950, lineHeight: 1.05, marginTop: 5 }}>Combinations worth a deeper look</h3>
-          <p style={{ color: C.textSecondary, fontSize: isMobile ? 10 : 12, lineHeight: 1.45, marginTop: 6, maxWidth: 760 }}>Built from cached fighter analysis + live winner-market prices. Not a favorite stack: each leg needs a matchup lean, executable price, and enough size to avoid a fake edge.</p>
+          <p style={{ color: C.textSecondary, fontSize: isMobile ? 10 : 12, lineHeight: 1.45, marginTop: 6, maxWidth: 760 }}>One captured shared board for this card: everyone sees the same signal until the fights settle. Each leg updates to win/loss after its fight, and the history log stays visible for trust.</p>
+          {boardMeta?.capturedAt && <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, marginTop: 6 }}>Captured {new Date(boardMeta.capturedAt).toLocaleString()} · {boardMeta.eventName || 'UFC card'} · {boardMeta.status === 'settled' ? 'Settled' : 'Tracking'}</div>}
         </div>
         <span style={{ flexShrink: 0, borderRadius: 999, padding: '6px 10px', background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,215,0,0.25)', color: C.gold, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Confirm lines before entry</span>
       </div>
@@ -3348,6 +3352,7 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
               <div style={{ minWidth: 0 }}>
                 <div style={{ color: card.risk === 'Aggressive' ? C.gold : C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{card.label}</div>
                 <div style={{ color: C.textPrimary, fontSize: isMobile ? 15 : 17, fontWeight: 950, lineHeight: 1.1, marginTop: 4 }}>{card.title}</div>
+                <div style={{ color: card.outcome === 'won' ? C.green : card.outcome === 'lost' ? C.red : C.textSecondary, fontSize: 8, fontWeight: 950, marginTop: 5, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{card.record.won}-{card.record.lost}{card.record.pending ? ` · ${card.record.pending} pending` : ''}</div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div style={{ color: C.green, fontSize: isMobile ? 18 : 22, fontWeight: 950, lineHeight: 1 }}>{card.payoutLabel.split(' ')[0]}</div>
@@ -3365,6 +3370,7 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
                   </span>
                   <span style={{ textAlign: 'right' }}>
                     <span style={{ display: 'block', color: C.green, fontSize: 14, fontWeight: 950 }}>{leg.price}%</span>
+                    <span style={{ display: 'block', color: leg.outcome === 'won' ? C.green : leg.outcome === 'lost' ? C.red : leg.outcome === 'unknown' ? C.gold : C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginTop: 2 }}>{leg.outcome === 'won' ? 'Won' : leg.outcome === 'lost' ? 'Lost' : leg.outcome === 'unknown' ? 'Result check' : 'Pending'}</span>
                     <span style={{ display: 'block', color: C.textSecondary, fontSize: 7, fontWeight: 900 }}>{Math.round(leg.available).toLocaleString()} size</span>
                   </span>
                 </a>
@@ -3381,6 +3387,31 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
           </article>
         ))}
       </div>
+      {history.length > 0 && (
+        <div style={{ marginTop: 12, borderRadius: 16, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.10)', overflow: 'hidden' }}>
+          <button onClick={() => setHistoryOpen(open => !open)} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'transparent', border: 'none', color: C.textPrimary, cursor: 'pointer' }}>
+            <span style={{ minWidth: 0, textAlign: 'left' }}>
+              <span style={{ display: 'block', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Signal result log</span>
+              <span style={{ display: 'block', color: C.textSecondary, fontSize: 9, marginTop: 2 }}>Tap to audit every captured leg and outcome.</span>
+            </span>
+            <span style={{ color: C.cyan, fontSize: 12, fontWeight: 950 }}>{historyOpen ? 'Hide' : 'Open'} ›</span>
+          </button>
+          {historyOpen && (
+            <div style={{ display: 'grid', gap: 0, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              {history.map(row => (
+                <div key={row.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr auto' : '1.2fr 1fr auto', gap: 8, alignItems: 'center', padding: '9px 12px', borderTop: '1px solid rgba(255,255,255,0.055)' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.cardLabel} · Leg {row.legNumber}: {row.fighter}</div>
+                    <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.matchup}</div>
+                  </div>
+                  {!isMobile && <div style={{ color: C.textSecondary, fontSize: 9, minWidth: 0 }}>{row.resultLabel}</div>}
+                  <div style={{ color: row.outcome === 'won' ? C.green : row.outcome === 'lost' ? C.red : row.outcome === 'unknown' ? C.gold : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', textAlign: 'right' }}>{row.outcome}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }

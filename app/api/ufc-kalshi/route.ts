@@ -100,88 +100,91 @@ async function fetchSeries(seriesTicker: string) {
   return markets
 }
 
+export async function loadUfcKalshiPayload() {
+  const now = Date.now()
+  if (cachedPayload && now - cachedAt < CACHE_MS) return cachedPayload
+
+  const byFight = new Map<string, any>()
+  const scannedBySeries: Record<string, number> = {}
+
+  const seriesResults = await Promise.all(UFC_SERIES.map(async series => ({ series, markets: await fetchSeries(series.ticker) })))
+  for (const { series, markets } of seriesResults) {
+    scannedBySeries[series.ticker] = markets.length
+    for (const m of markets) {
+      const ticker = String(m.ticker || '')
+      const eventTicker = String(m.event_ticker || ticker.split('-').slice(0, 2).join('-'))
+      const key = eventKey(eventTicker)
+      if (!key) continue
+      const title = String(m.title || '')
+      const parsed = parseFightTitle(title)
+      const existing = byFight.get(key) || {
+        id: key,
+        eventKey: key,
+        eventTickers: [],
+        fighterA: parsed.fighterA,
+        fighterB: parsed.fighterB,
+        dateLabel: parsed.dateLabel,
+        markets: [],
+      }
+      if (!existing.eventTickers.includes(eventTicker)) existing.eventTickers.push(eventTicker)
+      if (existing.fighterA === 'Fighter A' && parsed.fighterA !== 'Fighter A') {
+        existing.fighterA = parsed.fighterA
+        existing.fighterB = parsed.fighterB
+      }
+      if (!existing.dateLabel && parsed.dateLabel) existing.dateLabel = parsed.dateLabel
+      existing.markets.push({
+        ticker,
+        eventTicker,
+        series: series.ticker,
+        category: series.category,
+        categoryPriority: series.priority,
+        fighter: String(m.yes_sub_title || title.match(/^Will (.+?) win/i)?.[1] || '').replace(/\s+/g, ' ').trim(),
+        title: title.replace(/\s+/g, ' ').trim(),
+        yesAsk: dollarsToCents(m.yes_ask_dollars),
+        yesAskSize: sizeToNum(m.yes_ask_size_fp),
+        yesBid: dollarsToCents(m.yes_bid_dollars),
+        yesBidSize: sizeToNum(m.yes_bid_size_fp),
+        status: String(m.status || ''),
+        url: kalshiMarketUrl(ticker),
+      })
+      byFight.set(key, existing)
+    }
+  }
+
+  const fights = Array.from(byFight.values())
+    .map(f => {
+      const markets = f.markets.sort((a: any, b: any) => a.categoryPriority - b.categoryPriority || b.yesAskSize - a.yesAskSize || a.yesAsk - b.yesAsk)
+      return {
+        ...f,
+        markets,
+        intel: buildKalshiUFCFightIntel(markets),
+      }
+    })
+    .sort((a, b) => {
+      const aWinner = a.markets.some((m: any) => m.series === 'KXUFCFIGHT') ? 1 : 0
+      const bWinner = b.markets.some((m: any) => m.series === 'KXUFCFIGHT') ? 1 : 0
+      if (aWinner !== bWinner) return bWinner - aWinner
+      return b.markets.length - a.markets.length
+    })
+
+  const payload = {
+    available: fights.length > 0,
+    series: UFC_SERIES.map(s => s.ticker),
+    scanned: Object.values(scannedBySeries).reduce((a, b) => a + b, 0),
+    scannedBySeries,
+    fights,
+  }
+  cachedPayload = payload
+  cachedAt = Date.now()
+  return payload
+}
+
 export async function GET(req: NextRequest) {
   const rateLimited = enforceRateLimit(req, 'ufc-kalshi', { limit: 10, windowMs: 60_000 })
   if (rateLimited) return rateLimited
 
   try {
-    const now = Date.now()
-    if (cachedPayload && now - cachedAt < CACHE_MS) {
-      return NextResponse.json(cachedPayload, { headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120' } })
-    }
-
-    const byFight = new Map<string, any>()
-    const scannedBySeries: Record<string, number> = {}
-
-    const seriesResults = await Promise.all(UFC_SERIES.map(async series => ({ series, markets: await fetchSeries(series.ticker) })))
-    for (const { series, markets } of seriesResults) {
-      scannedBySeries[series.ticker] = markets.length
-      for (const m of markets) {
-        const ticker = String(m.ticker || '')
-        const eventTicker = String(m.event_ticker || ticker.split('-').slice(0, 2).join('-'))
-        const key = eventKey(eventTicker)
-        if (!key) continue
-        const title = String(m.title || '')
-        const parsed = parseFightTitle(title)
-        const existing = byFight.get(key) || {
-          id: key,
-          eventKey: key,
-          eventTickers: [],
-          fighterA: parsed.fighterA,
-          fighterB: parsed.fighterB,
-          dateLabel: parsed.dateLabel,
-          markets: [],
-        }
-        if (!existing.eventTickers.includes(eventTicker)) existing.eventTickers.push(eventTicker)
-        if (existing.fighterA === 'Fighter A' && parsed.fighterA !== 'Fighter A') {
-          existing.fighterA = parsed.fighterA
-          existing.fighterB = parsed.fighterB
-        }
-        if (!existing.dateLabel && parsed.dateLabel) existing.dateLabel = parsed.dateLabel
-        existing.markets.push({
-          ticker,
-          eventTicker,
-          series: series.ticker,
-          category: series.category,
-          categoryPriority: series.priority,
-          fighter: String(m.yes_sub_title || title.match(/^Will (.+?) win/i)?.[1] || '').replace(/\s+/g, ' ').trim(),
-          title: title.replace(/\s+/g, ' ').trim(),
-          yesAsk: dollarsToCents(m.yes_ask_dollars),
-          yesAskSize: sizeToNum(m.yes_ask_size_fp),
-          yesBid: dollarsToCents(m.yes_bid_dollars),
-          yesBidSize: sizeToNum(m.yes_bid_size_fp),
-          status: String(m.status || ''),
-          url: kalshiMarketUrl(ticker),
-        })
-        byFight.set(key, existing)
-      }
-    }
-
-    const fights = Array.from(byFight.values())
-      .map(f => {
-        const markets = f.markets.sort((a: any, b: any) => a.categoryPriority - b.categoryPriority || b.yesAskSize - a.yesAskSize || a.yesAsk - b.yesAsk)
-        return {
-          ...f,
-          markets,
-          intel: buildKalshiUFCFightIntel(markets),
-        }
-      })
-      .sort((a, b) => {
-        const aWinner = a.markets.some((m: any) => m.series === 'KXUFCFIGHT') ? 1 : 0
-        const bWinner = b.markets.some((m: any) => m.series === 'KXUFCFIGHT') ? 1 : 0
-        if (aWinner !== bWinner) return bWinner - aWinner
-        return b.markets.length - a.markets.length
-      })
-
-    const payload = {
-      available: fights.length > 0,
-      series: UFC_SERIES.map(s => s.ticker),
-      scanned: Object.values(scannedBySeries).reduce((a, b) => a + b, 0),
-      scannedBySeries,
-      fights,
-    }
-    cachedPayload = payload
-    cachedAt = Date.now()
+    const payload = await loadUfcKalshiPayload()
     return NextResponse.json(payload, { headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120' } })
   } catch (err) {
     console.error('UFC Kalshi error:', err)
