@@ -177,21 +177,33 @@ export function summarizeFinishingProfile(lastFive: UFCFighterRecentFight[]): Fi
   return { ...counts, summary: parts.length ? parts.join(', ') : 'No verified last-five finishes available.' }
 }
 
+function recentFormToFight(row: string): UFCFighterRecentFight {
+  const text = cleanString(row, '')
+  const result = /^w\b/i.test(text) ? 'win' : /^l\b/i.test(text) ? 'loss' : 'unknown'
+  const opponent = text.match(/vs\s+([^·]+)/i)?.[1]?.trim() || 'unknown'
+  const date = text.match(/(\d{4}-\d{2}-\d{2})/)?.[1] || 'unknown'
+  const method = text.split('·').map(part => part.trim()).find(part => part && !/^\d{4}-\d{2}-\d{2}$/.test(part) && !/^[WL—]\s+vs/i.test(part)) || 'method unavailable'
+  return { opponent, date, result, method, round: null, time: 'unknown', notes: text }
+}
+
 function emptyDossier(fighter: UFCFight['fighterA'], note = 'No verified last-five fight log available from ESPN/market data.'): UFCFighterDossier {
+  const lastFive = (fighter.recentForm || []).slice(0, 5).map(recentFormToFight).filter(hasMeaningfulRecentFight)
+  const finishingProfile = summarizeFinishingProfile(lastFive)
+  const styleSeed: Partial<UFCFighterDossier> = { lastFive, finishingProfile }
   return {
     name: fighter.name || 'TBA',
     record: fighter.record || '',
     age: fighter.age,
     height: fighter.height || '',
     reach: fighter.reach || '',
-    fightingStyle: deriveFightingStyle({}, fighter.name || 'TBA'),
+    fightingStyle: deriveFightingStyle(styleSeed, fighter.name || 'TBA'),
     country: fighter.country || '',
     ranking: fighter.ranking,
-    lastFightSummary: 'unknown',
-    lastFive: [],
-    finishingProfile: summarizeFinishingProfile([]),
+    lastFightSummary: lastFive[0]?.notes || 'unknown',
+    lastFive,
+    finishingProfile,
     strengths: [],
-    concerns: [note],
+    concerns: lastFive.length || fighter.height || fighter.reach ? [] : [note],
     hype: { level: 'low', why: [], possibleMarketDistortion: 'unknown' },
     narrative: { beefOrStory: 'unknown', campNews: 'unknown', injuryOrLayoffNotes: 'unknown' },
   }

@@ -273,6 +273,119 @@ export function parseFighter(competitor: any, rankingsMap: Record<string, number
   }
 }
 
+
+type HydratedFighter = Partial<UFCFighter>
+
+const athleteDetailCache = new Map<string, { data: HydratedFighter; ts: number }>()
+const athleteRecentCache = new Map<string, { recent: string[]; ts: number }>()
+const ATHLETE_TTL = 6 * 60 * 60 * 1000
+const MAX_RECENT_ROWS = 5
+const MAX_RECENT_HYDRATIONS = 24
+
+function coreAthleteUrl(id: string) {
+  return `https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/athletes/${encodeURIComponent(id)}?lang=en&region=us`
+}
+
+function coreEventlogUrl(id: string) {
+  return `https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/athletes/${encodeURIComponent(id)}/eventlog?lang=en&region=us`
+}
+
+function displayHeightFromInches(value: unknown): string {
+  const inches = Number(value)
+  if (!Number.isFinite(inches) || inches <= 0) return ''
+  const feet = Math.floor(inches / 12)
+  const rem = Math.round(inches - feet * 12)
+  return `${feet}' ${rem}"`
+}
+
+async function fetchAthleteDetail(id: string): Promise<HydratedFighter> {
+  if (!id) return {}
+  const cached = athleteDetailCache.get(id)
+  if (cached && Date.now() - cached.ts < ATHLETE_TTL) return cached.data
+  const data = await safeFetch(coreAthleteUrl(id))
+  const hydrated: HydratedFighter = data ? {
+    age: typeof data.age === 'number' ? data.age : null,
+    height: data.displayHeight || displayHeightFromInches(data.height),
+    reach: data.reach ? `${data.reach}"` : '',
+    country: flagEmoji(data.birthPlace?.country || data.citizenship || ''),
+  } : {}
+  athleteDetailCache.set(id, { data: hydrated, ts: Date.now() })
+  return hydrated
+}
+
+async function fighterNameFromCompetitor(comp: any, fallback = 'opponent unknown'): Promise<string> {
+  const athlete = comp?.athlete || {}
+  if (athlete.displayName || athlete.fullName || athlete.name) return athlete.displayName || athlete.fullName || athlete.name
+  if (athlete.$ref) {
+    const detail = await safeFetch(athlete.$ref)
+    return detail?.displayName || detail?.fullName || detail?.name || fallback
+  }
+  return fallback
+}
+
+function methodFromCompetition(comp: any): string {
+  const note = Array.isArray(comp?.notes) ? comp.notes.find((n: any) => n?.text)?.text : ''
+  return note || comp?.type?.text || 'method unavailable'
+}
+
+async function fetchRecentForm(id: string): Promise<string[]> {
+  if (!id) return []
+  const cached = athleteRecentCache.get(id)
+  if (cached && Date.now() - cached.ts < ATHLETE_TTL) return cached.recent
+  const eventlog = await safeFetch(coreEventlogUrl(id))
+  const items: any[] = eventlog?.events?.items || []
+  const recent: string[] = []
+  for (const item of items) {
+    if (recent.length >= MAX_RECENT_ROWS) break
+    const compUrl = item?.competition?.$ref
+    if (!compUrl) continue
+    const comp = await safeFetch(compUrl)
+    const compTime = comp?.date ? new Date(comp.date).getTime() : NaN
+    if (!Number.isFinite(compTime) || compTime > Date.now() - 6 * 60 * 60_000) continue
+    const competitors: any[] = comp?.competitors || []
+    const self = competitors.find(c => String(c?.id) === String(id))
+    const opponent = competitors.find(c => String(c?.id) !== String(id))
+    if (!self || !opponent) continue
+    const result = self.winner === true ? 'W' : self.winner === false ? 'L' : '—'
+    const opponentName = await fighterNameFromCompetitor(opponent)
+    const date = comp?.date ? new Date(comp.date).toISOString().slice(0, 10) : ''
+    const method = methodFromCompetition(comp)
+    recent.push(`${result} vs ${opponentName}${method ? ` · ${method}` : ''}${date ? ` · ${date}` : ''}`)
+  }
+  athleteRecentCache.set(id, { recent, ts: Date.now() })
+  return recent
+}
+
+async function hydrateFighter(fighter: UFCFighter, includeRecent: boolean): Promise<UFCFighter> {
+  const detail = await fetchAthleteDetail(fighter.id)
+  const recentForm = includeRecent ? await fetchRecentForm(fighter.id) : fighter.recentForm
+  return {
+    ...fighter,
+    age: detail.age ?? fighter.age,
+    height: detail.height || fighter.height,
+    reach: detail.reach || fighter.reach,
+    country: detail.country && detail.country !== '🌐' ? detail.country : fighter.country,
+    recentForm: recentForm.length ? recentForm : fighter.recentForm,
+  }
+}
+
+export async function hydrateUFCEvents(events: UFCEvent[]): Promise<UFCEvent[]> {
+  let recentHydrations = 0
+  const hydrated = await Promise.all(events.map(async (event, eventIdx) => {
+    const fights = await Promise.all((event.fights || []).map(async fight => {
+      const includeARecent = eventIdx < 2 && recentHydrations++ < MAX_RECENT_HYDRATIONS
+      const includeBRecent = eventIdx < 2 && recentHydrations++ < MAX_RECENT_HYDRATIONS
+      const [fighterA, fighterB] = await Promise.all([
+        hydrateFighter(fight.fighterA, includeARecent),
+        hydrateFighter(fight.fighterB, includeBRecent),
+      ])
+      return { ...fight, fighterA, fighterB }
+    }))
+    return { ...event, fights }
+  }))
+  return hydrated
+}
+
 export async function fetchRankingsMap(): Promise<Record<string, number>> {
   const data = await safeFetch('https://site.api.espn.com/apis/site/v2/sports/mma/ufc/rankings')
   if (!data) return {}
@@ -459,7 +572,7 @@ export async function fetchUFCEvents(): Promise<UFCEvent[]> {
   const statusRank: Record<UFCEvent['status'], number> = { in: 0, pre: 1, post: 2 }
   events.sort((a, b) => (statusRank[a.status] - statusRank[b.status]) || (new Date(a.date).getTime() - new Date(b.date).getTime()))
 
-  const result = events.slice(0, 6)
+  const result = await hydrateUFCEvents(events.slice(0, 6))
   _cache = { events: result, ts: Date.now() }
   return result
 }
