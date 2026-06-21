@@ -3309,7 +3309,6 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
   const [error, setError] = useState<string | null>(null)
   const [cards, setCards] = useState<UfcSettledSignalCard[]>([])
   const [history, setHistory] = useState<Array<{ id: string; cardLabel: string; legNumber: number; matchup: string; fighter: string; outcome: string; resultLabel: string; updatedAt: string }>>([])
-  const [boardMeta, setBoardMeta] = useState<{ capturedAt?: string; updatedAt?: string; status?: string; eventName?: string } | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
 
   useEffect(() => {
@@ -3323,7 +3322,6 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
         if (!payload?.available) throw new Error(payload?.message || 'UFC shared signals are not available yet')
         setCards(payload.cards || [])
         setHistory(payload.history || [])
-        setBoardMeta({ capturedAt: payload.capturedAt, updatedAt: payload.updatedAt, status: payload.status, eventName: payload.eventName })
       }).catch(err => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'UFC signals unavailable')
       }).finally(() => { if (!cancelled) setLoading(false) })
@@ -3344,15 +3342,6 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
 
   return (
     <section style={{ borderRadius: isMobile ? 18 : 24, padding: isMobile ? 13 : 16, background: 'linear-gradient(135deg, rgba(125,246,255,0.105), rgba(8,12,5,0.94) 42%, rgba(255,215,0,0.055))', border: '1px solid rgba(125,246,255,0.28)', boxShadow: '0 18px 48px rgba(0,0,0,0.42)', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 12 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>UFC Signals · curated multi-leg fight cards</div>
-          <h3 style={{ color: C.textPrimary, fontSize: isMobile ? 19 : 26, fontWeight: 950, lineHeight: 1.05, marginTop: 5 }}>Combinations worth a deeper look</h3>
-          <p style={{ color: C.textSecondary, fontSize: isMobile ? 10 : 12, lineHeight: 1.45, marginTop: 6, maxWidth: 760 }}>One captured shared board for this card: everyone sees the same signal until the fights settle. Each leg updates to win/loss after its fight, and the history log stays visible for trust.</p>
-          {boardMeta?.capturedAt && <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, marginTop: 6 }}>Captured {new Date(boardMeta.capturedAt).toLocaleString()} · {boardMeta.eventName || 'UFC card'} · {boardMeta.status === 'settled' ? 'Settled' : 'Tracking'}</div>}
-        </div>
-        <span style={{ flexShrink: 0, borderRadius: 999, padding: '6px 10px', background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,215,0,0.25)', color: C.gold, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Confirm lines before entry</span>
-      </div>
       <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
         <button type="button" className="load-board-card" onClick={() => setHistoryOpen(open => !open)} style={{ width: '100%', borderRadius: 18, padding: 1, border: '1px solid rgba(125,246,255,0.34)', color: C.textPrimary, cursor: 'pointer', overflow: 'hidden', boxShadow: '0 18px 48px rgba(0,0,0,0.44), 0 0 28px rgba(125,246,255,0.18)' }}>
           <span style={{ position: 'relative', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto', gap: 10, alignItems: 'center', borderRadius: 17, padding: isMobile ? '12px 12px' : '13px 15px', background: 'linear-gradient(135deg, rgba(2,8,10,0.96), rgba(8,12,5,0.94) 58%, rgba(125,246,255,0.10))', overflow: 'hidden' }}>
