@@ -208,10 +208,24 @@ function polymarketLean(fight: UFCFight): string | undefined {
   return `${winner} ${pct}% on Polymarket`
 }
 
+function polymarketLeaderName(fight: UFCFight): string | undefined {
+  const { polyOdds } = fight
+  if (!polyOdds?.hasWinner) return undefined
+  const a = polyOdds.fighterAWin
+  const b = polyOdds.fighterBWin
+  if (a === null || b === null) return undefined
+  return a >= b ? fight.fighterA.name : fight.fighterB.name
+}
+
 function espnMoneylineLean(fight: UFCFight): string | null {
   if (fight.moneyLineA === null || fight.moneyLineB === null) return null
   const winner = fight.moneyLineA <= fight.moneyLineB ? fight.fighterA.name : fight.fighterB.name
   return `${winner} by ESPN moneyline (${fight.moneyLineA}/${fight.moneyLineB})`
+}
+
+function espnMoneylineLeaderName(fight: UFCFight): string | undefined {
+  if (fight.moneyLineA === null || fight.moneyLineB === null) return undefined
+  return fight.moneyLineA <= fight.moneyLineB ? fight.fighterA.name : fight.fighterB.name
 }
 
 export function buildFallbackFightAnalysis(fight: UFCFight, kalshiIntel?: KalshiUFCFightIntel, event?: UFCEvent): UFCFightDeepAnalysis {
@@ -223,8 +237,8 @@ export function buildFallbackFightAnalysis(fight: UFCFight, kalshiIntel?: Kalshi
     : polyLean || espnLean || 'unknown'
   const confidence: 'lean' = 'lean'
   const priceNotes = [kalshiIntel?.marketRead, kalshiIntel?.finishRead, polyLean, espnLean].filter(Boolean) as string[]
-  const fallbackReason = kalshiIntel ? 'AI research unavailable; this is a matchup-context fallback using ESPN profile fields plus market context.' : 'Limited live research available; use a conservative matchup read from verified fighter profile fields.'
-  const fallbackPick = expectedWinner !== 'unknown' ? expectedWinner : fight.fighterA.name
+  const fallbackReason = 'fallback only: full fighter research is unavailable; this is a low-confidence matchup shell using card identity plus market context only.'
+  const fallbackPick = polymarketLeaderName(fight) || espnMoneylineLeaderName(fight) || fight.fighterA.name
 
   return {
     fightId: fight.id,

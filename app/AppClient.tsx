@@ -5256,6 +5256,22 @@ function cleanUfcValue(value?: string | number | { text?: string; displayName?: 
   return text
 }
 
+function hasVerifiedUfcDossierContext(dossier: UFCFighterDossier) {
+  const style = cleanUfcValue(dossier.fightingStyle || dossier.style, '')
+  return Boolean(
+    cleanUfcRecentFights(dossier).length > 0 ||
+    cleanUfcValue(dossier.height, '') ||
+    cleanUfcValue(dossier.reach, '') ||
+    (style && !/^(orthodox|southpaw|switch)$/i.test(style)) ||
+    (dossier.strengths || []).length > 0 ||
+    (dossier.concerns || []).some(item => !/no verified last-five|research unavailable|profile fields/i.test(item))
+  )
+}
+
+function hasVerifiedUfcFightContext(fight: UFCFightDeepAnalysis) {
+  return hasVerifiedUfcDossierContext(fight.fighterA) || hasVerifiedUfcDossierContext(fight.fighterB)
+}
+
 function parseUfcInches(value?: string | null) {
   const text = cleanUfcValue(value, '')
   if (!text) return null
@@ -5416,12 +5432,16 @@ function buildUfcComparisonBars(fight: UFCFightDeepAnalysis) {
   const choose = (winner: 'a' | 'b' | 'even') => ({ winner })
   const aReach = parseUfcInches(a.reach)
   const bReach = parseUfcInches(b.reach)
-  return [
-    { label: 'Recent form', ...choose(aRecent.wins - aRecent.losses > bRecent.wins - bRecent.losses ? 'a' : bRecent.wins - bRecent.losses > aRecent.wins - aRecent.losses ? 'b' : 'even'), aText: `${aRecent.wins}-${aRecent.losses}`, bText: `${bRecent.wins}-${bRecent.losses}` },
-    { label: 'Finish threat', ...choose(aRecent.finishes > bRecent.finishes ? 'a' : bRecent.finishes > aRecent.finishes ? 'b' : 'even'), aText: `${aRecent.finishes} recent`, bText: `${bRecent.finishes} recent` },
-    { label: 'Reach', ...choose(aReach != null && bReach != null && Math.abs(aReach - bReach) >= 1 ? (aReach > bReach ? 'a' : 'b') : 'even'), aText: cleanUfcValue(a.reach), bText: cleanUfcValue(b.reach) },
-    { label: 'Style read', ...choose(ufcNameMatches(fight.ai.pick || '', a.name) ? 'a' : ufcNameMatches(fight.ai.pick || '', b.name) ? 'b' : 'even'), aText: ufcStyleLabel(a), bText: ufcStyleLabel(b) },
-  ]
+  const rows = []
+  if (aRecent.rows.length || bRecent.rows.length) {
+    rows.push({ label: 'Recent form', ...choose(aRecent.wins - aRecent.losses > bRecent.wins - bRecent.losses ? 'a' : bRecent.wins - bRecent.losses > aRecent.wins - aRecent.losses ? 'b' : 'even'), aText: `${aRecent.wins}-${aRecent.losses}`, bText: `${bRecent.wins}-${bRecent.losses}` })
+    rows.push({ label: 'Finish threat', ...choose(aRecent.finishes > bRecent.finishes ? 'a' : bRecent.finishes > aRecent.finishes ? 'b' : 'even'), aText: `${aRecent.finishes} recent`, bText: `${bRecent.finishes} recent` })
+  }
+  if (aReach != null || bReach != null) rows.push({ label: 'Reach', ...choose(aReach != null && bReach != null && Math.abs(aReach - bReach) >= 1 ? (aReach > bReach ? 'a' : 'b') : 'even'), aText: cleanUfcValue(a.reach), bText: cleanUfcValue(b.reach) })
+  const aStyle = ufcStyleLabel(a)
+  const bStyle = ufcStyleLabel(b)
+  if (aStyle !== 'Style not listed' || bStyle !== 'Style not listed') rows.push({ label: 'Style read', ...choose(ufcNameMatches(fight.ai.pick || '', a.name) ? 'a' : ufcNameMatches(fight.ai.pick || '', b.name) ? 'b' : 'even'), aText: aStyle, bText: bStyle })
+  return rows
 }
 
 function sanitizeUfcPublicText(text: string): string {
@@ -5615,6 +5635,7 @@ function KalshiUFCSection() {
                       const styleClash = buildUfcStyleClash(deepFight)
                       const priceDiscipline = buildUfcPriceDiscipline(deepFight, winnerMarkets)
                       const comparisonBars = buildUfcComparisonBars(deepFight)
+                      const hasProfileContext = hasVerifiedUfcFightContext(deepFight)
                       const aPath = buildUfcWinnerPath(deepFight.fighterA, deepFight.fighterB)
                       const bPath = buildUfcWinnerPath(deepFight.fighterB, deepFight.fighterA)
                       const aLoss = buildUfcHowHeLoses(deepFight.fighterA, deepFight.fighterB)
@@ -5656,8 +5677,8 @@ function KalshiUFCSection() {
                         )
                         if (activeSection === 'style') return (
                           <div style={{ display: 'grid', gap: 9 }}>
-                            <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}>{styleClash}</div>
-                            <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(125,246,255,0.16)' }}>
+                            {hasProfileContext ? <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45 }}>{styleClash}</div> : <div style={{ color: C.gold, fontSize: 11, lineHeight: 1.45, padding: 11, borderRadius: 14, background: 'rgba(255,215,0,0.06)', border: '1px solid rgba(255,215,0,0.18)' }}>Verified fighter style, reach, and recent-form data are not loaded for this matchup yet. Treat this as market context only until the deep fighter dossier refresh succeeds.</div>}
+                            {comparisonBars.length > 0 ? <div style={{ display: 'grid', gap: 7, padding: 11, borderRadius: 14, background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(125,246,255,0.16)' }}>
                               {comparisonBars.map(row => (
                                 <div key={row.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 88px minmax(0,1fr)', gap: 8, alignItems: 'center', paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                                   <div style={{ color: row.winner === 'a' ? C.green : C.textPrimary, fontSize: 10, fontWeight: row.winner === 'a' ? 950 : 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.aText}</div>
@@ -5665,11 +5686,12 @@ function KalshiUFCSection() {
                                   <div style={{ color: row.winner === 'b' ? C.green : C.textPrimary, fontSize: 10, fontWeight: row.winner === 'b' ? 950 : 850, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.bText}</div>
                                 </div>
                               ))}
-                            </div>
+                            </div> : null}
                           </div>
                         )
                         if (activeSection === 'pathsRisk') return (
                           <div style={{ display: 'grid', gap: 9 }}>
+                            {hasProfileContext ? <>
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9 }}>
                               {[
                                 { dossier: deepFight.fighterA, path: aPath, loses: aLoss },
@@ -5687,6 +5709,7 @@ function KalshiUFCSection() {
                               {(risks.length ? risks : ['No clean risk note listed yet']).map(item => <div key={item} style={{ color: C.textPrimary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
                               {deepFight.ai.watchouts?.slice(0, 2).map(item => <div key={item} style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.35 }}>• {item}</div>)}
                             </div>
+                            </> : <div style={{ color: C.gold, fontSize: 11, lineHeight: 1.45, padding: 11, borderRadius: 14, background: 'rgba(255,215,0,0.06)', border: '1px solid rgba(255,215,0,0.18)' }}>Winner paths and danger notes need verified style/recent-fight inputs. Right now this matchup only has card identity and prices, so the app is holding back instead of inventing a fight script.</div>}
                           </div>
                         )
                         if (activeSection === 'market') return (
