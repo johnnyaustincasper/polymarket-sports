@@ -3334,6 +3334,14 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
   if (error) return <p style={{ color: C.gold, fontSize: 12 }}>UFC Signals unavailable: {error}</p>
   if (!cards.length) return <p style={{ color: C.textSecondary, fontSize: 13, textAlign: 'center', padding: '48px 0' }}>No UFC fight-card combinations qualify yet.</p>
 
+  const boardRecord = cards.reduce((acc, card) => ({
+    won: acc.won + card.record.won,
+    lost: acc.lost + card.record.lost,
+    pending: acc.pending + card.record.pending,
+    unknown: acc.unknown + card.record.unknown,
+  }), { won: 0, lost: 0, pending: 0, unknown: 0 })
+  const trackerLabel = boardRecord.pending > 0 ? `${boardRecord.pending} legs tracking live` : boardRecord.lost > 0 ? 'Card settled with misses' : boardRecord.won > 0 ? 'Card swept' : 'Result tracker ready'
+
   return (
     <section style={{ borderRadius: isMobile ? 18 : 24, padding: isMobile ? 13 : 16, background: 'linear-gradient(135deg, rgba(125,246,255,0.105), rgba(8,12,5,0.94) 42%, rgba(255,215,0,0.055))', border: '1px solid rgba(125,246,255,0.28)', boxShadow: '0 18px 48px rgba(0,0,0,0.42)', overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 12 }}>
@@ -3344,6 +3352,43 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
           {boardMeta?.capturedAt && <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, marginTop: 6 }}>Captured {new Date(boardMeta.capturedAt).toLocaleString()} · {boardMeta.eventName || 'UFC card'} · {boardMeta.status === 'settled' ? 'Settled' : 'Tracking'}</div>}
         </div>
         <span style={{ flexShrink: 0, borderRadius: 999, padding: '6px 10px', background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,215,0,0.25)', color: C.gold, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Confirm lines before entry</span>
+      </div>
+      <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+        <button type="button" className="load-board-card" onClick={() => setHistoryOpen(open => !open)} style={{ width: '100%', borderRadius: 18, padding: 1, border: '1px solid rgba(125,246,255,0.34)', color: C.textPrimary, cursor: 'pointer', overflow: 'hidden', boxShadow: '0 18px 48px rgba(0,0,0,0.44), 0 0 28px rgba(125,246,255,0.18)' }}>
+          <span style={{ position: 'relative', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto', gap: 10, alignItems: 'center', borderRadius: 17, padding: isMobile ? '12px 12px' : '13px 15px', background: 'linear-gradient(135deg, rgba(2,8,10,0.96), rgba(8,12,5,0.94) 58%, rgba(125,246,255,0.10))', overflow: 'hidden' }}>
+            <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(110deg, transparent 0%, rgba(125,246,255,0.00) 28%, rgba(125,246,255,0.22) 48%, rgba(255,255,255,0.10) 53%, rgba(125,246,255,0.00) 72%, transparent 100%)', transform: 'translateX(-120%)', animation: 'aiAnalyzeSweep 2.4s ease-in-out infinite', pointerEvents: 'none' }} />
+            <span style={{ position: 'relative', zIndex: 1, minWidth: 0, textAlign: 'left' }}>
+              <span style={{ display: 'block', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Signal tracker + history</span>
+              <span style={{ display: 'block', color: C.textPrimary, fontSize: isMobile ? 16 : 19, fontWeight: 950, lineHeight: 1.08, marginTop: 4 }}>{trackerLabel}</span>
+              <span style={{ display: 'block', color: C.textSecondary, fontSize: 9, marginTop: 4 }}>Captured board audit · {history.length} leg log{history.length === 1 ? '' : 's'} · tap to {historyOpen ? 'hide' : 'view'} every result</span>
+            </span>
+            <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'space-between' : 'flex-end', gap: 7, flexWrap: 'wrap' }}>
+              {[['W', boardRecord.won, C.green], ['L', boardRecord.lost, C.red], ['P', boardRecord.pending, C.gold]].map(([label, value, color]) => (
+                <span key={label as string} style={{ minWidth: 48, borderRadius: 12, padding: '7px 8px', background: 'rgba(0,0,0,0.32)', border: `1px solid ${color as string}`, color: color as string, textAlign: 'center', boxShadow: `0 0 18px ${color as string}33` }}>
+                  <span style={{ display: 'block', fontSize: 16, fontWeight: 950, lineHeight: 1 }}>{value as number}</span>
+                  <span style={{ display: 'block', fontSize: 7, fontWeight: 950, letterSpacing: '0.15em', textTransform: 'uppercase', marginTop: 2 }}>{label as string}</span>
+                </span>
+              ))}
+              <span style={{ borderRadius: 999, padding: '9px 12px', background: 'rgba(125,246,255,0.16)', border: '1px solid rgba(125,246,255,0.56)', color: C.cyan, fontSize: 10, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', boxShadow: '0 0 18px rgba(125,246,255,0.22)' }}>{historyOpen ? 'Hide log' : 'View log'} ↯</span>
+            </span>
+          </span>
+        </button>
+        {historyOpen && history.length > 0 && (
+          <div style={{ borderRadius: 16, background: 'rgba(0,0,0,0.30)', border: '1px solid rgba(125,246,255,0.22)', overflow: 'hidden', opacity: 0, animation: 'dominoFadeIn 620ms cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
+            <div style={{ display: 'grid', gap: 0 }}>
+              {history.map((row, rowIdx) => (
+                <div key={row.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr auto' : '1.2fr 1fr auto', gap: 8, alignItems: 'center', padding: '9px 12px', borderTop: rowIdx ? '1px solid rgba(255,255,255,0.055)' : 'none', opacity: 0, animation: 'dominoFadeIn 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(rowIdx * 55, 330)}ms` }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.cardLabel} · Leg {row.legNumber}: {row.fighter}</div>
+                    <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.matchup}</div>
+                  </div>
+                  {!isMobile && <div style={{ color: C.textSecondary, fontSize: 9, minWidth: 0 }}>{row.resultLabel}</div>}
+                  <div style={{ color: row.outcome === 'won' ? C.green : row.outcome === 'lost' ? C.red : row.outcome === 'unknown' ? C.gold : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', textAlign: 'right' }}>{row.outcome}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
         {cards.map(card => (
@@ -3387,31 +3432,6 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
           </article>
         ))}
       </div>
-      {history.length > 0 && (
-        <div style={{ marginTop: 12, borderRadius: 16, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.10)', overflow: 'hidden' }}>
-          <button onClick={() => setHistoryOpen(open => !open)} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'transparent', border: 'none', color: C.textPrimary, cursor: 'pointer' }}>
-            <span style={{ minWidth: 0, textAlign: 'left' }}>
-              <span style={{ display: 'block', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Signal result log</span>
-              <span style={{ display: 'block', color: C.textSecondary, fontSize: 9, marginTop: 2 }}>Tap to audit every captured leg and outcome.</span>
-            </span>
-            <span style={{ color: C.cyan, fontSize: 12, fontWeight: 950 }}>{historyOpen ? 'Hide' : 'Open'} ›</span>
-          </button>
-          {historyOpen && (
-            <div style={{ display: 'grid', gap: 0, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-              {history.map(row => (
-                <div key={row.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr auto' : '1.2fr 1fr auto', gap: 8, alignItems: 'center', padding: '9px 12px', borderTop: '1px solid rgba(255,255,255,0.055)' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ color: C.textPrimary, fontSize: 10, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.cardLabel} · Leg {row.legNumber}: {row.fighter}</div>
-                    <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.matchup}</div>
-                  </div>
-                  {!isMobile && <div style={{ color: C.textSecondary, fontSize: 9, minWidth: 0 }}>{row.resultLabel}</div>}
-                  <div style={{ color: row.outcome === 'won' ? C.green : row.outcome === 'lost' ? C.red : row.outcome === 'unknown' ? C.gold : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', textAlign: 'right' }}>{row.outcome}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </section>
   )
 }
