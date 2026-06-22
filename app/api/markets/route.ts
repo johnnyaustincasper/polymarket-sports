@@ -9,18 +9,27 @@ const GAMMA_API = 'https://gamma-api.polymarket.com'
 type SportKey = 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'mlb' | 'nhl' | 'soccer'
 
 const SPORTS: Record<SportKey, {
-  leaguePath: string
+  leaguePaths: { path: string; label: string; eventWords?: string[]; polyTags?: string[] }[]
   polyTags: string[]
   label: string
   eventWords: string[]
 }> = {
-  nba:   { leaguePath: 'basketball/nba', label: 'NBA', eventWords: ['nba', 'basketball'] , polyTags: ['nba'] },
-  ncaab: { leaguePath: 'basketball/mens-college-basketball', label: 'NCAAB', eventWords: ['college basketball', 'march madness', 'ncaab'], polyTags: ['march-madness', 'ncaa-basketball', 'ncaab'] },
-  nfl:   { leaguePath: 'football/nfl', label: 'NFL', eventWords: ['nfl', 'football'], polyTags: ['nfl', 'football'] },
-  ncaaf: { leaguePath: 'football/college-football', label: 'NCAAF', eventWords: ['college football', 'ncaaf'], polyTags: ['college-football', 'ncaaf'] },
-  mlb:   { leaguePath: 'baseball/mlb', label: 'MLB', eventWords: ['mlb', 'baseball', 'major league baseball'], polyTags: ['mlb', 'baseball'] },
-  nhl:   { leaguePath: 'hockey/nhl', label: 'NHL', eventWords: ['nhl', 'hockey', 'stanley cup'], polyTags: ['nhl', 'hockey'] },
-  soccer:{ leaguePath: 'soccer/usa.1', label: 'MLS', eventWords: ['mls', 'soccer', 'major league soccer'], polyTags: ['mls', 'soccer'] },
+  nba:   { leaguePaths: [{ path: 'basketball/nba', label: 'NBA' }], label: 'NBA', eventWords: ['nba', 'basketball'] , polyTags: ['nba'] },
+  ncaab: { leaguePaths: [{ path: 'basketball/mens-college-basketball', label: 'NCAAB' }], label: 'NCAAB', eventWords: ['college basketball', 'march madness', 'ncaab'], polyTags: ['march-madness', 'ncaa-basketball', 'ncaab'] },
+  nfl:   { leaguePaths: [{ path: 'football/nfl', label: 'NFL' }], label: 'NFL', eventWords: ['nfl', 'football'], polyTags: ['nfl', 'football'] },
+  ncaaf: { leaguePaths: [{ path: 'football/college-football', label: 'NCAAF' }], label: 'NCAAF', eventWords: ['college football', 'ncaaf'], polyTags: ['college-football', 'ncaaf'] },
+  mlb:   { leaguePaths: [{ path: 'baseball/mlb', label: 'MLB' }], label: 'MLB', eventWords: ['mlb', 'baseball', 'major league baseball'], polyTags: ['mlb', 'baseball'] },
+  nhl:   { leaguePaths: [{ path: 'hockey/nhl', label: 'NHL' }], label: 'NHL', eventWords: ['nhl', 'hockey', 'stanley cup'], polyTags: ['nhl', 'hockey'] },
+  soccer:{
+    leaguePaths: [
+      { path: 'soccer/fifa.world', label: 'World Cup', eventWords: ['fifa world cup', 'world cup', 'soccer'] },
+      { path: 'soccer/fifa.cwc', label: 'Club World Cup', eventWords: ['club world cup', 'fifa club world cup', 'soccer'] },
+      { path: 'soccer/usa.1', label: 'MLS', eventWords: ['mls', 'soccer', 'major league soccer'] },
+    ],
+    label: 'Soccer',
+    eventWords: ['fifa world cup', 'world cup', 'club world cup', 'mls', 'soccer', 'major league soccer'],
+    polyTags: ['world-cup', 'fifa-world-cup', 'club-world-cup', 'mls', 'soccer']
+  },
 }
 
 const NO_STORE_HEADERS = {
@@ -408,17 +417,27 @@ export async function GET(req: NextRequest) {
     const dateParam = searchParams.get('date') || toCST(new Date())
     const displayDate = searchParams.get('displayDate') || (dateParam.includes('-') ? dateParam.split('-')[1] : dateParam)
 
-    const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/${SPORTS[sport].leaguePath}/scoreboard?dates=${dateParam}`
-    const [espnRes, polyFetch] = await Promise.all([
-      fetch(espnUrl, { cache: 'no-store' }),
+    const [leagueResults, polyFetch] = await Promise.all([
+      Promise.all(SPORTS[sport].leaguePaths.map(async league => {
+        const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/${league.path}/scoreboard?dates=${dateParam}`
+        try {
+          const res = await fetch(espnUrl, { cache: 'no-store' })
+          if (!res.ok) return { league, ok: false, events: [] as any[] }
+          const data = await res.json()
+          const events = (data?.events || [])
+            .filter((event: any) => toCST(new Date(event.date)) === displayDate)
+            .map((event: any) => ({ ...event, aiLeagueLabel: league.label, aiLeaguePath: league.path }))
+          return { league, ok: true, events }
+        } catch {
+          return { league, ok: false, events: [] as any[] }
+        }
+      })),
       fetchPolyEvents(sport),
     ])
-    if (!espnRes.ok) return NextResponse.json([], { headers: NO_STORE_HEADERS })
-    const espnData = await espnRes.json()
-    const events = (espnData?.events || []).filter((event: any) => toCST(new Date(event.date)) === displayDate)
+    const events = leagueResults.flatMap(result => result.events)
     if (!events.length) return NextResponse.json([], { headers: NO_STORE_HEADERS })
     const sourceHealth = {
-      espn: { ok: true, events: events.length, date: dateParam },
+      espn: { ok: leagueResults.some(result => result.ok), events: events.length, date: dateParam, leagues: leagueResults.map(result => ({ label: result.league.label, path: result.league.path, ok: result.ok, events: result.events.length })) },
       polymarket: { ok: polyFetch.fetchOk, events: polyFetch.events.length, tags: SPORTS[sport].polyTags, error: polyFetch.error },
       stale: !polyFetch.fetchOk || polyFetch.events.length === 0,
       checkedAt: polyFetch.fetchedAt,
@@ -467,7 +486,7 @@ export async function GET(req: NextRequest) {
       return {
         id: event.id,
         sport,
-        leagueLabel: SPORTS[sport].label,
+        leagueLabel: event.aiLeagueLabel || SPORTS[sport].label,
         homeTeam: {
           name: homeName,
           abbr: homeDisplayAbbr,

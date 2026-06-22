@@ -8,12 +8,12 @@ export const revalidate = 0
 
 type TeamSport = 'nba' | 'nfl' | 'mlb' | 'nhl' | 'soccer'
 
-const SPORT_PATH: Record<TeamSport, string> = {
-  nba: 'basketball/nba',
-  nfl: 'football/nfl',
-  mlb: 'baseball/mlb',
-  nhl: 'hockey/nhl',
-  soccer: 'soccer/usa.1',
+const SPORT_PATH: Record<TeamSport, string[]> = {
+  nba: ['basketball/nba'],
+  nfl: ['football/nfl'],
+  mlb: ['baseball/mlb'],
+  nhl: ['hockey/nhl'],
+  soccer: ['soccer/fifa.world', 'soccer/fifa.cwc', 'soccer/usa.1'],
 }
 
 function isTeamSport(value: string | null): value is TeamSport {
@@ -125,10 +125,18 @@ export async function GET(req: NextRequest) {
   }
 
   const sport = sportParam
-  const path = SPORT_PATH[sport]
-  const teamsData = await fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/teams`)
-  const teams = (teamsData?.sports?.[0]?.leagues?.[0]?.teams || []).map((team: any) => normalizeTeam(team, sport))
-    .sort((a: any, b: any) => a.name.localeCompare(b.name))
+  const paths = SPORT_PATH[sport]
+  const teamGroups = await Promise.all(paths.map(async path => {
+    const teamsData = await fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/teams`)
+    return (teamsData?.sports?.[0]?.leagues?.[0]?.teams || []).map((team: any) => ({ ...normalizeTeam(team, sport), sourcePath: path }))
+  }))
+  const seenTeams = new Set<string>()
+  const teams = teamGroups.flat().filter((team: any) => {
+    const key = team.abbr || team.name
+    if (!key || seenTeams.has(key)) return false
+    seenTeams.add(key)
+    return true
+  }).sort((a: any, b: any) => a.name.localeCompare(b.name))
 
   const teamId = searchParams.get('team')
   if (!teamId) {
@@ -141,9 +149,9 @@ export async function GET(req: NextRequest) {
   }
 
   const [rosterData, statsData, injuryData] = await Promise.all([
-    fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/teams/${team.id}/roster`),
-    fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/teams/${team.id}/statistics`),
-    fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/teams/${team.id}/injuries`, 5000),
+    fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${team.sourcePath || paths[0]}/teams/${team.id}/roster`),
+    fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${team.sourcePath || paths[0]}/teams/${team.id}/statistics`),
+    fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${team.sourcePath || paths[0]}/teams/${team.id}/injuries`, 5000),
   ])
 
   const roster = normalizeRoster(rosterData?.athletes || [])

@@ -12,12 +12,12 @@ const NO_STORE_HEADERS = {
   Expires: '0',
 }
 
-const SPORT_PATH: Record<Sport, string> = {
-  mlb: 'baseball/mlb',
-  nba: 'basketball/nba',
-  nfl: 'football/nfl',
-  nhl: 'hockey/nhl',
-  soccer: 'soccer/usa.1',
+const SPORT_PATH: Record<Sport, string[]> = {
+  mlb: ['baseball/mlb'],
+  nba: ['basketball/nba'],
+  nfl: ['football/nfl'],
+  nhl: ['hockey/nhl'],
+  soccer: ['soccer/fifa.world', 'soccer/fifa.cwc', 'soccer/usa.1'],
 }
 
 function parseSport(value: string | null): Sport {
@@ -228,7 +228,12 @@ export async function GET(req: NextRequest) {
   if (!eventId) return NextResponse.json({ error: 'Missing eventId' }, { status: 400, headers: NO_STORE_HEADERS })
 
   try {
-    const summary = await fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${SPORT_PATH[sport]}/summary?event=${encodeURIComponent(eventId)}`)
+    let summary: any = null
+    let sourcePath = ''
+    for (const path of SPORT_PATH[sport]) {
+      summary = await fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/summary?event=${encodeURIComponent(eventId)}`)
+      if (summary) { sourcePath = path; break }
+    }
     if (!summary) return NextResponse.json({ available: false, source: 'ESPN', updatedAt: new Date().toISOString() }, { headers: NO_STORE_HEADERS })
 
     const comp = summary.header?.competitions?.[0] || {}
@@ -255,6 +260,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       available: true,
       source: 'ESPN',
+      sourcePath,
       updatedAt: new Date().toISOString(),
       eventId,
       sport,
