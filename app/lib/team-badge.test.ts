@@ -21,6 +21,7 @@ describe('team badge logo replacement', () => {
     expect(getTeamBadgeTone('mlb').accent).toBe('#b8fbff')
     expect(getTeamBadgeTone('nfl').accent).toBe('#b8fbff')
     expect(getTeamBadgeTone('nhl').accent).toBe('#b8fbff')
+    expect(getTeamBadgeTone('soccer').accent).toBe('#b8fbff')
     expect(getTeamBadgeTone('ufc').accent).toBe('#b8fbff')
   })
 
@@ -32,5 +33,6 @@ describe('team badge logo replacement', () => {
     expect(getTeamLeagueCardLabel('mlb')).toBe('MLB')
     expect(getTeamLeagueCardLabel('nfl')).toBe('NFL')
     expect(getTeamLeagueCardLabel('nhl')).toBe('NHL')
+    expect(getTeamLeagueCardLabel('soccer')).toBe('MLS')
   })
 })

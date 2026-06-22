@@ -4,7 +4,7 @@ import { enforceRateLimit } from '@/app/lib/rate-limit'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type Sport = 'mlb' | 'nba' | 'nfl' | 'nhl'
+type Sport = 'mlb' | 'nba' | 'nfl' | 'nhl' | 'soccer'
 
 const NO_STORE_HEADERS = {
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -17,11 +17,12 @@ const SPORT_PATH: Record<Sport, string> = {
   nba: 'basketball/nba',
   nfl: 'football/nfl',
   nhl: 'hockey/nhl',
+  soccer: 'soccer/usa.1',
 }
 
 function parseSport(value: string | null): Sport {
   const sport = String(value || 'mlb').toLowerCase()
-  return sport === 'nba' || sport === 'nfl' || sport === 'nhl' ? sport : 'mlb'
+  return sport === 'nba' || sport === 'nfl' || sport === 'nhl' || sport === 'soccer' ? sport : 'mlb'
 }
 
 async function fetchEspnJson(url: string, timeoutMs = 8000) {

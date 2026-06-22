@@ -6,17 +6,18 @@ import { enforceRateLimit } from '@/app/lib/rate-limit'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type TeamSport = 'nba' | 'nfl' | 'mlb' | 'nhl'
+type TeamSport = 'nba' | 'nfl' | 'mlb' | 'nhl' | 'soccer'
 
 const SPORT_PATH: Record<TeamSport, string> = {
   nba: 'basketball/nba',
   nfl: 'football/nfl',
   mlb: 'baseball/mlb',
   nhl: 'hockey/nhl',
+  soccer: 'soccer/usa.1',
 }
 
 function isTeamSport(value: string | null): value is TeamSport {
-  return value === 'nba' || value === 'nfl' || value === 'mlb' || value === 'nhl'
+  return value === 'nba' || value === 'nfl' || value === 'mlb' || value === 'nhl' || value === 'soccer'
 }
 
 async function fetchEspnJson(url: string, timeoutMs = 8000): Promise<any | null> {
@@ -53,9 +54,10 @@ function flattenStats(data: any) {
   return stats.slice(0, 10)
 }
 
-function normalizeTeam(raw: any) {
+function normalizeTeam(raw: any, sport: TeamSport) {
   const team = raw?.team || raw
-  const abbr = normalizeNbaAbbr(team?.abbreviation || '')
+  const rawAbbr = String(team?.abbreviation || '').toUpperCase()
+  const abbr = sport === 'nba' ? normalizeNbaAbbr(rawAbbr) : rawAbbr
   return {
     id: String(team?.id || abbr),
     abbr,
@@ -119,13 +121,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const sportParam = searchParams.get('sport')
   if (!isTeamSport(sportParam)) {
-    return finishRouteTiming(routeTimer, NextResponse.json({ error: 'Teams are currently available for NBA, MLB, NFL, and NHL.' }, { status: 400 }))
+    return finishRouteTiming(routeTimer, NextResponse.json({ error: 'Teams are currently available for NBA, MLB, NFL, NHL, and Soccer.' }, { status: 400 }))
   }
 
   const sport = sportParam
   const path = SPORT_PATH[sport]
   const teamsData = await fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/teams`)
-  const teams = (teamsData?.sports?.[0]?.leagues?.[0]?.teams || []).map(normalizeTeam)
+  const teams = (teamsData?.sports?.[0]?.leagues?.[0]?.teams || []).map((team: any) => normalizeTeam(team, sport))
     .sort((a: any, b: any) => a.name.localeCompare(b.name))
 
   const teamId = searchParams.get('team')
@@ -133,7 +135,7 @@ export async function GET(req: NextRequest) {
     return finishRouteTiming(routeTimer, NextResponse.json({ sport, teams, generatedAt: new Date().toISOString() }))
   }
 
-  const team = teams.find((item: any) => item.id === teamId || item.abbr === normalizeNbaAbbr(teamId) || item.abbr === teamId.toUpperCase())
+  const team = teams.find((item: any) => item.id === teamId || item.abbr === (sport === 'nba' ? normalizeNbaAbbr(teamId) : teamId.toUpperCase()) || item.abbr === teamId.toUpperCase())
   if (!team) {
     return finishRouteTiming(routeTimer, NextResponse.json({ error: 'team not found' }, { status: 404 }))
   }

@@ -6,7 +6,7 @@ export const revalidate = 0
 
 const GAMMA_API = 'https://gamma-api.polymarket.com'
 
-type SportKey = 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'mlb' | 'nhl'
+type SportKey = 'nba' | 'ncaab' | 'nfl' | 'ncaaf' | 'mlb' | 'nhl' | 'soccer'
 
 const SPORTS: Record<SportKey, {
   leaguePath: string
@@ -20,6 +20,7 @@ const SPORTS: Record<SportKey, {
   ncaaf: { leaguePath: 'football/college-football', label: 'NCAAF', eventWords: ['college football', 'ncaaf'], polyTags: ['college-football', 'ncaaf'] },
   mlb:   { leaguePath: 'baseball/mlb', label: 'MLB', eventWords: ['mlb', 'baseball', 'major league baseball'], polyTags: ['mlb', 'baseball'] },
   nhl:   { leaguePath: 'hockey/nhl', label: 'NHL', eventWords: ['nhl', 'hockey', 'stanley cup'], polyTags: ['nhl', 'hockey'] },
+  soccer:{ leaguePath: 'soccer/usa.1', label: 'MLS', eventWords: ['mls', 'soccer', 'major league soccer'], polyTags: ['mls', 'soccer'] },
 }
 
 const NO_STORE_HEADERS = {

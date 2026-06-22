@@ -3035,7 +3035,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
         )}
 
         {activeLiveTab !== 'props' ? null : !supportedKalshiSport ? (
-          <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>Player signal cards are not wired for {sport.toUpperCase()} yet. Use the slate and team context while we add that hockey feed.</p>
+          <p style={{ color: C.textSecondary, fontSize: 11, lineHeight: 1.45 }}>Player signal cards are not wired for {sport.toUpperCase()} yet. Use the slate and team context while we add the sport-specific prop feed.</p>
         ) : scanActive ? (
           <div style={{ display: 'grid', gap: 9 }}>
             {[0, 1, 2].map(i => (
@@ -6443,6 +6443,7 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
     { value: 'mlb', label: 'MLB' },
     { value: 'nfl', label: 'NFL' },
     { value: 'nhl', label: 'NHL' },
+    { value: 'soccer', label: 'Soccer' },
     { value: 'nba', label: 'NBA' },
   ]
   const sportLabel = sport === 'ncaaf' || sport === 'ncaab' ? 'NCAA' : sport.toUpperCase()

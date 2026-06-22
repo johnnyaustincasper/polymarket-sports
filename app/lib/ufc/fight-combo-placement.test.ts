@@ -7,7 +7,8 @@ const appClient = readFileSync(join(process.cwd(), 'app/AppClient.tsx'), 'utf8')
 describe('UFC fight-card placement', () => {
   it('routes UFC multi-leg fight cards through the Signals tab', () => {
     expect(appClient).toContain("sport === 'ufc' ? <UFCSignalsPanel isMobile={isMobile} />")
-    expect(appClient).toContain('UFC Signals · curated multi-leg fight cards')
+    expect(appClient).toContain('Signal tracker + history')
+    expect(appClient).toContain('Loading the shared captured board so every member sees the same signal.')
   })
 
   it('does not render combo cards inside the UFC slate board section', () => {

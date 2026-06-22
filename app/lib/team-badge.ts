@@ -24,6 +24,7 @@ const SPORT_BADGE_TONES: Record<TeamBadgeSport, TeamBadgeTone> = {
   ncaaf: TEAM_BADGE_TONE,
   mlb: TEAM_BADGE_TONE,
   nhl: TEAM_BADGE_TONE,
+  soccer: TEAM_BADGE_TONE,
   ufc: TEAM_BADGE_TONE,
 }
 
@@ -44,6 +45,7 @@ export function getTeamLeagueCardLabel(sport: TeamBadgeSport | null | undefined)
     ncaaf: 'NCAAF',
     mlb: 'MLB',
     nhl: 'NHL',
+    soccer: 'MLS',
     ufc: 'UFC',
   }
   return labels[sport || 'nba'] || 'AI'
