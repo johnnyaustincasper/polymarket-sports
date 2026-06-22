@@ -26,8 +26,37 @@ type WeightClassGroup = {
   fighters: Fighter[]
 }
 
-let cache: { data: { generatedAt: string; weightClasses: WeightClassGroup[] }; ts: number } | null = null
+let cache: { data: { generatedAt: string; source: string; weightClasses: WeightClassGroup[] }; ts: number } | null = null
 const TTL = 10 * 60 * 1000
+const UFC_BASE_URL = 'https://www.ufc.com'
+
+const ORDER = [
+  'heavyweight', 'light-heavyweight', 'middleweight', 'welterweight', 'lightweight', 'featherweight', 'bantamweight', 'flyweight',
+  'womens-bantamweight', 'womens-flyweight', 'womens-strawweight',
+]
+const LIMITS: Record<string, string> = {
+  heavyweight: 'Up to 265 pounds',
+  'light-heavyweight': 'Up to 205 pounds',
+  middleweight: 'Up to 185 pounds',
+  welterweight: 'Up to 170 pounds',
+  lightweight: 'Up to 155 pounds',
+  featherweight: 'Up to 145 pounds',
+  bantamweight: 'Up to 135 pounds',
+  flyweight: 'Up to 125 pounds',
+  'womens-bantamweight': 'Up to 135 pounds',
+  'womens-flyweight': 'Up to 125 pounds',
+  'womens-strawweight': 'Up to 115 pounds',
+}
+
+async function fetchOfficialUfcRankingsHtml() {
+  const res = await fetch(`${UFC_BASE_URL}/rankings`, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+    signal: AbortSignal.timeout(8000),
+    next: { revalidate: 600 },
+  } as RequestInit & { next: { revalidate: number } })
+  if (!res.ok) throw new Error(`UFC rankings failed (${res.status})`)
+  return res.text()
+}
 
 async function fetchEspnRankings() {
   const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/mma/ufc/rankings', {
@@ -37,6 +66,116 @@ async function fetchEspnRankings() {
   } as RequestInit & { next: { revalidate: number } })
   if (!res.ok) throw new Error(`ESPN rankings failed (${res.status})`)
   return res.json()
+}
+
+function decodeHtml(value: string) {
+  return String(value || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;|&apos;/g, "'")
+    .replace(/&rsquo;/g, '’')
+    .replace(/&ldquo;|&rdquo;/g, '"')
+    .replace(/&nbsp;/g, ' ')
+}
+
+function stripTags(value: string) {
+  return decodeHtml(String(value || '').replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim()
+}
+
+function slugifyDivision(name: string) {
+  return stripTags(name)
+    .toLowerCase()
+    .replace(/women's/g, 'womens')
+    .replace(/men's/g, 'mens')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function idFromUfcHref(href: string | null, name: string) {
+  const slug = href?.split('/').filter(Boolean).pop()
+  return slug || slugifyDivision(name)
+}
+
+function absoluteUfcUrl(href: string | null) {
+  if (!href) return null
+  return href.startsWith('http') ? href : `${UFC_BASE_URL}${href}`
+}
+
+function parseOfficialUfcRankings(html: string): WeightClassGroup[] {
+  const sections = html.split('<div class="view-grouping">').slice(1)
+  const groups: WeightClassGroup[] = []
+
+  for (const section of sections) {
+    const headerMatch = section.match(/<div class="view-grouping-header">([\s\S]*?)<\/div>/)
+    const name = stripTags(headerMatch?.[1] || '')
+    if (!name || /pound-for-pound/i.test(name)) continue
+
+    const id = slugifyDivision(name)
+    if (!ORDER.includes(id)) continue
+
+    const captionMatch = section.match(/<caption>([\s\S]*?)<\/caption>/)
+    const caption = captionMatch?.[1] || ''
+    const championLink = caption.match(/<h5>\s*<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>\s*<\/h5>/)
+    const championImg = caption.match(/<img[^>]+src="([^"]+)"[^>]*>/)
+    const fighters: Fighter[] = []
+
+    if (championLink) {
+      const champName = stripTags(championLink[2])
+      fighters.push({
+        id: idFromUfcHref(championLink[1], champName),
+        name: champName,
+        shortName: champName,
+        nickname: null,
+        record: null,
+        rank: null,
+        champion: true,
+        country: null,
+        headshot: championImg ? decodeHtml(championImg[1]) : null,
+        color: null,
+        url: absoluteUfcUrl(championLink[1]),
+      })
+    }
+
+    const rows = section.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] || ''
+    const rowRegex = /<tr>([\s\S]*?)<\/tr>/g
+    let rowMatch: RegExpExecArray | null
+    while ((rowMatch = rowRegex.exec(rows))) {
+      const row = rowMatch[1]
+      const rankRaw = row.match(/views-field-weight-class-rank">\s*([0-9]+)/)?.[1]
+      const nameLink = row.match(/views-field-title">\s*<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/)
+      if (!rankRaw || !nameLink) continue
+      const rank = Number(rankRaw)
+      const fighterName = stripTags(nameLink[2])
+      const fighterId = idFromUfcHref(nameLink[1], fighterName)
+      if (fighters.some(fighter => fighter.id === fighterId)) continue
+      fighters.push({
+        id: fighterId,
+        name: fighterName,
+        shortName: fighterName,
+        nickname: null,
+        record: null,
+        rank,
+        champion: false,
+        country: null,
+        headshot: null,
+        color: null,
+        url: absoluteUfcUrl(nameLink[1]),
+      })
+    }
+
+    groups.push({
+      id,
+      name,
+      shortName: name,
+      limit: LIMITS[id] || null,
+      fighters: fighters.sort((a, b) => {
+        if (a.champion !== b.champion) return a.champion ? -1 : 1
+        return (a.rank || 999) - (b.rank || 999) || a.name.localeCompare(b.name)
+      }),
+    })
+  }
+
+  return groups.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id))
 }
 
 function limitFromName(name: string): string | null {
@@ -68,7 +207,7 @@ function normalizeFighter(rank: any, champion: boolean): Fighter | null {
   }
 }
 
-function buildWeightClasses(data: any): WeightClassGroup[] {
+function buildEspnWeightClasses(data: any): WeightClassGroup[] {
   const groups = new Map<string, WeightClassGroup>()
   const rankings = Array.isArray(data?.rankings) ? data.rankings : []
 
@@ -101,11 +240,6 @@ function buildWeightClasses(data: any): WeightClassGroup[] {
     groups.set(slug, next)
   }
 
-  const order = [
-    'heavyweight', 'light-heavyweight', 'middleweight', 'welterweight', 'lightweight', 'featherweight', 'bantamweight', 'flyweight',
-    'womens-bantamweight', 'womens-flyweight', 'womens-strawweight',
-  ]
-
   return Array.from(groups.values())
     .map(group => ({
       ...group,
@@ -115,10 +249,25 @@ function buildWeightClasses(data: any): WeightClassGroup[] {
       }),
     }))
     .sort((a, b) => {
-      const ai = order.indexOf(a.id)
-      const bi = order.indexOf(b.id)
+      const ai = ORDER.indexOf(a.id)
+      const bi = ORDER.indexOf(b.id)
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi) || a.name.localeCompare(b.name)
     })
+}
+
+async function loadWeightClasses(): Promise<{ source: string; weightClasses: WeightClassGroup[] }> {
+  try {
+    const html = await fetchOfficialUfcRankingsHtml()
+    const weightClasses = parseOfficialUfcRankings(html)
+    if (weightClasses.length >= 8 && weightClasses.every(group => group.fighters.some(fighter => fighter.champion))) {
+      return { source: 'ufc.com/rankings', weightClasses }
+    }
+  } catch (err) {
+    console.warn('Official UFC rankings unavailable, falling back to ESPN rankings:', err)
+  }
+
+  const rankings = await fetchEspnRankings()
+  return { source: 'espn/rankings-fallback', weightClasses: buildEspnWeightClasses(rankings) }
 }
 
 export async function GET(req: NextRequest) {
@@ -129,8 +278,8 @@ export async function GET(req: NextRequest) {
     if (cache && Date.now() - cache.ts < TTL) {
       return NextResponse.json(cache.data)
     }
-    const rankings = await fetchEspnRankings()
-    const data = { generatedAt: new Date().toISOString(), weightClasses: buildWeightClasses(rankings) }
+    const loaded = await loadWeightClasses()
+    const data = { generatedAt: new Date().toISOString(), source: loaded.source, weightClasses: loaded.weightClasses }
     cache = { data, ts: Date.now() }
     return NextResponse.json(data)
   } catch (err) {
