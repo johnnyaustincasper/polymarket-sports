@@ -41,6 +41,15 @@ export type SignalDecisionSection = {
   rows: string[]
 }
 
+export type MlbConvictionLayer = {
+  verdict: 'Strong look' | 'Small lean' | 'Price watch' | 'Needs better setup'
+  read: string
+  whyLive: string[]
+  path: string
+  killSwitch: string[]
+  numberDiscipline: string
+}
+
 export type SignalJudgmentContext = {
   lastGame: ShootingSnapshot
   trend: {
@@ -73,6 +82,7 @@ export type SignalJudgmentContext = {
   gameEnvironment: string[]
   sportSpecificNotes: string[]
   decisionSections: SignalDecisionSection[]
+  mlbConviction?: MlbConvictionLayer
   volume: {
     shotAttemptsLast5Avg?: number
     threesAttemptedLast5Avg?: number
@@ -301,6 +311,119 @@ function metricNoun(metric: string): string {
   return `${metric.toLowerCase()} profile`
 }
 
+function mlbMetricKind(metric: string): 'contact' | 'offense' | 'power' | 'strikeouts' | 'generic' {
+  const key = metric.toLowerCase()
+  if (key === 'strikeouts') return 'strikeouts'
+  if (key === 'home runs') return 'power'
+  if (key === 'hits' || key === 'total bases') return 'contact'
+  if (key === 'runs' || key === 'rbis' || key === 'rbi' || key === 'hits + runs + rbis' || key === 'hits+runs+rbis' || key === 'h+r+rbi') return 'offense'
+  return metricSport(metric) === 'mlb' ? 'generic' : 'generic'
+}
+
+function mlbVerdict(input: { line?: number; median?: number; hit5?: number; games5: number; games12: number }): MlbConvictionLayer['verdict'] {
+  if (!input.games12 || input.games12 < 3) return 'Needs better setup'
+  if (input.line == null || input.median == null) return 'Price watch'
+  const hits = input.hit5 ?? 0
+  if (input.median >= input.line && input.games5 >= 5 && hits >= 4) return 'Strong look'
+  if (input.median >= input.line && hits >= 3) return 'Small lean'
+  return 'Price watch'
+}
+
+function buildMlbConviction(input: {
+  player: string
+  metric: string
+  line?: number
+  lastGame: ShootingSnapshot
+  last5Avg?: number
+  median?: number
+  min: number
+  max: number
+  hit5?: number
+  games5: number
+  hit12?: number
+  games12: number
+}): MlbConvictionLayer | undefined {
+  if (metricSport(input.metric) !== 'mlb') return undefined
+  const metricLabel = input.metric.toLowerCase()
+  const currentProp = propText(input.line, metricLabel)
+  const verdict = mlbVerdict(input)
+  const recentBand = `${fmt(input.min)}-${fmt(input.max)} ${metricLabel} across the sample`
+  const hitLine = input.line != null
+    ? `${input.hit5 ?? '—'} of last ${input.games5} and ${input.hit12 ?? '—'} of last ${input.games12} cleared ${currentProp}`
+    : `${fmtAvg(input.last5Avg)} ${metricLabel} over the last ${input.games5}`
+  const kind = mlbMetricKind(input.metric)
+
+  if (kind === 'strikeouts') {
+    return {
+      verdict,
+      read: `${input.player} is a pitcher-K read, not a box-score auto-play: ${fmt(input.lastGame.value)} Ks last start, ${fmtAvg(input.last5Avg)} over the last ${input.games5}, with a ${recentBand} band.`,
+      whyLive: [
+        `${hitLine}; the number only gets interesting if the opposing lineup brings real swing-and-miss.`,
+        `The path is pitch-count leash plus whiffs: he needs enough innings for the slider/secondary stuff to pile up Ks.`,
+        `Umpire zone and opponent contact rate matter more here than a generic recent trend.`,
+      ],
+      path: `Work ahead in counts, get chase on two-strike pitches, and stay efficient enough to face the order a third time.`,
+      killSwitch: [
+        `Downgrade if beat reports hint at a short leash or recent pitch-count cap.`,
+        `Downgrade if the opponent lineup is contact-heavy or the umpire zone projects tight.`,
+      ],
+      numberDiscipline: input.line == null ? 'Needs a clear K number before it belongs on the board.' : `${currentProp} is the clean lane; one K higher is picky, two higher needs a perfect matchup.`,
+    }
+  }
+
+  if (kind === 'power') {
+    return {
+      verdict,
+      read: `${input.player} is a power-variance read: ${fmt(input.lastGame.value)} HR last game, ${fmtAvg(input.last5Avg)} over the last ${input.games5}, and a ${recentBand} band that says the ceiling exists but the floor is real.`,
+      whyLive: [
+        `${hitLine}; this needs barrel quality, not just a warm bat.`,
+        `The setup has to include a pitcher who gives up lift/pull damage or a park-weather combo that lets the ball carry.`,
+        `If those power conditions are missing, this is a watch instead of a force.`,
+      ],
+      path: `One mistake pitch in his damage zone — preferably with pull-side carry — is the whole path.`,
+      killSwitch: [
+        `Kill it if park/weather suppresses carry.`,
+        `Downgrade if the starter keeps the ball on the ground or avoids his hot zone.`,
+      ],
+      numberDiscipline: 'HR looks are naturally thin; do not turn a hitter-form read into a power-only chase unless the matchup supports it.',
+    }
+  }
+
+  if (kind === 'offense') {
+    return {
+      verdict,
+      read: `${input.player} is a run-environment read: ${fmt(input.lastGame.value)} ${metricLabel} last game, ${fmtAvg(input.last5Avg)} over the last ${input.games5}, and ${hitLine}.`,
+      whyLive: [
+        `This prop needs lineup spot and traffic: top/middle-order plate appearances matter more than one recent box score.`,
+        `The best version is team pressure — hitters around him creating RBI/run paths, not him needing to do everything alone.`,
+        `Handedness and opposing starter traffic allowed decide whether the recent form actually travels into today.`,
+      ],
+      path: `Reach base or drive traffic once, then let the lineup context do the rest.`,
+      killSwitch: [
+        `Downgrade if he drops in the order.`,
+        `Downgrade if the team total, weather, or opposing starter profile turns pitcher-friendly.`,
+      ],
+      numberDiscipline: `${currentProp} is only playable when the lineup card confirms the role; do not chase a bigger offensive ladder without a strong team run setup.`,
+    }
+  }
+
+  return {
+    verdict,
+    read: `${input.player} is a contact-path read: ${fmt(input.lastGame.value)} ${metricLabel} last game, ${fmtAvg(input.last5Avg)} over the last ${input.games5}, and ${hitLine}.`,
+    whyLive: [
+      `The case is plate appearances plus balls in play: batting-order slot and opposing starter handedness have to line up.`,
+      `For ${metricLabel}, the clean path is contact quality and traffic, not forcing a homer outcome.`,
+      `Park/weather should not be working against carry or gaps if this is going to feel strong.`,
+    ],
+    path: kind === 'contact' ? `Put the ball in play early, avoid the strikeout-heavy matchup, and let one clean single or gap ball clear the number.` : `Get enough plate appearances in a friendly run environment for the recent form to matter.`,
+    killSwitch: [
+      `Downgrade if he bats lower than expected or sits against the handedness matchup.`,
+      `Downgrade if park/weather suppresses offense or the starter's contact profile is tougher than the surface line suggests.`,
+    ],
+    numberDiscipline: `${currentProp} is the clean lane; if the app asks for a bigger night, require a confirmed lineup and better matchup support.`,
+  }
+}
+
 function whyPlayerRows(input: {
   player: string
   metric: string
@@ -509,6 +632,20 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     volume.shotAttemptsLast5Avg != null ? `Volume: ${fmtAvg(volume.shotAttemptsLast5Avg)} shots, ${fmtAvg(volume.threesAttemptedLast5Avg)} threes, and ${fmtAvg(volume.freeThrowsAttemptedLast5Avg)} free throws per game over the last 5.` : '',
     minutes.lastGame != null ? `Minutes: ${fmt(minutes.lastGame)} last game / ${fmt(minutes.last5Avg)} last 5${minutes.stable ? '; role looks stable.' : '; verify role before tipoff.'}` : '',
   ].filter(Boolean)
+  const mlbConviction = buildMlbConviction({
+    player: input.player,
+    metric: input.metric,
+    line,
+    lastGame,
+    last5Avg,
+    median: medianValue,
+    min,
+    max,
+    hit5: trend.last5HitRate,
+    games5: last5.length,
+    hit12: trend.last12HitRate,
+    games12: games.length,
+  })
   const whyPlayerBullets = whyPlayerRows({
     player: input.player,
     metric: input.metric,
@@ -556,6 +693,7 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     gameEnvironment,
     sportSpecificNotes,
     decisionSections,
+    mlbConviction,
     volume,
     minutes,
     matchupNotes,

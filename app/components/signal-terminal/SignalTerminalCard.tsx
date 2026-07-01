@@ -217,6 +217,7 @@ export default function SignalTerminalCard({
     gameEnvironment?: string[]
     sportSpecificNotes?: string[]
     decisionSections?: Array<{ title?: string; rows?: string[] }>
+    mlbConviction?: { verdict?: string; read?: string; whyLive?: string[]; path?: string; killSwitch?: string[]; numberDiscipline?: string }
     volume?: { shotAttemptsLast5Avg?: number; threesAttemptedLast5Avg?: number; freeThrowsAttemptedLast5Avg?: number }
     minutes?: { lastGame?: number; last5Avg?: number; stable?: boolean }
     matchupNotes?: string[]
@@ -285,6 +286,16 @@ export default function SignalTerminalCard({
       .filter(section => section.title && section.rows.length)
       .slice(0, 5)
     : []
+  const mlbConviction = signal.sport === 'mlb' && judgmentContext?.mlbConviction
+    ? {
+      verdict: String(judgmentContext.mlbConviction.verdict || 'Small lean'),
+      read: stripJargon(String(judgmentContext.mlbConviction.read || '')).trim(),
+      whyLive: (Array.isArray(judgmentContext.mlbConviction.whyLive) ? judgmentContext.mlbConviction.whyLive : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3),
+      path: stripJargon(String(judgmentContext.mlbConviction.path || '')).trim(),
+      killSwitch: (Array.isArray(judgmentContext.mlbConviction.killSwitch) ? judgmentContext.mlbConviction.killSwitch : []).map(row => simpleRisk(String(row || ''))).filter(Boolean).slice(0, 2),
+      numberDiscipline: stripJargon(String(judgmentContext.mlbConviction.numberDiscipline || '')).trim(),
+    }
+    : null
   const judgmentNotes = [
     ...(Array.isArray(judgmentContext?.matchupNotes) ? judgmentContext.matchupNotes : []),
     ...(Array.isArray(judgmentContext?.injuryNotes) ? judgmentContext.injuryNotes : []),
@@ -439,6 +450,55 @@ export default function SignalTerminalCard({
                   <span>{row}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {mlbConviction && !compact && (
+          <div style={{ marginTop: 11, borderRadius: 16, padding: 11, background: 'linear-gradient(135deg, rgba(255,209,102,0.12), rgba(125,246,255,0.055))', border: '1px solid rgba(255,209,102,0.28)', boxShadow: '0 0 26px rgba(255,209,102,0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ color: C.amber, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>MLB conviction read</div>
+              <div style={{ color: C.text, fontSize: 8, fontWeight: 950, borderRadius: 999, padding: '3px 7px', background: 'rgba(255,209,102,0.11)', border: '1px solid rgba(255,209,102,0.26)' }}>{mlbConviction.verdict}</div>
+            </div>
+            {mlbConviction.read && (
+              <div style={{ color: C.text, fontSize: 10.5, lineHeight: 1.42, fontWeight: 900, marginBottom: 9 }}>{mlbConviction.read}</div>
+            )}
+            <div style={{ display: 'grid', gap: 8 }}>
+              {mlbConviction.whyLive.length > 0 && (
+                <div>
+                  <div style={{ color: C.green, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>Why it’s live</div>
+                  <div style={{ display: 'grid', gap: 3 }}>
+                    {mlbConviction.whyLive.map(row => (
+                      <div key={`mlb-live-${row}`} style={{ color: C.muted, fontSize: 8.7, lineHeight: 1.34, display: 'grid', gridTemplateColumns: '10px minmax(0,1fr)', gap: 4 }}>
+                        <span style={{ color: C.green }}>›</span>
+                        <span>{row}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {mlbConviction.path && (
+                <div style={{ borderRadius: 11, padding: '8px 8px', background: 'rgba(125,246,255,0.035)', border: '1px solid rgba(125,246,255,0.12)' }}>
+                  <div style={{ color: C.green, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>Path</div>
+                  <div style={{ color: C.muted, fontSize: 8.8, lineHeight: 1.34 }}>{mlbConviction.path}</div>
+                </div>
+              )}
+              {mlbConviction.killSwitch.length > 0 && (
+                <div style={{ borderRadius: 11, padding: '8px 8px', background: 'rgba(255,77,109,0.04)', border: '1px solid rgba(255,77,109,0.16)' }}>
+                  <div style={{ color: C.red, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>What kills it</div>
+                  <div style={{ display: 'grid', gap: 3 }}>
+                    {mlbConviction.killSwitch.map(row => (
+                      <div key={`mlb-kill-${row}`} style={{ color: C.muted, fontSize: 8.6, lineHeight: 1.32, display: 'grid', gridTemplateColumns: '10px minmax(0,1fr)', gap: 4 }}>
+                        <span style={{ color: C.red }}>•</span>
+                        <span>{row}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {mlbConviction.numberDiscipline && (
+                <div style={{ color: C.faint, fontSize: 8.5, lineHeight: 1.34, fontWeight: 850 }}>Number discipline: {mlbConviction.numberDiscipline}</div>
+              )}
             </div>
           </div>
         )}

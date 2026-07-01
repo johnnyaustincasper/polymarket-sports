@@ -81,6 +81,21 @@ function cleanDecisionSections(sections?: Array<{ title?: string; rows?: string[
   })).filter(section => section.title && section.rows.length).slice(0, 5)
 }
 
+function cleanMlbConviction(layer?: any) {
+  if (!layer) return undefined
+  const read = stripPublicJargon(layer.read || '')
+  const path = stripPublicJargon(layer.path || '')
+  const numberDiscipline = stripPublicJargon(layer.numberDiscipline || '')
+  return {
+    verdict: layer.verdict,
+    read: read && !containsPublicJargon(read) ? read : undefined,
+    whyLive: cleanContextRows(layer.whyLive),
+    path: path && !containsPublicJargon(path) ? path : undefined,
+    killSwitch: cleanContextRows(layer.killSwitch),
+    numberDiscipline: numberDiscipline && !containsPublicJargon(numberDiscipline) ? numberDiscipline : undefined,
+  }
+}
+
 export function publicSignal(signal: PublicSignalLike): Partial<PublicSignalLike> {
   const recentGames = Array.isArray(signal.metadata?.recentGames) ? signal.metadata.recentGames : undefined
   const todayIntel = signal.metadata?.todayIntel
@@ -130,6 +145,7 @@ export function publicSignal(signal: PublicSignalLike): Partial<PublicSignalLike
         gameEnvironment: cleanContextRows(judgmentContext.gameEnvironment),
         sportSpecificNotes: cleanContextRows(judgmentContext.sportSpecificNotes),
         decisionSections: cleanDecisionSections(judgmentContext.decisionSections),
+        mlbConviction: cleanMlbConviction(judgmentContext.mlbConviction),
         volume: judgmentContext.volume,
         minutes: judgmentContext.minutes,
         matchupNotes: cleanContextRows(judgmentContext.matchupNotes),
