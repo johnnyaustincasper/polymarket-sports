@@ -86,6 +86,17 @@ function cleanMlbConviction(layer?: any) {
   const read = stripPublicJargon(layer.read || '')
   const path = stripPublicJargon(layer.path || '')
   const numberDiscipline = stripPublicJargon(layer.numberDiscipline || '')
+  const matchupRating = layer.matchupRating ? {
+    playerLabel: layer.matchupRating.playerLabel,
+    opponentLabel: layer.matchupRating.opponentLabel,
+    playerRating: layer.matchupRating.playerRating,
+    opponentRating: layer.matchupRating.opponentRating,
+    matchupGap: layer.matchupRating.matchupGap,
+    bestFit: layer.matchupRating.bestFit,
+    propFit: layer.matchupRating.propFit,
+    read: stripPublicJargon(layer.matchupRating.read || ''),
+    rows: cleanContextRows(layer.matchupRating.rows),
+  } : undefined
   return {
     verdict: layer.verdict,
     read: read && !containsPublicJargon(read) ? read : undefined,
@@ -93,6 +104,7 @@ function cleanMlbConviction(layer?: any) {
     path: path && !containsPublicJargon(path) ? path : undefined,
     killSwitch: cleanContextRows(layer.killSwitch),
     numberDiscipline: numberDiscipline && !containsPublicJargon(numberDiscipline) ? numberDiscipline : undefined,
+    ...(matchupRating ? { matchupRating } : {}),
   }
 }
 

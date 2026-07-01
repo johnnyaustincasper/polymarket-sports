@@ -217,7 +217,7 @@ export default function SignalTerminalCard({
     gameEnvironment?: string[]
     sportSpecificNotes?: string[]
     decisionSections?: Array<{ title?: string; rows?: string[] }>
-    mlbConviction?: { verdict?: string; read?: string; whyLive?: string[]; path?: string; killSwitch?: string[]; numberDiscipline?: string }
+    mlbConviction?: { verdict?: string; read?: string; whyLive?: string[]; path?: string; killSwitch?: string[]; numberDiscipline?: string; matchupRating?: { playerLabel?: string; opponentLabel?: string; playerRating?: number; opponentRating?: number; matchupGap?: number; bestFit?: string; propFit?: Record<string, number | undefined>; read?: string; rows?: string[] } }
     volume?: { shotAttemptsLast5Avg?: number; threesAttemptedLast5Avg?: number; freeThrowsAttemptedLast5Avg?: number }
     minutes?: { lastGame?: number; last5Avg?: number; stable?: boolean }
     matchupNotes?: string[]
@@ -294,6 +294,11 @@ export default function SignalTerminalCard({
       path: stripJargon(String(judgmentContext.mlbConviction.path || '')).trim(),
       killSwitch: (Array.isArray(judgmentContext.mlbConviction.killSwitch) ? judgmentContext.mlbConviction.killSwitch : []).map(row => simpleRisk(String(row || ''))).filter(Boolean).slice(0, 2),
       numberDiscipline: stripJargon(String(judgmentContext.mlbConviction.numberDiscipline || '')).trim(),
+      matchupRating: judgmentContext.mlbConviction.matchupRating ? {
+        ...judgmentContext.mlbConviction.matchupRating,
+        read: stripJargon(String(judgmentContext.mlbConviction.matchupRating.read || '')).trim(),
+        rows: (Array.isArray(judgmentContext.mlbConviction.matchupRating.rows) ? judgmentContext.mlbConviction.matchupRating.rows : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3),
+      } : undefined,
     }
     : null
   const judgmentNotes = [
@@ -460,6 +465,32 @@ export default function SignalTerminalCard({
               <div style={{ color: C.amber, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>MLB conviction read</div>
               <div style={{ color: C.text, fontSize: 8, fontWeight: 950, borderRadius: 999, padding: '3px 7px', background: 'rgba(255,209,102,0.11)', border: '1px solid rgba(255,209,102,0.26)' }}>{mlbConviction.verdict}</div>
             </div>
+            {mlbConviction.matchupRating && (
+              <div style={{ marginBottom: 9, borderRadius: 14, padding: 9, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.22)' }}>
+                <div style={{ color: C.green, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 7 }}>Video-game matchup rating</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6 }}>
+                  <div style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(2,5,1,0.58)', border: '1px solid rgba(125,246,255,0.16)', textAlign: 'center' }}>
+                    <div style={{ color: C.faint, fontSize: 6.8, fontWeight: 950, textTransform: 'uppercase' }}>{mlbConviction.matchupRating.playerLabel || 'Player rating'}</div>
+                    <div style={{ color: C.text, fontSize: 20, fontWeight: 950, lineHeight: 1 }}>{formatNumber(mlbConviction.matchupRating.playerRating)}</div>
+                  </div>
+                  <div style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(2,5,1,0.58)', border: '1px solid rgba(255,255,255,0.10)', textAlign: 'center' }}>
+                    <div style={{ color: C.faint, fontSize: 6.8, fontWeight: 950, textTransform: 'uppercase' }}>{mlbConviction.matchupRating.opponentLabel || 'Opponent rating'}</div>
+                    <div style={{ color: C.text, fontSize: 20, fontWeight: 950, lineHeight: 1 }}>{formatNumber(mlbConviction.matchupRating.opponentRating)}</div>
+                  </div>
+                  <div style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(255,209,102,0.08)', border: '1px solid rgba(255,209,102,0.18)', textAlign: 'center' }}>
+                    <div style={{ color: C.faint, fontSize: 6.8, fontWeight: 950, textTransform: 'uppercase' }}>Gap</div>
+                    <div style={{ color: (mlbConviction.matchupRating.matchupGap || 0) >= 8 ? C.green : (mlbConviction.matchupRating.matchupGap || 0) >= 0 ? C.amber : C.red, fontSize: 20, fontWeight: 950, lineHeight: 1 }}>{(mlbConviction.matchupRating.matchupGap || 0) > 0 ? '+' : ''}{formatNumber(mlbConviction.matchupRating.matchupGap)}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 7 }}>
+                  <span style={{ color: C.text, fontSize: 8, fontWeight: 950, borderRadius: 999, padding: '4px 7px', background: 'rgba(125,246,255,0.12)', border: '1px solid rgba(125,246,255,0.22)' }}>Best fit: {mlbConviction.matchupRating.bestFit}</span>
+                  {Object.entries(mlbConviction.matchupRating.propFit || {}).filter(([, value]) => isFiniteNumber(value)).sort((a, b) => Number(b[1]) - Number(a[1])).slice(0, 3).map(([key, value]) => (
+                    <span key={key} style={{ color: C.muted, fontSize: 7.5, fontWeight: 900, borderRadius: 999, padding: '4px 6px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.09)' }}>{key.replace(/([A-Z])/g, ' $1')}: {formatNumber(Number(value))}</span>
+                  ))}
+                </div>
+                {mlbConviction.matchupRating.read && <div style={{ color: C.muted, fontSize: 8.7, lineHeight: 1.35, marginTop: 7, fontWeight: 850 }}>{mlbConviction.matchupRating.read}</div>}
+              </div>
+            )}
             {mlbConviction.read && (
               <div style={{ color: C.text, fontSize: 10.5, lineHeight: 1.42, fontWeight: 900, marginBottom: 9 }}>{mlbConviction.read}</div>
             )}

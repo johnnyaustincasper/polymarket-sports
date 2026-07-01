@@ -163,6 +163,10 @@ describe('signal judgment context', () => {
     expect(context?.whyPlayerBullets.join(' ')).toContain('park/weather')
     expect(context?.whyPlayerBullets.join(' ')).not.toMatch(/raw odds|market price|Pass/i)
     expect(context?.mlbConviction?.read).toContain('run-environment read')
+    expect(context?.mlbConviction?.matchupRating?.playerLabel).toBe('Run-production rating')
+    expect(context?.mlbConviction?.matchupRating?.bestFit).toMatch(/Runs\/RBIs|Hits|Total bases/)
+    expect(context?.mlbConviction?.matchupRating?.playerRating).toBeGreaterThanOrEqual(35)
+    expect(context?.mlbConviction?.matchupRating?.rows.join(' ')).toContain('Best prop fit')
     expect(context?.mlbConviction?.whyLive.join(' ')).toContain('lineup spot and traffic')
     expect(context?.mlbConviction?.path).toContain('lineup context')
     expect(context?.mlbConviction?.killSwitch.join(' ')).toContain('drops in the order')
@@ -193,9 +197,46 @@ describe('signal judgment context', () => {
     expect(why).toContain('umpire zone')
     expect(why).not.toMatch(/odds|market|Pass/i)
     expect(context?.mlbConviction?.read).toContain('pitcher-K read')
+    expect(context?.mlbConviction?.matchupRating).toMatchObject({ playerLabel: 'Pitcher K rating', opponentLabel: 'Lineup contact rating', bestFit: 'Strikeouts' })
+    expect(context?.mlbConviction?.matchupRating?.playerRating).toBeGreaterThanOrEqual(35)
+    expect(context?.mlbConviction?.matchupRating?.opponentRating).toBeGreaterThanOrEqual(35)
+    expect(context?.mlbConviction?.matchupRating?.rows.join(' ')).toContain('K form')
     expect(context?.mlbConviction?.whyLive.join(' ')).toContain('opposing lineup brings real swing-and-miss')
     expect(context?.mlbConviction?.path).toContain('two-strike pitches')
     expect(context?.mlbConviction?.killSwitch.join(' ')).toContain('short leash')
     expect(context?.mlbConviction?.whyLive.join(' ')).not.toMatch(/strikeout trend supports the number|trend supports|good spot/i)
   })
+
+  it('grades an obvious ace-vs-whiff-lineup setup as a large strikeout matchup gap', () => {
+    const last12 = [
+      { eventId: 'a1', stats: { strikeouts: 11 } },
+      { eventId: 'a2', stats: { strikeouts: 9 } },
+      { eventId: 'a3', stats: { strikeouts: 10 } },
+      { eventId: 'a4', stats: { strikeouts: 8 } },
+      { eventId: 'a5', stats: { strikeouts: 12 } },
+      { eventId: 'a6', stats: { strikeouts: 7 } },
+      { eventId: 'a7', stats: { strikeouts: 9 } },
+      { eventId: 'a8', stats: { strikeouts: 10 } },
+      { eventId: 'a9', stats: { strikeouts: 8 } },
+      { eventId: 'a10', stats: { strikeouts: 11 } },
+    ]
+
+    const context = buildJudgmentContext({
+      player: 'Ace Starter',
+      metric: 'strikeouts',
+      label: '7+ strikeouts',
+      line: 7,
+      last12,
+    })
+
+    expect(context?.mlbConviction?.matchupRating).toMatchObject({
+      playerLabel: 'Pitcher K rating',
+      opponentLabel: 'Lineup contact rating',
+      bestFit: 'Strikeouts',
+    })
+    expect(context?.mlbConviction?.matchupRating?.playerRating).toBeGreaterThanOrEqual(90)
+    expect(context?.mlbConviction?.matchupRating?.matchupGap).toBeGreaterThanOrEqual(18)
+    expect(context?.mlbConviction?.matchupRating?.read).toContain('/100 strikeout profile')
+  })
+
 })

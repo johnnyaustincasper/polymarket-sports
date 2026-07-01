@@ -41,6 +41,26 @@ export type SignalDecisionSection = {
   rows: string[]
 }
 
+export type MlbPropFit = {
+  hits?: number
+  totalBases?: number
+  homeRuns?: number
+  runsRbis?: number
+  strikeouts?: number
+}
+
+export type MlbMatchupRating = {
+  playerLabel: string
+  opponentLabel: string
+  playerRating: number
+  opponentRating: number
+  matchupGap: number
+  bestFit: string
+  propFit: MlbPropFit
+  read: string
+  rows: string[]
+}
+
 export type MlbConvictionLayer = {
   verdict: 'Strong look' | 'Small lean' | 'Price watch' | 'Needs better setup'
   read: string
@@ -48,6 +68,7 @@ export type MlbConvictionLayer = {
   path: string
   killSwitch: string[]
   numberDiscipline: string
+  matchupRating?: MlbMatchupRating
 }
 
 export type SignalJudgmentContext = {
@@ -329,6 +350,96 @@ function mlbVerdict(input: { line?: number; median?: number; hit5?: number; game
   return 'Price watch'
 }
 
+function clampRating(value: number): number {
+  if (!Number.isFinite(value)) return 50
+  return Math.max(35, Math.min(99, Math.round(value)))
+}
+
+function hitRateScore(hit?: number, games?: number): number {
+  if (!games) return 50
+  return ((hit ?? 0) / games) * 100
+}
+
+function lineFitScore(input: { line?: number; median?: number; last5Avg?: number; max: number }): number {
+  if (input.line == null) return 58
+  const medianGap = input.median == null ? 0 : ((input.median - input.line) / Math.max(1, input.line)) * 26
+  const avgGap = input.last5Avg == null ? 0 : ((input.last5Avg - input.line) / Math.max(1, input.line)) * 22
+  const ceiling = ((input.max - input.line) / Math.max(1, input.line)) * 10
+  return 62 + medianGap + avgGap + ceiling
+}
+
+function buildMlbMatchupRating(input: {
+  player: string
+  metric: string
+  line?: number
+  lastGame: ShootingSnapshot
+  last5Avg?: number
+  median?: number
+  min: number
+  max: number
+  hit5?: number
+  games5: number
+  hit12?: number
+  games12: number
+}): MlbMatchupRating | undefined {
+  if (metricSport(input.metric) !== 'mlb') return undefined
+  const kind = mlbMetricKind(input.metric)
+  const hit5Score = hitRateScore(input.hit5, input.games5)
+  const hit12Score = hitRateScore(input.hit12, input.games12)
+  const formScore = lineFitScore(input)
+  const stabilityScore = input.min >= (input.line ?? Number.POSITIVE_INFINITY) ? 92 : input.median != null && input.line != null && input.median >= input.line ? 76 : 58
+  const sampleScore = input.games12 >= 10 ? 88 : input.games12 >= 5 ? 76 : 58
+  const base = clampRating(formScore * 0.42 + hit5Score * 0.24 + hit12Score * 0.16 + stabilityScore * 0.10 + sampleScore * 0.08)
+  const volatility = input.max - input.min
+  const opponentResistance = clampRating(74 - Math.max(-10, Math.min(12, (base - 75) * 0.35)) + (volatility > Math.max(2, (input.line ?? 1) * 1.5) ? 3 : 0))
+
+  if (kind === 'strikeouts') {
+    const strikeouts = clampRating(base + 4)
+    return {
+      playerLabel: 'Pitcher K rating',
+      opponentLabel: 'Lineup contact rating',
+      playerRating: strikeouts,
+      opponentRating: opponentResistance,
+      matchupGap: strikeouts - opponentResistance,
+      bestFit: 'Strikeouts',
+      propFit: { strikeouts },
+      read: `${input.player} grades like a ${strikeouts}/100 strikeout profile against a ${opponentResistance}/100 contact-resistance baseline from the current feed.`,
+      rows: [
+        `K form: ${fmtAvg(input.last5Avg)} over the last ${input.games5}, ${input.hit5 ?? '—'} of ${input.games5} cleared ${propText(input.line, 'strikeouts')}.`,
+        `Rating gap: ${strikeouts - opponentResistance >= 10 ? '+' : ''}${strikeouts - opponentResistance}; stronger gaps are where K overs become obvious instead of guessy.`,
+        `Upgrade this only when confirmed lineup K-rate, pitch count, and umpire zone agree with the rating.`,
+      ],
+    }
+  }
+
+  const contact = clampRating(base + (kind === 'contact' ? 5 : 0) - (kind === 'power' ? 8 : 0))
+  const totalBases = clampRating(base + (kind === 'contact' ? 2 : kind === 'power' ? 5 : 0))
+  const homeRuns = clampRating(base - 16 + (kind === 'power' ? 18 : 0) + (input.max >= 1 && input.metric.toLowerCase() === 'home runs' ? 4 : 0))
+  const runsRbis = clampRating(base + (kind === 'offense' ? 7 : -3))
+  const fits = [
+    ['Hits', contact],
+    ['Total bases', totalBases],
+    ['Home runs', homeRuns],
+    ['Runs/RBIs', runsRbis],
+  ].sort((a, b) => Number(b[1]) - Number(a[1])) as Array<[string, number]>
+
+  return {
+    playerLabel: kind === 'power' ? 'Hitter power rating' : kind === 'offense' ? 'Run-production rating' : 'Hitter contact rating',
+    opponentLabel: 'Pitcher resistance rating',
+    playerRating: fits[0][1],
+    opponentRating: opponentResistance,
+    matchupGap: fits[0][1] - opponentResistance,
+    bestFit: fits[0][0],
+    propFit: { hits: contact, totalBases, homeRuns, runsRbis },
+    read: `${input.player} grades ${fits[0][1]}/100 for ${fits[0][0].toLowerCase()} against a ${opponentResistance}/100 pitcher-resistance baseline from the current feed.`,
+    rows: [
+      `Recent form: ${fmtAvg(input.last5Avg)} ${input.metric.toLowerCase()} over the last ${input.games5}, ${input.hit5 ?? '—'} of ${input.games5} cleared ${propText(input.line, input.metric.toLowerCase())}.`,
+      `Best prop fit: ${fits[0][0]} (${fits[0][1]}/100); HR only deserves attention when the power score beats the contact score, not just because the hitter is good.`,
+      `Upgrade with confirmed lineup spot, handedness/pitch mix, and park/weather; downgrade if those do not support the score.`,
+    ],
+  }
+}
+
 function buildMlbConviction(input: {
   player: string
   metric: string
@@ -352,6 +463,7 @@ function buildMlbConviction(input: {
     ? `${input.hit5 ?? '—'} of last ${input.games5} and ${input.hit12 ?? '—'} of last ${input.games12} cleared ${currentProp}`
     : `${fmtAvg(input.last5Avg)} ${metricLabel} over the last ${input.games5}`
   const kind = mlbMetricKind(input.metric)
+  const matchupRating = buildMlbMatchupRating(input)
 
   if (kind === 'strikeouts') {
     return {
@@ -368,6 +480,7 @@ function buildMlbConviction(input: {
         `Downgrade if the opponent lineup is contact-heavy or the umpire zone projects tight.`,
       ],
       numberDiscipline: input.line == null ? 'Needs a clear K number before it belongs on the board.' : `${currentProp} is the clean lane; one K higher is picky, two higher needs a perfect matchup.`,
+      matchupRating,
     }
   }
 
@@ -386,6 +499,7 @@ function buildMlbConviction(input: {
         `Downgrade if the starter keeps the ball on the ground or avoids his hot zone.`,
       ],
       numberDiscipline: 'HR looks are naturally thin; do not turn a hitter-form read into a power-only chase unless the matchup supports it.',
+      matchupRating,
     }
   }
 
@@ -404,6 +518,7 @@ function buildMlbConviction(input: {
         `Downgrade if the team total, weather, or opposing starter profile turns pitcher-friendly.`,
       ],
       numberDiscipline: `${currentProp} is only playable when the lineup card confirms the role; do not chase a bigger offensive ladder without a strong team run setup.`,
+      matchupRating,
     }
   }
 
@@ -421,6 +536,7 @@ function buildMlbConviction(input: {
       `Downgrade if park/weather suppresses offense or the starter's contact profile is tougher than the surface line suggests.`,
     ],
     numberDiscipline: `${currentProp} is the clean lane; if the app asks for a bigger night, require a confirmed lineup and better matchup support.`,
+    matchupRating,
   }
 }
 

@@ -62,6 +62,25 @@ const baseSignal = {
         { title: 'MATCHUP CHECK', rows: ['Fast pace helps volume.'] },
         { title: 'RISK CHECK', rows: ['Do not chase it if the line moves.'] },
       ],
+      mlbConviction: {
+        verdict: 'Strong look',
+        read: 'Test hitter is a contact-path read.',
+        whyLive: ['Lineup spot and contact quality line up.'],
+        path: 'Put the ball in play.',
+        killSwitch: ['Downgrade if he bats lower.'],
+        numberDiscipline: 'Do not chase a bigger number.',
+        matchupRating: {
+          playerLabel: 'Hitter contact rating',
+          opponentLabel: 'Pitcher resistance rating',
+          playerRating: 88,
+          opponentRating: 70,
+          matchupGap: 18,
+          bestFit: 'Hits',
+          propFit: { hits: 88, totalBases: 84, homeRuns: 62 },
+          read: 'Test hitter grades 88/100 for hits.',
+          rows: ['Best prop fit: Hits (88/100).'],
+        },
+      },
     },
   },
 } as any
@@ -99,6 +118,14 @@ describe('public Today Signals response', () => {
       'Normie Guard fits this scoring look: 18.4 points over the last 5 and 4 of 5 cleared 10+.',
       'The number is the hook: recent middle is 14, range is 8-22, so 10+ has room unless the prop moves up.',
     ])
+    expect(publicSignal.metadata.judgmentContext.mlbConviction.matchupRating).toMatchObject({
+      playerLabel: 'Hitter contact rating',
+      opponentLabel: 'Pitcher resistance rating',
+      playerRating: 88,
+      opponentRating: 70,
+      matchupGap: 18,
+      bestFit: 'Hits',
+    })
     expect(publicSignal.whyCare).toEqual(publicSignal.metadata.judgmentContext.whyPlayerBullets)
     expect(JSON.stringify(publicSignal)).not.toMatch(/¢|\b\d+c\b|\bask\b|fairPrice|\bedge\b|maxBuy|liquidity/i)
   })
