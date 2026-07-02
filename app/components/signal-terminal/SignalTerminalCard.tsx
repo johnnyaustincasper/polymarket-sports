@@ -581,7 +581,13 @@ export default function SignalTerminalCard({
 
         {compact ? (
           <div style={{ marginTop: 9, display: 'grid', gap: 8 }}>
-            <div style={{ color: C.muted, fontSize: 9.5, fontWeight: 850, lineHeight: 1.35, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mlbConviction?.misreadSignal ? `${mlbConviction.misreadSignal.label}: ${mlbConviction.misreadSignal.summary}` : overallRatings?.matchup?.score ? `Overall ${formatNumber(overallRatings.matchup.score)} · ${overallRatings.matchup.label || 'rated'}` : formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}</div>
+            <div style={{ color: C.muted, fontSize: 9.5, fontWeight: 850, lineHeight: 1.35, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {mlbConviction?.misreadSignal
+                ? `MLB MISREAD SCAN · ${mlbConviction.misreadSignal.label}: ${mlbConviction.misreadSignal.summary}`
+                : overallRatings?.matchup?.score
+                  ? `Overall ${formatNumber(overallRatings.matchup.score)} · ${overallRatings.matchup.label || 'rated'}`
+                  : formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}
+            </div>
             <div style={{ justifySelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 176, borderRadius: 999, padding: '8px 14px', background: 'linear-gradient(135deg, rgba(125,246,255,0.22), rgba(125,246,255,0.09))', border: '1px solid rgba(125,246,255,0.45)', boxShadow: '0 0 20px rgba(125,246,255,0.18)', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.11em', textTransform: 'uppercase' }}>
               <span aria-hidden="true">↯</span>
               <span>{tapHint}</span>

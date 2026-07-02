@@ -3595,6 +3595,10 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
   }
 
   const topSignals = (data?.signals || []).map(signal => signalToTerminalSignal(signal))
+  const mlbMisreadSignals = sport === 'mlb'
+    ? topSignals.filter(signal => Boolean((signal.metadata?.judgmentContext as any)?.mlbConviction?.misreadSignal))
+    : []
+  const strongestMlbMisread = (mlbMisreadSignals[0]?.metadata?.judgmentContext as any)?.mlbConviction?.misreadSignal
   const watchedKeys = new Set(watchlist.filter(item => item.active).map(item => item.key))
   const openMarket = (signal: SignalTerminalSignal) => {
     if (isTrustedMarketUrl(signal.url)) window.open(signal.url, '_blank', 'noopener,noreferrer')
@@ -3635,7 +3639,23 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
           {scanning ? 'Loading Signals…' : data ? 'Refresh Board' : date === tomorrow ? 'Load Tomorrow’s Signals' : 'Load Today’s Signals'}
         </button>
 
-        {data?.generatedAt && <div style={{ marginTop: 8, color: C.textSecondary, fontSize: 9, textAlign: 'center', fontWeight: 800 }}>Updated {new Date(data.generatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · form check: last game + trend · injury/news checked</div>}
+        {data?.generatedAt && <div style={{ marginTop: 8, color: C.textSecondary, fontSize: 9, textAlign: 'center', fontWeight: 800 }}>Updated {new Date(data.generatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · form check: last game + trend · MLB misread scan visible on cards</div>}
+
+        {mlbMisreadSignals.length > 0 && (
+          <div style={{ marginTop: 10, borderRadius: 16, padding: isMobile ? 10 : 12, background: 'linear-gradient(135deg, rgba(125,246,255,0.18), rgba(255,209,102,0.075))', border: '1px solid rgba(125,246,255,0.38)', boxShadow: '0 0 24px rgba(125,246,255,0.13)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>MLB misread scan live</div>
+                <div style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 13, fontWeight: 950, marginTop: 3 }}>{mlbMisreadSignals.length} matchup misread{mlbMisreadSignals.length === 1 ? '' : 's'} flagged on this board</div>
+              </div>
+              {strongestMlbMisread && (
+                <div style={{ color: C.textPrimary, fontSize: 9.5, fontWeight: 950, borderRadius: 999, padding: '6px 9px', background: 'rgba(2,5,1,0.62)', border: '1px solid rgba(125,246,255,0.28)' }}>
+                  {strongestMlbMisread.label || 'Misread'} · {strongestMlbMisread.playerRating ?? '—'} v {strongestMlbMisread.opponentRating ?? '—'}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {error && <div style={{ marginTop: 10, color: C.gold, fontSize: 11 }}>Signals unavailable: {error}</div>}
 
