@@ -3425,7 +3425,7 @@ function UFCSignalsPanel({ isMobile }: { isMobile: boolean }) {
   )
 }
 
-function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }: { sport: SupportedSport | 'ufc'; games: Game[]; loading: boolean; isMobile: boolean; autoRun?: boolean }) {
+function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, date, today, tomorrow, onDateChange }: { sport: SupportedSport | 'ufc'; games: Game[]; loading: boolean; isMobile: boolean; autoRun?: boolean; date: string; today: string; tomorrow: string; onDateChange: (date: string) => void }) {
   const [data, setData] = useState<SignalsPanelData | null>(null)
   const [performance, setPerformance] = useState<SignalPerformanceData | null>(null)
   const [scanning, setScanning] = useState(false)
@@ -3443,7 +3443,58 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   const autoRunKeyRef = useRef<string | null>(null)
   const supported = sport === 'nba' || sport === 'mlb' || sport === 'nfl' || sport === 'nhl'
   const activeGames = games.filter(g => g.status !== 'post')
-  const slateKey = [sport, ...activeGames.map(g => g.id)].join('|')
+  const slateKey = [sport, date, ...activeGames.map(g => g.id)].join('|')
+  const activeSignalDay = date === tomorrow ? 'tomorrow' : 'today'
+  const signalDayTabs = [
+    { key: 'today', label: 'Today', value: today, detail: 'Current slate' },
+    { key: 'tomorrow', label: 'Tomorrow', value: tomorrow, detail: 'Next slate' },
+  ] as const
+  const switchSignalDay = (nextDate: string) => {
+    if (nextDate === date) return
+    setData(null)
+    setError(null)
+    setScanning(false)
+    setSelectedSignal(null)
+    setExpandedSignalId(null)
+    setLatestSignalDeltas([])
+    previousSignalSnapshotsRef.current = []
+    onDateChange(nextDate)
+  }
+  const signalDayPicker = (
+    <div style={{ display: 'grid', gap: 7, marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 7, padding: 4, borderRadius: 999, background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(125,246,255,0.16)' }}>
+        {signalDayTabs.map(tab => {
+          const active = date === tab.value || (tab.key === activeSignalDay && date !== today && date !== tomorrow)
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => switchSignalDay(tab.value)}
+              aria-pressed={active}
+              style={{
+                minHeight: isMobile ? 40 : 38,
+                borderRadius: 999,
+                border: `1px solid ${active ? 'rgba(125,246,255,0.86)' : 'rgba(255,255,255,0.08)'}`,
+                background: active ? 'linear-gradient(180deg, rgba(125,246,255,0.22), rgba(3,10,13,0.96))' : 'rgba(255,255,255,0.035)',
+                color: active ? C.green : C.textSecondary,
+                fontSize: 10,
+                fontWeight: 950,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                cursor: active ? 'default' : 'pointer',
+                boxShadow: active ? '0 0 20px rgba(125,246,255,0.18), inset 0 1px 0 rgba(255,255,255,0.12)' : 'inset 0 1px 0 rgba(255,255,255,0.05)',
+              }}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+      <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.35, textAlign: 'center' }}>
+        {activeSignalDay === 'tomorrow' ? 'Prepping tomorrow’s board before the market gets crowded.' : 'Today’s board: live/upcoming games only.'}
+      </div>
+    </div>
+  )
 
   useEffect(() => {
     setData(null)
@@ -3572,6 +3623,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
     return (
       <section aria-busy={loading || undefined} aria-live="polite" style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.52), rgba(168,240,255,0.18), rgba(255,255,255,0.08))', boxShadow: loading ? '0 0 34px rgba(125,246,255,0.20), 0 18px 54px rgba(0,0,0,0.34)' : '0 18px 54px rgba(0,0,0,0.30)', animation: loading ? 'liveBorderPulse 1.35s ease-in-out infinite' : undefined }}>
         <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 14 : 18, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: loading ? 12 : 0 }}>
+          {signalDayPicker}
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
             {loading && <span aria-hidden="true" style={{ width: 26, height: 26, borderRadius: 999, border: '2px solid rgba(125,246,255,0.24)', borderTopColor: C.green, borderRightColor: 'rgba(125,246,255,0.84)', boxShadow: '0 0 16px rgba(125,246,255,0.26)', animation: 'aiAnalyzeOrbit 850ms linear infinite', flexShrink: 0 }} />}
             <div style={{ minWidth: 0 }}>
@@ -3613,6 +3665,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false }:
   return (
     <section style={{ marginBottom: 0, borderRadius: isMobile ? 18 : 22, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.46), rgba(168,240,255,0.16), rgba(255,255,255,0.08))', boxShadow: '0 18px 54px rgba(0,0,0,0.36)' }}>
       <div style={{ borderRadius: isMobile ? 17 : 21, padding: isMobile ? 12 : 15, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)' }}>
+        {signalDayPicker}
         <button
           onClick={() => runSignals(false)}
           disabled={scanning}
@@ -6732,6 +6785,7 @@ function espnRequestDateForChicagoDay(yyyymmdd: string): string {
 
 export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const today = chicagoYmd()
+  const tomorrow = addChicagoDays(today, 1)
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<SupportedSport | 'ufc'>('ufc')
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
@@ -7011,7 +7065,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
             ...getLoadInAnimationStyle(0, { durationMs: 760 }),
           }}>
             {subtab === 'teams' && (sport === 'ufc' ? <FightersDirectoryPanel isMobile={isMobile} /> : <TeamsDirectoryPanel sport={sport} isMobile={isMobile} />)}
-            {subtab === 'playerSignals' && (sport === 'ufc' ? <UFCSignalsPanel isMobile={isMobile} /> : <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} autoRun />)}
+            {subtab === 'playerSignals' && (sport === 'ufc' ? <UFCSignalsPanel isMobile={isMobile} /> : <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} autoRun date={date} today={today} tomorrow={tomorrow} onDateChange={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true); scrollMarketTop() }} />)}
           </div>
         )}
 
