@@ -358,8 +358,15 @@ function lastCacheKey(sport: Sport): string {
   return `signals:${SIGNAL_CACHE_SCHEMA}:last:${sport}`
 }
 
-function todaySignalsCacheKey(sport: Sport): string {
-  return `signals:${TODAY_SIGNAL_SCHEMA}:today:${sport}:${todayKey()}`
+function normalizeSlateDate(value: unknown): string {
+  const raw = String(value || '').trim()
+  if (/^\d{8}$/.test(raw)) return raw
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw.replace(/-/g, '')
+  return todayKey()
+}
+
+function todaySignalsCacheKey(sport: Sport, slateDate: string): string {
+  return `signals:${TODAY_SIGNAL_SCHEMA}:daily:${sport}:${slateDate}`
 }
 
 function hasSignalSlateOverlap(response: SignalsResponse | null | undefined, activeGameIds: string[]): boolean {
@@ -960,10 +967,11 @@ export async function POST(req: NextRequest) {
     const games = Array.isArray(body.games) ? body.games as SignalGame[] : []
     const activeGames = games.filter(g => g?.homeTeam?.abbr && g?.awayTeam?.abbr && g.status !== 'post').slice(0, sport === 'mlb' ? 15 : sport === 'nhl' ? 10 : 8)
     const activeGameIds = activeGames.map(g => g.id)
+    const slateDate = normalizeSlateDate(body.slateDate || body.date)
     const cacheKey = latestCacheKey(sport, activeGameIds)
     const force = body.force === true
     const daily = body.daily === true
-    const dailyCacheKey = todaySignalsCacheKey(sport)
+    const dailyCacheKey = todaySignalsCacheKey(sport, slateDate)
 
     if (!activeGames.length) {
       const empty: SignalsResponse = {
