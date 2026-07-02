@@ -8,6 +8,8 @@ import { gradeLiquidity, type LiquidityGrade } from '@/app/lib/signals/liquidity
 import { completeWithAi } from '@/app/lib/ai-provider'
 import { containsPublicJargon, publicResponse, stripPublicJargon } from '@/app/lib/signals/public-response'
 import { buildJudgmentContext, statValueForMetric, type SignalJudgmentContext } from '@/app/lib/signals/judgment-context'
+import { fetchXIntelForSignals, type XIntelContext } from '@/app/lib/social/x-intel'
+import { fetchNewsIntelForSignals, type NewsIntelContext } from '@/app/lib/social/news-intel'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -86,6 +88,8 @@ type ModelSignal = {
     lineOptions?: SignalLineOption[]
     judgmentContext?: SignalJudgmentContext
     teamIntel?: any
+    xIntel?: XIntelContext
+    newsIntel?: NewsIntelContext
   }
 }
 
@@ -618,6 +622,20 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
     if (matchupIntel.has(key)) return
     matchupIntel.set(key, await fetchMatchupIntel(origin, sport, signal))
   }))
+  const intelInputs = candidates.map(signal => ({
+    id: signal.id,
+    sport: signal.sport,
+    player: signal.player,
+    team: signal.team,
+    matchup: signal.matchup,
+    metric: signal.metric,
+    label: signal.label,
+    gameTime: signal.gameTime,
+  }))
+  const [xIntel, newsIntel] = await Promise.all([
+    fetchXIntelForSignals(intelInputs, { maxPosts: 4, timeoutMs: 3500 }),
+    fetchNewsIntelForSignals(intelInputs, { maxArticles: 4, timeoutMs: 3500 }),
+  ])
 
   const ai = await completeWithAi({
     maxTokens: 5200,
@@ -637,6 +655,8 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
           'You are Athlete Intelligence, a sharp daily player-props analyst writing for bettors who need actionable context, not generic summaries.',
           'Return strict JSON only. No markdown.',
           'Use live/public search if available. Check X/social, beat writers, injury reports, team news, projected lineups/starters, rotation/minutes notes, rest/travel, and matchup context.',
+          'When xIntel is provided, treat it as optional X API context: use it for receipts, but do not overstate weak/old/noisy posts. If X is missing, credit-depleted, or quiet, ignore it and use newsIntel/teamIntel/stats instead.',
+          'When newsIntel is provided, treat it as non-X web/news receipts from Brave/Search: prefer official team reports, beat writers, injury pages, and credible preview articles over generic SEO pages.',
           'Use the provided teamIntel/injury/rest/pace context before making any generic claims.',
           'When multiple lineOptions are provided for the same player/category, treat them as one signal ladder, not separate picks.',
           'Do not include prediction-market jargon in user-facing bullets: no ask, fair, edge, misprice, cents, ladder, cushion, max buy, or market math.',
@@ -673,6 +693,8 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
             currentReasons: signal.reasons,
             recentGames: signal.metadata?.recentGames || [],
             teamIntel: matchupIntel.get(signal.matchup) || null,
+            xIntel: xIntel.get(signal.id) || null,
+            newsIntel: newsIntel.get(signal.id) || null,
           })),
         }),
       },
@@ -682,7 +704,7 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
   if (!ai.available) {
     return signals.map((signal, idx) => idx < candidates.length ? {
       ...signal,
-      metadata: { ...(signal.metadata || {}), todayIntel: { unavailable: ai.error, generatedAt: new Date().toISOString() } },
+      metadata: { ...(signal.metadata || {}), xIntel: xIntel.get(signal.id), newsIntel: newsIntel.get(signal.id), todayIntel: { unavailable: ai.error, generatedAt: new Date().toISOString() } },
     } : signal)
   }
 
@@ -696,6 +718,8 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
   return signals.map(signal => {
     const intel = byId.get(signal.id)
     const teamIntel = matchupIntel.get(signal.matchup) || null
+    const signalXIntel = xIntel.get(signal.id)
+    const signalNewsIntel = newsIntel.get(signal.id)
     const baseJudgmentContext = signal.metadata?.judgmentContext
     const judgmentContext = baseJudgmentContext ? {
       ...baseJudgmentContext,
@@ -716,12 +740,12 @@ async function attachTodayIntel(signals: ModelSignal[], generatedAt: string, ori
         ...(Array.isArray(intel?.riskFactors) ? intel.riskFactors : []),
       ].map(note => String(note || '').trim()).filter(Boolean).slice(0, 3),
     } : undefined
-    if (!intel) return { ...signal, metadata: { ...(signal.metadata || {}), ...(teamIntel ? { teamIntel } : {}), ...(judgmentContext ? { judgmentContext } : {}) } }
+    if (!intel) return { ...signal, metadata: { ...(signal.metadata || {}), ...(teamIntel ? { teamIntel } : {}), ...(signalXIntel ? { xIntel: signalXIntel } : {}), ...(signalNewsIntel ? { newsIntel: signalNewsIntel } : {}), ...(judgmentContext ? { judgmentContext } : {}) } }
     const intelBullets = (intel.displayBullets || []).filter(Boolean).slice(0, 3)
     return {
       ...signal,
       whyCare: judgmentContext?.whyPlayerBullets?.length ? judgmentContext.whyPlayerBullets.slice(0, 3) : (intelBullets.length ? intelBullets : signal.whyCare),
-      metadata: { ...(signal.metadata || {}), ...(teamIntel ? { teamIntel } : {}), ...(judgmentContext ? { judgmentContext } : {}), todayIntel: intel },
+      metadata: { ...(signal.metadata || {}), ...(teamIntel ? { teamIntel } : {}), ...(signalXIntel ? { xIntel: signalXIntel } : {}), ...(signalNewsIntel ? { newsIntel: signalNewsIntel } : {}), ...(judgmentContext ? { judgmentContext } : {}), todayIntel: intel },
     }
   })
 }

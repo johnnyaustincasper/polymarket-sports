@@ -211,6 +211,7 @@ export default function SignalTerminalCard({
   const judgmentContext = signal.metadata?.judgmentContext as {
     lastGame?: { value?: number; points?: number; minutes?: number; fgMade?: number; fgAttempted?: number; fgPct?: number; threeMade?: number; threeAttempted?: number; threePct?: number; ftMade?: number; ftAttempted?: number; opponent?: string }
     trend?: { last5Avg?: number; last12Avg?: number; median?: number; last5HitRate?: number; last5Games?: number; range?: { min?: number; max?: number } }
+    overallRatings?: { player?: { score?: number; label?: string; detail?: string }; team?: { score?: number; label?: string; detail?: string }; matchup?: { score?: number; label?: string; detail?: string } }
     lineCheck?: { line?: number; median?: number; hitRateLabel?: string; verdict?: string; range?: { min?: number; max?: number } }
     roleCheck?: { status?: string; label?: string; details?: string[] }
     consistency?: { grade?: string; label?: string }
@@ -274,6 +275,12 @@ export default function SignalTerminalCard({
     apiWhyCare,
     fallback: [contextBullet, planBullet, ...plainAiBullets],
   })
+  const overallRatings = judgmentContext?.overallRatings
+  const overallRows = overallRatings ? [
+    { title: 'Player', rating: overallRatings.player },
+    { title: 'Team', rating: overallRatings.team },
+    { title: 'Matchup', rating: overallRatings.matchup },
+  ].filter(row => isFiniteNumber(row.rating?.score)) as Array<{ title: string; rating: { score: number; label?: string; detail?: string } }> : []
   const judgmentFacts = judgmentContext ? [
     judgmentContext.lastGame?.fgAttempted ? { label: 'Last game', value: `${formatNumber(judgmentContext.lastGame.points ?? judgmentContext.lastGame.value)} pts`, sub: `${formatNumber(judgmentContext.lastGame.fgMade)}/${formatNumber(judgmentContext.lastGame.fgAttempted)} FG${judgmentContext.lastGame.threeAttempted ? ` · ${formatNumber(judgmentContext.lastGame.threeMade)}/${formatNumber(judgmentContext.lastGame.threeAttempted)} 3PT` : ''}` } : null,
     judgmentContext.volume?.shotAttemptsLast5Avg ? { label: 'Volume', value: `${formatNumber(judgmentContext.volume.shotAttemptsLast5Avg)} FGA`, sub: `${formatNumber(judgmentContext.volume.threesAttemptedLast5Avg)} 3PA · ${formatNumber(judgmentContext.volume.freeThrowsAttemptedLast5Avg)} FTA last 5` } : null,
@@ -423,6 +430,25 @@ export default function SignalTerminalCard({
           <div style={{ color: C.muted, fontSize: compact ? 9 : 10, lineHeight: 1.35, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitleFor(signal) || 'No market label supplied'}</div>
         </div>
 
+        {!compact && overallRows.length > 0 && (
+          <div style={{ marginTop: 11, borderRadius: 15, padding: 10, background: 'linear-gradient(135deg, rgba(125,246,255,0.16), rgba(255,209,102,0.045))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 24px rgba(125,246,255,0.10)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
+              <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Overall read</div>
+              <div style={{ color: C.faint, fontSize: 8, fontWeight: 900 }}>player · team · matchup</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6 }}>
+              {overallRows.map(row => (
+                <div key={row.title} style={{ borderRadius: 12, padding: '8px 6px', background: 'rgba(2,5,1,0.58)', border: '1px solid rgba(125,246,255,0.16)', textAlign: 'center', minWidth: 0 }}>
+                  <div style={{ color: C.faint, fontSize: 6.8, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{row.title}</div>
+                  <div style={{ color: row.rating.score >= 78 ? C.green : row.rating.score >= 68 ? C.amber : C.red, fontSize: 22, fontWeight: 950, lineHeight: 1, marginTop: 2 }}>{formatNumber(row.rating.score)}</div>
+                  <div style={{ color: C.muted, fontSize: 7.2, fontWeight: 900, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.rating.label || 'Rated'}</div>
+                </div>
+              ))}
+            </div>
+            {overallRatings?.matchup?.detail && <div style={{ color: C.muted, fontSize: 8.5, lineHeight: 1.35, marginTop: 7, fontWeight: 850 }}>{overallRatings.matchup.detail}</div>}
+          </div>
+        )}
+
         {!compact && lineOptions.length > 1 && (
           <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: `repeat(${Math.min(lineOptions.length, 3)}, minmax(0, 1fr))`, gap: 6 }}>
             {lineOptions.slice(0, 3).map((option, idx) => (
@@ -536,7 +562,7 @@ export default function SignalTerminalCard({
 
         {compact ? (
           <div style={{ marginTop: 9, display: 'grid', gap: 8 }}>
-            <div style={{ color: C.muted, fontSize: 9.5, fontWeight: 850, lineHeight: 1.35, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}</div>
+            <div style={{ color: C.muted, fontSize: 9.5, fontWeight: 850, lineHeight: 1.35, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{overallRatings?.matchup?.score ? `Overall ${formatNumber(overallRatings.matchup.score)} · ${overallRatings.matchup.label || 'rated'}` : formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}</div>
             <div style={{ justifySelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 176, borderRadius: 999, padding: '8px 14px', background: 'linear-gradient(135deg, rgba(125,246,255,0.22), rgba(125,246,255,0.09))', border: '1px solid rgba(125,246,255,0.45)', boxShadow: '0 0 20px rgba(125,246,255,0.18)', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.11em', textTransform: 'uppercase' }}>
               <span aria-hidden="true">↯</span>
               <span>{tapHint}</span>

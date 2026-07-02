@@ -20,6 +20,12 @@ type PublicSignalsResponseLike = {
 
 export function stripPublicJargon(text: string): string {
   return String(text || '')
+    .replace(/\btrend supports\b/gi, 'recent games show')
+    .replace(/\bhistorical context suggests\b/gi, 'past games show')
+    .replace(/\bmodel indicates\b/gi, 'the read is')
+    .replace(/\bprojection leans?\b/gi, 'the read leans')
+    .replace(/\bsignal detected\b/gi, 'watch this')
+    .replace(/\bvalue may exist\b/gi, 'there may be a playable number')
     .replace(/\bask\b/gi, 'market chance')
     .replace(/\bfair(?: value)?\b/gi, 'model')
     .replace(/\bedge\b/gi, 'value gap')
@@ -36,7 +42,7 @@ export function stripPublicJargon(text: string): string {
 }
 
 export function containsPublicJargon(text: string): boolean {
-  return /\b(ask|fair|edge|misprice|cushion|max[-\s]?buy|ladder|liquidity|prediction[-\s]?market|market math|\d+(?:\.\d+)?c)\b|¢/i.test(text)
+  return /\b(ask|fair|edge|misprice|cushion|max[-\s]?buy|ladder|liquidity|prediction[-\s]?market|market math|trend supports|historical context suggests|model indicates|projection leans?|signal detected|value may exist|\d+(?:\.\d+)?c)\b|¢/i.test(text)
 }
 
 export function publicBullets(signal: Pick<PublicSignalLike, 'whyCare' | 'reasons' | 'player' | 'label' | 'metric' | 'hits' | 'games' | 'avg' | 'metadata'>): string[] {
@@ -112,6 +118,8 @@ export function publicSignal(signal: PublicSignalLike): Partial<PublicSignalLike
   const recentGames = Array.isArray(signal.metadata?.recentGames) ? signal.metadata.recentGames : undefined
   const todayIntel = signal.metadata?.todayIntel
   const judgmentContext = signal.metadata?.judgmentContext
+  const xIntel = signal.metadata?.xIntel
+  const newsIntel = signal.metadata?.newsIntel
   const lineOptions = publicLineOptions(signal)
   return {
     id: signal.id,
@@ -147,10 +155,35 @@ export function publicSignal(signal: PublicSignalLike): Partial<PublicSignalLike
         generatedAt: todayIntel.generatedAt,
         unavailable: todayIntel.unavailable,
       } } : {}),
+      ...(xIntel ? { xIntel: {
+        summary: stripPublicJargon(xIntel.summary || ''),
+        sources: Array.isArray(xIntel.sources) ? xIntel.sources.slice(0, 4) : [],
+        posts: Array.isArray(xIntel.posts) ? xIntel.posts.slice(0, 3).map((post: any) => ({
+          id: post.id,
+          author: post.author,
+          text: stripPublicJargon(post.text || ''),
+          url: post.url,
+          createdAt: post.createdAt,
+        })) : [],
+        unavailable: xIntel.unavailable,
+      } } : {}),
+      ...(newsIntel ? { newsIntel: {
+        summary: stripPublicJargon(newsIntel.summary || ''),
+        sources: Array.isArray(newsIntel.sources) ? newsIntel.sources.slice(0, 4) : [],
+        articles: Array.isArray(newsIntel.articles) ? newsIntel.articles.slice(0, 3).map((article: any) => ({
+          title: stripPublicJargon(article.title || ''),
+          description: stripPublicJargon(article.description || ''),
+          source: article.source,
+          url: article.url,
+          publishedAt: article.publishedAt,
+        })) : [],
+        unavailable: newsIntel.unavailable,
+      } } : {}),
       ...(lineOptions ? { lineOptions } : {}),
       ...(judgmentContext ? { judgmentContext: {
         lastGame: judgmentContext.lastGame,
         trend: judgmentContext.trend,
+        overallRatings: judgmentContext.overallRatings,
         lineCheck: judgmentContext.lineCheck,
         roleCheck: judgmentContext.roleCheck,
         consistency: judgmentContext.consistency,

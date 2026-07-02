@@ -110,7 +110,7 @@ function buildReadiness({
   billing: ReturnType<typeof getBillingStatus>
   cache: ReturnType<typeof getDurableCacheStatus>
   ai: ReturnType<typeof aiStatus>
-  search: { brave: { configured: boolean; role: 'optional-context' } }
+  search: { brave: { configured: boolean; role: 'optional-context' }, x: { configured: boolean; role: 'live-social-context' } }
   markets: {
     kalshi: { available: boolean }
     polymarket: { available: boolean }
@@ -143,9 +143,9 @@ function buildReadiness({
       ai.primary ? `Primary AI provider is ${ai.primary}.` : 'Configure xAI or Anthropic for AI-backed analysis.',
     ),
     search: readinessCheck(
-      search.brave.configured,
-      search.brave.configured ? 'ready' : 'warning',
-      search.brave.configured ? 'Brave Search context is configured.' : 'Brave Search is optional but missing, so contextual search enrichment is disabled.',
+      search.brave.configured || search.x.configured,
+      search.brave.configured || search.x.configured ? 'ready' : 'warning',
+      search.brave.configured || search.x.configured ? 'Search/live-context enrichment is configured.' : 'Brave/X search is optional but missing, so contextual search enrichment is disabled.',
     ),
     markets: readinessCheck(
       marketsReady,
@@ -171,6 +171,10 @@ export function getProviderStatus(env: Env = process.env) {
     brave: {
       configured: configured(env.BRAVE_API_KEY),
       role: 'optional-context' as const,
+    },
+    x: {
+      configured: configured(env.X_API_BEARER_TOKEN) || configured(env.X_BEARER_TOKEN) || configured(env.TWITTER_BEARER_TOKEN),
+      role: 'live-social-context' as const,
     },
   }
   const markets = {

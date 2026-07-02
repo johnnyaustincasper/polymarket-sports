@@ -110,6 +110,18 @@ export default function SignalDetailDrawer({
     reasons: signal.reasons,
     flags: signal.flags,
   })
+  const metadata = signal.metadata || {}
+  const xIntel = metadata.xIntel as { summary?: string; sources?: string[]; posts?: Array<{ id?: string; text?: string; author?: string; url?: string; createdAt?: string }>; unavailable?: string } | undefined
+  const newsIntel = metadata.newsIntel as { summary?: string; sources?: string[]; articles?: Array<{ title?: string; description?: string; source?: string; url?: string; publishedAt?: string }>; unavailable?: string } | undefined
+  const todayIntel = metadata.todayIntel as { socialContext?: { summary?: string; sources?: string[] }; sources?: string[] } | undefined
+  const receiptSources = Array.from(new Set([
+    ...(Array.isArray(todayIntel?.socialContext?.sources) ? todayIntel.socialContext.sources : []),
+    ...(Array.isArray(todayIntel?.sources) ? todayIntel.sources : []),
+    ...(Array.isArray(xIntel?.sources) ? xIntel.sources : []),
+    ...(Array.isArray(newsIntel?.sources) ? newsIntel.sources : []),
+  ].map(source => String(source || '').trim()).filter(Boolean))).slice(0, 4)
+  const xPosts = Array.isArray(xIntel?.posts) ? xIntel.posts.slice(0, 2) : []
+  const newsArticles = Array.isArray(newsIntel?.articles) ? newsIntel.articles.slice(0, 2) : []
 
   return (
     <aside style={{ borderRadius: 22, padding: 1, background: `linear-gradient(135deg, ${hotColor}88, rgba(141,247,255,0.18), rgba(255,255,255,0.08))`, boxShadow: `0 18px 60px rgba(0,0,0,0.44), 0 0 34px ${hotColor}18` }}>
@@ -169,6 +181,44 @@ export default function SignalDetailDrawer({
                 <div>Ticker: {signal.ticker || '—'}</div>
               </div>
             </div>
+            {(xPosts.length > 0 || newsArticles.length > 0 || receiptSources.length > 0 || xIntel?.summary || newsIntel?.summary) && (
+              <div style={{ borderRadius: 14, padding: 12, background: 'rgba(0,0,0,0.18)', border: `1px solid ${C.border}` }}>
+                <SectionTitle>News receipts</SectionTitle>
+                {newsIntel?.summary && (
+                  <div style={{ color: C.muted, fontSize: 9, lineHeight: 1.45, marginBottom: 8 }}>{newsIntel.summary}</div>
+                )}
+                {newsArticles.length > 0 && (
+                  <div style={{ display: 'grid', gap: 7, marginBottom: 8 }}>
+                    {newsArticles.map((article, idx) => (
+                      <div key={article.url || idx} style={{ color: C.muted, fontSize: 9, lineHeight: 1.42, borderLeft: `2px solid ${C.borderHot}`, paddingLeft: 8 }}>
+                        <span style={{ color: C.green }}>{article.source || 'News'}:</span> {article.title}{article.description ? ` — ${article.description}` : ''}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {xIntel?.summary && (
+                  <div style={{ color: C.faint, fontSize: 8.5, lineHeight: 1.4, marginBottom: 8 }}>X: {xIntel.summary}</div>
+                )}
+                {xPosts.length > 0 && (
+                  <div style={{ display: 'grid', gap: 7, marginBottom: 8 }}>
+                    {xPosts.map((post, idx) => (
+                      <div key={post.id || idx} style={{ color: C.muted, fontSize: 9, lineHeight: 1.42, borderLeft: `2px solid ${C.borderHot}`, paddingLeft: 8 }}>
+                        <span style={{ color: C.green }}>{post.author ? `@${post.author}` : 'X'}:</span> {post.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {receiptSources.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {receiptSources.map((source, idx) => (
+                      <a key={source} href={source} target="_blank" rel="noreferrer" style={{ color: C.green, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', border: `1px solid ${C.borderHot}`, borderRadius: 999, padding: '4px 7px', background: 'rgba(125,246,255,0.07)' }}>
+                        receipt {idx + 1}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

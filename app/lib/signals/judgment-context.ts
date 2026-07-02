@@ -71,6 +71,12 @@ export type MlbConvictionLayer = {
   matchupRating?: MlbMatchupRating
 }
 
+export type SignalOverallRatings = {
+  player: { score: number; label: string; detail: string }
+  team: { score: number; label: string; detail: string }
+  matchup: { score: number; label: string; detail: string }
+}
+
 export type SignalJudgmentContext = {
   lastGame: ShootingSnapshot
   trend: {
@@ -84,6 +90,7 @@ export type SignalJudgmentContext = {
     last12Games?: number
     range?: { min: number; max: number }
   }
+  overallRatings: SignalOverallRatings
   lineCheck: {
     line?: number
     median?: number
@@ -353,6 +360,62 @@ function mlbVerdict(input: { line?: number; median?: number; hit5?: number; game
 function clampRating(value: number): number {
   if (!Number.isFinite(value)) return 50
   return Math.max(35, Math.min(99, Math.round(value)))
+}
+
+function ratingLabel(score: number): string {
+  if (score >= 88) return 'Elite'
+  if (score >= 78) return 'Strong'
+  if (score >= 68) return 'Solid'
+  if (score >= 56) return 'Volatile'
+  return 'Thin'
+}
+
+function buildOverallRatings(input: {
+  line?: number
+  median?: number
+  last5Avg?: number
+  min: number
+  max: number
+  hit5?: number
+  games5: number
+  hit12?: number
+  games12: number
+  minutes: { lastGame?: number; last5Avg?: number; stable: boolean }
+  teamIntel?: any
+  riskNotes: string[]
+}): SignalOverallRatings {
+  const hit5Score = hitRateScore(input.hit5, input.games5)
+  const hit12Score = hitRateScore(input.hit12, input.games12)
+  const formScore = lineFitScore({ line: input.line, median: input.median, last5Avg: input.last5Avg, max: input.max })
+  const roleScore = input.minutes.stable ? 84 : input.minutes.last5Avg != null && input.minutes.last5Avg >= 24 ? 70 : input.minutes.last5Avg != null ? 58 : 52
+  const floorScore = input.line == null ? 58 : input.min >= input.line ? 90 : input.median != null && input.median >= input.line ? 74 : 56
+  const playerScore = clampRating(formScore * 0.36 + hit5Score * 0.24 + hit12Score * 0.16 + roleScore * 0.14 + floorScore * 0.10)
+
+  const paceText = String(input.teamIntel?.pace?.edgeLabel || input.teamIntel?.pace?.implication || '').toLowerCase()
+  const edgeText = String(input.teamIntel?.edgeRead || '').toLowerCase()
+  const injuryNotes = [
+    ...(Array.isArray(input.teamIntel?.injuryImpact?.homeNotes) ? input.teamIntel.injuryImpact.homeNotes : []),
+    ...(Array.isArray(input.teamIntel?.injuryImpact?.awayNotes) ? input.teamIntel.injuryImpact.awayNotes : []),
+  ].join(' ').toLowerCase()
+  let teamBase = 62
+  if (/fast|pace|over|more possessions|up/.test(paceText)) teamBase += 8
+  if (/slow|under|down|fewer possessions/.test(paceText)) teamBase -= 6
+  if (/edge|advantage|boost|favorable|missing|out/.test(edgeText + ' ' + injuryNotes)) teamBase += 5
+  if (/questionable|limit|cap|fatigue|back-to-back|rest/.test(edgeText + ' ' + injuryNotes)) teamBase -= 4
+  const teamScore = clampRating(teamBase)
+
+  const riskPenalty = input.riskNotes.length ? Math.min(12, input.riskNotes.length * 4) : 0
+  const matchupScore = clampRating(playerScore * 0.62 + teamScore * 0.30 + floorScore * 0.08 - riskPenalty)
+  const lineDetail = input.line == null
+    ? 'No clean prop number found yet.'
+    : input.median != null && input.median >= input.line
+      ? `Normal recent game clears ${fmt(input.line)}; range ${fmt(input.min)}-${fmt(input.max)}.`
+      : `Needs better-than-normal result; range ${fmt(input.min)}-${fmt(input.max)}.`
+  return {
+    player: { score: playerScore, label: ratingLabel(playerScore), detail: `${input.hit5 ?? '—'} of last ${input.games5} cleared; ${fmtAvg(input.last5Avg)} recent avg.` },
+    team: { score: teamScore, label: ratingLabel(teamScore), detail: input.teamIntel ? 'Team setup includes pace, injury, and matchup context.' : 'Team setup is mostly neutral until lineup/news context fills in.' },
+    matchup: { score: matchupScore, label: ratingLabel(matchupScore), detail: lineDetail },
+  }
 }
 
 function hitRateScore(hit?: number, games?: number): number {
@@ -799,10 +862,25 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     { title: 'PROP NUMBER', rows: propNumberRows({ metric: input.metric, line, median: medianValue, min, max, hit5: trend.last5HitRate, games5: last5.length, hit12: trend.last12HitRate, games12: games.length }).slice(0, 3) },
     { title: 'RISK CHECK', rows: [...riskNotes, playable(line, input.metric), consistency.label].filter(Boolean).slice(0, 3) },
   ]
+  const overallRatings = buildOverallRatings({
+    line,
+    median: medianValue,
+    last5Avg,
+    min,
+    max,
+    hit5: trend.last5HitRate,
+    games5: last5.length,
+    hit12: trend.last12HitRate,
+    games12: games.length,
+    minutes,
+    teamIntel: input.teamIntel,
+    riskNotes,
+  })
 
   return {
     lastGame,
     trend,
+    overallRatings,
     lineCheck,
     roleCheck,
     consistency,

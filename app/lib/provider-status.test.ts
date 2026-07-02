@@ -14,6 +14,7 @@ describe('provider status', () => {
     expect(status.ai.xai.configured).toBe(false)
     expect(status.ai.anthropic.configured).toBe(false)
     expect(status.search.brave.configured).toBe(false)
+    expect(status.search.x.configured).toBe(false)
     expect(status.sports.espn.available).toBe(true)
     expect(status.markets.primary).toBe('kalshi')
     expect(status.markets.kalshi.available).toBe(true)
