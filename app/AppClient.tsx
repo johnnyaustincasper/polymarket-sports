@@ -6733,32 +6733,11 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
   onDateChange: (date: string) => void
 }) {
   const [mounted, setMounted] = useState(false)
-  const [visualViewportBottomOffset, setVisualViewportBottomOffset] = useState(0)
   const navItems = buildMobileDockTabs(sport)
   const dateOptions = mobileDockDateOptions(days)
 
   useEffect(() => {
     setMounted(true)
-
-    const updateViewportOffset = () => {
-      const viewport = window.visualViewport
-      if (!viewport) {
-        setVisualViewportBottomOffset(0)
-        return
-      }
-      setVisualViewportBottomOffset(Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop))
-    }
-
-    updateViewportOffset()
-    window.visualViewport?.addEventListener('resize', updateViewportOffset)
-    window.visualViewport?.addEventListener('scroll', updateViewportOffset)
-    window.addEventListener('resize', updateViewportOffset)
-
-    return () => {
-      window.visualViewport?.removeEventListener('resize', updateViewportOffset)
-      window.visualViewport?.removeEventListener('scroll', updateViewportOffset)
-      window.removeEventListener('resize', updateViewportOffset)
-    }
   }, [])
 
   const dockButton = (selected: boolean): React.CSSProperties => ({
@@ -6845,7 +6824,7 @@ function BottomDock({ active, openPanel, sport, sports, days, date, onChange, on
       left: '50%',
       right: 'auto',
       width: 'min(430px, calc(100vw - 18px))',
-      bottom: `calc(10px + env(safe-area-inset-bottom, 0px) + ${visualViewportBottomOffset}px)`,
+      bottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
       transform: 'translateX(-50%)',
       zIndex: 2147483000,
       display: 'grid',
