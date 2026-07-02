@@ -3433,6 +3433,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
   const [error, setError] = useState<string | null>(null)
   const [selectedSignal, setSelectedSignal] = useState<SignalTerminalSignal | null>(null)
   const [expandedSignalId, setExpandedSignalId] = useState<string | null>(null)
+  const [mlbMisreadsOpen, setMlbMisreadsOpen] = useState(false)
   const [watchlist, setWatchlist] = useState<WatchItem[]>([])
   const [alertEvents, setAlertEvents] = useState<AlertEvent[]>([])
   const [signalDeltaFeed, setSignalDeltaFeed] = useState<SignalDelta[]>([])
@@ -3450,6 +3451,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     setScanning(false)
     setSelectedSignal(null)
     setExpandedSignalId(null)
+    setMlbMisreadsOpen(false)
     setLatestSignalDeltas([])
   }, [slateKey])
 
@@ -3598,7 +3600,69 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
   const mlbMisreadSignals = sport === 'mlb'
     ? topSignals.filter(signal => Boolean((signal.metadata?.judgmentContext as any)?.mlbConviction?.misreadSignal))
     : []
-  const strongestMlbMisread = (mlbMisreadSignals[0]?.metadata?.judgmentContext as any)?.mlbConviction?.misreadSignal
+  const mlbMisreadRows = mlbMisreadSignals.map(signal => {
+    const misread = (signal.metadata?.judgmentContext as any)?.mlbConviction?.misreadSignal || {}
+    const playerRating = Number(misread.playerRating)
+    const opponentRating = Number(misread.opponentRating)
+    const gap = Number.isFinite(playerRating) && Number.isFinite(opponentRating) ? Math.round(playerRating - opponentRating) : null
+    const label = compactText(misread.label || signal.label || 'Matchup misread')
+    const lower = `${label} ${signal.label || ''}`.toLowerCase()
+    const type: 'pitcher' | 'hitter' = lower.includes('pitcher') || lower.includes('strikeout') || lower.includes(' k ') || lower.endsWith(' k') ? 'pitcher' : 'hitter'
+    return { signal, misread, type, gap, label, playerRating, opponentRating }
+  }).sort((a, b) => Math.abs(b.gap ?? 0) - Math.abs(a.gap ?? 0))
+  const pitcherMisreads = mlbMisreadRows.filter(row => row.type === 'pitcher')
+  const hitterMisreads = mlbMisreadRows.filter(row => row.type === 'hitter')
+  const strongestMlbMisread = mlbMisreadRows[0]
+  const openMlbMisreadSignal = (signal: SignalTerminalSignal) => {
+    setExpandedSignalId(signal.id)
+    setTimeout(() => {
+      const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-signal-id]'))
+      cards.find(card => card.dataset.signalId === signal.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 40)
+  }
+  const visibleTopSignals = topSignals.reduce<SignalTerminalSignal[]>((acc, signal, idx) => {
+    const isBaseCard = idx < 7
+    const isMisreadCard = mlbMisreadRows.some(row => row.signal.id === signal.id)
+    if ((isBaseCard || isMisreadCard) && !acc.some(existing => existing.id === signal.id)) acc.push(signal)
+    return acc
+  }, [])
+
+  const renderMlbMisreadRows = (rows: typeof mlbMisreadRows, emptyText: string) => {
+    if (!rows.length) return <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.35 }}>{emptyText}</div>
+    return (
+      <div style={{ display: 'grid', gap: 7 }}>
+        {rows.map(row => (
+          <button
+            key={`${row.type}-${row.signal.id}`}
+            type="button"
+            onClick={() => openMlbMisreadSignal(row.signal)}
+            style={{
+              width: '100%',
+              textAlign: 'left',
+              borderRadius: 13,
+              padding: isMobile ? '10px 10px' : '10px 11px',
+              border: '1px solid rgba(125,246,255,0.24)',
+              background: 'rgba(2,5,1,0.58)',
+              color: C.textPrimary,
+              cursor: 'pointer',
+              display: 'grid',
+              gap: 5,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+              <span style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 13, fontWeight: 950, letterSpacing: '-0.02em' }}>{row.signal.player}</span>
+              <span style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Open ›</span>
+            </div>
+            <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 850, lineHeight: 1.35 }}>{row.signal.label} · {row.signal.matchup}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+              <span style={{ color: C.gold, fontSize: 9, fontWeight: 950 }}>{row.label}</span>
+              <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{Number.isFinite(row.playerRating) ? Math.round(row.playerRating) : '—'} rating v {Number.isFinite(row.opponentRating) ? Math.round(row.opponentRating) : '—'} resistance{row.gap == null ? '' : ` · gap ${row.gap > 0 ? '+' : ''}${row.gap}`}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    )
+  }
   const watchedKeys = new Set(watchlist.filter(item => item.active).map(item => item.key))
   const openMarket = (signal: SignalTerminalSignal) => {
     if (isTrustedMarketUrl(signal.url)) window.open(signal.url, '_blank', 'noopener,noreferrer')
@@ -3642,18 +3706,41 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
         {data?.generatedAt && <div style={{ marginTop: 8, color: C.textSecondary, fontSize: 9, textAlign: 'center', fontWeight: 800 }}>Updated {new Date(data.generatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · form check: last game + trend · MLB misread scan visible on cards</div>}
 
         {mlbMisreadSignals.length > 0 && (
-          <div style={{ marginTop: 10, borderRadius: 16, padding: isMobile ? 10 : 12, background: 'linear-gradient(135deg, rgba(125,246,255,0.18), rgba(255,209,102,0.075))', border: '1px solid rgba(125,246,255,0.38)', boxShadow: '0 0 24px rgba(125,246,255,0.13)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div>
-                <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>MLB misread scan live</div>
-                <div style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 13, fontWeight: 950, marginTop: 3 }}>{mlbMisreadSignals.length} matchup misread{mlbMisreadSignals.length === 1 ? '' : 's'} flagged on this board</div>
-              </div>
-              {strongestMlbMisread && (
-                <div style={{ color: C.textPrimary, fontSize: 9.5, fontWeight: 950, borderRadius: 999, padding: '6px 9px', background: 'rgba(2,5,1,0.62)', border: '1px solid rgba(125,246,255,0.28)' }}>
-                  {strongestMlbMisread.label || 'Misread'} · {strongestMlbMisread.playerRating ?? '—'} v {strongestMlbMisread.opponentRating ?? '—'}
+          <div style={{ marginTop: 10, borderRadius: 16, overflow: 'hidden', background: 'linear-gradient(135deg, rgba(125,246,255,0.18), rgba(255,209,102,0.075))', border: '1px solid rgba(125,246,255,0.38)', boxShadow: '0 0 24px rgba(125,246,255,0.13)' }}>
+            <button
+              type="button"
+              onClick={() => setMlbMisreadsOpen(prev => !prev)}
+              aria-expanded={mlbMisreadsOpen}
+              style={{ width: '100%', padding: isMobile ? 11 : 12, border: 0, background: 'transparent', color: C.textPrimary, cursor: 'pointer', textAlign: 'left' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>MLB Misreads</div>
+                  <div style={{ color: C.textPrimary, fontSize: isMobile ? 13 : 14, fontWeight: 950, marginTop: 3 }}>Tap for misread pitchers + hitters</div>
+                  <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 850, marginTop: 4 }}>{pitcherMisreads.length} pitcher{pitcherMisreads.length === 1 ? '' : 's'} · {hitterMisreads.length} hitter{hitterMisreads.length === 1 ? '' : 's'} flagged</div>
                 </div>
-              )}
-            </div>
+                <div style={{ display: 'grid', justifyItems: 'end', gap: 5, flexShrink: 0 }}>
+                  {strongestMlbMisread && (
+                    <span style={{ color: C.gold, fontSize: 9, fontWeight: 950, borderRadius: 999, padding: '5px 8px', background: 'rgba(2,5,1,0.62)', border: '1px solid rgba(125,246,255,0.28)' }}>
+                      Best gap {strongestMlbMisread.gap == null ? '—' : `${strongestMlbMisread.gap > 0 ? '+' : ''}${strongestMlbMisread.gap}`}
+                    </span>
+                  )}
+                  <span style={{ color: C.green, fontSize: 10, fontWeight: 950 }}>{mlbMisreadsOpen ? 'Hide' : 'Open'} {mlbMisreadsOpen ? '⌃' : '⌄'}</span>
+                </div>
+              </div>
+            </button>
+            {mlbMisreadsOpen && (
+              <div style={{ padding: isMobile ? '0 11px 11px' : '0 12px 12px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 9 }}>
+                <div style={{ borderRadius: 14, padding: 10, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Misread pitchers</div>
+                  {renderMlbMisreadRows(pitcherMisreads, 'No pitcher K misreads on this board yet.')}
+                </div>
+                <div style={{ borderRadius: 14, padding: 10, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Misread hitters</div>
+                  {renderMlbMisreadRows(hitterMisreads, 'No hitter contact/power/run-path misreads on this board yet.')}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3681,10 +3768,10 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
           <div style={{ marginTop: 13, display: 'grid', gap: isMobile ? 8 : 9 }}>
             {topSignals.length ? (
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9 }}>
-                {topSignals.slice(0, 7).map((signal, signalIdx) => {
+                {visibleTopSignals.map((signal, signalIdx) => {
                   const cardMode = resolveSignalCardMode({ signalId: signal.id, expandedSignalId })
                   return (
-                    <div key={signal.id} style={{ opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 90, 540)}ms` }}>
+                    <div key={signal.id} data-signal-id={signal.id} style={{ opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 90, 540)}ms` }}>
                       <SignalTerminalCard
                         signal={signal}
                         compact={cardMode.compact}
