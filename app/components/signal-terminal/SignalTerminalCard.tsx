@@ -495,97 +495,71 @@ export default function SignalTerminalCard({
         )}
 
         {mlbConviction && !compact && (
-          <div style={{ marginTop: 11, borderRadius: 16, padding: 11, background: 'linear-gradient(135deg, rgba(255,209,102,0.12), rgba(125,246,255,0.055))', border: '1px solid rgba(255,209,102,0.28)', boxShadow: '0 0 26px rgba(255,209,102,0.08)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ color: C.amber, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>MLB conviction read</div>
-              <div style={{ color: C.text, fontSize: 8, fontWeight: 950, borderRadius: 999, padding: '3px 7px', background: 'rgba(255,209,102,0.11)', border: '1px solid rgba(255,209,102,0.26)' }}>{mlbConviction.verdict}</div>
+          <div style={{ marginTop: 11, borderRadius: 16, padding: 11, background: 'rgba(255,209,102,0.055)', border: '1px solid rgba(255,209,102,0.20)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 9 }}>
+              <div style={{ color: C.amber, fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>MLB read</div>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <span style={{ color: C.text, fontSize: 9, fontWeight: 900, borderRadius: 999, padding: '4px 8px', background: 'rgba(255,209,102,0.10)', border: '1px solid rgba(255,209,102,0.22)' }}>{mlbConviction.verdict}</span>
+                {mlbConviction.misreadSignal?.label && <span style={{ color: C.green, fontSize: 9, fontWeight: 900, borderRadius: 999, padding: '4px 8px', background: 'rgba(125,246,255,0.10)', border: '1px solid rgba(125,246,255,0.20)' }}>{mlbConviction.misreadSignal.label}</span>}
+              </div>
             </div>
-            {mlbConviction.misreadSignal && (
-              <div style={{ marginBottom: 9, borderRadius: 14, padding: 9, background: mlbConviction.misreadSignal.severity === 'strong' ? 'linear-gradient(135deg, rgba(125,246,255,0.20), rgba(255,209,102,0.08))' : 'rgba(125,246,255,0.07)', border: `1px solid ${mlbConviction.misreadSignal.severity === 'strong' ? 'rgba(125,246,255,0.42)' : 'rgba(125,246,255,0.22)'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 5 }}>
-                  <div style={{ color: C.green, fontSize: 7.8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>MLB misread scan</div>
-                  <div style={{ color: C.text, fontSize: 8, fontWeight: 950, borderRadius: 999, padding: '3px 7px', background: 'rgba(125,246,255,0.12)', border: '1px solid rgba(125,246,255,0.25)' }}>{mlbConviction.misreadSignal.label || 'Misread'}</div>
-                </div>
-                <div style={{ color: C.text, fontSize: 11, lineHeight: 1.32, fontWeight: 950 }}>{mlbConviction.misreadSignal.summary}{isFiniteNumber(mlbConviction.misreadSignal.matchupGap) ? ` · ${mlbConviction.misreadSignal.matchupGap > 0 ? '+' : ''}${formatNumber(mlbConviction.misreadSignal.matchupGap)} gap` : ''}</div>
-                {mlbConviction.misreadSignal.reason && <div style={{ color: C.muted, fontSize: 8.7, lineHeight: 1.35, marginTop: 5 }}>{mlbConviction.misreadSignal.reason}</div>}
+
+            {(mlbConviction.misreadSignal?.summary || mlbConviction.read || mlbConviction.misreadSignal?.reason) && (
+              <div style={{ color: C.text, fontSize: 11, lineHeight: 1.42, fontWeight: 850, marginBottom: 9, display: 'grid', gap: 5 }}>
+                {mlbConviction.misreadSignal?.summary && (
+                  <span>{mlbConviction.misreadSignal.summary}{isFiniteNumber(mlbConviction.misreadSignal?.matchupGap) ? ` · Edge ${mlbConviction.misreadSignal.matchupGap > 0 ? '+' : ''}${formatNumber(mlbConviction.misreadSignal.matchupGap)}` : ''}</span>
+                )}
+                {mlbConviction.read && mlbConviction.read !== mlbConviction.misreadSignal?.summary && <span>{mlbConviction.read}</span>}
+                {mlbConviction.misreadSignal?.reason && <span style={{ color: C.muted, fontSize: 9.5, lineHeight: 1.35 }}>{mlbConviction.misreadSignal.reason}</span>}
               </div>
             )}
+
             {mlbConviction.matchupRating && (
-              <div style={{ marginBottom: 9, borderRadius: 14, padding: 9, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.22)' }}>
-                <div style={{ color: C.green, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 7 }}>{mlbConviction.matchupRating.ratingTitle || 'Video-game matchup rating'}</div>
+              <div style={{ marginBottom: 9, borderRadius: 14, padding: 10, background: 'rgba(125,246,255,0.07)', border: '1px solid rgba(125,246,255,0.18)' }}>
+                <div style={{ color: C.green, fontSize: 9, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>{mlbConviction.matchupRating.ratingTitle || 'Video-game rating'}{mlbConviction.matchupRating.bestFit ? ` · Best fit: ${mlbConviction.matchupRating.bestFit}` : ''}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6 }}>
-                  <div style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(2,5,1,0.58)', border: '1px solid rgba(125,246,255,0.16)', textAlign: 'center' }}>
-                    <div style={{ color: C.faint, fontSize: 6.8, fontWeight: 950, textTransform: 'uppercase' }}>{mlbConviction.matchupRating.playerLabel || 'Player rating'}</div>
-                    <div style={{ color: C.text, fontSize: 20, fontWeight: 950, lineHeight: 1 }}>{formatNumber(mlbConviction.matchupRating.playerRating)}</div>
+                  <div style={{ borderRadius: 11, padding: '8px 6px', background: 'rgba(2,5,1,0.62)', border: '1px solid rgba(125,246,255,0.16)', textAlign: 'center' }}>
+                    <div style={{ color: C.faint, fontSize: 8.5, fontWeight: 900, textTransform: 'uppercase' }}>{mlbConviction.matchupRating.playerLabel || 'Player'}</div>
+                    <div style={{ color: C.text, fontSize: 22, fontWeight: 950, lineHeight: 1 }}>{formatNumber(mlbConviction.matchupRating.playerRating)}</div>
                   </div>
-                  <div style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(2,5,1,0.58)', border: '1px solid rgba(255,255,255,0.10)', textAlign: 'center' }}>
-                    <div style={{ color: C.faint, fontSize: 6.8, fontWeight: 950, textTransform: 'uppercase' }}>{mlbConviction.matchupRating.opponentLabel || 'Opponent rating'}</div>
-                    <div style={{ color: C.text, fontSize: 20, fontWeight: 950, lineHeight: 1 }}>{formatNumber(mlbConviction.matchupRating.opponentRating)}</div>
+                  <div style={{ borderRadius: 11, padding: '8px 6px', background: 'rgba(2,5,1,0.62)', border: '1px solid rgba(255,255,255,0.10)', textAlign: 'center' }}>
+                    <div style={{ color: C.faint, fontSize: 8.5, fontWeight: 900, textTransform: 'uppercase' }}>{mlbConviction.matchupRating.opponentLabel || 'Opponent'}</div>
+                    <div style={{ color: C.text, fontSize: 22, fontWeight: 950, lineHeight: 1 }}>{formatNumber(mlbConviction.matchupRating.opponentRating)}</div>
                   </div>
-                  <div style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(255,209,102,0.08)', border: '1px solid rgba(255,209,102,0.18)', textAlign: 'center' }}>
-                    <div style={{ color: C.faint, fontSize: 6.8, fontWeight: 950, textTransform: 'uppercase' }}>Gap</div>
-                    <div style={{ color: (mlbConviction.matchupRating.matchupGap || 0) >= 8 ? C.green : (mlbConviction.matchupRating.matchupGap || 0) >= 0 ? C.amber : C.red, fontSize: 20, fontWeight: 950, lineHeight: 1 }}>{(mlbConviction.matchupRating.matchupGap || 0) > 0 ? '+' : ''}{formatNumber(mlbConviction.matchupRating.matchupGap)}</div>
+                  <div style={{ borderRadius: 11, padding: '8px 6px', background: 'rgba(255,209,102,0.08)', border: '1px solid rgba(255,209,102,0.18)', textAlign: 'center' }}>
+                    <div style={{ color: C.faint, fontSize: 8.5, fontWeight: 900, textTransform: 'uppercase' }}>Edge</div>
+                    <div style={{ color: (mlbConviction.matchupRating.matchupGap || 0) >= 8 ? C.green : (mlbConviction.matchupRating.matchupGap || 0) >= 0 ? C.amber : C.red, fontSize: 22, fontWeight: 950, lineHeight: 1 }}>{(mlbConviction.matchupRating.matchupGap || 0) > 0 ? '+' : ''}{formatNumber(mlbConviction.matchupRating.matchupGap)}</div>
                   </div>
-                </div>
-                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 7 }}>
-                  <span style={{ color: C.text, fontSize: 8, fontWeight: 950, borderRadius: 999, padding: '4px 7px', background: 'rgba(125,246,255,0.12)', border: '1px solid rgba(125,246,255,0.22)' }}>Best fit: {mlbConviction.matchupRating.bestFit}</span>
-                  {Object.entries(mlbConviction.matchupRating.propFit || {}).filter(([, value]) => isFiniteNumber(value)).sort((a, b) => Number(b[1]) - Number(a[1])).slice(0, 3).map(([key, value]) => (
-                    <span key={key} style={{ color: C.muted, fontSize: 7.5, fontWeight: 900, borderRadius: 999, padding: '4px 6px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.09)' }}>{key.replace(/([A-Z])/g, ' $1')}: {formatNumber(Number(value))}</span>
-                  ))}
                 </div>
                 {Array.isArray(mlbConviction.matchupRating.subRatings) && mlbConviction.matchupRating.subRatings.length > 0 && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, marginTop: 7 }}>
                     {mlbConviction.matchupRating.subRatings.slice(0, 6).map(row => (
                       <div key={`mlb-sub-${row.label}`} style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.09)', textAlign: 'center' }}>
-                        <div style={{ color: C.text, fontSize: 15, fontWeight: 950, lineHeight: 1 }}>{formatNumber(row.score)}</div>
-                        <div style={{ color: C.faint, fontSize: 6.8, fontWeight: 950, textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.label}</div>
+                        <div style={{ color: C.text, fontSize: 15, fontWeight: 900, lineHeight: 1 }}>{formatNumber(row.score)}</div>
+                        <div style={{ color: C.faint, fontSize: 8, fontWeight: 900, textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.label}</div>
                       </div>
                     ))}
                   </div>
                 )}
-                {mlbConviction.matchupRating.read && <div style={{ color: C.muted, fontSize: 8.7, lineHeight: 1.35, marginTop: 7, fontWeight: 850 }}>{mlbConviction.matchupRating.read}</div>}
+                {mlbConviction.matchupRating.read && <div style={{ color: C.muted, fontSize: 9.5, lineHeight: 1.35, marginTop: 7, fontWeight: 800 }}>{mlbConviction.matchupRating.read}</div>}
               </div>
             )}
-            {mlbConviction.read && (
-              <div style={{ color: C.text, fontSize: 10.5, lineHeight: 1.42, fontWeight: 900, marginBottom: 9 }}>{mlbConviction.read}</div>
+
+            {(mlbConviction.whyLive.length > 0 || mlbConviction.path || mlbConviction.killSwitch.length > 0 || mlbConviction.numberDiscipline) && (
+              <div style={{ borderRadius: 13, padding: 10, background: 'rgba(2,5,1,0.42)', border: '1px solid rgba(255,255,255,0.09)' }}>
+                <div style={{ color: C.green, fontSize: 9, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Why it’s live</div>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {[...mlbConviction.whyLive.slice(0, 3), mlbConviction.path ? `Path: ${mlbConviction.path}` : ''].filter(Boolean).map(row => (
+                    <div key={`mlb-live-${row}`} style={{ color: C.muted, fontSize: 9.5, lineHeight: 1.35, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 4 }}>
+                      <span style={{ color: C.green }}>›</span>
+                      <span>{row}</span>
+                    </div>
+                  ))}
+                </div>
+                {mlbConviction.killSwitch.length > 0 && <div style={{ color: C.red, fontSize: 9, lineHeight: 1.34, marginTop: 7, fontWeight: 850 }}>Kills it: {mlbConviction.killSwitch.join(' · ')}</div>}
+                {mlbConviction.numberDiscipline && <div style={{ color: C.faint, fontSize: 9, lineHeight: 1.34, marginTop: 6, fontWeight: 800 }}>Number discipline: {mlbConviction.numberDiscipline}</div>}
+              </div>
             )}
-            <div style={{ display: 'grid', gap: 8 }}>
-              {mlbConviction.whyLive.length > 0 && (
-                <div>
-                  <div style={{ color: C.green, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>Why it’s live</div>
-                  <div style={{ display: 'grid', gap: 3 }}>
-                    {mlbConviction.whyLive.map(row => (
-                      <div key={`mlb-live-${row}`} style={{ color: C.muted, fontSize: 8.7, lineHeight: 1.34, display: 'grid', gridTemplateColumns: '10px minmax(0,1fr)', gap: 4 }}>
-                        <span style={{ color: C.green }}>›</span>
-                        <span>{row}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {mlbConviction.path && (
-                <div style={{ borderRadius: 11, padding: '8px 8px', background: 'rgba(125,246,255,0.035)', border: '1px solid rgba(125,246,255,0.12)' }}>
-                  <div style={{ color: C.green, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>Path</div>
-                  <div style={{ color: C.muted, fontSize: 8.8, lineHeight: 1.34 }}>{mlbConviction.path}</div>
-                </div>
-              )}
-              {mlbConviction.killSwitch.length > 0 && (
-                <div style={{ borderRadius: 11, padding: '8px 8px', background: 'rgba(255,77,109,0.04)', border: '1px solid rgba(255,77,109,0.16)' }}>
-                  <div style={{ color: C.red, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>What kills it</div>
-                  <div style={{ display: 'grid', gap: 3 }}>
-                    {mlbConviction.killSwitch.map(row => (
-                      <div key={`mlb-kill-${row}`} style={{ color: C.muted, fontSize: 8.6, lineHeight: 1.32, display: 'grid', gridTemplateColumns: '10px minmax(0,1fr)', gap: 4 }}>
-                        <span style={{ color: C.red }}>•</span>
-                        <span>{row}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {mlbConviction.numberDiscipline && (
-                <div style={{ color: C.faint, fontSize: 8.5, lineHeight: 1.34, fontWeight: 850 }}>Number discipline: {mlbConviction.numberDiscipline}</div>
-              )}
-            </div>
           </div>
         )}
 
