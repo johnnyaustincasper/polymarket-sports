@@ -257,6 +257,9 @@ interface MlbMisreadData {
   severity?: string
   summary?: string
   reason?: string
+  ratingTitle?: string
+  bestFit?: string
+  subRatings?: { label: string; score: number; detail?: string }[]
   playerRating?: number
   opponentRating?: number
   matchupGap?: number
@@ -275,6 +278,9 @@ type MlbMisreadUiRow = {
   label: string
   playerRating: number
   opponentRating: number
+  ratingTitle?: string
+  bestFit?: string
+  subRatings?: { label: string; score: number; detail?: string }[]
 }
 
 interface SignalsPanelData {
@@ -3643,17 +3649,17 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     const playerRating = Number(row.playerRating)
     const opponentRating = Number(row.opponentRating)
     const gap = Number.isFinite(Number(row.matchupGap)) ? Math.round(Number(row.matchupGap)) : (Number.isFinite(playerRating) && Number.isFinite(opponentRating) ? Math.round(playerRating - opponentRating) : null)
-    const label = compactText(row.misreadLabel || row.label || 'Matchup misread')
-    return { signal, source: row, type: row.misreadType, gap, label, playerRating, opponentRating }
+    const label = compactText(row.misreadLabel || row.ratingTitle || row.label || 'Matchup misread')
+    return { signal, source: row, type: row.misreadType, gap, label, playerRating, opponentRating, ratingTitle: row.ratingTitle, bestFit: row.bestFit, subRatings: row.subRatings }
   }) : mlbMisreadSignals.map(signal => {
     const misread = (signal.metadata?.judgmentContext as any)?.mlbConviction?.misreadSignal || {}
     const playerRating = Number(misread.playerRating)
     const opponentRating = Number(misread.opponentRating)
     const gap = Number.isFinite(playerRating) && Number.isFinite(opponentRating) ? Math.round(playerRating - opponentRating) : null
-    const label = compactText(misread.label || signal.label || 'Matchup misread')
+    const label = compactText(misread.label || misread.ratingTitle || signal.label || 'Matchup misread')
     const lower = `${label} ${signal.label || ''}`.toLowerCase()
     const type: 'pitcher' | 'hitter' = lower.includes('pitcher') || lower.includes('strikeout') || lower.includes(' k ') || lower.endsWith(' k') ? 'pitcher' : 'hitter'
-    return { signal, source: null as MlbMisreadData | null, type, gap, label, playerRating, opponentRating }
+    return { signal, source: null as MlbMisreadData | null, type, gap, label, playerRating, opponentRating, ratingTitle: misread.ratingTitle, bestFit: misread.bestFit, subRatings: misread.subRatings }
   })).sort((a, b) => Math.abs(b.gap ?? 0) - Math.abs(a.gap ?? 0))
   const pitcherMisreads = mlbMisreadRows.filter(row => row.type === 'pitcher')
   const hitterMisreads = mlbMisreadRows.filter(row => row.type === 'hitter')
@@ -3708,9 +3714,20 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
             <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 850, lineHeight: 1.35 }}>{row.signal?.label || row.source?.label} · {row.signal?.matchup || row.source?.matchup}</div>
             <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{formatMlbMisreadGameTime(row.signal?.gameTime || row.source?.gameTime)}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-              <span style={{ color: C.gold, fontSize: 9, fontWeight: 950 }}>{row.label}</span>
-              <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{Number.isFinite(row.playerRating) ? Math.round(row.playerRating) : '—'} rating v {Number.isFinite(row.opponentRating) ? Math.round(row.opponentRating) : '—'} resistance{row.gap == null ? '' : ` · gap ${row.gap > 0 ? '+' : ''}${row.gap}`}</span>
+              <span style={{ color: C.gold, fontSize: 9, fontWeight: 950 }}>{row.ratingTitle || row.label}</span>
+              <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{Number.isFinite(row.playerRating) ? Math.round(row.playerRating) : '—'} overall v {Number.isFinite(row.opponentRating) ? Math.round(row.opponentRating) : '—'} resistance{row.gap == null ? '' : ` · gap ${row.gap > 0 ? '+' : ''}${row.gap}`}</span>
             </div>
+            {row.bestFit && <div style={{ color: C.textSecondary, fontSize: 8.5, fontWeight: 850 }}>Best fit: {row.bestFit}</div>}
+            {row.subRatings?.length ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 5 }}>
+                {row.subRatings.slice(0, 3).map(sub => (
+                  <div key={`${row.source?.id || row.signal?.id}-${sub.label}`} style={{ borderRadius: 9, padding: '6px 5px', background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.12)', textAlign: 'center' }}>
+                    <div style={{ color: C.textPrimary, fontSize: 14, fontWeight: 950, lineHeight: 1 }}>{Math.round(Number(sub.score))}</div>
+                    <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub.label}</div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </button>
         ))}
       </div>

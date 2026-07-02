@@ -218,7 +218,7 @@ export default function SignalTerminalCard({
     gameEnvironment?: string[]
     sportSpecificNotes?: string[]
     decisionSections?: Array<{ title?: string; rows?: string[] }>
-    mlbConviction?: { verdict?: string; read?: string; whyLive?: string[]; path?: string; killSwitch?: string[]; numberDiscipline?: string; matchupRating?: { playerLabel?: string; opponentLabel?: string; playerRating?: number; opponentRating?: number; matchupGap?: number; bestFit?: string; propFit?: Record<string, number | undefined>; read?: string; rows?: string[] }; misreadSignal?: { label?: string; severity?: string; summary?: string; reason?: string; matchupGap?: number; playerRating?: number; opponentRating?: number } }
+    mlbConviction?: { verdict?: string; read?: string; whyLive?: string[]; path?: string; killSwitch?: string[]; numberDiscipline?: string; matchupRating?: { ratingTitle?: string; playerLabel?: string; opponentLabel?: string; playerRating?: number; opponentRating?: number; matchupGap?: number; bestFit?: string; propFit?: Record<string, number | undefined>; subRatings?: Array<{ label?: string; score?: number; detail?: string }>; read?: string; rows?: string[] }; misreadSignal?: { label?: string; severity?: string; summary?: string; reason?: string; matchupGap?: number; playerRating?: number; opponentRating?: number; ratingTitle?: string; bestFit?: string; subRatings?: Array<{ label?: string; score?: number; detail?: string }> } }
     volume?: { shotAttemptsLast5Avg?: number; threesAttemptedLast5Avg?: number; freeThrowsAttemptedLast5Avg?: number }
     minutes?: { lastGame?: number; last5Avg?: number; stable?: boolean }
     matchupNotes?: string[]
@@ -512,7 +512,7 @@ export default function SignalTerminalCard({
             )}
             {mlbConviction.matchupRating && (
               <div style={{ marginBottom: 9, borderRadius: 14, padding: 9, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.22)' }}>
-                <div style={{ color: C.green, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 7 }}>Video-game matchup rating</div>
+                <div style={{ color: C.green, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 7 }}>{mlbConviction.matchupRating.ratingTitle || 'Video-game matchup rating'}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6 }}>
                   <div style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(2,5,1,0.58)', border: '1px solid rgba(125,246,255,0.16)', textAlign: 'center' }}>
                     <div style={{ color: C.faint, fontSize: 6.8, fontWeight: 950, textTransform: 'uppercase' }}>{mlbConviction.matchupRating.playerLabel || 'Player rating'}</div>
@@ -533,6 +533,16 @@ export default function SignalTerminalCard({
                     <span key={key} style={{ color: C.muted, fontSize: 7.5, fontWeight: 900, borderRadius: 999, padding: '4px 6px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.09)' }}>{key.replace(/([A-Z])/g, ' $1')}: {formatNumber(Number(value))}</span>
                   ))}
                 </div>
+                {Array.isArray(mlbConviction.matchupRating.subRatings) && mlbConviction.matchupRating.subRatings.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, marginTop: 7 }}>
+                    {mlbConviction.matchupRating.subRatings.slice(0, 6).map(row => (
+                      <div key={`mlb-sub-${row.label}`} style={{ borderRadius: 10, padding: '7px 6px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.09)', textAlign: 'center' }}>
+                        <div style={{ color: C.text, fontSize: 15, fontWeight: 950, lineHeight: 1 }}>{formatNumber(row.score)}</div>
+                        <div style={{ color: C.faint, fontSize: 6.8, fontWeight: 950, textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {mlbConviction.matchupRating.read && <div style={{ color: C.muted, fontSize: 8.7, lineHeight: 1.35, marginTop: 7, fontWeight: 850 }}>{mlbConviction.matchupRating.read}</div>}
               </div>
             )}

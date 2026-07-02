@@ -95,11 +95,13 @@ function cleanMlbConviction(layer?: any) {
   const matchupRating = layer.matchupRating ? {
     playerLabel: layer.matchupRating.playerLabel,
     opponentLabel: layer.matchupRating.opponentLabel,
+    ratingTitle: layer.matchupRating.ratingTitle,
     playerRating: layer.matchupRating.playerRating,
     opponentRating: layer.matchupRating.opponentRating,
     matchupGap: layer.matchupRating.matchupGap,
     bestFit: layer.matchupRating.bestFit,
     propFit: layer.matchupRating.propFit,
+    subRatings: Array.isArray(layer.matchupRating.subRatings) ? layer.matchupRating.subRatings.map((row: any) => ({ label: row.label, score: row.score, detail: stripPublicJargon(row.detail || '') })).slice(0, 6) : undefined,
     read: stripPublicJargon(layer.matchupRating.read || ''),
     rows: cleanContextRows(layer.matchupRating.rows),
   } : undefined
@@ -114,6 +116,9 @@ function cleanMlbConviction(layer?: any) {
     matchupGap: layer.misreadSignal.matchupGap,
     summary: misreadSummary && !containsPublicJargon(misreadSummary) ? misreadSummary : undefined,
     reason: misreadReason && !containsPublicJargon(misreadReason) ? misreadReason : undefined,
+    ratingTitle: layer.misreadSignal.ratingTitle,
+    bestFit: layer.misreadSignal.bestFit,
+    subRatings: Array.isArray(layer.misreadSignal.subRatings) ? layer.misreadSignal.subRatings.map((row: any) => ({ label: row.label, score: row.score, detail: stripPublicJargon(row.detail || '') })).slice(0, 6) : undefined,
   } : undefined
   return {
     verdict: layer.verdict,

@@ -148,6 +148,9 @@ type MlbMisreadRow = {
   severity?: string
   summary?: string
   reason?: string
+  ratingTitle?: string
+  bestFit?: string
+  subRatings?: Array<{ label: string; score: number; detail?: string }>
   playerRating?: number
   opponentRating?: number
   matchupGap?: number
@@ -565,6 +568,9 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
           severity: mlbMisread.severity,
           summary: mlbMisread.summary,
           reason: mlbMisread.reason,
+          ratingTitle: mlbMisread.ratingTitle,
+          bestFit: mlbMisread.bestFit,
+          subRatings: mlbMisread.subRatings,
           playerRating: mlbMisread.playerRating,
           opponentRating: mlbMisread.opponentRating,
           matchupGap: mlbMisread.matchupGap,

@@ -60,7 +60,14 @@ export type MlbPropFit = {
   strikeouts?: number
 }
 
+export type MlbVideoGameSubRating = {
+  label: string
+  score: number
+  detail?: string
+}
+
 export type MlbMatchupRating = {
+  ratingTitle: string
   playerLabel: string
   opponentLabel: string
   playerRating: number
@@ -68,6 +75,7 @@ export type MlbMatchupRating = {
   matchupGap: number
   bestFit: string
   propFit: MlbPropFit
+  subRatings: MlbVideoGameSubRating[]
   read: string
   rows: string[]
 }
@@ -81,6 +89,9 @@ export type MlbMisreadSignal = {
   matchupGap: number
   summary: string
   reason: string
+  ratingTitle?: string
+  bestFit?: string
+  subRatings?: MlbVideoGameSubRating[]
 }
 
 export type MlbConvictionLayer = {
@@ -393,6 +404,10 @@ function ratingLabel(score: number): string {
   return 'Thin'
 }
 
+function subRating(label: string, score: number, detail?: string): MlbVideoGameSubRating {
+  return { label, score: clampRating(score), ...(detail ? { detail } : {}) }
+}
+
 function buildOverallRatings(input: {
   line?: number
   median?: number
@@ -529,6 +544,7 @@ function buildMlbMatchupRating(input: {
     const strikeouts = clampRating(base + 4)
     const lineupContactRisk = clampRating(100 - Math.max(35, Math.min(90, hit12Score)) * 0.28 + (num(input.mlbGameContext?.totalLine) != null && Number(input.mlbGameContext?.totalLine) <= 7.5 ? -3 : 2))
     return {
+      ratingTitle: 'Pitcher K Overall',
       playerLabel: 'Pitcher K rating',
       opponentLabel: 'Lineup contact risk',
       playerRating: strikeouts,
@@ -536,6 +552,13 @@ function buildMlbMatchupRating(input: {
       matchupGap: strikeouts - lineupContactRisk,
       bestFit: 'Strikeouts',
       propFit: { strikeouts },
+      subRatings: [
+        subRating('Stuff', base + 6, 'Recent strikeout production and K pace.'),
+        subRating('Recent form', formScore, `${fmtAvg(input.last5Avg)} Ks over last ${input.games5}.`),
+        subRating('Leash', sampleScore * 0.55 + stabilityScore * 0.45, 'Sample size plus line stability as a pitch-count proxy.'),
+        subRating('Opponent whiff', 100 - lineupContactRisk + 72, 'Lower contact resistance creates a better K matchup.'),
+        subRating('Line fit', stabilityScore, `${propText(input.line, 'strikeouts')} versus recent band.`),
+      ],
       read: `${input.player} grades like a ${strikeouts}/100 strikeout profile against a ${lineupContactRisk}/100 lineup-contact risk check from current form and game setup.`,
       rows: [
         `K form: ${fmtAvg(input.last5Avg)} over the last ${input.games5}, ${input.hit5 ?? '—'} of ${input.games5} cleared ${propText(input.line, 'strikeouts')}.`,
@@ -573,7 +596,9 @@ function buildMlbMatchupRating(input: {
   }) as Array<[string, number]>
 
   const hitterAdvantageGap = fits[0][1] + opponentBaseline - 150
+  const ratingTitle = kind === 'power' ? 'Power Overall' : kind === 'offense' ? 'Run Production Overall' : 'Contact Overall'
   return {
+    ratingTitle,
     playerLabel: kind === 'power' ? 'Hitter power rating' : kind === 'offense' ? 'Run-production rating' : 'Hitter contact rating',
     opponentLabel: pitcherVulnerability != null ? 'Pitcher vulnerability rating' : 'Pitcher context rating',
     playerRating: fits[0][1],
@@ -581,6 +606,13 @@ function buildMlbMatchupRating(input: {
     matchupGap: hitterAdvantageGap,
     bestFit: fits[0][0],
     propFit: { hits: contact, totalBases, homeRuns, runsRbis },
+    subRatings: [
+      subRating(kind === 'power' ? 'Power' : kind === 'offense' ? 'Run path' : 'Contact', fits[0][1], `${fits[0][0]} is the best prop fit.`),
+      subRating('Recent form', formScore, `${fmtAvg(input.last5Avg)} over last ${input.games5}.`),
+      subRating('Pitcher matchup', opponentBaseline, opponentContext),
+      subRating('Run environment', 72 + environmentBump * 3, 'Game total / run context adjustment.'),
+      subRating('Line fit', stabilityScore, `${propText(input.line, input.metric.toLowerCase())} versus recent band.`),
+    ],
     read: `${input.player} grades ${fits[0][1]}/100 for ${fits[0][0].toLowerCase()} against ${opponentContext}.`,
     rows: [
       `Recent form: ${fmtAvg(input.last5Avg)} ${input.metric.toLowerCase()} over the last ${input.games5}, ${input.hit5 ?? '—'} of ${input.games5} cleared ${propText(input.line, input.metric.toLowerCase())}.`,
@@ -610,8 +642,11 @@ function buildMlbMisreadSignal(metric: string, rating?: MlbMatchupRating): MlbMi
       playerRating: rating.playerRating,
       opponentRating: rating.opponentRating,
       matchupGap: gap,
-      summary: `${rating.playerRating} pitcher K rating vs ${rating.opponentRating} lineup contact-risk rating`,
+      summary: `${rating.ratingTitle}: ${rating.playerRating} vs ${rating.opponentRating} lineup contact resistance`,
       reason: `The scan is flagging a swing-miss watch: ${rating.playerLabel.toLowerCase()} clears the lineup contact-risk check, but still needs pitch count and umpire support.`,
+      ratingTitle: rating.ratingTitle,
+      bestFit: rating.bestFit,
+      subRatings: rating.subRatings,
     }
   }
   if (kind === 'power') {
@@ -622,8 +657,11 @@ function buildMlbMisreadSignal(metric: string, rating?: MlbMatchupRating): MlbMi
       playerRating: rating.playerRating,
       opponentRating: rating.opponentRating,
       matchupGap: gap,
-      summary: `${rating.playerRating} hitter power rating vs ${rating.opponentRating} pitcher vulnerability`,
+      summary: `${rating.ratingTitle}: ${rating.playerRating} vs ${rating.opponentRating} pitcher vulnerability`,
       reason: 'The scan is flagging a power-path gap; HR only upgrades when this power rating leads the contact paths and the opposing starter/park setup is vulnerable.',
+      ratingTitle: rating.ratingTitle,
+      bestFit: rating.bestFit,
+      subRatings: rating.subRatings,
     }
   }
   if (kind === 'offense') {
@@ -634,8 +672,11 @@ function buildMlbMisreadSignal(metric: string, rating?: MlbMatchupRating): MlbMi
       playerRating: rating.playerRating,
       opponentRating: rating.opponentRating,
       matchupGap: gap,
-      summary: `${rating.playerRating} run-production rating vs ${rating.opponentRating} pitcher vulnerability`,
+      summary: `${rating.ratingTitle}: ${rating.playerRating} vs ${rating.opponentRating} pitcher vulnerability`,
       reason: 'The scan is flagging a run-environment gap: lineup role plus a vulnerable opposing starter/park setup looks better than the surface read.',
+      ratingTitle: rating.ratingTitle,
+      bestFit: rating.bestFit,
+      subRatings: rating.subRatings,
     }
   }
   return {
@@ -645,8 +686,11 @@ function buildMlbMisreadSignal(metric: string, rating?: MlbMatchupRating): MlbMi
     playerRating: rating.playerRating,
     opponentRating: rating.opponentRating,
     matchupGap: gap,
-    summary: `${rating.playerRating} hitter contact rating vs ${rating.opponentRating} pitcher vulnerability`,
+    summary: `${rating.ratingTitle}: ${rating.playerRating} vs ${rating.opponentRating} pitcher vulnerability`,
     reason: 'The scan is flagging a contact-path gap: the hitter profile and opposing starter vulnerability are both strong enough to matter.',
+    ratingTitle: rating.ratingTitle,
+    bestFit: rating.bestFit,
+    subRatings: rating.subRatings,
   }
 }
 

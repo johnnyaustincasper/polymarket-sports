@@ -247,7 +247,9 @@ describe('signal judgment context', () => {
       playerRating: expect.any(Number),
       opponentRating: expect.any(Number),
     })
-    expect(context?.mlbConviction?.misreadSignal?.summary).toContain('pitcher K rating vs')
+    expect(context?.mlbConviction?.matchupRating?.ratingTitle).toBe('Pitcher K Overall')
+    expect(context?.mlbConviction?.matchupRating?.subRatings.map(row => row.label)).toEqual(expect.arrayContaining(['Stuff', 'Recent form', 'Opponent whiff', 'Line fit']))
+    expect(context?.mlbConviction?.misreadSignal?.summary).toContain('Pitcher K Overall')
   })
 
   it('flags hitter power misreads separately from contact looks', () => {
