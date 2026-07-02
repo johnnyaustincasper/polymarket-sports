@@ -7064,6 +7064,50 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
             alignItems: 'start',
             ...getLoadInAnimationStyle(0, { durationMs: 760 }),
           }}>
+            {subtab === 'playerSignals' && sport !== 'ufc' && (
+              <section aria-label="Signals day switch" style={{ borderRadius: 20, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.62), rgba(255,255,255,0.12), rgba(125,246,255,0.20))', boxShadow: '0 16px 42px rgba(0,0,0,0.34), 0 0 26px rgba(125,246,255,0.14)' }}>
+                <div style={{ borderRadius: 19, padding: isMobile ? 12 : 14, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 9 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{sport.toUpperCase()} Signals Day</div>
+                      <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 3 }}>Prep today’s board or jump to tomorrow’s games.</div>
+                    </div>
+                    <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, flexShrink: 0 }}>{date === tomorrow ? 'Tomorrow' : 'Today'}</div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                    {[
+                      { label: 'Today', value: today },
+                      { label: 'Tomorrow', value: tomorrow },
+                    ].map(option => {
+                      const active = date === option.value
+                      return (
+                        <button
+                          key={option.label}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => { if (!active) { setDate(option.value); setFeedError(null); setLoading(true); scrollMarketTop() } }}
+                          style={{
+                            minHeight: isMobile ? 46 : 42,
+                            borderRadius: 999,
+                            border: `1px solid ${active ? 'rgba(125,246,255,0.92)' : 'rgba(255,255,255,0.12)'}`,
+                            background: active ? 'linear-gradient(180deg, rgba(125,246,255,0.24), rgba(3,10,13,0.96))' : 'rgba(255,255,255,0.045)',
+                            color: active ? C.green : C.textPrimary,
+                            fontSize: isMobile ? 11 : 10,
+                            fontWeight: 950,
+                            letterSpacing: '0.12em',
+                            textTransform: 'uppercase',
+                            cursor: active ? 'default' : 'pointer',
+                            boxShadow: active ? '0 0 22px rgba(125,246,255,0.22), inset 0 1px 0 rgba(255,255,255,0.14)' : 'inset 0 1px 0 rgba(255,255,255,0.05)',
+                          }}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
             {subtab === 'teams' && (sport === 'ufc' ? <FightersDirectoryPanel isMobile={isMobile} /> : <TeamsDirectoryPanel sport={sport} isMobile={isMobile} />)}
             {subtab === 'playerSignals' && (sport === 'ufc' ? <UFCSignalsPanel isMobile={isMobile} /> : <SignalsModelPanel sport={sport} games={games} loading={loading} isMobile={isMobile} autoRun date={date} today={today} tomorrow={tomorrow} onDateChange={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true); scrollMarketTop() }} />)}
           </div>
