@@ -14,8 +14,8 @@ import { fetchNewsIntelForSignals, type NewsIntelContext } from '@/app/lib/socia
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v12'
-const TODAY_SIGNAL_SCHEMA = 'v11'
+const SIGNAL_CACHE_SCHEMA = 'v13'
+const TODAY_SIGNAL_SCHEMA = 'v12'
 
 type Sport = 'nba' | 'nfl' | 'mlb' | 'nhl'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
@@ -132,6 +132,32 @@ type TodaySignalIntel = {
   unavailable?: string
 }
 
+type MlbMisreadRow = {
+  id: string
+  sport: 'mlb'
+  gameId: string
+  matchup: string
+  gameTime: string
+  player: string
+  team: string
+  metric: string
+  label: string
+  kind?: string
+  misreadType: 'pitcher' | 'hitter'
+  misreadLabel?: string
+  severity?: string
+  summary?: string
+  reason?: string
+  playerRating?: number
+  opponentRating?: number
+  matchupGap?: number
+  tier?: SignalTier
+  ask?: number
+  edge?: number
+  ticker?: string
+  url?: string
+}
+
 type SignalsResponse = {
   sport: Sport
   generatedAt: string
@@ -139,6 +165,7 @@ type SignalsResponse = {
   activeGameIds?: string[]
   contractsScored: number
   signals: ModelSignal[]
+  mlbMisreads?: MlbMisreadRow[]
   changeSinceRefresh?: SignalDelta[]
   summary: {
     a: number
@@ -473,7 +500,7 @@ async function fetchProps(sport: Sport, game: SignalGame, authHeaders?: HeadersI
   return data
 }
 
-function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string): { contracts: number; signals: ModelSignal[] } {
+function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string): { contracts: number; signals: ModelSignal[]; mlbMisreads: MlbMisreadRow[] } {
   const matchup = `${game.awayTeam.abbr} @ ${game.homeTeam.abbr}`
   const players = [...(data?.away || []), ...(data?.home || [])]
   const mlbGameContextFor = (team?: string) => sport === 'mlb' ? {
@@ -487,6 +514,7 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
   } : undefined
   let contracts = 0
   const signals: ModelSignal[] = []
+  const mlbMisreads: MlbMisreadRow[] = []
 
   for (const player of players) {
     for (const bet of player.recommendations || []) {
@@ -517,13 +545,42 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
       const mlbMisread = sport === 'mlb' ? judgmentContext?.mlbConviction?.misreadSignal : undefined
       let tier = tierFor(edge, confidence, hits, games, ask, liquidity, String(bet.risk || 'medium'))
       if (tier === 'KILL' && mlbMisread && edge >= 1 && ask > 0 && ask <= maxBuy && liquidity > 0) tier = 'WATCH'
+      const ticker = kalshi.legTicker || kalshi.ticker
+      if (sport === 'mlb' && mlbMisread) {
+        const kind = String(mlbMisread.kind || '')
+        const misreadType: 'pitcher' | 'hitter' = kind === 'pitcher_k' || /pitcher|strikeout/i.test(`${mlbMisread.label || ''} ${bet.label || ''}`) ? 'pitcher' : 'hitter'
+        mlbMisreads.push({
+          id: cleanId(`mlb-misread-${game.id}-${player.player}-${bet.metric}-${bet.line}-${ticker}`),
+          sport: 'mlb',
+          gameId: game.id,
+          matchup,
+          gameTime: game.gameTime || game.gameDate || '',
+          player: player.player,
+          team: player.team,
+          metric: bet.metric,
+          label: bet.label,
+          kind,
+          misreadType,
+          misreadLabel: mlbMisread.label,
+          severity: mlbMisread.severity,
+          summary: mlbMisread.summary,
+          reason: mlbMisread.reason,
+          playerRating: mlbMisread.playerRating,
+          opponentRating: mlbMisread.opponentRating,
+          matchupGap: mlbMisread.matchupGap,
+          tier,
+          ask,
+          edge,
+          ticker,
+          url: kalshi.url || '',
+        })
+      }
       if (tier === 'KILL') continue
       const read = reasonsFor({ tier, edge, hits, games, avg, line: toNum(bet.line), ask, fairPrice, liquidity, risk: String(bet.risk || 'medium') })
       if (mlbMisread) {
         read.reasons.unshift(`${mlbMisread.label}: ${mlbMisread.summary}; gap ${mlbMisread.matchupGap >= 0 ? '+' : ''}${mlbMisread.matchupGap}.`)
         read.flags.push(mlbMisread.severity === 'strong' ? 'mlb_matchup_misread_strong' : 'mlb_matchup_misread_watch')
       }
-      const ticker = kalshi.legTicker || kalshi.ticker
       signals.push({
         id: cleanId(`${sport}-${game.id}-${player.player}-${bet.metric}-${bet.line}-${ticker}`),
         sport,
@@ -561,7 +618,23 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
     }
   }
 
-  return { contracts, signals }
+  return { contracts, signals, mlbMisreads: dedupeMlbMisreads(mlbMisreads) }
+}
+
+
+function dedupeMlbMisreads(rows: MlbMisreadRow[]): MlbMisreadRow[] {
+  const byKey = new Map<string, MlbMisreadRow>()
+  for (const row of rows) {
+    const key = [row.gameId, row.player.toLowerCase(), row.misreadType, row.metric.toLowerCase()].join('|')
+    const existing = byKey.get(key)
+    const rowScore = Math.abs(row.matchupGap ?? 0) * 10 + (row.edge ?? -100)
+    const existingScore = existing ? Math.abs(existing.matchupGap ?? 0) * 10 + (existing.edge ?? -100) : -Infinity
+    if (!existing || rowScore > existingScore) byKey.set(key, row)
+  }
+  return Array.from(byKey.values()).sort((a, b) => {
+    if (a.misreadType !== b.misreadType) return a.misreadType === 'pitcher' ? -1 : 1
+    return Math.abs(b.matchupGap ?? 0) - Math.abs(a.matchupGap ?? 0) || (b.edge ?? 0) - (a.edge ?? 0)
+  })
 }
 
 function extractJsonObject(text: string): any | null {
@@ -1005,6 +1078,7 @@ export async function POST(req: NextRequest) {
         activeGameIds: [],
         contractsScored: 0,
         signals: [],
+        mlbMisreads: [],
         summary: { a: 0, b: 0, watch: 0, avgEdge: 0, bestEdge: 0 },
         cache: getDurableCacheStatus(),
       }
@@ -1031,6 +1105,7 @@ export async function POST(req: NextRequest) {
 
     const generatedAt = new Date().toISOString()
     const allSignals: ModelSignal[] = []
+    const allMlbMisreads: MlbMisreadRow[] = []
     let contractsScored = 0
 
     const requestCookie = req.headers.get('cookie') || ''
@@ -1049,6 +1124,7 @@ export async function POST(req: NextRequest) {
       for (const item of scored) {
         contractsScored += item.contracts
         allSignals.push(...item.signals)
+        allMlbMisreads.push(...item.mlbMisreads)
       }
     }
 
@@ -1070,6 +1146,7 @@ export async function POST(req: NextRequest) {
     const signals = attachSignalDeltas(rankedSignals, changeSinceRefresh)
 
     const edges = signals.map(s => s.edge)
+    const mlbMisreads = sport === 'mlb' ? dedupeMlbMisreads(allMlbMisreads) : undefined
     const response: SignalsResponse = {
       sport,
       generatedAt,
@@ -1077,6 +1154,7 @@ export async function POST(req: NextRequest) {
       activeGameIds,
       contractsScored,
       signals,
+      ...(mlbMisreads ? { mlbMisreads } : {}),
       changeSinceRefresh: changeSinceRefresh.length ? changeSinceRefresh : undefined,
       summary: {
         a: signals.filter(s => s.tier === 'A').length,

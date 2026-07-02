@@ -242,12 +242,48 @@ interface ModelSignal {
   changeSinceRefresh?: SignalDelta[]
   metadata?: Record<string, unknown>
 }
+interface MlbMisreadData {
+  id: string
+  gameId: string
+  matchup: string
+  gameTime?: string
+  player: string
+  team?: string
+  metric: string
+  label: string
+  kind?: string
+  misreadType: 'pitcher' | 'hitter'
+  misreadLabel?: string
+  severity?: string
+  summary?: string
+  reason?: string
+  playerRating?: number
+  opponentRating?: number
+  matchupGap?: number
+  tier?: string
+  ask?: number
+  edge?: number
+  ticker?: string
+  url?: string
+}
+
+type MlbMisreadUiRow = {
+  signal: SignalTerminalSignal | null
+  source: MlbMisreadData | null
+  type: 'pitcher' | 'hitter'
+  gap: number | null
+  label: string
+  playerRating: number
+  opponentRating: number
+}
+
 interface SignalsPanelData {
   sport: SupportedSport
   generatedAt: string
   gamesScanned: number
   contractsScored: number
   signals: ModelSignal[]
+  mlbMisreads?: MlbMisreadData[]
   summary: { a: number; b: number; watch: number; avgEdge: number; bestEdge: number }
 }
 
@@ -3600,7 +3636,14 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
   const mlbMisreadSignals = sport === 'mlb'
     ? topSignals.filter(signal => Boolean((signal.metadata?.judgmentContext as any)?.mlbConviction?.misreadSignal))
     : []
-  const mlbMisreadRows = mlbMisreadSignals.map(signal => {
+  const mlbMisreadRows: MlbMisreadUiRow[] = (data?.mlbMisreads?.length ? data.mlbMisreads.map(row => {
+    const signal = topSignals.find(candidate => candidate.id === row.id || (candidate.gameId === row.gameId && candidate.player === row.player && candidate.metric === row.metric)) || null
+    const playerRating = Number(row.playerRating)
+    const opponentRating = Number(row.opponentRating)
+    const gap = Number.isFinite(Number(row.matchupGap)) ? Math.round(Number(row.matchupGap)) : (Number.isFinite(playerRating) && Number.isFinite(opponentRating) ? Math.round(playerRating - opponentRating) : null)
+    const label = compactText(row.misreadLabel || row.label || 'Matchup misread')
+    return { signal, source: row, type: row.misreadType, gap, label, playerRating, opponentRating }
+  }) : mlbMisreadSignals.map(signal => {
     const misread = (signal.metadata?.judgmentContext as any)?.mlbConviction?.misreadSignal || {}
     const playerRating = Number(misread.playerRating)
     const opponentRating = Number(misread.opponentRating)
@@ -3608,8 +3651,8 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     const label = compactText(misread.label || signal.label || 'Matchup misread')
     const lower = `${label} ${signal.label || ''}`.toLowerCase()
     const type: 'pitcher' | 'hitter' = lower.includes('pitcher') || lower.includes('strikeout') || lower.includes(' k ') || lower.endsWith(' k') ? 'pitcher' : 'hitter'
-    return { signal, misread, type, gap, label, playerRating, opponentRating }
-  }).sort((a, b) => Math.abs(b.gap ?? 0) - Math.abs(a.gap ?? 0))
+    return { signal, source: null as MlbMisreadData | null, type, gap, label, playerRating, opponentRating }
+  })).sort((a, b) => Math.abs(b.gap ?? 0) - Math.abs(a.gap ?? 0))
   const pitcherMisreads = mlbMisreadRows.filter(row => row.type === 'pitcher')
   const hitterMisreads = mlbMisreadRows.filter(row => row.type === 'hitter')
   const strongestMlbMisread = mlbMisreadRows[0]
@@ -3622,7 +3665,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
   }
   const visibleTopSignals = topSignals.reduce<SignalTerminalSignal[]>((acc, signal, idx) => {
     const isBaseCard = idx < 7
-    const isMisreadCard = mlbMisreadRows.some(row => row.signal.id === signal.id)
+    const isMisreadCard = mlbMisreadRows.some(row => row.signal?.id === signal.id)
     if ((isBaseCard || isMisreadCard) && !acc.some(existing => existing.id === signal.id)) acc.push(signal)
     return acc
   }, [])
@@ -3633,9 +3676,9 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
       <div style={{ display: 'grid', gap: 7 }}>
         {rows.map(row => (
           <button
-            key={`${row.type}-${row.signal.id}`}
+            key={`${row.type}-${row.source?.id || row.signal?.id || row.source?.player}`}
             type="button"
-            onClick={() => openMlbMisreadSignal(row.signal)}
+            onClick={() => row.signal ? openMlbMisreadSignal(row.signal) : (row.source?.url && isTrustedMarketUrl(row.source.url) ? window.open(row.source.url, '_blank', 'noopener,noreferrer') : undefined)}
             style={{
               width: '100%',
               textAlign: 'left',
@@ -3650,10 +3693,10 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-              <span style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 13, fontWeight: 950, letterSpacing: '-0.02em' }}>{row.signal.player}</span>
-              <span style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Open ›</span>
+              <span style={{ color: C.textPrimary, fontSize: isMobile ? 12 : 13, fontWeight: 950, letterSpacing: '-0.02em' }}>{row.signal?.player || row.source?.player}</span>
+              <span style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{row.signal ? 'Open card' : row.source?.url ? 'Open market' : 'Listed'} ›</span>
             </div>
-            <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 850, lineHeight: 1.35 }}>{row.signal.label} · {row.signal.matchup}</div>
+            <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 850, lineHeight: 1.35 }}>{row.signal?.label || row.source?.label} · {row.signal?.matchup || row.source?.matchup}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
               <span style={{ color: C.gold, fontSize: 9, fontWeight: 950 }}>{row.label}</span>
               <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{Number.isFinite(row.playerRating) ? Math.round(row.playerRating) : '—'} rating v {Number.isFinite(row.opponentRating) ? Math.round(row.opponentRating) : '—'} resistance{row.gap == null ? '' : ` · gap ${row.gap > 0 ? '+' : ''}${row.gap}`}</span>
