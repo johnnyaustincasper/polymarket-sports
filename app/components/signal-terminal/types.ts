@@ -3,6 +3,7 @@ import type { LiquidityGrade } from '../../lib/signals/liquidity'
 import type { SignalDelta } from '../../lib/signals/delta-feed'
 
 export type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL' | string
+export type SignalDetailTab = 'read' | 'numbers' | 'risk' | 'stats'
 export type SignalSide = 'over' | 'under' | 'yes' | 'no' | 'home' | 'away' | string
 export type Severity = 'info' | 'watch' | 'danger'
 export type NumericValue = number | null | undefined
@@ -131,6 +132,7 @@ export interface SignalTerminalCardProps {
   signal: SignalTerminalSignal
   selected?: boolean
   compact?: boolean
+  detailTab?: SignalDetailTab
   watched?: boolean
   onOpen?: (signal: SignalTerminalSignal) => void
   onToggleWatch?: (signal: SignalTerminalSignal) => void

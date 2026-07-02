@@ -9,7 +9,7 @@ import UpdatedAgeLabel from './components/UpdatedAgeLabel'
 import PropDetailDrawer from './components/signal-terminal/PropDetailDrawer'
 import SignalTerminalCard from './components/signal-terminal/SignalTerminalCard'
 import SlateMainFeatureAnimationFrame from './components/SlateMainFeatureAnimationFrame'
-import type { LineupInjuryFlagItem, SignalTerminalSignal, SportsbookConsensus } from './components/signal-terminal/types'
+import type { LineupInjuryFlagItem, SignalDetailTab, SignalTerminalSignal, SportsbookConsensus } from './components/signal-terminal/types'
 import { computeKelly, getMarketReadiness, lineGap as getLineGap, pct, totalGap as getTotalGap, type SupportedSport } from './lib/sports-utils'
 import { cacheKey, fetchJsonCached } from './lib/client-cache'
 import { resolveStartupSport } from './lib/startup-sport'
@@ -3476,6 +3476,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
   const [error, setError] = useState<string | null>(null)
   const [selectedSignal, setSelectedSignal] = useState<SignalTerminalSignal | null>(null)
   const [expandedSignalId, setExpandedSignalId] = useState<string | null>(null)
+  const [signalSheetTab, setSignalSheetTab] = useState<SignalDetailTab>('read')
   const [mlbMisreadsOpen, setMlbMisreadsOpen] = useState(false)
   const [mlbMisreadTab, setMlbMisreadTab] = useState<'pitcher' | 'hitter'>('pitcher')
   const [watchlist, setWatchlist] = useState<WatchItem[]>([])
@@ -3495,6 +3496,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     setScanning(false)
     setSelectedSignal(null)
     setExpandedSignalId(null)
+    setSignalSheetTab('read')
     setMlbMisreadsOpen(false)
     setMlbMisreadTab('pitcher')
     setLatestSignalDeltas([])
@@ -3592,6 +3594,20 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     runSignals(false)
   }, [autoRun, loading, supported, activeGames.length, slateKey])
 
+  useEffect(() => {
+    if (!isMobile || !expandedSignalId) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setExpandedSignalId(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isMobile, expandedSignalId])
+
   const settleSignals = async () => {
     if (!supported) return
     setSettling(true)
@@ -3675,20 +3691,23 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     return String(value)
   }
   const openMlbMisreadSignal = (signal: SignalTerminalSignal) => {
+    setSignalSheetTab('read')
     setExpandedSignalId(signal.id)
+    if (isMobile) return
     setTimeout(() => {
       const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-signal-id]'))
       cards.find(card => card.dataset.signalId === signal.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 90)
   }
   const selectedMlbMisreadSignal = mlbMisreadRows.find(row => row.signal?.id === expandedSignalId)?.signal || null
+  const sheetSignal = isMobile && expandedSignalId ? allSignalCards.find(signal => signal.id === expandedSignalId) || selectedMlbMisreadSignal : null
   const visibleTopSignals = topSignals.reduce<SignalTerminalSignal[]>((acc, signal, idx) => {
     const isBaseCard = idx < 7
     const isMisreadCard = mlbMisreadRows.some(row => row.signal?.id === signal.id)
     if ((isBaseCard || isMisreadCard) && !acc.some(existing => existing.id === signal.id)) acc.push(signal)
     return acc
   }, [])
-  if (selectedMlbMisreadSignal && !visibleTopSignals.some(signal => signal.id === selectedMlbMisreadSignal.id)) visibleTopSignals.push(selectedMlbMisreadSignal)
+  if (!isMobile && selectedMlbMisreadSignal && !visibleTopSignals.some(signal => signal.id === selectedMlbMisreadSignal.id)) visibleTopSignals.push(selectedMlbMisreadSignal)
 
   const renderMlbMisreadRows = (rows: typeof mlbMisreadRows, emptyText: string) => {
     if (!rows.length) return <div role="tabpanel" aria-label={`${mlbMisreadTab === 'pitcher' ? 'Pitcher' : 'Hitter'} misreads`} style={{ color: C.textSecondary, fontSize: 10.5, lineHeight: 1.35 }}>{emptyText}</div>
@@ -3870,13 +3889,15 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9 }}>
                 {visibleTopSignals.map((signal, signalIdx) => {
                   const cardMode = resolveSignalCardMode({ signalId: signal.id, expandedSignalId })
+                  const compactCard = isMobile ? true : cardMode.compact
+                  const selectedCard = isMobile ? signal.id === expandedSignalId : cardMode.expanded
                   return (
                     <div key={signal.id} data-signal-id={signal.id} style={{ opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(signalIdx * 90, 540)}ms` }}>
                       <SignalTerminalCard
                         signal={signal}
-                        compact={cardMode.compact}
-                        selected={cardMode.expanded}
-                        onOpen={() => setExpandedSignalId(prev => prev === signal.id ? null : signal.id)}
+                        compact={compactCard}
+                        selected={selectedCard}
+                        onOpen={() => { setSignalSheetTab('read'); setExpandedSignalId(prev => prev === signal.id ? null : signal.id) }}
                       />
                     </div>
                   )
@@ -3885,6 +3906,41 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
             ) : (
               <div style={{ color: C.textSecondary, fontSize: 11 }}>No clean signals passed the current model gate on this slate.</div>
             )}
+          </div>
+        )}
+
+        {isMobile && sheetSignal && (
+          <div role="dialog" aria-modal="true" aria-label={`${sheetSignal.player || 'Signal'} analysis`} style={{ position: 'fixed', inset: 0, zIndex: 5000 }}>
+            <div onClick={() => setExpandedSignalId(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.66)', backdropFilter: 'blur(3px)' }} />
+            <div data-signal-sheet="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '88dvh', display: 'flex', flexDirection: 'column', borderRadius: '22px 22px 0 0', padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.55), rgba(255,255,255,0.12), rgba(125,246,255,0.20))', boxShadow: '0 -18px 60px rgba(0,0,0,0.6)', animation: 'sheetUp 240ms cubic-bezier(0.16,1,0.3,1)' }}>
+              <style>{`@keyframes sheetUp { from { transform: translateY(24px); opacity: 0.4 } to { transform: translateY(0); opacity: 1 } } @media (prefers-reduced-motion: reduce) { [data-signal-sheet="true"] { animation: none !important } }`}</style>
+              <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, borderRadius: '21px 21px 0 0', background: 'linear-gradient(145deg, rgba(8,13,6,0.99), rgba(2,5,1,0.99))', overflow: 'hidden' }}>
+                <div style={{ flexShrink: 0, padding: '10px 14px 8px', borderBottom: '1px solid rgba(125,246,255,0.18)' }}>
+                  <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(125,246,255,0.35)', margin: '0 auto 8px' }} />
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ color: C.textPrimary, fontSize: 15, fontWeight: 950, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sheetSignal.player || sheetSignal.label}</div>
+                      <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 800, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[sheetSignal.label, sheetSignal.matchup].filter(Boolean).join(' · ')}</div>
+                    </div>
+                    <span style={{ color: sheetSignal.tier === 'A' ? C.green : sheetSignal.tier === 'B' ? C.textPrimary : sheetSignal.tier === 'KILL' ? '#ff4d6d' : C.gold, fontSize: 10, fontWeight: 950, borderRadius: 999, padding: '6px 8px', background: 'rgba(2,5,1,0.72)', border: '1px solid rgba(125,246,255,0.22)' }}>{sheetSignal.tier || 'WATCH'}</span>
+                    <button type="button" aria-label="Close analysis" onClick={() => setExpandedSignalId(null)} style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 12, border: '1px solid rgba(125,246,255,0.35)', background: 'rgba(2,5,1,0.7)', color: C.green, fontSize: 16, fontWeight: 950, cursor: 'pointer' }}>✕</button>
+                  </div>
+                  <div role="tablist" aria-label="Analysis section" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginTop: 9, padding: 3, borderRadius: 999, background: 'rgba(0,0,0,0.30)', border: '1px solid rgba(255,255,255,0.09)' }}>
+                    {([
+                      ['read', 'READ'],
+                      ['numbers', 'NUMBERS'],
+                      ['risk', 'RISK'],
+                      ['stats', 'LAST 12'],
+                    ] as Array<[SignalDetailTab, string]>).map(([key, label]) => (
+                      <button key={key} type="button" role="tab" aria-selected={signalSheetTab === key} onClick={() => setSignalSheetTab(key)} style={{ borderRadius: 999, minHeight: 38, border: '1px solid transparent', background: signalSheetTab === key ? 'rgba(125,246,255,0.16)' : 'transparent', color: signalSheetTab === key ? C.green : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', cursor: 'pointer', boxShadow: signalSheetTab === key ? '0 0 16px rgba(125,246,255,0.14)' : undefined }}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '10px 12px calc(14px + env(safe-area-inset-bottom))', minHeight: 0 }}>
+                  <SignalTerminalCard signal={sheetSignal} compact={false} selected detailTab={signalSheetTab} />
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

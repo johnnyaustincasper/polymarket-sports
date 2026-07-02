@@ -5,7 +5,7 @@ import { signalCardTapContract } from '../../lib/signals/card-collapse'
 import { selectWhyThisPlayerBullets } from '../../lib/signals/why-player'
 import { classifySignalDecision } from '../../lib/signals/insight'
 import { CARD_EXPORT_ROOT_SELECTOR, cardExportStatusLabel, shareOrDownloadCardImage, type CardExportStatus } from '../../lib/card-image-export'
-import type { SignalLineOption, SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
+import type { SignalDetailTab, SignalLineOption, SignalTerminalCardProps, SignalTerminalSignal, SignalTier } from './types'
 
 const C = {
   green: '#7df6ff',
@@ -174,11 +174,13 @@ export default function SignalTerminalCard({
   signal,
   selected = false,
   compact = false,
+  detailTab,
   watched: _watched = false,
   onOpen,
   onToggleWatch: _onToggleWatch,
   onOpenMarket: _onOpenMarket,
 }: SignalTerminalCardProps) {
+  const showFor = (tabs: SignalDetailTab[]) => !detailTab || tabs.includes(detailTab)
   const tier = signal.tier ?? 'WATCH'
   const decision = classifySignalDecision({
     sport: signal.sport,
@@ -322,6 +324,22 @@ export default function SignalTerminalCard({
     ...(Array.isArray(judgmentContext?.injuryNotes) ? judgmentContext.injuryNotes : []),
     judgmentContext?.playableNumber || '',
   ].map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3)
+  const mlbReadContent = Boolean(mlbConviction && (mlbConviction.misreadSignal?.summary || mlbConviction.read || mlbConviction.misreadSignal?.reason))
+  const mlbNumbersContent = Boolean(mlbConviction?.matchupRating)
+  const mlbRiskContent = Boolean(mlbConviction && (mlbConviction.whyLive.length > 0 || mlbConviction.path || mlbConviction.killSwitch.length > 0 || mlbConviction.numberDiscipline))
+  const hasReadContent = overallRows.length > 0 || lineOptions.length > 1 || formCheckRows.length > 0 || mlbReadContent || whyCare.length > 0
+  const hasNumbersContent = overallRows.length > 0 || mlbNumbersContent
+  const hasRiskContent = mlbRiskContent || decisionSections.length > 0 || killRows.length > 0
+  const hasStatsContent = recentValues.length > 0
+  const activeTabHasContent = !detailTab || (detailTab === 'read' ? hasReadContent : detailTab === 'numbers' ? hasNumbersContent : detailTab === 'risk' ? hasRiskContent : hasStatsContent)
+  const showMlbBlock = Boolean(mlbConviction && (!detailTab || (detailTab === 'read' && mlbReadContent) || (detailTab === 'numbers' && mlbNumbersContent) || (detailTab === 'risk' && mlbRiskContent)))
+  const tabEmptyText = detailTab === 'numbers'
+    ? 'No extra rating panel for this signal yet. Use READ for the actual call.'
+    : detailTab === 'risk'
+      ? 'No special risk flags surfaced for this signal. Still respect price and lineup changes.'
+      : detailTab === 'stats'
+        ? 'No last-12 game log attached to this signal yet.'
+        : 'No expanded read is attached to this signal yet.'
   const tapHint = selected ? signalCardTapContract.expandedCta : signalCardTapContract.collapsedCta
   const [shareState, setShareState] = useState<CardExportStatus>('idle')
 
@@ -439,7 +457,7 @@ export default function SignalTerminalCard({
           <div style={{ color: C.muted, fontSize: compact ? 9 : 10, lineHeight: 1.35, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitleFor(signal) || 'No market label supplied'}</div>
         </div>
 
-        {!compact && overallRows.length > 0 && (
+        {!compact && showFor(['read', 'numbers']) && overallRows.length > 0 && (
           <div style={{ marginTop: 11, borderRadius: 15, padding: 10, background: 'linear-gradient(135deg, rgba(125,246,255,0.16), rgba(255,209,102,0.045))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 24px rgba(125,246,255,0.10)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
               <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Overall read</div>
@@ -458,7 +476,7 @@ export default function SignalTerminalCard({
           </div>
         )}
 
-        {!compact && lineOptions.length > 1 && (
+        {!compact && showFor(['read']) && lineOptions.length > 1 && (
           <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: `repeat(${Math.min(lineOptions.length, 3)}, minmax(0, 1fr))`, gap: 6 }}>
             {lineOptions.slice(0, 3).map((option, idx) => (
               <a
@@ -477,7 +495,7 @@ export default function SignalTerminalCard({
           </div>
         )}
 
-        {formCheckRows.length > 0 && !compact && (
+        {formCheckRows.length > 0 && !compact && showFor(['read']) && (
           <div style={{ marginTop: 11, borderRadius: 14, padding: 10, background: 'linear-gradient(135deg, rgba(125,246,255,0.14), rgba(125,246,255,0.045))', border: '1px solid rgba(125,246,255,0.30)', boxShadow: '0 0 24px rgba(125,246,255,0.10)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 7 }}>
               <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Form check · last game + trend</div>
@@ -494,7 +512,7 @@ export default function SignalTerminalCard({
           </div>
         )}
 
-        {mlbConviction && !compact && (
+        {mlbConviction && showMlbBlock && !compact && showFor(['read', 'numbers', 'risk']) && (
           <div style={{ marginTop: 11, borderRadius: 16, padding: 11, background: 'rgba(255,209,102,0.055)', border: '1px solid rgba(255,209,102,0.20)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 9 }}>
               <div style={{ color: C.amber, fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>MLB read</div>
@@ -504,7 +522,7 @@ export default function SignalTerminalCard({
               </div>
             </div>
 
-            {(mlbConviction.misreadSignal?.summary || mlbConviction.read || mlbConviction.misreadSignal?.reason) && (
+            {showFor(['read']) && (mlbConviction.misreadSignal?.summary || mlbConviction.read || mlbConviction.misreadSignal?.reason) && (
               <div style={{ color: C.text, fontSize: 11, lineHeight: 1.42, fontWeight: 850, marginBottom: 9, display: 'grid', gap: 5 }}>
                 {mlbConviction.misreadSignal?.summary && (
                   <span>{mlbConviction.misreadSignal.summary}{isFiniteNumber(mlbConviction.misreadSignal?.matchupGap) ? ` · Edge ${mlbConviction.misreadSignal.matchupGap > 0 ? '+' : ''}${formatNumber(mlbConviction.misreadSignal.matchupGap)}` : ''}</span>
@@ -514,7 +532,7 @@ export default function SignalTerminalCard({
               </div>
             )}
 
-            {mlbConviction.matchupRating && (
+            {showFor(['numbers']) && mlbConviction.matchupRating && (
               <div style={{ marginBottom: 9, borderRadius: 14, padding: 10, background: 'rgba(125,246,255,0.07)', border: '1px solid rgba(125,246,255,0.18)' }}>
                 <div style={{ color: C.green, fontSize: 9, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>{mlbConviction.matchupRating.ratingTitle || 'Video-game rating'}{mlbConviction.matchupRating.bestFit ? ` · Best fit: ${mlbConviction.matchupRating.bestFit}` : ''}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6 }}>
@@ -545,7 +563,7 @@ export default function SignalTerminalCard({
               </div>
             )}
 
-            {(mlbConviction.whyLive.length > 0 || mlbConviction.path || mlbConviction.killSwitch.length > 0 || mlbConviction.numberDiscipline) && (
+            {showFor(['risk']) && (mlbConviction.whyLive.length > 0 || mlbConviction.path || mlbConviction.killSwitch.length > 0 || mlbConviction.numberDiscipline) && (
               <div style={{ borderRadius: 13, padding: 10, background: 'rgba(2,5,1,0.42)', border: '1px solid rgba(255,255,255,0.09)' }}>
                 <div style={{ color: C.green, fontSize: 9, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Why it’s live</div>
                 <div style={{ display: 'grid', gap: 4 }}>
@@ -577,7 +595,7 @@ export default function SignalTerminalCard({
               <span>{tapHint}</span>
             </div>
           </div>
-        ) : (
+        ) : showFor(['read']) ? (
           <div style={{ marginTop: 10, display: 'grid', gap: 5 }}>
             <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Why this player</div>
             {whyCare.slice(0, 3).map((bullet) => (
@@ -587,9 +605,9 @@ export default function SignalTerminalCard({
               </div>
             ))}
           </div>
-        )}
+        ) : null}
 
-        {decisionSections.length > 0 && !compact && (
+        {decisionSections.length > 0 && !compact && showFor(['risk']) && (
           <div style={{ marginTop: 10, borderRadius: 14, padding: 10, background: 'rgba(255,255,255,0.032)', border: `1px solid ${C.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
               <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Decision cockpit</div>
@@ -634,7 +652,7 @@ export default function SignalTerminalCard({
           </div>
         )}
 
-        {!compact && recentValues.length > 0 && (
+        {!compact && showFor(['stats']) && recentValues.length > 0 && (
           <div style={{ marginTop: 10, borderRadius: 12, padding: 9, background: 'rgba(255,255,255,0.028)', border: `1px solid ${C.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 7 }}>
               <div style={{ color: C.text, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Last 12 full stats</div>
@@ -655,6 +673,12 @@ export default function SignalTerminalCard({
           </div>
         )}
 
+        {!compact && detailTab && !activeTabHasContent && (
+          <div style={{ marginTop: 10, borderRadius: 14, padding: 12, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.18)', color: C.muted, fontSize: 10, lineHeight: 1.4, fontWeight: 850 }}>
+            {tabEmptyText}
+          </div>
+        )}
+
         {false && !compact && intelRows.length > 0 && (
           <div style={{ marginTop: 10, borderRadius: 12, padding: 9, background: 'rgba(125,246,255,0.045)', border: `1px solid ${C.border}` }}>
             <div style={{ color: C.text, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Intel check</div>
@@ -664,7 +688,7 @@ export default function SignalTerminalCard({
           </div>
         )}
 
-        {!compact && killRows.length > 0 && (
+        {!compact && showFor(['risk']) && killRows.length > 0 && (
           <div style={{ marginTop: 8, borderRadius: 12, padding: 9, background: 'rgba(255,209,102,0.045)', border: '1px solid rgba(255,209,102,0.16)' }}>
             <div style={{ color: C.amber, fontSize: 9, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Watch out for</div>
             <div style={{ display: 'grid', gap: 5 }}>
