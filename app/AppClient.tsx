@@ -244,6 +244,7 @@ interface ModelSignal {
 }
 interface MlbMisreadData {
   id: string
+  signalId?: string
   gameId: string
   matchup: string
   gameTime?: string
@@ -3640,12 +3641,14 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     )
   }
 
-  const topSignals = (data?.signals || []).map(signal => signalToTerminalSignal(signal))
+  const allSignalCards = (data?.signals || []).map(signal => signalToTerminalSignal(signal))
+  const isMisreadCompanionOnly = (signal: SignalTerminalSignal) => Boolean((signal.metadata as any)?.misreadCompanionOnly)
+  const topSignals = allSignalCards.filter(signal => !isMisreadCompanionOnly(signal))
   const mlbMisreadSignals = sport === 'mlb'
-    ? topSignals.filter(signal => Boolean((signal.metadata?.judgmentContext as any)?.mlbConviction?.misreadSignal))
+    ? allSignalCards.filter(signal => Boolean((signal.metadata?.judgmentContext as any)?.mlbConviction?.misreadSignal))
     : []
   const mlbMisreadRows: MlbMisreadUiRow[] = (data?.mlbMisreads?.length ? data.mlbMisreads.map(row => {
-    const signal = topSignals.find(candidate => candidate.id === row.id || (candidate.gameId === row.gameId && candidate.player === row.player && candidate.metric === row.metric)) || null
+    const signal = allSignalCards.find(candidate => candidate.id === row.signalId) || allSignalCards.find(candidate => candidate.id === row.id) || allSignalCards.find(candidate => candidate.gameId === row.gameId && candidate.player === row.player && candidate.metric === row.metric) || null
     const playerRating = Number(row.playerRating)
     const opponentRating = Number(row.opponentRating)
     const gap = Number.isFinite(Number(row.matchupGap)) ? Math.round(Number(row.matchupGap)) : (Number.isFinite(playerRating) && Number.isFinite(opponentRating) ? Math.round(playerRating - opponentRating) : null)
@@ -3676,14 +3679,16 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     setTimeout(() => {
       const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-signal-id]'))
       cards.find(card => card.dataset.signalId === signal.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }, 40)
+    }, 90)
   }
+  const selectedMlbMisreadSignal = mlbMisreadRows.find(row => row.signal?.id === expandedSignalId)?.signal || null
   const visibleTopSignals = topSignals.reduce<SignalTerminalSignal[]>((acc, signal, idx) => {
     const isBaseCard = idx < 7
     const isMisreadCard = mlbMisreadRows.some(row => row.signal?.id === signal.id)
     if ((isBaseCard || isMisreadCard) && !acc.some(existing => existing.id === signal.id)) acc.push(signal)
     return acc
   }, [])
+  if (selectedMlbMisreadSignal && !visibleTopSignals.some(signal => signal.id === selectedMlbMisreadSignal.id)) visibleTopSignals.push(selectedMlbMisreadSignal)
 
   const renderMlbMisreadRows = (rows: typeof mlbMisreadRows, emptyText: string) => {
     if (!rows.length) return <div role="tabpanel" aria-label={`${mlbMisreadTab === 'pitcher' ? 'Pitcher' : 'Hitter'} misreads`} style={{ color: C.textSecondary, fontSize: 10.5, lineHeight: 1.35 }}>{emptyText}</div>

@@ -198,6 +198,7 @@ export function publicSignal(signal: PublicSignalLike): Partial<PublicSignalLike
         unavailable: newsIntel.unavailable,
       } } : {}),
       ...(lineOptions ? { lineOptions } : {}),
+      ...(signal.metadata?.misreadCompanionOnly ? { misreadCompanionOnly: true } : {}),
       ...(judgmentContext ? { judgmentContext: {
         lastGame: judgmentContext.lastGame,
         trend: judgmentContext.trend,

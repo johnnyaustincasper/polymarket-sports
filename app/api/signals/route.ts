@@ -14,8 +14,8 @@ import { fetchNewsIntelForSignals, type NewsIntelContext } from '@/app/lib/socia
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v13'
-const TODAY_SIGNAL_SCHEMA = 'v12'
+const SIGNAL_CACHE_SCHEMA = 'v14'
+const TODAY_SIGNAL_SCHEMA = 'v13'
 
 type Sport = 'nba' | 'nfl' | 'mlb' | 'nhl'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
@@ -97,6 +97,7 @@ type ModelSignal = {
     teamIntel?: any
     xIntel?: XIntelContext
     newsIntel?: NewsIntelContext
+    misreadCompanionOnly?: boolean
   }
 }
 
@@ -134,6 +135,7 @@ type TodaySignalIntel = {
 
 type MlbMisreadRow = {
   id: string
+  signalId?: string
   sport: 'mlb'
   gameId: string
   matchup: string
@@ -503,7 +505,7 @@ async function fetchProps(sport: Sport, game: SignalGame, authHeaders?: HeadersI
   return data
 }
 
-function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string): { contracts: number; signals: ModelSignal[]; mlbMisreads: MlbMisreadRow[] } {
+function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string): { contracts: number; signals: ModelSignal[]; mlbMisreads: MlbMisreadRow[]; misreadSignals: ModelSignal[] } {
   const matchup = `${game.awayTeam.abbr} @ ${game.homeTeam.abbr}`
   const players = [...(data?.away || []), ...(data?.home || [])]
   const mlbGameContextFor = (team?: string) => sport === 'mlb' ? {
@@ -518,6 +520,7 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
   let contracts = 0
   const signals: ModelSignal[] = []
   const mlbMisreads: MlbMisreadRow[] = []
+  const misreadSignals: ModelSignal[] = []
 
   for (const player of players) {
     for (const bet of player.recommendations || []) {
@@ -549,11 +552,13 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
       let tier = tierFor(edge, confidence, hits, games, ask, liquidity, String(bet.risk || 'medium'))
       if (tier === 'KILL' && mlbMisread && edge >= 1 && ask > 0 && ask <= maxBuy && liquidity > 0) tier = 'WATCH'
       const ticker = kalshi.legTicker || kalshi.ticker
+      const signalId = cleanId(`${sport}-${game.id}-${player.player}-${bet.metric}-${bet.line}-${ticker}`)
       if (sport === 'mlb' && mlbMisread) {
         const kind = String(mlbMisread.kind || '')
         const misreadType: 'pitcher' | 'hitter' = kind === 'pitcher_k' || /pitcher|strikeout/i.test(`${mlbMisread.label || ''} ${bet.label || ''}`) ? 'pitcher' : 'hitter'
         mlbMisreads.push({
           id: cleanId(`mlb-misread-${game.id}-${player.player}-${bet.metric}-${bet.line}-${ticker}`),
+          signalId,
           sport: 'mlb',
           gameId: game.id,
           matchup,
@@ -581,14 +586,15 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
           url: kalshi.url || '',
         })
       }
-      if (tier === 'KILL') continue
+      const includeAsMisreadCompanion = sport === 'mlb' && Boolean(mlbMisread)
+      if (tier === 'KILL' && !includeAsMisreadCompanion) continue
       const read = reasonsFor({ tier, edge, hits, games, avg, line: toNum(bet.line), ask, fairPrice, liquidity, risk: String(bet.risk || 'medium') })
       if (mlbMisread) {
         read.reasons.unshift(`${mlbMisread.label}: ${mlbMisread.summary}; gap ${mlbMisread.matchupGap >= 0 ? '+' : ''}${mlbMisread.matchupGap}.`)
         read.flags.push(mlbMisread.severity === 'strong' ? 'mlb_matchup_misread_strong' : 'mlb_matchup_misread_watch')
       }
-      signals.push({
-        id: cleanId(`${sport}-${game.id}-${player.player}-${bet.metric}-${bet.line}-${ticker}`),
+      const signal: ModelSignal = {
+        id: signalId,
         sport,
         gameId: game.id,
         matchup,
@@ -620,11 +626,13 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
           recentGames: recentGamesForMetric(player, bet.metric),
           judgmentContext,
         },
-      })
+      }
+      if (tier !== 'KILL') signals.push(signal)
+      if (includeAsMisreadCompanion) misreadSignals.push(signal)
     }
   }
 
-  return { contracts, signals, mlbMisreads: dedupeMlbMisreads(mlbMisreads) }
+  return { contracts, signals, mlbMisreads: dedupeMlbMisreads(mlbMisreads), misreadSignals }
 }
 
 
@@ -1112,6 +1120,7 @@ export async function POST(req: NextRequest) {
     const generatedAt = new Date().toISOString()
     const allSignals: ModelSignal[] = []
     const allMlbMisreads: MlbMisreadRow[] = []
+    const allMisreadSignals: ModelSignal[] = []
     let contractsScored = 0
 
     const requestCookie = req.headers.get('cookie') || ''
@@ -1131,6 +1140,7 @@ export async function POST(req: NextRequest) {
         contractsScored += item.contracts
         allSignals.push(...item.signals)
         allMlbMisreads.push(...item.mlbMisreads)
+        allMisreadSignals.push(...item.misreadSignals)
       }
     }
 
@@ -1146,13 +1156,27 @@ export async function POST(req: NextRequest) {
     const rankedSignals = daily ? await attachTodayIntel(baseRankedSignals, generatedAt, req.nextUrl.origin, sport) : baseRankedSignals
 
     const previousSignals = previousLatest?.signals?.length ? enrichResponse(previousLatest).signals : []
-    const changeSinceRefresh = previousSignals.length
-      ? computeSignalDeltas(previousSignals.map(signalDeltaSnapshot), rankedSignals.map(signalDeltaSnapshot))
+    const previousBoardSignals = previousSignals.filter(signal => !signal.metadata?.misreadCompanionOnly)
+    const changeSinceRefresh = previousBoardSignals.length
+      ? computeSignalDeltas(previousBoardSignals.map(signalDeltaSnapshot), rankedSignals.map(signalDeltaSnapshot))
       : []
-    const signals = attachSignalDeltas(rankedSignals, changeSinceRefresh)
+    const boardSignals = attachSignalDeltas(rankedSignals, changeSinceRefresh)
 
-    const edges = signals.map(s => s.edge)
     const mlbMisreads = sport === 'mlb' ? dedupeMlbMisreads(allMlbMisreads) : undefined
+    const signals = (() => {
+      if (sport !== 'mlb' || !mlbMisreads?.length) return boardSignals
+      const presentIds = new Set(boardSignals.map(signal => signal.id))
+      const companionById = new Map(allMisreadSignals.map(signal => [signal.id, signal]))
+      const companions: ModelSignal[] = []
+      for (const row of mlbMisreads) {
+        const companion = row.signalId ? companionById.get(row.signalId) : undefined
+        if (!companion || presentIds.has(companion.id) || companions.some(existing => existing.id === companion.id)) continue
+        companions.push(enrichSignal({ ...companion, metadata: { ...(companion.metadata || {}), misreadCompanionOnly: true } }, generatedAt))
+      }
+      return [...boardSignals, ...companions]
+    })()
+
+    const edges = boardSignals.map(s => s.edge)
     const response: SignalsResponse = {
       sport,
       generatedAt,
