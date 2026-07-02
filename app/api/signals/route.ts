@@ -14,8 +14,8 @@ import { fetchNewsIntelForSignals, type NewsIntelContext } from '@/app/lib/socia
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v11'
-const TODAY_SIGNAL_SCHEMA = 'v10'
+const SIGNAL_CACHE_SCHEMA = 'v12'
+const TODAY_SIGNAL_SCHEMA = 'v11'
 
 type Sport = 'nba' | 'nfl' | 'mlb' | 'nhl'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
@@ -27,6 +27,13 @@ type SignalGame = {
   status?: string
   homeTeam: { abbr: string; name?: string }
   awayTeam: { abbr: string; name?: string }
+  mlbMatchup?: {
+    homePitcher?: { name?: string; era?: number; difficulty?: number; label?: string }
+    awayPitcher?: { name?: string; era?: number; difficulty?: number; label?: string }
+  }
+  totalLine?: number
+  dkTotal?: number
+  venue?: { name?: string; location?: string }
 }
 
 type SignalExecution = {
@@ -469,6 +476,15 @@ async function fetchProps(sport: Sport, game: SignalGame, authHeaders?: HeadersI
 function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string): { contracts: number; signals: ModelSignal[] } {
   const matchup = `${game.awayTeam.abbr} @ ${game.homeTeam.abbr}`
   const players = [...(data?.away || []), ...(data?.home || [])]
+  const mlbGameContextFor = (team?: string) => sport === 'mlb' ? {
+    playerTeam: String(team || '').toUpperCase(),
+    homeTeam: game.homeTeam.abbr,
+    awayTeam: game.awayTeam.abbr,
+    homePitcher: game.mlbMatchup?.homePitcher,
+    awayPitcher: game.mlbMatchup?.awayPitcher,
+    totalLine: game.totalLine ?? game.dkTotal,
+    venueName: game.venue?.name,
+  } : undefined
   let contracts = 0
   const signals: ModelSignal[] = []
 
@@ -496,6 +512,7 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
         last12: player.last12,
         lastGameMinutes: player.lastGameMinutes,
         risk: bet.risk,
+        mlbGameContext: mlbGameContextFor(player.team),
       }) || undefined
       const mlbMisread = sport === 'mlb' ? judgmentContext?.mlbConviction?.misreadSignal : undefined
       let tier = tierFor(edge, confidence, hits, games, ask, liquidity, String(bet.risk || 'medium'))

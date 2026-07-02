@@ -200,7 +200,7 @@ describe('signal judgment context', () => {
     expect(why).toContain('umpire zone')
     expect(why).not.toMatch(/odds|market|Pass/i)
     expect(context?.mlbConviction?.read).toContain('pitcher-K read')
-    expect(context?.mlbConviction?.matchupRating).toMatchObject({ playerLabel: 'Pitcher K rating', opponentLabel: 'Lineup contact rating', bestFit: 'Strikeouts' })
+    expect(context?.mlbConviction?.matchupRating).toMatchObject({ playerLabel: 'Pitcher K rating', opponentLabel: 'Lineup contact risk', bestFit: 'Strikeouts' })
     expect(context?.mlbConviction?.matchupRating?.playerRating).toBeGreaterThanOrEqual(35)
     expect(context?.mlbConviction?.matchupRating?.opponentRating).toBeGreaterThanOrEqual(35)
     expect(context?.mlbConviction?.matchupRating?.rows.join(' ')).toContain('K form')
@@ -234,7 +234,7 @@ describe('signal judgment context', () => {
 
     expect(context?.mlbConviction?.matchupRating).toMatchObject({
       playerLabel: 'Pitcher K rating',
-      opponentLabel: 'Lineup contact rating',
+      opponentLabel: 'Lineup contact risk',
       bestFit: 'Strikeouts',
     })
     expect(context?.mlbConviction?.matchupRating?.playerRating).toBeGreaterThanOrEqual(90)
