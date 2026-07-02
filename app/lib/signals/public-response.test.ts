@@ -42,4 +42,43 @@ describe('public response language', () => {
     expect(signal.metadata.newsIntel.articles[0].title).not.toMatch(/model indicates/i)
     expect(signal.metadata.newsIntel.sources).toEqual(['https://example.com/lineup'])
   })
+
+  it('preserves MLB misread signal metadata for public cards', () => {
+    const signal = publicSignal({
+      id: 'sig-mlb',
+      sport: 'mlb',
+      player: 'Ace Starter',
+      label: '7+ strikeouts',
+      hits: 9,
+      games: 10,
+      avg: 9.5,
+      metadata: {
+        judgmentContext: {
+          mlbConviction: {
+            verdict: 'Strong look',
+            misreadSignal: {
+              kind: 'pitcher_k',
+              label: 'Pitcher K misread',
+              severity: 'strong',
+              playerRating: 95,
+              opponentRating: 70,
+              matchupGap: 25,
+              summary: '95 pitcher K rating vs 70 lineup contact rating',
+              reason: 'The scan is flagging a swing-miss gap.',
+            },
+          },
+        },
+      },
+    }) as any
+
+    expect(signal.metadata.judgmentContext.mlbConviction.misreadSignal).toMatchObject({
+      kind: 'pitcher_k',
+      label: 'Pitcher K misread',
+      severity: 'strong',
+      playerRating: 95,
+      opponentRating: 70,
+      matchupGap: 25,
+    })
+    expect(signal.metadata.judgmentContext.mlbConviction.misreadSignal.summary).toContain('95 pitcher K rating vs 70 lineup contact rating')
+  })
 })
