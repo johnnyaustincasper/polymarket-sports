@@ -61,6 +61,17 @@ export type MlbMatchupRating = {
   rows: string[]
 }
 
+export type MlbMisreadSignal = {
+  kind: 'pitcher_k' | 'hitter_contact' | 'hitter_power' | 'run_environment'
+  label: string
+  severity: 'strong' | 'watch'
+  playerRating: number
+  opponentRating: number
+  matchupGap: number
+  summary: string
+  reason: string
+}
+
 export type MlbConvictionLayer = {
   verdict: 'Strong look' | 'Small lean' | 'Price watch' | 'Needs better setup'
   read: string
@@ -69,6 +80,7 @@ export type MlbConvictionLayer = {
   killSwitch: string[]
   numberDiscipline: string
   matchupRating?: MlbMatchupRating
+  misreadSignal?: MlbMisreadSignal
 }
 
 export type SignalOverallRatings = {
@@ -484,7 +496,23 @@ function buildMlbMatchupRating(input: {
     ['Total bases', totalBases],
     ['Home runs', homeRuns],
     ['Runs/RBIs', runsRbis],
-  ].sort((a, b) => Number(b[1]) - Number(a[1])) as Array<[string, number]>
+  ].sort((a, b) => {
+    const scoreDiff = Number(b[1]) - Number(a[1])
+    if (scoreDiff !== 0) return scoreDiff
+    if (kind === 'power') {
+      if (a[0] === 'Home runs') return -1
+      if (b[0] === 'Home runs') return 1
+    }
+    if (kind === 'contact') {
+      if (a[0] === 'Hits') return -1
+      if (b[0] === 'Hits') return 1
+    }
+    if (kind === 'offense') {
+      if (a[0] === 'Runs/RBIs') return -1
+      if (b[0] === 'Runs/RBIs') return 1
+    }
+    return 0
+  }) as Array<[string, number]>
 
   return {
     playerLabel: kind === 'power' ? 'Hitter power rating' : kind === 'offense' ? 'Run-production rating' : 'Hitter contact rating',
@@ -500,6 +528,63 @@ function buildMlbMatchupRating(input: {
       `Best prop fit: ${fits[0][0]} (${fits[0][1]}/100); HR only deserves attention when the power score beats the contact score, not just because the hitter is good.`,
       `Upgrade with confirmed lineup spot, handedness/pitch mix, and park/weather; downgrade if those do not support the score.`,
     ],
+  }
+}
+
+function buildMlbMisreadSignal(metric: string, rating?: MlbMatchupRating): MlbMisreadSignal | undefined {
+  if (!rating) return undefined
+  const gap = rating.matchupGap
+  const strongGap = gap >= 18
+  const watchGap = gap >= 12
+  if (!watchGap || rating.playerRating < 78 || rating.opponentRating > 76) return undefined
+
+  const kind = mlbMetricKind(metric)
+  const severity: MlbMisreadSignal['severity'] = strongGap && rating.playerRating >= 86 ? 'strong' : 'watch'
+  if (kind === 'strikeouts') {
+    return {
+      kind: 'pitcher_k',
+      label: 'Pitcher K misread',
+      severity,
+      playerRating: rating.playerRating,
+      opponentRating: rating.opponentRating,
+      matchupGap: gap,
+      summary: `${rating.playerRating} pitcher K rating vs ${rating.opponentRating} lineup contact rating`,
+      reason: `The scan is flagging a swing-miss gap: ${rating.playerLabel.toLowerCase()} is clearly above the opponent contact profile.`,
+    }
+  }
+  if (kind === 'power') {
+    return {
+      kind: 'hitter_power',
+      label: 'Power misread',
+      severity,
+      playerRating: rating.playerRating,
+      opponentRating: rating.opponentRating,
+      matchupGap: gap,
+      summary: `${rating.playerRating} hitter power rating vs ${rating.opponentRating} pitcher resistance`,
+      reason: 'The scan is flagging a power-path gap; HR only upgrades when this power rating leads the contact paths.',
+    }
+  }
+  if (kind === 'offense') {
+    return {
+      kind: 'run_environment',
+      label: 'Run-path misread',
+      severity,
+      playerRating: rating.playerRating,
+      opponentRating: rating.opponentRating,
+      matchupGap: gap,
+      summary: `${rating.playerRating} run-production rating vs ${rating.opponentRating} pitcher resistance`,
+      reason: 'The scan is flagging a run-environment gap: lineup role plus pitcher resistance looks better than the surface read.',
+    }
+  }
+  return {
+    kind: 'hitter_contact',
+    label: 'Contact misread',
+    severity,
+    playerRating: rating.playerRating,
+    opponentRating: rating.opponentRating,
+    matchupGap: gap,
+    summary: `${rating.playerRating} hitter contact rating vs ${rating.opponentRating} pitcher resistance`,
+    reason: 'The scan is flagging a contact-path gap: the hitter profile is beating the opposing pitcher resistance baseline.',
   }
 }
 
@@ -527,6 +612,7 @@ function buildMlbConviction(input: {
     : `${fmtAvg(input.last5Avg)} ${metricLabel} over the last ${input.games5}`
   const kind = mlbMetricKind(input.metric)
   const matchupRating = buildMlbMatchupRating(input)
+  const misreadSignal = buildMlbMisreadSignal(input.metric, matchupRating)
 
   if (kind === 'strikeouts') {
     return {
@@ -544,6 +630,7 @@ function buildMlbConviction(input: {
       ],
       numberDiscipline: input.line == null ? 'Needs a clear K number before it belongs on the board.' : `${currentProp} is the clean lane; one K higher is picky, two higher needs a perfect matchup.`,
       matchupRating,
+      misreadSignal,
     }
   }
 
@@ -563,6 +650,7 @@ function buildMlbConviction(input: {
       ],
       numberDiscipline: 'HR looks are naturally thin; do not turn a hitter-form read into a power-only chase unless the matchup supports it.',
       matchupRating,
+      misreadSignal,
     }
   }
 
@@ -582,6 +670,7 @@ function buildMlbConviction(input: {
       ],
       numberDiscipline: `${currentProp} is only playable when the lineup card confirms the role; do not chase a bigger offensive ladder without a strong team run setup.`,
       matchupRating,
+      misreadSignal,
     }
   }
 
@@ -600,6 +689,7 @@ function buildMlbConviction(input: {
     ],
     numberDiscipline: `${currentProp} is the clean lane; if the app asks for a bigger night, require a confirmed lineup and better matchup support.`,
     matchupRating,
+    misreadSignal,
   }
 }
 

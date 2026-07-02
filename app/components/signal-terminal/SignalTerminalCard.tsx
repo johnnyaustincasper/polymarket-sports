@@ -218,7 +218,7 @@ export default function SignalTerminalCard({
     gameEnvironment?: string[]
     sportSpecificNotes?: string[]
     decisionSections?: Array<{ title?: string; rows?: string[] }>
-    mlbConviction?: { verdict?: string; read?: string; whyLive?: string[]; path?: string; killSwitch?: string[]; numberDiscipline?: string; matchupRating?: { playerLabel?: string; opponentLabel?: string; playerRating?: number; opponentRating?: number; matchupGap?: number; bestFit?: string; propFit?: Record<string, number | undefined>; read?: string; rows?: string[] } }
+    mlbConviction?: { verdict?: string; read?: string; whyLive?: string[]; path?: string; killSwitch?: string[]; numberDiscipline?: string; matchupRating?: { playerLabel?: string; opponentLabel?: string; playerRating?: number; opponentRating?: number; matchupGap?: number; bestFit?: string; propFit?: Record<string, number | undefined>; read?: string; rows?: string[] }; misreadSignal?: { label?: string; severity?: string; summary?: string; reason?: string; matchupGap?: number; playerRating?: number; opponentRating?: number } }
     volume?: { shotAttemptsLast5Avg?: number; threesAttemptedLast5Avg?: number; freeThrowsAttemptedLast5Avg?: number }
     minutes?: { lastGame?: number; last5Avg?: number; stable?: boolean }
     matchupNotes?: string[]
@@ -301,6 +301,15 @@ export default function SignalTerminalCard({
       path: stripJargon(String(judgmentContext.mlbConviction.path || '')).trim(),
       killSwitch: (Array.isArray(judgmentContext.mlbConviction.killSwitch) ? judgmentContext.mlbConviction.killSwitch : []).map(row => simpleRisk(String(row || ''))).filter(Boolean).slice(0, 2),
       numberDiscipline: stripJargon(String(judgmentContext.mlbConviction.numberDiscipline || '')).trim(),
+      misreadSignal: judgmentContext.mlbConviction.misreadSignal ? {
+        label: stripJargon(String(judgmentContext.mlbConviction.misreadSignal.label || '')).trim(),
+        severity: String(judgmentContext.mlbConviction.misreadSignal.severity || '').trim(),
+        summary: stripJargon(String(judgmentContext.mlbConviction.misreadSignal.summary || '')).trim(),
+        reason: stripJargon(String(judgmentContext.mlbConviction.misreadSignal.reason || '')).trim(),
+        matchupGap: judgmentContext.mlbConviction.misreadSignal.matchupGap,
+        playerRating: judgmentContext.mlbConviction.misreadSignal.playerRating,
+        opponentRating: judgmentContext.mlbConviction.misreadSignal.opponentRating,
+      } : undefined,
       matchupRating: judgmentContext.mlbConviction.matchupRating ? {
         ...judgmentContext.mlbConviction.matchupRating,
         read: stripJargon(String(judgmentContext.mlbConviction.matchupRating.read || '')).trim(),
@@ -491,6 +500,16 @@ export default function SignalTerminalCard({
               <div style={{ color: C.amber, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>MLB conviction read</div>
               <div style={{ color: C.text, fontSize: 8, fontWeight: 950, borderRadius: 999, padding: '3px 7px', background: 'rgba(255,209,102,0.11)', border: '1px solid rgba(255,209,102,0.26)' }}>{mlbConviction.verdict}</div>
             </div>
+            {mlbConviction.misreadSignal && (
+              <div style={{ marginBottom: 9, borderRadius: 14, padding: 9, background: mlbConviction.misreadSignal.severity === 'strong' ? 'linear-gradient(135deg, rgba(125,246,255,0.20), rgba(255,209,102,0.08))' : 'rgba(125,246,255,0.07)', border: `1px solid ${mlbConviction.misreadSignal.severity === 'strong' ? 'rgba(125,246,255,0.42)' : 'rgba(125,246,255,0.22)'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 5 }}>
+                  <div style={{ color: C.green, fontSize: 7.8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>MLB misread scan</div>
+                  <div style={{ color: C.text, fontSize: 8, fontWeight: 950, borderRadius: 999, padding: '3px 7px', background: 'rgba(125,246,255,0.12)', border: '1px solid rgba(125,246,255,0.25)' }}>{mlbConviction.misreadSignal.label || 'Misread'}</div>
+                </div>
+                <div style={{ color: C.text, fontSize: 11, lineHeight: 1.32, fontWeight: 950 }}>{mlbConviction.misreadSignal.summary}{isFiniteNumber(mlbConviction.misreadSignal.matchupGap) ? ` · ${mlbConviction.misreadSignal.matchupGap > 0 ? '+' : ''}${formatNumber(mlbConviction.misreadSignal.matchupGap)} gap` : ''}</div>
+                {mlbConviction.misreadSignal.reason && <div style={{ color: C.muted, fontSize: 8.7, lineHeight: 1.35, marginTop: 5 }}>{mlbConviction.misreadSignal.reason}</div>}
+              </div>
+            )}
             {mlbConviction.matchupRating && (
               <div style={{ marginBottom: 9, borderRadius: 14, padding: 9, background: 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))', border: '1px solid rgba(125,246,255,0.22)' }}>
                 <div style={{ color: C.green, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 7 }}>Video-game matchup rating</div>
@@ -562,7 +581,7 @@ export default function SignalTerminalCard({
 
         {compact ? (
           <div style={{ marginTop: 9, display: 'grid', gap: 8 }}>
-            <div style={{ color: C.muted, fontSize: 9.5, fontWeight: 850, lineHeight: 1.35, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{overallRatings?.matchup?.score ? `Overall ${formatNumber(overallRatings.matchup.score)} · ${overallRatings.matchup.label || 'rated'}` : formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}</div>
+            <div style={{ color: C.muted, fontSize: 9.5, fontWeight: 850, lineHeight: 1.35, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mlbConviction?.misreadSignal ? `${mlbConviction.misreadSignal.label}: ${mlbConviction.misreadSignal.summary}` : overallRatings?.matchup?.score ? `Overall ${formatNumber(overallRatings.matchup.score)} · ${overallRatings.matchup.label || 'rated'}` : formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}</div>
             <div style={{ justifySelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 176, borderRadius: 999, padding: '8px 14px', background: 'linear-gradient(135deg, rgba(125,246,255,0.22), rgba(125,246,255,0.09))', border: '1px solid rgba(125,246,255,0.45)', boxShadow: '0 0 20px rgba(125,246,255,0.18)', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.11em', textTransform: 'uppercase' }}>
               <span aria-hidden="true">↯</span>
               <span>{tapHint}</span>

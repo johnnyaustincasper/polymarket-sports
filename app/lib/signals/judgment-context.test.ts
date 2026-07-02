@@ -240,6 +240,44 @@ describe('signal judgment context', () => {
     expect(context?.mlbConviction?.matchupRating?.playerRating).toBeGreaterThanOrEqual(90)
     expect(context?.mlbConviction?.matchupRating?.matchupGap).toBeGreaterThanOrEqual(18)
     expect(context?.mlbConviction?.matchupRating?.read).toContain('/100 strikeout profile')
+    expect(context?.mlbConviction?.misreadSignal).toMatchObject({
+      kind: 'pitcher_k',
+      label: 'Pitcher K misread',
+      severity: 'strong',
+      playerRating: expect.any(Number),
+      opponentRating: expect.any(Number),
+    })
+    expect(context?.mlbConviction?.misreadSignal?.summary).toContain('pitcher K rating vs')
+  })
+
+  it('flags hitter power misreads separately from contact looks', () => {
+    const last12 = [
+      { eventId: 'hr1', stats: { homeRuns: 3 } },
+      { eventId: 'hr2', stats: { homeRuns: 2 } },
+      { eventId: 'hr3', stats: { homeRuns: 2 } },
+      { eventId: 'hr4', stats: { homeRuns: 1 } },
+      { eventId: 'hr5', stats: { homeRuns: 2 } },
+      { eventId: 'hr6', stats: { homeRuns: 2 } },
+      { eventId: 'hr7', stats: { homeRuns: 1 } },
+      { eventId: 'hr8', stats: { homeRuns: 2 } },
+      { eventId: 'hr9', stats: { homeRuns: 2 } },
+      { eventId: 'hr10', stats: { homeRuns: 3 } },
+    ]
+
+    const context = buildJudgmentContext({
+      player: 'Power Bat',
+      metric: 'home runs',
+      label: '1+ home runs',
+      line: 1,
+      last12,
+    })
+
+    expect(context?.mlbConviction?.matchupRating?.bestFit).toBe('Home runs')
+    expect(context?.mlbConviction?.misreadSignal).toMatchObject({
+      kind: 'hitter_power',
+      label: 'Power misread',
+    })
+    expect(context?.mlbConviction?.misreadSignal?.reason).toContain('power-path gap')
   })
 
 })

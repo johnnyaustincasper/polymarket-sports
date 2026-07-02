@@ -14,8 +14,8 @@ import { fetchNewsIntelForSignals, type NewsIntelContext } from '@/app/lib/socia
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v9'
-const TODAY_SIGNAL_SCHEMA = 'v8'
+const SIGNAL_CACHE_SCHEMA = 'v10'
+const TODAY_SIGNAL_SCHEMA = 'v9'
 
 type Sport = 'nba' | 'nfl' | 'mlb' | 'nhl'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
@@ -488,9 +488,24 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
       const avg = toNum(bet.avg ?? bet.last12Avg)
       const edge = fairPrice - ask
       const confidence = Math.max(0, Math.min(99, Math.round(toNum(bet.confidence) + Math.max(-10, Math.min(12, edge)) - riskPenalty(String(bet.risk || 'medium')))))
-      const tier = tierFor(edge, confidence, hits, games, ask, liquidity, String(bet.risk || 'medium'))
+      const judgmentContext = buildJudgmentContext({
+        player: player.player,
+        metric: bet.metric,
+        label: bet.label,
+        line: bet.line,
+        last12: player.last12,
+        lastGameMinutes: player.lastGameMinutes,
+        risk: bet.risk,
+      }) || undefined
+      const mlbMisread = sport === 'mlb' ? judgmentContext?.mlbConviction?.misreadSignal : undefined
+      let tier = tierFor(edge, confidence, hits, games, ask, liquidity, String(bet.risk || 'medium'))
+      if (tier === 'KILL' && mlbMisread && edge >= 1 && ask > 0 && ask <= maxBuy && liquidity > 0) tier = 'WATCH'
       if (tier === 'KILL') continue
       const read = reasonsFor({ tier, edge, hits, games, avg, line: toNum(bet.line), ask, fairPrice, liquidity, risk: String(bet.risk || 'medium') })
+      if (mlbMisread) {
+        read.reasons.unshift(`${mlbMisread.label}: ${mlbMisread.summary}; gap ${mlbMisread.matchupGap >= 0 ? '+' : ''}${mlbMisread.matchupGap}.`)
+        read.flags.push(mlbMisread.severity === 'strong' ? 'mlb_matchup_misread_strong' : 'mlb_matchup_misread_watch')
+      }
       const ticker = kalshi.legTicker || kalshi.ticker
       signals.push({
         id: cleanId(`${sport}-${game.id}-${player.player}-${bet.metric}-${bet.line}-${ticker}`),
@@ -523,15 +538,7 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
         createdAt,
         metadata: {
           recentGames: recentGamesForMetric(player, bet.metric),
-          judgmentContext: buildJudgmentContext({
-            player: player.player,
-            metric: bet.metric,
-            label: bet.label,
-            line: bet.line,
-            last12: player.last12,
-            lastGameMinutes: player.lastGameMinutes,
-            risk: bet.risk,
-          }) || undefined,
+          judgmentContext,
         },
       })
     }
