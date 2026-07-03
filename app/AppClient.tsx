@@ -665,6 +665,13 @@ const GLOBAL_STYLES = `
     66% { transform: translateX(18px); opacity: 0.18; }
     70% { opacity: 0; }
   }
+  @keyframes gateHeroPulse {
+    0%, 100% { box-shadow: 0 16px 42px rgba(0,0,0,0.34), 0 0 26px rgba(125,246,255,0.12); }
+    50% { box-shadow: 0 18px 48px rgba(0,0,0,0.38), 0 0 38px rgba(125,246,255,0.22); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gate-hero-pulse { animation: none !important; }
+  }
   .no-scrollbar {
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -6360,6 +6367,101 @@ function ControlButton({ active, accent, children, onClick, minWidth = 0 }: {
   )
 }
 
+type LandingMode = 'gate' | 'board'
+type GateSportValue = SupportedSport | 'ufc'
+type SportGateTier = 'hero' | 'cohero' | 'std'
+type SportGateCardConfig = { value: GateSportValue; label: string; tier: SportGateTier; tag: string; line: string }
+
+const SPORT_GATE_COPY: Record<string, Omit<SportGateCardConfig, 'value' | 'label'>> = {
+  ufc: { tier: 'hero', tag: 'FIGHT BOARD', line: 'Kalshi fight markets, model reads, and settled signal history.' },
+  mlb: { tier: 'cohero', tag: 'DAILY SLATE', line: 'Full slate, live prices, and player prop signals every day.' },
+  nfl: { tier: 'std', tag: 'GAME LINES', line: 'Spreads, totals, winners.' },
+  nhl: { tier: 'std', tag: 'GAME LINES', line: 'Puck lines and totals.' },
+  soccer: { tier: 'std', tag: 'MATCH BOARDS', line: 'Three-way market boards.' },
+  nba: { tier: 'std', tag: 'PROPS + LINES', line: 'Lineups, props, edges.' },
+}
+
+function isValidGateSport(value: string | null): value is GateSportValue {
+  return !!value && mobileDockSportOptions.some(option => option.value === value)
+}
+
+function getSportGateCards(): SportGateCardConfig[] {
+  return mobileDockSportOptions.map(option => ({ ...option, ...SPORT_GATE_COPY[option.value] }))
+}
+
+function SportGate({ isMobile, currentSport, showCurrent, onPick }: { isMobile: boolean; currentSport: GateSportValue; showCurrent: boolean; onPick: (sport: GateSportValue) => void }) {
+  const cards = getSportGateCards()
+  const desktopStdCards = cards.filter(card => card.tier === 'std')
+  const renderCard = (card: SportGateCardConfig, index: number) => (
+    <SportGateCard key={card.value} card={card} isMobile={isMobile} current={showCurrent && currentSport === card.value} index={index} onPick={() => onPick(card.value)} />
+  )
+
+  return (
+    <section aria-label="Choose your sport board" style={{ display: 'grid', gap: isMobile ? 14 : 18, maxWidth: isMobile ? 560 : 760, margin: isMobile ? '0 auto' : '4px auto 0', padding: isMobile ? '0 0 18px' : '4px 0 28px', ...getLoadInAnimationStyle(0, { durationMs: 740 }) }}>
+      <div style={{ textAlign: 'center', padding: isMobile ? '0 8px' : 0 }}>
+        <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.22em', textTransform: 'uppercase' }}>Pick your board</div>
+        <div style={{ color: C.textSecondary, fontSize: isMobile ? 12 : 13, marginTop: 4 }}>Live markets. Model reads. One tap in.</div>
+      </div>
+      <div style={{ display: 'grid', gap: isMobile ? 10 : 12 }}>
+        {isMobile ? cards.map(renderCard) : (
+          <>
+            {cards.filter(card => card.tier !== 'std').map(renderCard)}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
+              {desktopStdCards.map((card, index) => renderCard(card, index + 2))}
+            </div>
+          </>
+        )}
+      </div>
+      <div style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', letterSpacing: '0.06em' }}>Members only. Every board is live.</div>
+    </section>
+  )
+}
+
+function SportGateCard({ card, isMobile, current, index, onPick }: { card: SportGateCardConfig; isMobile: boolean; current: boolean; index: number; onPick: () => void }) {
+  const accent = sportAccent(card.value)
+  const isHero = card.tier === 'hero'
+  const isCohero = card.tier === 'cohero'
+  const minHeight = isMobile ? (isHero ? 148 : isCohero ? 112 : 92) : (isHero ? 180 : isCohero ? 132 : 104)
+  const frameAlpha = isHero ? ['0.62', '0.12', '0.20', '0.14'] : isCohero ? ['0.38', '0.10', '0.14', '0.08'] : null
+  const button = (
+    <button type="button" onClick={onPick} aria-label={`Enter ${card.label} board`} style={{
+      width: '100%', minHeight, border: 0, borderRadius: isHero || isCohero ? 20 : 16, padding: isMobile ? (isHero ? 18 : 14) : (isHero ? 22 : 16),
+      position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', color: C.textPrimary,
+      background: 'linear-gradient(150deg, rgba(10,16,20,0.97), rgba(3,7,10,0.98))',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+      display: 'grid', alignContent: 'space-between', gap: 14,
+      transition: 'transform 120ms ease, border-color 120ms ease, filter 120ms ease',
+      ...getLoadInAnimationStyle(index, { durationMs: 760, delayStepMs: 80, maxDelayMs: 480 }),
+    }} onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.06)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'brightness(1)' }} onPointerDown={e => { e.currentTarget.style.transform = 'scale(0.985)' }} onPointerUp={e => { e.currentTarget.style.transform = 'scale(1)' }} onPointerCancel={e => { e.currentTarget.style.transform = 'scale(1)' }}>
+      <span aria-hidden="true" style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 88% 12%, ${accent}24, transparent 30%), radial-gradient(circle at 10% 120%, rgba(255,255,255,0.08), transparent 38%)`, pointerEvents: 'none' }} />
+      {current && <span style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, borderRadius: 999, padding: '4px 8px', background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.14)', color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Current</span>}
+      <span style={{ position: 'relative', zIndex: 1, display: 'grid', gap: isHero ? 14 : 10 }}>
+        <span style={{ width: 'fit-content', borderRadius: 999, padding: '5px 9px', background: 'rgba(125,246,255,0.10)', border: '1px solid rgba(125,246,255,0.30)', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{card.tag}</span>
+        <span style={{ color: C.textPrimary, fontSize: isMobile ? (isHero ? 34 : isCohero ? 26 : 18) : (isHero ? 40 : isCohero ? 30 : 20), fontWeight: 950, letterSpacing: '0.06em', lineHeight: 0.95 }}>{card.label}</span>
+        <span style={{ color: C.textSecondary, fontSize: isHero || isCohero ? 11 : 10, lineHeight: 1.4, maxWidth: '34ch', display: '-webkit-box', WebkitLineClamp: isMobile && !isHero && !isCohero ? 2 : 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{card.line}</span>
+      </span>
+      <span style={{ position: 'relative', zIndex: 1, justifySelf: 'end', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{isHero ? 'Enter the board >' : 'Enter >'}</span>
+    </button>
+  )
+
+  if (!frameAlpha) return (
+    <div style={{ borderRadius: 17, padding: 1, background: 'rgba(125,246,255,0.16)', border: '1px solid rgba(125,246,255,0.08)' }}>{button}</div>
+  )
+
+  return (
+    <div className={isHero ? 'gate-hero-pulse' : undefined} style={{ borderRadius: 21, padding: 1, background: `linear-gradient(135deg, rgba(125,246,255,${frameAlpha[0]}), rgba(255,255,255,${frameAlpha[1]}), rgba(125,246,255,${frameAlpha[2]}))`, boxShadow: `0 16px 42px rgba(0,0,0,0.34), 0 0 26px rgba(125,246,255,${frameAlpha[3]})`, animation: isHero ? 'gateHeroPulse 3.2s ease-in-out infinite' : undefined }}>{button}</div>
+  )
+}
+
+function SportRail({ sport, onPick, isMobile }: { sport: GateSportValue; onPick: (sport: GateSportValue) => void; isMobile: boolean }) {
+  if (!isMobile) return null
+  return (
+    <div className="no-scrollbar" aria-label="Sports" style={{ display: 'flex', gap: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 0 12px', marginTop: -2 }}>
+      {mobileDockSportOptions.map(option => <ControlButton key={option.value} active={sport === option.value} accent={sportAccent(option.value)} onClick={() => onPick(option.value)} minWidth={64}>{option.label}</ControlButton>)}
+    </div>
+  )
+}
+
 type SportSubtab = 'slate' | 'teams' | 'playerSignals'
 
 function SportSubtabBar({ active, onChange, isMobile }: { active: SportSubtab; onChange: (tab: SportSubtab) => void; isMobile: boolean }) {
@@ -6689,7 +6791,7 @@ function FightersDirectoryPanel({ isMobile }: { isMobile: boolean }) {
   )
 }
 
-function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, onOpenTracker, onRefresh, loading, lastUpdatedAt, isMobile, accountEnabled }: {
+function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, onOpenTracker, onRefresh, loading, lastUpdatedAt, isMobile, accountEnabled, landingMode, onLogoPress }: {
   sport: SupportedSport | 'ufc'
   setSport: (s: SupportedSport | 'ufc') => void
   days: DayOption[]
@@ -6702,26 +6804,20 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
   lastUpdatedAt: Date | null
   isMobile: boolean
   accountEnabled: boolean
+  landingMode: LandingMode
+  onLogoPress: () => void
 }) {
   const activeAccent = sportAccent(sport)
-  const [sportsOpen, setSportsOpen] = useState(false)
-  const sports: { value: SupportedSport | 'ufc'; label: string }[] = [
-    { value: 'ufc', label: 'UFC' },
-    { value: 'mlb', label: 'MLB' },
-    { value: 'nfl', label: 'NFL' },
-    { value: 'nhl', label: 'NHL' },
-    { value: 'soccer', label: 'Soccer' },
-    { value: 'nba', label: 'NBA' },
-  ]
-  const sportLabel = sport === 'ncaaf' || sport === 'ncaab' ? 'NCAA' : sport.toUpperCase()
-  const switchSport = (s: SupportedSport | 'ufc') => { setSport(s); if (isMobile) setSportsOpen(false) }
+  const boardMode = landingMode === 'board'
+  const sports = mobileDockSportOptions
+  const sportLabel = sport.toUpperCase()
   const logoSrc = isMobile ? '/brand/ai-athlete-intelligence-mobile-logo.png?v=transparent-20260525' : '/brand/ai-athlete-intelligence-wordmark.png?v=transparent-20260525'
 
   return (
     <header style={{
       position: 'relative',
       zIndex: 100,
-      marginBottom: isMobile ? 16 : 26,
+      marginBottom: isMobile ? (boardMode ? 8 : 14) : (boardMode ? 18 : 14),
       padding: 0,
       borderRadius: 0,
       background: 'transparent',
@@ -6730,18 +6826,34 @@ function AIAthleteHeader({ sport, setSport, days, date, setDate, pendingBets, on
     }}>
       <div style={{ display: 'grid', gap: isMobile ? 8 : 12 }}>
         <div style={{ position: 'relative', overflow: 'visible', borderRadius: isMobile ? 18 : 24, border: 'none', background: 'transparent', boxShadow: 'none' }}>
-          <button onClick={() => setSportsOpen(v => !v)} aria-label="Open sports" style={{ width: '100%', minHeight: isMobile ? 144 : 132, display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '14px 10px 12px' : '18px 260px 18px 22px', border: 0, background: 'transparent', cursor: 'pointer', textAlign: isMobile ? 'center' : 'left' }}>
-            <img src={logoSrc} alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: isMobile ? 384 : 500, height: isMobile ? 118 : 96, objectFit: 'contain', objectPosition: isMobile ? 'center center' : 'left center', display: 'block' }} />
+          <button
+            type="button"
+            onClick={boardMode ? onLogoPress : undefined}
+            aria-label={boardMode ? 'Return to sport picker' : 'AI Athlete Intelligence'}
+            style={{
+              width: '100%',
+              minHeight: isMobile ? 92 : 112,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isMobile ? 'center' : 'flex-start',
+              padding: isMobile ? '8px 10px 6px' : '14px 260px 14px 22px',
+              border: 0,
+              background: 'transparent',
+              cursor: boardMode ? 'pointer' : 'default',
+              textAlign: isMobile ? 'center' : 'left',
+            }}
+          >
+            <img src={logoSrc} alt="AI Athlete Intelligence" style={{ width: '100%', maxWidth: isMobile ? 300 : 500, height: isMobile ? 72 : 84, objectFit: 'contain', objectPosition: isMobile ? 'center center' : 'left center', display: 'block' }} />
           </button>
           {!isMobile && <div style={{ position: 'absolute', top: 18, right: 18, display: 'flex', gap: 7, alignItems: 'center' }}>
-            <div style={{ color: C.textSecondary, fontSize: 11, whiteSpace: 'nowrap', padding: '9px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}38`, backdropFilter: 'blur(10px)' }}>{loading ? 'Syncing…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
-            <button onClick={onRefresh} style={{ width: 40, height: 40, borderRadius: 13, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>
+            <div style={{ color: C.textSecondary, fontSize: 11, whiteSpace: 'nowrap', padding: '9px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}38`, backdropFilter: 'blur(10px)' }}>{loading && boardMode ? 'Syncing…' : <UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Kalshi + market intelligence" />}</div>
+            {boardMode && <button onClick={onRefresh} style={{ width: 40, height: 40, borderRadius: 13, background: 'rgba(0,0,0,0.68)', border: `1px solid ${activeAccent}66`, color: activeAccent, fontSize: 16, cursor: 'pointer', backdropFilter: 'blur(10px)' }}>↻</button>}
             {accountEnabled && <AccountMenu isMobile={false} />}
           </div>}
-          {!isMobile && <div style={{ position: 'absolute', right: 18, bottom: 18, padding: '8px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.72)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{sportLabel} Board</div>}
+          {!isMobile && boardMode && <div style={{ position: 'absolute', right: 18, bottom: 18, padding: '8px 11px', borderRadius: 999, background: 'rgba(0,0,0,0.72)', border: `1px solid ${activeAccent}38`, color: activeAccent, fontSize: 10, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{sportLabel} Board</div>}
         </div>
-        {!isMobile && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          {sports.map(({ value, label }) => <ControlButton key={value} active={sport === value || (label === 'NCAA' && (sport === 'ncaaf' || sport === 'ncaab'))} accent={sportAccent(value)} onClick={() => switchSport(value)} minWidth={78}>{label}</ControlButton>)}
+        {!isMobile && boardMode && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {sports.map(({ value, label }) => <ControlButton key={value} active={sport === value} accent={sportAccent(value)} onClick={() => setSport(value)} minWidth={78}>{label}</ControlButton>)}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flex: '0 0 auto' }}>{days.map(day => <ControlButton key={day.value} active={date === day.value} accent={activeAccent} onClick={() => setDate(day.value)}>{day.label}</ControlButton>)}</div>
         </div>}
       </div>
@@ -6981,6 +7093,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const tomorrow = addChicagoDays(today, 1)
   const [date, setDate] = useState(today)
   const [sport, setSport] = useState<SupportedSport | 'ufc'>('ufc')
+  const [landingMode, setLandingMode] = useState<LandingMode>('gate')
+  const [gateHasBoardContext, setGateHasBoardContext] = useState(false)
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
   const [mobileDockTab, setMobileDockTab] = useState<MobileDockTab>('slate')
   const [mobileDockPanel, setMobileDockPanel] = useState<'sport' | 'dates' | null>(null)
@@ -7012,6 +7126,19 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
     if (stored) setBets(JSON.parse(stored))
   }, [])
 
+  useEffect(() => {
+    const seenGate = sessionStorage.getItem('ai-gate-seen')
+    const lastSport = localStorage.getItem('ai-last-sport')
+    if (seenGate && isValidGateSport(lastSport)) {
+      setSport(lastSport)
+      setLandingMode('board')
+      setGateHasBoardContext(true)
+      startupSportResolvedRef.current = true
+    } else {
+      setLoading(false)
+    }
+  }, [])
+
   const saveBets = (updated: BetLog[]) => {
     setBets(updated)
     localStorage.setItem('poly-bets', JSON.stringify(updated))
@@ -7038,6 +7165,10 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   }, [sport, date])
 
   const fetchGames = useCallback(async () => {
+    if (landingMode === 'gate') {
+      setLoading(false)
+      return
+    }
     feedAbortRef.current?.abort()
     const controller = new AbortController()
     feedAbortRef.current = controller
@@ -7126,14 +7257,18 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
     } finally {
       if (isCurrentFeedRequest()) setLoading(false)
     }
-  }, [date, sport, provider])
+  }, [date, sport, provider, landingMode])
 
   useEffect(() => {
+    if (landingMode === 'gate') {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     fetchGames()
     const iv = setInterval(fetchGames, hasLiveGames ? 5000 : 60000)
     return () => clearInterval(iv)
-  }, [fetchGames, hasLiveGames])
+  }, [fetchGames, hasLiveGames, landingMode])
 
   const days = Array.from({ length: 5 }, (_, i) => {
     const value = addChicagoDays(today, i - 2)
@@ -7167,6 +7302,27 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       document.getElementById('market-content-top')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
+  const enterBoard = (nextSport: SupportedSport | 'ufc') => {
+    startupSportResolvedRef.current = true
+    setSport(nextSport)
+    setDate(chicagoYmd())
+    setSubtab('slate')
+    setMobileDockTab('slate')
+    setMobileDockPanel(null)
+    setProvider('kalshi')
+    setFeedError(null)
+    setLoading(true)
+    setLandingMode('board')
+    setGateHasBoardContext(true)
+    sessionStorage.setItem('ai-gate-seen', '1')
+    localStorage.setItem('ai-last-sport', nextSport)
+    scrollMarketTop()
+  }
+  const returnToGate = () => {
+    setMobileDockPanel(null)
+    setLandingMode('gate')
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
+  }
   const handleSubtabChange = (nextSubtab: SportSubtab) => {
     setSubtab(nextSubtab)
     setMobileDockPanel(null)
@@ -7178,15 +7334,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
     setMobileDockPanel(prev => prev === panel ? null : panel)
   }
   const handleDockSportChange = (nextSport: SupportedSport | 'ufc') => {
-    setSport(nextSport)
-    setDate(chicagoYmd())
-    setSubtab('slate')
-    setMobileDockTab('slate')
-    setMobileDockPanel(null)
-    setProvider('kalshi')
-    setFeedError(null)
-    setLoading(true)
-    scrollMarketTop()
+    enterBoard(nextSport)
   }
   const handleDockDateChange = (nextDate: string) => {
     setDate(nextDate)
@@ -7216,7 +7364,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const header = (
     <AIAthleteHeader
       sport={sport}
-      setSport={(s) => { setSport(s); setDate(chicagoYmd()); setSubtab('slate'); setMobileDockTab('slate'); setMobileDockPanel(null); setProvider('kalshi'); setFeedError(null); setLoading(true) }}
+      setSport={enterBoard}
       days={days}
       date={date}
       setDate={(nextDate) => { setDate(nextDate); setFeedError(null); setLoading(true) }}
@@ -7225,8 +7373,10 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       onRefresh={() => { setLoading(true); fetchGames() }}
       loading={loading}
       lastUpdatedAt={lastUpdated}
-      isMobile={true}
+      isMobile={isMobile}
       accountEnabled={clerkEnabled}
+      landingMode={landingMode}
+      onLogoPress={returnToGate}
     />
   )
 
@@ -7244,9 +7394,14 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         {header}
       </div>
 
-      <div id="market-content-top" style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: '0 16px calc(148px + env(safe-area-inset-bottom, 0px))', scrollMarginTop: 12 }}>
+      <div id="market-content-top" style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: landingMode === 'gate' ? '0 16px 24px' : '0 16px calc(148px + env(safe-area-inset-bottom, 0px))', scrollMarginTop: 12 }}>
+        {landingMode === 'gate' ? (
+          <SportGate isMobile={isMobile} currentSport={sport} showCurrent={gateHasBoardContext} onPick={enterBoard} />
+        ) : (
+          <>
+            <SportRail sport={sport} onPick={enterBoard} isMobile={isMobile} />
 
-        <MarketModeDock />
+            <MarketModeDock />
 
         {subtab !== 'slate' && (
           <div style={{
@@ -7404,9 +7559,11 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
             )}
           </div>
         ))}
+          </>
+        )}
       </div>
 
-      {provider === 'kalshi' && (
+      {provider === 'kalshi' && landingMode === 'board' && (
         <BottomDock
           active={subtab === 'slate' ? mobileDockTab : getMobileDockActiveTab(subtab)}
           openPanel={mobileDockPanel}
