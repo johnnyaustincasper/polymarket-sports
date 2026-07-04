@@ -169,6 +169,7 @@ interface PropRecommendation {
   socialContext: string[]
   explanation: string
   signalTags?: string[]
+  opponentProof?: string[]
 }
 
 export interface PlayerPropLine {
@@ -226,6 +227,23 @@ interface MlbMatchupContext {
   awayPitcher: MlbPitcherContext | null
   homeProfile: MlbTeamBattingProfile
   awayProfile: MlbTeamBattingProfile
+}
+
+function mlbProfileProof(profile: MlbTeamBattingProfile, mode: 'pitcher_k' | 'hitter', pitcher?: MlbPitcherContext | null): string[] {
+  const team = profile.team
+  if (mode === 'pitcher_k') {
+    return [
+      `${team} recent lineup profile: ${profile.strikeoutsAvg.toFixed(1)} strikeouts per hitter, ${profile.hitsAvg.toFixed(1)} hits avg, ${profile.totalBasesAvg.toFixed(1)} total bases avg across ${profile.hitterCount} hitters.`,
+      `Opponent weakness score ${profile.weaknessScore}/100 from recent contact, total-base, and strikeout form.`,
+    ]
+  }
+  const pitcherText = pitcher
+    ? `${pitcher.name}${pitcher.era != null ? ` ${pitcher.era.toFixed(2)} ERA` : ''}${pitcher.whip != null ? ` / ${pitcher.whip.toFixed(2)} WHIP` : ''}${pitcher.kPer9 != null ? ` / ${pitcher.kPer9.toFixed(1)} K per 9` : ''}`
+    : 'opposing starter context still filling in'
+  return [
+    `Opponent starter: ${pitcherText}; vulnerability rating ${pitcher?.difficulty ?? '—'}/100.`,
+    `${team} recent bats: ${profile.hitsAvg.toFixed(1)} hits avg, ${profile.totalBasesAvg.toFixed(1)} total bases avg, ${profile.hrrAvg.toFixed(1)} H+R+RBI avg across ${profile.hitterCount} hitters.`,
+  ]
 }
 
 export interface PropsResponse {
@@ -348,19 +366,22 @@ function withMlbMatchupSignals(players: PlayerPropLine[], context: MlbMatchupCon
       if (isPitcher && rec.metric === 'strikeouts' && opponentProfile) {
         const pitcherK = ownPitcher?.kPer9 || rec.last12Avg || 0
         const kBoost = Math.round(Math.max(0, pitcherK - 7.2) * 2.8 + opponentProfile.weaknessScore * 0.16)
+        const proof = mlbProfileProof(opponentProfile, 'pitcher_k', ownPitcher)
         if (kBoost >= 5) {
           boost += Math.min(16, kBoost)
           tags.push('K matchup')
-          notes.push(`K matchup: ${ownPitcher?.name || player.player} faces ${opponentProfile.team}, a weaker/high-K recent profile (${opponentProfile.strikeoutsAvg.toFixed(1)} K per hitter, ${opponentProfile.hitsAvg.toFixed(1)} H avg).`)
+          notes.push(`K matchup: ${ownPitcher?.name || player.player} faces ${opponentProfile.team}. ${proof.join(' ')}`)
         }
       } else if (!isPitcher && ['hits', 'home runs', 'hits + runs + RBIs', 'total bases'].includes(rec.metric) && opposingPitcher) {
         const teamPower = team === home ? context.homeProfile.powerScore : context.awayProfile.powerScore
         const pitcherTarget = opposingPitcher.difficulty
         const hitterBoost = Math.round(teamPower * 0.12 + Math.max(0, pitcherTarget - 55) * 0.22)
+        const ownProfile = team === home ? context.homeProfile : context.awayProfile
+        const proof = mlbProfileProof(ownProfile, 'hitter', opposingPitcher)
         if (hitterBoost >= 5) {
           boost += Math.min(14, hitterBoost)
           tags.push('Pitcher target')
-          notes.push(`Hitting matchup: ${team} bats get ${opposingPitcher.name}${opposingPitcher.era != null ? ` (${opposingPitcher.era.toFixed(2)} ERA` : ''}${opposingPitcher.whip != null ? `, ${opposingPitcher.whip.toFixed(2)} WHIP)` : opposingPitcher.era != null ? ')' : ''}; recent team contact/power profile supports offense.`)
+          notes.push(`Hitting matchup: ${team} bats get ${opposingPitcher.name}. ${proof.join(' ')}`)
         }
       }
       if (!boost) return rec
@@ -372,6 +393,10 @@ function withMlbMatchupSignals(players: PlayerPropLine[], context: MlbMatchupCon
         valueScore: rec.valueScore + boost,
         maxYesPrice: Math.min(95, rec.maxYesPrice + Math.round(boost * 0.45)),
         signalTags: Array.from(new Set(tags)),
+        opponentProof: Array.from(new Set([
+          ...(rec.opponentProof || []),
+          ...notes.flatMap(note => note.split(/(?<=\.)\s+/)).filter(Boolean),
+        ])).slice(0, 4),
         explanation: `${rec.explanation} ${notes.join(' ')}`,
       }
     }).sort((a, b) => (b.valueScore - a.valueScore) || ((a.kalshi?.yesAsk || 99) - (b.kalshi?.yesAsk || 99)))

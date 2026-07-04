@@ -28,6 +28,7 @@ export type JudgmentContextInput = {
   teamIntel?: any
   todayIntel?: any
   mlbGameContext?: MlbGameContext
+  mlbOpponentProof?: string[]
 }
 
 export type ShootingSnapshot = {
@@ -50,6 +51,7 @@ export type ShootingSnapshot = {
 export type SignalDecisionSection = {
   title: 'ROLE CHECK' | 'PROP NUMBER' | 'RISK CHECK'
   rows: string[]
+  opponentProof?: string[]
 }
 
 export type MlbPropFit = {
@@ -78,6 +80,7 @@ export type MlbMatchupRating = {
   subRatings: MlbVideoGameSubRating[]
   read: string
   rows: string[]
+  opponentProof?: string[]
 }
 
 export type MlbMisreadSignal = {
@@ -92,6 +95,7 @@ export type MlbMisreadSignal = {
   ratingTitle?: string
   bestFit?: string
   subRatings?: MlbVideoGameSubRating[]
+  opponentProof?: string[]
 }
 
 export type MlbConvictionLayer = {
@@ -103,6 +107,7 @@ export type MlbConvictionLayer = {
   numberDiscipline: string
   matchupRating?: MlbMatchupRating
   misreadSignal?: MlbMisreadSignal
+  opponentProof?: string[]
 }
 
 export type SignalOverallRatings = {
@@ -500,6 +505,19 @@ function pitcherContextLabel(context?: MlbGameContext): string {
   return 'opponent context still filling in'
 }
 
+function opponentProofRows(rows?: string[]): string[] {
+  return (rows || [])
+    .map(row => String(row || '').trim())
+    .filter(Boolean)
+    .slice(0, 4)
+}
+
+function opponentProofLine(rows?: string[]): string | undefined {
+  const proof = opponentProofRows(rows)
+  if (!proof.length) return undefined
+  return proof[0]
+}
+
 function runEnvironmentBump(context?: MlbGameContext): number {
   const total = num(context?.totalLine)
   if (total == null) return 0
@@ -523,6 +541,7 @@ function buildMlbMatchupRating(input: {
   hit12?: number
   games12: number
   mlbGameContext?: MlbGameContext
+  opponentProof?: string[]
 }): MlbMatchupRating | undefined {
   if (metricSport(input.metric) !== 'mlb') return undefined
   const kind = mlbMetricKind(input.metric)
@@ -539,6 +558,8 @@ function buildMlbMatchupRating(input: {
     ? clampRating(pitcherVulnerability + environmentBump)
     : clampRating(74 - Math.max(-10, Math.min(12, (base - 75) * 0.35)) + (volatility > Math.max(2, (input.line ?? 1) * 1.5) ? 3 : 0))
   const opponentContext = pitcherContextLabel(input.mlbGameContext)
+  const proofRows = opponentProofRows(input.opponentProof)
+  const primaryProof = opponentProofLine(proofRows)
 
   if (kind === 'strikeouts') {
     const strikeouts = clampRating(base + 4)
@@ -556,15 +577,17 @@ function buildMlbMatchupRating(input: {
         subRating('Stuff', base + 6, 'Recent strikeout production and K pace.'),
         subRating('Recent form', formScore, `${fmtAvg(input.last5Avg)} Ks over last ${input.games5}.`),
         subRating('Leash', sampleScore * 0.55 + stabilityScore * 0.45, 'Sample size plus line stability as a pitch-count proxy.'),
-        subRating('Opponent whiff', 100 - lineupContactRisk + 72, 'Lower contact resistance creates a better K matchup.'),
+        subRating('Opponent whiff', 100 - lineupContactRisk + 72, primaryProof || 'Lower contact resistance creates a better K matchup.'),
         subRating('Line fit', stabilityScore, `${propText(input.line, 'strikeouts')} versus recent band.`),
       ],
       read: `${input.player} grades like a ${strikeouts}/100 strikeout profile against a ${lineupContactRisk}/100 lineup-contact risk check from current form and game setup.`,
       rows: [
         `K form: ${fmtAvg(input.last5Avg)} over the last ${input.games5}, ${input.hit5 ?? '—'} of ${input.games5} cleared ${propText(input.line, 'strikeouts')}.`,
+        ...(primaryProof ? [`Opponent form: ${primaryProof}`] : []),
         `Rating gap: ${strikeouts - lineupContactRisk >= 10 ? '+' : ''}${strikeouts - lineupContactRisk}; this is a watch only unless opponent K-rate, pitch count, and umpire zone agree.`,
         `${opponentContext}; use that as context, not a blind K-over trigger.`,
       ],
+      opponentProof: proofRows,
     }
   }
 
@@ -609,7 +632,7 @@ function buildMlbMatchupRating(input: {
     subRatings: [
       subRating(kind === 'power' ? 'Power' : kind === 'offense' ? 'Run path' : 'Contact', fits[0][1], `${fits[0][0]} is the best prop fit.`),
       subRating('Recent form', formScore, `${fmtAvg(input.last5Avg)} over last ${input.games5}.`),
-      subRating('Pitcher matchup', opponentBaseline, opponentContext),
+      subRating('Pitcher matchup', opponentBaseline, primaryProof || opponentContext),
       subRating('Run environment', 72 + environmentBump * 3, 'Game total / run context adjustment.'),
       subRating('Line fit', stabilityScore, `${propText(input.line, input.metric.toLowerCase())} versus recent band.`),
     ],
@@ -617,8 +640,10 @@ function buildMlbMatchupRating(input: {
     rows: [
       `Recent form: ${fmtAvg(input.last5Avg)} ${input.metric.toLowerCase()} over the last ${input.games5}, ${input.hit5 ?? '—'} of ${input.games5} cleared ${propText(input.line, input.metric.toLowerCase())}.`,
       `Best prop fit: ${fits[0][0]} (${fits[0][1]}/100); HR only deserves attention when the power score beats the contact score, not just because the hitter is good.`,
+      ...(primaryProof ? [`Opponent setup: ${primaryProof}`] : []),
       `${opponentContext}; upgrade with confirmed lineup spot, handedness/pitch mix, and park/weather, downgrade if those do not support the score.`,
     ],
+    opponentProof: proofRows,
   }
 }
 
@@ -643,10 +668,11 @@ function buildMlbMisreadSignal(metric: string, rating?: MlbMatchupRating): MlbMi
       opponentRating: rating.opponentRating,
       matchupGap: gap,
       summary: `${rating.ratingTitle}: ${rating.playerRating} vs ${rating.opponentRating} lineup contact resistance`,
-      reason: `The scan is flagging a swing-miss watch: ${rating.playerLabel.toLowerCase()} clears the lineup contact-risk check, but still needs pitch count and umpire support.`,
+      reason: `The scan is flagging a swing-miss watch: ${rating.playerLabel.toLowerCase()} clears the lineup contact-risk check${rating.opponentProof?.[0] ? ` — ${rating.opponentProof[0]}` : ''}. It still needs pitch count and umpire support.`,
       ratingTitle: rating.ratingTitle,
       bestFit: rating.bestFit,
       subRatings: rating.subRatings,
+      opponentProof: rating.opponentProof,
     }
   }
   if (kind === 'power') {
@@ -658,10 +684,11 @@ function buildMlbMisreadSignal(metric: string, rating?: MlbMatchupRating): MlbMi
       opponentRating: rating.opponentRating,
       matchupGap: gap,
       summary: `${rating.ratingTitle}: ${rating.playerRating} vs ${rating.opponentRating} pitcher vulnerability`,
-      reason: 'The scan is flagging a power-path gap; HR only upgrades when this power rating leads the contact paths and the opposing starter/park setup is vulnerable.',
+      reason: `The scan is flagging a power-path gap${rating.opponentProof?.[0] ? ` — ${rating.opponentProof[0]}` : ''}; HR only upgrades when this power rating leads the contact paths and the opposing starter/park setup is vulnerable.`,
       ratingTitle: rating.ratingTitle,
       bestFit: rating.bestFit,
       subRatings: rating.subRatings,
+      opponentProof: rating.opponentProof,
     }
   }
   if (kind === 'offense') {
@@ -673,10 +700,11 @@ function buildMlbMisreadSignal(metric: string, rating?: MlbMatchupRating): MlbMi
       opponentRating: rating.opponentRating,
       matchupGap: gap,
       summary: `${rating.ratingTitle}: ${rating.playerRating} vs ${rating.opponentRating} pitcher vulnerability`,
-      reason: 'The scan is flagging a run-environment gap: lineup role plus a vulnerable opposing starter/park setup looks better than the surface read.',
+      reason: `The scan is flagging a run-environment gap${rating.opponentProof?.[0] ? ` — ${rating.opponentProof[0]}` : ''}: lineup role plus a vulnerable opposing starter/park setup looks better than the surface read.`,
       ratingTitle: rating.ratingTitle,
       bestFit: rating.bestFit,
       subRatings: rating.subRatings,
+      opponentProof: rating.opponentProof,
     }
   }
   return {
@@ -687,10 +715,11 @@ function buildMlbMisreadSignal(metric: string, rating?: MlbMatchupRating): MlbMi
     opponentRating: rating.opponentRating,
     matchupGap: gap,
     summary: `${rating.ratingTitle}: ${rating.playerRating} vs ${rating.opponentRating} pitcher vulnerability`,
-    reason: 'The scan is flagging a contact-path gap: the hitter profile and opposing starter vulnerability are both strong enough to matter.',
+    reason: `The scan is flagging a contact-path gap${rating.opponentProof?.[0] ? ` — ${rating.opponentProof[0]}` : ''}: the hitter profile and opposing starter vulnerability are both strong enough to matter.`,
     ratingTitle: rating.ratingTitle,
     bestFit: rating.bestFit,
     subRatings: rating.subRatings,
+    opponentProof: rating.opponentProof,
   }
 }
 
@@ -708,6 +737,7 @@ function buildMlbConviction(input: {
   hit12?: number
   games12: number
   mlbGameContext?: MlbGameContext
+  opponentProof?: string[]
 }): MlbConvictionLayer | undefined {
   if (metricSport(input.metric) !== 'mlb') return undefined
   const metricLabel = input.metric.toLowerCase()
@@ -719,6 +749,7 @@ function buildMlbConviction(input: {
     : `${fmtAvg(input.last5Avg)} ${metricLabel} over the last ${input.games5}`
   const kind = mlbMetricKind(input.metric)
   const matchupRating = buildMlbMatchupRating(input)
+  const opponentProof = opponentProofRows(input.opponentProof)
   const misreadSignal = buildMlbMisreadSignal(input.metric, matchupRating)
 
   if (kind === 'strikeouts') {
@@ -726,6 +757,7 @@ function buildMlbConviction(input: {
       verdict,
       read: `${input.player} is a pitcher-K read, not a box-score auto-play: ${fmt(input.lastGame.value)} Ks last start, ${fmtAvg(input.last5Avg)} over the last ${input.games5}, with a ${recentBand} band.`,
       whyLive: [
+        ...(opponentProof.length ? opponentProof.slice(0, 2).map(row => `Opponent proof: ${row}`) : []),
         `${hitLine}; the number only gets interesting if the opposing lineup brings real swing-and-miss.`,
         `The path is pitch-count leash plus whiffs: he needs enough innings for the slider/secondary stuff to pile up Ks.`,
         `Umpire zone and opponent contact rate matter more here than a generic recent trend.`,
@@ -738,6 +770,7 @@ function buildMlbConviction(input: {
       numberDiscipline: input.line == null ? 'Needs a clear K number before it belongs on the board.' : `${currentProp} is the clean lane; one K higher is picky, two higher needs a perfect matchup.`,
       matchupRating,
       misreadSignal,
+      opponentProof,
     }
   }
 
@@ -746,6 +779,7 @@ function buildMlbConviction(input: {
       verdict,
       read: `${input.player} is a power-variance read: ${fmt(input.lastGame.value)} HR last game, ${fmtAvg(input.last5Avg)} over the last ${input.games5}, and a ${recentBand} band that says the ceiling exists but the floor is real.`,
       whyLive: [
+        ...(opponentProof.length ? opponentProof.slice(0, 2).map(row => `Opponent setup: ${row}`) : []),
         `${hitLine}; this needs barrel quality, not just a warm bat.`,
         `The setup has to include a pitcher who gives up lift/pull damage or a park-weather combo that lets the ball carry.`,
         `If those power conditions are missing, this is a watch instead of a force.`,
@@ -758,6 +792,7 @@ function buildMlbConviction(input: {
       numberDiscipline: 'HR looks are naturally thin; do not turn a hitter-form read into a power-only chase unless the matchup supports it.',
       matchupRating,
       misreadSignal,
+      opponentProof,
     }
   }
 
@@ -766,6 +801,7 @@ function buildMlbConviction(input: {
       verdict,
       read: `${input.player} is a run-environment read: ${fmt(input.lastGame.value)} ${metricLabel} last game, ${fmtAvg(input.last5Avg)} over the last ${input.games5}, and ${hitLine}.`,
       whyLive: [
+        ...(opponentProof.length ? opponentProof.slice(0, 2).map(row => `Opponent setup: ${row}`) : []),
         `This prop needs lineup spot and traffic: top/middle-order plate appearances matter more than one recent box score.`,
         `The best version is team pressure — hitters around him creating RBI/run paths, not him needing to do everything alone.`,
         `Handedness and opposing starter traffic allowed decide whether the recent form actually travels into today.`,
@@ -778,6 +814,7 @@ function buildMlbConviction(input: {
       numberDiscipline: `${currentProp} is only playable when the lineup card confirms the role; do not chase a bigger offensive ladder without a strong team run setup.`,
       matchupRating,
       misreadSignal,
+      opponentProof,
     }
   }
 
@@ -785,6 +822,7 @@ function buildMlbConviction(input: {
     verdict,
     read: `${input.player} is a contact-path read: ${fmt(input.lastGame.value)} ${metricLabel} last game, ${fmtAvg(input.last5Avg)} over the last ${input.games5}, and ${hitLine}.`,
     whyLive: [
+      ...(opponentProof.length ? opponentProof.slice(0, 2).map(row => `Opponent setup: ${row}`) : []),
       `The case is plate appearances plus balls in play: batting-order slot and opposing starter handedness have to line up.`,
       `For ${metricLabel}, the clean path is contact quality and traffic, not forcing a homer outcome.`,
       `Park/weather should not be working against carry or gaps if this is going to feel strong.`,
@@ -797,6 +835,7 @@ function buildMlbConviction(input: {
     numberDiscipline: `${currentProp} is the clean lane; if the app asks for a bigger night, require a confirmed lineup and better matchup support.`,
     matchupRating,
     misreadSignal,
+      opponentProof,
   }
 }
 
@@ -1022,6 +1061,7 @@ export function buildJudgmentContext(input: JudgmentContextInput): SignalJudgmen
     hit12: trend.last12HitRate,
     games12: games.length,
     mlbGameContext: input.mlbGameContext,
+    opponentProof: input.mlbOpponentProof,
   })
   const whyPlayerBullets = whyPlayerRows({
     player: input.player,

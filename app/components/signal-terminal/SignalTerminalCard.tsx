@@ -220,7 +220,7 @@ export default function SignalTerminalCard({
     gameEnvironment?: string[]
     sportSpecificNotes?: string[]
     decisionSections?: Array<{ title?: string; rows?: string[] }>
-    mlbConviction?: { verdict?: string; read?: string; whyLive?: string[]; path?: string; killSwitch?: string[]; numberDiscipline?: string; matchupRating?: { ratingTitle?: string; playerLabel?: string; opponentLabel?: string; playerRating?: number; opponentRating?: number; matchupGap?: number; bestFit?: string; propFit?: Record<string, number | undefined>; subRatings?: Array<{ label?: string; score?: number; detail?: string }>; read?: string; rows?: string[] }; misreadSignal?: { label?: string; severity?: string; summary?: string; reason?: string; matchupGap?: number; playerRating?: number; opponentRating?: number; ratingTitle?: string; bestFit?: string; subRatings?: Array<{ label?: string; score?: number; detail?: string }> } }
+    mlbConviction?: { verdict?: string; read?: string; whyLive?: string[]; path?: string; killSwitch?: string[]; numberDiscipline?: string; opponentProof?: string[]; matchupRating?: { ratingTitle?: string; playerLabel?: string; opponentLabel?: string; playerRating?: number; opponentRating?: number; matchupGap?: number; bestFit?: string; propFit?: Record<string, number | undefined>; subRatings?: Array<{ label?: string; score?: number; detail?: string }>; read?: string; rows?: string[]; opponentProof?: string[] }; misreadSignal?: { label?: string; severity?: string; summary?: string; reason?: string; matchupGap?: number; playerRating?: number; opponentRating?: number; ratingTitle?: string; bestFit?: string; subRatings?: Array<{ label?: string; score?: number; detail?: string }>; opponentProof?: string[] } }
     volume?: { shotAttemptsLast5Avg?: number; threesAttemptedLast5Avg?: number; freeThrowsAttemptedLast5Avg?: number }
     minutes?: { lastGame?: number; last5Avg?: number; stable?: boolean }
     matchupNotes?: string[]
@@ -303,6 +303,7 @@ export default function SignalTerminalCard({
       path: stripJargon(String(judgmentContext.mlbConviction.path || '')).trim(),
       killSwitch: (Array.isArray(judgmentContext.mlbConviction.killSwitch) ? judgmentContext.mlbConviction.killSwitch : []).map(row => simpleRisk(String(row || ''))).filter(Boolean).slice(0, 2),
       numberDiscipline: stripJargon(String(judgmentContext.mlbConviction.numberDiscipline || '')).trim(),
+      opponentProof: (Array.isArray(judgmentContext.mlbConviction.opponentProof) ? judgmentContext.mlbConviction.opponentProof : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 4),
       misreadSignal: judgmentContext.mlbConviction.misreadSignal ? {
         label: stripJargon(String(judgmentContext.mlbConviction.misreadSignal.label || '')).trim(),
         severity: String(judgmentContext.mlbConviction.misreadSignal.severity || '').trim(),
@@ -311,11 +312,13 @@ export default function SignalTerminalCard({
         matchupGap: judgmentContext.mlbConviction.misreadSignal.matchupGap,
         playerRating: judgmentContext.mlbConviction.misreadSignal.playerRating,
         opponentRating: judgmentContext.mlbConviction.misreadSignal.opponentRating,
+        opponentProof: (Array.isArray(judgmentContext.mlbConviction.misreadSignal.opponentProof) ? judgmentContext.mlbConviction.misreadSignal.opponentProof : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 4),
       } : undefined,
       matchupRating: judgmentContext.mlbConviction.matchupRating ? {
         ...judgmentContext.mlbConviction.matchupRating,
         read: stripJargon(String(judgmentContext.mlbConviction.matchupRating.read || '')).trim(),
         rows: (Array.isArray(judgmentContext.mlbConviction.matchupRating.rows) ? judgmentContext.mlbConviction.matchupRating.rows : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3),
+        opponentProof: (Array.isArray(judgmentContext.mlbConviction.matchupRating.opponentProof) ? judgmentContext.mlbConviction.matchupRating.opponentProof : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 4),
       } : undefined,
     }
     : null
@@ -529,6 +532,14 @@ export default function SignalTerminalCard({
                 )}
                 {mlbConviction.read && mlbConviction.read !== mlbConviction.misreadSignal?.summary && <span>{mlbConviction.read}</span>}
                 {mlbConviction.misreadSignal?.reason && <span style={{ color: C.muted, fontSize: 9.5, lineHeight: 1.35 }}>{mlbConviction.misreadSignal.reason}</span>}
+                {(mlbConviction.misreadSignal?.opponentProof?.length || mlbConviction.opponentProof?.length) ? (
+                  <div style={{ marginTop: 3, display: 'grid', gap: 4 }}>
+                    <span style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Why vs opponent</span>
+                    {(mlbConviction.misreadSignal?.opponentProof?.length ? mlbConviction.misreadSignal.opponentProof : mlbConviction.opponentProof).slice(0, 3).map(row => (
+                      <span key={`opponent-proof-${row}`} style={{ color: C.text, fontSize: 9.5, lineHeight: 1.35 }}>• {row}</span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             )}
 

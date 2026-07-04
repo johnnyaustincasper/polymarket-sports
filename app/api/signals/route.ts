@@ -153,6 +153,7 @@ type MlbMisreadRow = {
   ratingTitle?: string
   bestFit?: string
   subRatings?: Array<{ label: string; score: number; detail?: string }>
+  opponentProof?: string[]
   playerRating?: number
   opponentRating?: number
   matchupGap?: number
@@ -547,6 +548,7 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
         lastGameMinutes: player.lastGameMinutes,
         risk: bet.risk,
         mlbGameContext: mlbGameContextFor(player.team),
+        mlbOpponentProof: Array.isArray(bet.opponentProof) ? bet.opponentProof : undefined,
       }) || undefined
       const mlbMisread = sport === 'mlb' ? judgmentContext?.mlbConviction?.misreadSignal : undefined
       let tier = tierFor(edge, confidence, hits, games, ask, liquidity, String(bet.risk || 'medium'))
@@ -576,6 +578,7 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
           ratingTitle: mlbMisread.ratingTitle,
           bestFit: mlbMisread.bestFit,
           subRatings: mlbMisread.subRatings,
+          opponentProof: mlbMisread.opponentProof,
           playerRating: mlbMisread.playerRating,
           opponentRating: mlbMisread.opponentRating,
           matchupGap: mlbMisread.matchupGap,

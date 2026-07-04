@@ -102,6 +102,7 @@ function cleanMlbConviction(layer?: any) {
     bestFit: layer.matchupRating.bestFit,
     propFit: layer.matchupRating.propFit,
     subRatings: Array.isArray(layer.matchupRating.subRatings) ? layer.matchupRating.subRatings.map((row: any) => ({ label: row.label, score: row.score, detail: stripPublicJargon(row.detail || '') })).slice(0, 6) : undefined,
+    opponentProof: cleanContextRows(layer.matchupRating.opponentProof),
     read: stripPublicJargon(layer.matchupRating.read || ''),
     rows: cleanContextRows(layer.matchupRating.rows),
   } : undefined
@@ -119,11 +120,13 @@ function cleanMlbConviction(layer?: any) {
     ratingTitle: layer.misreadSignal.ratingTitle,
     bestFit: layer.misreadSignal.bestFit,
     subRatings: Array.isArray(layer.misreadSignal.subRatings) ? layer.misreadSignal.subRatings.map((row: any) => ({ label: row.label, score: row.score, detail: stripPublicJargon(row.detail || '') })).slice(0, 6) : undefined,
+    opponentProof: cleanContextRows(layer.misreadSignal.opponentProof),
   } : undefined
   return {
     verdict: layer.verdict,
     read: read && !containsPublicJargon(read) ? read : undefined,
     whyLive: cleanContextRows(layer.whyLive),
+    opponentProof: cleanContextRows(layer.opponentProof),
     path: path && !containsPublicJargon(path) ? path : undefined,
     killSwitch: cleanContextRows(layer.killSwitch),
     numberDiscipline: numberDiscipline && !containsPublicJargon(numberDiscipline) ? numberDiscipline : undefined,

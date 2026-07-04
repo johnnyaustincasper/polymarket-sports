@@ -210,6 +210,40 @@ describe('signal judgment context', () => {
     expect(context?.mlbConviction?.whyLive.join(' ')).not.toMatch(/strikeout trend supports the number|trend supports|good spot/i)
   })
 
+  it('attaches opponent-proof bullets to MLB pitcher misreads instead of generic opponent claims', () => {
+    const last12 = [
+      { eventId: 'a1', stats: { strikeouts: 11 } },
+      { eventId: 'a2', stats: { strikeouts: 9 } },
+      { eventId: 'a3', stats: { strikeouts: 10 } },
+      { eventId: 'a4', stats: { strikeouts: 8 } },
+      { eventId: 'a5', stats: { strikeouts: 12 } },
+      { eventId: 'a6', stats: { strikeouts: 7 } },
+      { eventId: 'a7', stats: { strikeouts: 9 } },
+      { eventId: 'a8', stats: { strikeouts: 10 } },
+      { eventId: 'a9', stats: { strikeouts: 8 } },
+      { eventId: 'a10', stats: { strikeouts: 11 } },
+    ]
+
+    const context = buildJudgmentContext({
+      player: 'Ace Starter',
+      metric: 'strikeouts',
+      label: '7+ strikeouts',
+      line: 7,
+      last12,
+      mlbOpponentProof: [
+        'TEX recent lineup profile: 1.4 strikeouts per hitter, 0.7 hits avg, 1.1 total bases avg across 8 hitters.',
+        'Opponent weakness score 61/100 from recent contact, total-base, and strikeout form.',
+      ],
+    })
+
+    expect(context?.mlbConviction?.opponentProof?.[0]).toContain('TEX recent lineup profile')
+    expect(context?.mlbConviction?.whyLive.join(' ')).toContain('Opponent proof: TEX recent lineup profile')
+    expect(context?.mlbConviction?.matchupRating?.rows.join(' ')).toContain('Opponent form: TEX recent lineup profile')
+    expect(context?.mlbConviction?.matchupRating?.subRatings.find(row => row.label === 'Opponent whiff')?.detail).toContain('1.4 strikeouts per hitter')
+    expect(context?.mlbConviction?.misreadSignal?.opponentProof?.[1]).toContain('Opponent weakness score 61/100')
+    expect(context?.mlbConviction?.misreadSignal?.reason).toContain('TEX recent lineup profile')
+  })
+
   it('grades an obvious ace-vs-whiff-lineup setup as a large strikeout matchup gap', () => {
     const last12 = [
       { eventId: 'a1', stats: { strikeouts: 11 } },
