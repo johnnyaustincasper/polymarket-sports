@@ -2523,8 +2523,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const shouldLoadIntelAndProps = loadRequested
   const requestCardLoad = useCallback(() => {
     setLoadRequested(true)
-    onBoardLoadRequested?.(game.id)
-  }, [game.id, onBoardLoadRequested])
+    if (!isMobile) onBoardLoadRequested?.(game.id)
+  }, [game.id, isMobile, onBoardLoadRequested])
   const collapseCard = useCallback(() => {
     setLoadRequested(false)
     setLoading(false)
@@ -2540,15 +2540,15 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     setLiveError(null)
     setLiveUpdatedAt(null)
     setActiveLiveTab('props')
-    onBoardCollapse?.(game.id)
-  }, [game.id, onBoardCollapse])
+    if (!isMobile) onBoardCollapse?.(game.id)
+  }, [game.id, isMobile, onBoardCollapse])
 
   useEffect(() => {
     if (autoLoad) {
       setLoadRequested(true)
-      onBoardLoadRequested?.(game.id)
+      if (!isMobile) onBoardLoadRequested?.(game.id)
     }
-  }, [autoLoad, game.id, onBoardLoadRequested])
+  }, [autoLoad, game.id, isMobile, onBoardLoadRequested])
 
   useEffect(() => {
     if (sport !== 'nba') {
@@ -2809,9 +2809,9 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     )
   }
 
-  return (
+  const expandedBoard = (
     <div style={{
-      borderRadius: 22,
+      borderRadius: isMobile ? 0 : 22,
       padding: 1,
       background: hasVisibleContracts ? 'linear-gradient(135deg, rgba(125,246,255,0.64), rgba(255,255,255,0.14), rgba(125,246,255,0.12))' : 'linear-gradient(135deg, rgba(125,246,255,0.18), rgba(255,255,255,0.06))',
       boxShadow: scanActive ? '0 0 34px rgba(125,246,255,0.18), 0 18px 58px rgba(0,0,0,0.58)' : hasVisibleContracts ? '0 0 30px rgba(125,246,255,0.16), 0 18px 50px rgba(0,0,0,0.45)' : '0 14px 40px rgba(0,0,0,0.38)',
@@ -3238,6 +3238,34 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
       </div>
     </div>
   )
+
+  if (isMobile && typeof document !== 'undefined') {
+    return createPortal((
+      <div role="dialog" aria-modal="true" aria-label={`${game.awayTeam.abbr} at ${game.homeTeam.abbr} game board`} style={{ position: 'fixed', inset: 0, zIndex: 2147483300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+        <div onClick={collapseCard} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.66)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }} />
+        <div data-slate-game-sheet="true" style={{ position: 'relative', zIndex: 1, width: 'min(430px, 100vw)', height: 'calc(100dvh - 18px - env(safe-area-inset-top, 0px))', maxHeight: 'calc(100dvh - 18px - env(safe-area-inset-top, 0px))', minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '22px 22px 0 0', padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.55), rgba(255,255,255,0.12), rgba(125,246,255,0.20))', boxShadow: '0 -18px 60px rgba(0,0,0,0.6)', animation: 'sheetUp 240ms cubic-bezier(0.16,1,0.3,1)' }}>
+          <style>{`@keyframes sheetUp { from { transform: translateY(24px); opacity: 0.4 } to { transform: translateY(0); opacity: 1 } } @media (prefers-reduced-motion: reduce) { [data-slate-game-sheet="true"] { animation: none !important } }`}</style>
+          <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%', maxHeight: 'inherit', borderRadius: '21px 21px 0 0', background: 'linear-gradient(145deg, rgba(8,13,6,0.99), rgba(2,5,1,0.99))', overflow: 'hidden' }}>
+            <div style={{ flexShrink: 0, padding: '10px 14px 8px', borderBottom: '1px solid rgba(125,246,255,0.18)' }}>
+              <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(125,246,255,0.35)', margin: '0 auto 8px' }} />
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ color: C.textPrimary, fontSize: 15, fontWeight: 950, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{game.awayTeam.abbr} @ {game.homeTeam.abbr}</div>
+                  <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 800, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[game.gameTime || game.gameDate || 'Game slate', game.status === 'in' ? 'Live' : game.status === 'post' ? 'Final' : 'Pregame'].filter(Boolean).join(' · ')}</div>
+                </div>
+                <button type="button" aria-label="Close game board" onClick={collapseCard} style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 12, border: '1px solid rgba(125,246,255,0.35)', background: 'rgba(2,5,1,0.7)', color: C.green, fontSize: 16, fontWeight: 950, cursor: 'pointer' }}>✕</button>
+              </div>
+            </div>
+            <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '10px 12px calc(14px + env(safe-area-inset-bottom, 0px))', minHeight: 0, flex: 1 }}>
+              {expandedBoard}
+            </div>
+          </div>
+        </div>
+      </div>
+    ), document.body)
+  }
+
+  return expandedBoard
 }
 
 function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { sport: SupportedSport; games: Game[]; isMobile: boolean; autoRun?: boolean }) {
