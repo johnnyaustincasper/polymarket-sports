@@ -7,12 +7,25 @@ export type JudgmentGameLog = {
   stats?: Record<string, Numeric>
 }
 
+export type MlbTeamBattingProfile = {
+  team?: string
+  hitterCount?: Numeric
+  hitsAvg?: Numeric
+  totalBasesAvg?: Numeric
+  hrrAvg?: Numeric
+  strikeoutsAvg?: Numeric
+  weaknessScore?: Numeric
+  powerScore?: Numeric
+}
+
 export type MlbGameContext = {
   playerTeam?: string
   homeTeam?: string
   awayTeam?: string
   homePitcher?: { name?: string; era?: Numeric; difficulty?: Numeric; label?: string }
   awayPitcher?: { name?: string; era?: Numeric; difficulty?: Numeric; label?: string }
+  homeProfile?: MlbTeamBattingProfile
+  awayProfile?: MlbTeamBattingProfile
   totalLine?: Numeric
   venueName?: string
 }
@@ -81,6 +94,7 @@ export type MlbMatchupRating = {
   read: string
   rows: string[]
   opponentProof?: string[]
+  hasOpponentData?: boolean
 }
 
 export type MlbMisreadSignal = {
@@ -396,9 +410,15 @@ function mlbVerdict(input: { line?: number; median?: number; hit5?: number; game
   return 'Price watch'
 }
 
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min
+  return Math.max(min, Math.min(max, value))
+}
+
 function clampRating(value: number): number {
   if (!Number.isFinite(value)) return 50
-  return Math.max(35, Math.min(99, Math.round(value)))
+  const compressed = value > 90 ? 90 + (value - 90) * 0.5 : value
+  return Math.max(35, Math.min(99, Math.round(compressed)))
 }
 
 function ratingLabel(score: number): string {
@@ -441,8 +461,8 @@ function buildOverallRatings(input: {
     ...(Array.isArray(input.teamIntel?.injuryImpact?.awayNotes) ? input.teamIntel.injuryImpact.awayNotes : []),
   ].join(' ').toLowerCase()
   let teamBase = 62
-  if (/fast|pace|over|more possessions|up/.test(paceText)) teamBase += 8
-  if (/slow|under|down|fewer possessions/.test(paceText)) teamBase -= 6
+  if (/\b(fast|pace-up|over|more possessions|tempo up)\b/.test(paceText)) teamBase += 8
+  if (/\b(slow|under|down|fewer possessions|tempo down)\b/.test(paceText)) teamBase -= 6
   if (/edge|advantage|boost|favorable|missing|out/.test(edgeText + ' ' + injuryNotes)) teamBase += 5
   if (/questionable|limit|cap|fatigue|back-to-back|rest/.test(edgeText + ' ' + injuryNotes)) teamBase -= 4
   const teamScore = clampRating(teamBase)
@@ -468,10 +488,11 @@ function hitRateScore(hit?: number, games?: number): number {
 
 function lineFitScore(input: { line?: number; median?: number; last5Avg?: number; max: number }): number {
   if (input.line == null) return 58
-  const medianGap = input.median == null ? 0 : ((input.median - input.line) / Math.max(1, input.line)) * 26
-  const avgGap = input.last5Avg == null ? 0 : ((input.last5Avg - input.line) / Math.max(1, input.line)) * 22
-  const ceiling = ((input.max - input.line) / Math.max(1, input.line)) * 10
-  return 62 + medianGap + avgGap + ceiling
+  const denom = Math.max(input.line, 1.5)
+  const medianGap = input.median == null ? 0 : clampNumber(((input.median - input.line) / denom) * 26, -14, 14)
+  const avgGap = input.last5Avg == null ? 0 : clampNumber(((input.last5Avg - input.line) / denom) * 22, -12, 12)
+  const ceiling = clampNumber(((input.max - input.line) / denom) * 10, 0, 8)
+  return clampNumber(62 + medianGap + avgGap + ceiling, 40, 96)
 }
 
 function pitcherDifficulty(context?: MlbGameContext): { value?: number; pitcherName?: string; source: 'opposing starter' | 'starter baseline' | 'feed baseline' } {
@@ -500,9 +521,32 @@ function pitcherVulnerabilityRating(context?: MlbGameContext): number | undefine
 
 function pitcherContextLabel(context?: MlbGameContext): string {
   const info = pitcherDifficulty(context)
-  if (info.source === 'opposing starter' && info.pitcherName && info.value != null) return `${info.pitcherName} starter difficulty ${fmt(info.value)}/100`
-  if (info.value != null) return `starter difficulty ${fmt(info.value)}/100`
+  if (info.source === 'opposing starter' && info.pitcherName && info.value != null) return `${info.pitcherName} starter vulnerability ${fmt(info.value)}/100`
+  if (info.value != null) return `starter vulnerability ${fmt(info.value)}/100`
   return 'opponent context still filling in'
+}
+
+function opponentBattingProfile(context?: MlbGameContext): MlbTeamBattingProfile | undefined {
+  if (!context) return undefined
+  const playerTeam = String(context.playerTeam || '').toUpperCase()
+  const homeTeam = String(context.homeTeam || '').toUpperCase()
+  const awayTeam = String(context.awayTeam || '').toUpperCase()
+  if (playerTeam && homeTeam && playerTeam === homeTeam) return context.awayProfile
+  if (playerTeam && awayTeam && playerTeam === awayTeam) return context.homeProfile
+  return undefined
+}
+
+function contactRiskFromProfile(profile?: MlbTeamBattingProfile): { value: number; hasData: boolean } {
+  const hitterCount = num(profile?.hitterCount) ?? 0
+  const strikeoutsAvg = num(profile?.strikeoutsAvg)
+  const hitsAvg = num(profile?.hitsAvg)
+  const totalBasesAvg = num(profile?.totalBasesAvg)
+  const weaknessScore = num(profile?.weaknessScore) ?? 0
+  if (hitterCount <= 0 || strikeoutsAvg == null || hitsAvg == null || totalBasesAvg == null) {
+    return { value: 76, hasData: false }
+  }
+  const risk = 88 - (strikeoutsAvg - 0.85) * 30 + (hitsAvg - 0.95) * 20 + (totalBasesAvg - 1.45) * 8 - weaknessScore * 0.12
+  return { value: clampRating(risk), hasData: true }
 }
 
 function opponentProofRows(rows?: string[]): string[] {
@@ -551,19 +595,21 @@ function buildMlbMatchupRating(input: {
   const stabilityScore = input.min >= (input.line ?? Number.POSITIVE_INFINITY) ? 92 : input.median != null && input.line != null && input.median >= input.line ? 76 : 58
   const sampleScore = input.games12 >= 10 ? 88 : input.games12 >= 5 ? 76 : 58
   const base = clampRating(formScore * 0.42 + hit5Score * 0.24 + hit12Score * 0.16 + stabilityScore * 0.10 + sampleScore * 0.08)
-  const volatility = input.max - input.min
   const pitcherVulnerability = pitcherVulnerabilityRating(input.mlbGameContext)
   const environmentBump = runEnvironmentBump(input.mlbGameContext)
   const opponentBaseline = pitcherVulnerability != null
     ? clampRating(pitcherVulnerability + environmentBump)
-    : clampRating(74 - Math.max(-10, Math.min(12, (base - 75) * 0.35)) + (volatility > Math.max(2, (input.line ?? 1) * 1.5) ? 3 : 0))
+    : 65
+  const hasPitcherData = pitcherVulnerability != null
   const opponentContext = pitcherContextLabel(input.mlbGameContext)
+  const opponentProfile = opponentBattingProfile(input.mlbGameContext)
+  const opponentContact = contactRiskFromProfile(opponentProfile)
   const proofRows = opponentProofRows(input.opponentProof)
   const primaryProof = opponentProofLine(proofRows)
 
   if (kind === 'strikeouts') {
     const strikeouts = clampRating(base + 4)
-    const lineupContactRisk = clampRating(100 - Math.max(35, Math.min(90, hit12Score)) * 0.28 + (num(input.mlbGameContext?.totalLine) != null && Number(input.mlbGameContext?.totalLine) <= 7.5 ? -3 : 2))
+    const lineupContactRisk = opponentContact.value
     return {
       ratingTitle: 'Pitcher K Overall',
       playerLabel: 'Pitcher K rating',
@@ -577,10 +623,10 @@ function buildMlbMatchupRating(input: {
         subRating('Stuff', base + 6, 'Recent strikeout production and K pace.'),
         subRating('Recent form', formScore, `${fmtAvg(input.last5Avg)} Ks over last ${input.games5}.`),
         subRating('Leash', sampleScore * 0.55 + stabilityScore * 0.45, 'Sample size plus line stability as a pitch-count proxy.'),
-        subRating('Opponent whiff', 100 - lineupContactRisk + 72, primaryProof || 'This lineup gives pitchers more strikeout chances.'),
+        subRating('Opponent whiff', 135 - lineupContactRisk, primaryProof || (opponentContact.hasData ? 'Opponent recent contact profile gives pitchers strikeout chances.' : 'Opponent batting profile not wired yet; treat this as neutral.')),
         subRating('Line fit', stabilityScore, `${propText(input.line, 'strikeouts')} versus recent band.`),
       ],
-      read: `${input.player} grades like a ${strikeouts}/100 strikeout profile against an opponent contact score of ${lineupContactRisk}/100 from current form and game setup.`,
+      read: `${input.player} grades like a ${strikeouts}/100 strikeout profile against an opponent contact score of ${lineupContactRisk}/100 ${opponentContact.hasData ? 'from current form and game setup' : '(neutral placeholder until opponent lineup data loads)'}.`,
       rows: [
         `K form: ${fmtAvg(input.last5Avg)} over the last ${input.games5}, ${input.hit5 ?? '—'} of ${input.games5} cleared ${propText(input.line, 'strikeouts')}.`,
         ...(primaryProof ? [`Opponent form: ${primaryProof}`] : []),
@@ -588,13 +634,14 @@ function buildMlbMatchupRating(input: {
         `${opponentContext}; use that as context, not an automatic strikeout play.`,
       ],
       opponentProof: proofRows,
+      hasOpponentData: opponentContact.hasData,
     }
   }
 
-  const contact = clampRating(base + (kind === 'contact' ? 5 : 0) - (kind === 'power' ? 8 : 0) + environmentBump)
-  const totalBases = clampRating(base + (kind === 'contact' ? 2 : kind === 'power' ? 5 : 0) + environmentBump)
-  const homeRuns = clampRating(base - 16 + (kind === 'power' ? 18 : 0) + (input.max >= 1 && input.metric.toLowerCase() === 'home runs' ? 4 : 0) + Math.max(0, environmentBump))
-  const runsRbis = clampRating(base + (kind === 'offense' ? 7 : -3) + environmentBump)
+  const contact = clampRating(base + (kind === 'contact' ? 5 : 0) - (kind === 'power' ? 8 : 0))
+  const totalBases = clampRating(base + (kind === 'contact' ? 2 : kind === 'power' ? 5 : 0))
+  const homeRuns = clampRating(base - 16 + (kind === 'power' ? 18 : 0) + (input.max >= 1 && input.metric.toLowerCase() === 'home runs' ? 4 : 0))
+  const runsRbis = clampRating(base + (kind === 'offense' ? 7 : -3))
   const fits = [
     ['Hits', contact],
     ['Total bases', totalBases],
@@ -618,7 +665,7 @@ function buildMlbMatchupRating(input: {
     return 0
   }) as Array<[string, number]>
 
-  const hitterAdvantageGap = fits[0][1] + opponentBaseline - 150
+  const hitterAdvantageGap = Math.round((fits[0][1] - 78) + (opponentBaseline - 65))
   const ratingTitle = kind === 'power' ? 'Power Overall' : kind === 'offense' ? 'Run Production Overall' : 'Contact Overall'
   return {
     ratingTitle,
@@ -644,6 +691,7 @@ function buildMlbMatchupRating(input: {
       `${opponentContext}; upgrade with confirmed lineup spot, handedness, pitch mix, and park/weather. Downgrade if those do not support the read.`,
     ],
     opponentProof: proofRows,
+    hasOpponentData: hasPitcherData,
   }
 }
 
@@ -651,14 +699,15 @@ function buildMlbMisreadSignal(metric: string, rating?: MlbMatchupRating): MlbMi
   if (!rating) return undefined
   const gap = rating.matchupGap
   const kind = mlbMetricKind(metric)
-  const strongGap = gap >= 18
-  const watchGap = gap >= 12
+  const strongGap = gap >= 22
+  const watchGap = gap >= 14
+  if (!rating.hasOpponentData) return undefined
   const hasRequiredRatings = kind === 'strikeouts'
-    ? rating.playerRating >= 82 && rating.opponentRating <= 82
-    : rating.playerRating >= 82 && rating.opponentRating >= 64
+    ? rating.playerRating >= 82 && rating.opponentRating <= 78
+    : rating.playerRating >= 82 && rating.opponentRating >= 72
   if (!watchGap || !hasRequiredRatings) return undefined
 
-  const severity: MlbMisreadSignal['severity'] = strongGap && rating.playerRating >= 88 ? 'strong' : 'watch'
+  const severity: MlbMisreadSignal['severity'] = strongGap && rating.playerRating >= 90 ? 'strong' : 'watch'
   if (kind === 'strikeouts') {
     return {
       kind: 'pitcher_k',

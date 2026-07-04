@@ -254,6 +254,7 @@ export interface PropsResponse {
   sport: Sport
   available: boolean
   marketSummary: PropsMarketSummary
+  mlbMatchupContext?: MlbMatchupContext | null
 }
 
 const NFL_ABBR: Record<string, string> = {
@@ -302,9 +303,9 @@ function normalizeMlbPitcherContext(probable: any, team: string): MlbPitcherCont
   const innings = Number(pitcherContextStat(probable, ['fullInnings', 'IP']) || 0) + Number(pitcherContextStat(probable, ['partInnings']) || 0) / 3
   const kPer9 = strikeouts != null && innings > 0 ? (strikeouts * 9) / innings : undefined
   const difficulty = Math.max(0, Math.min(100, Math.round(
-    (era == null ? 45 : Math.max(0, Math.min(55, (era / 6) * 55))) +
-    (whip == null ? 20 : Math.max(0, Math.min(30, (whip / 1.7) * 30))) +
-    (kPer9 == null ? 10 : Math.max(0, Math.min(15, (11 - Math.min(11, kPer9)) * 1.35)))
+    (era == null ? 27 : Math.max(0, Math.min(55, (era / 6) * 55))) +
+    (whip == null ? 15 : Math.max(0, Math.min(30, (whip / 1.7) * 30))) +
+    (kPer9 == null ? 7 : Math.max(0, Math.min(15, (11 - Math.min(11, kPer9)) * 1.35)))
   )))
   return { name: athlete.displayName, team, era, whip, strikeouts, innings, kPer9, difficulty }
 }
@@ -325,14 +326,16 @@ function mlbTeamBattingProfile(team: string, players: PlayerPropLine[]): MlbTeam
   const hrrAvg = avg(perPlayer.map(p => p.hrr))
   const strikeoutsAvg = avg(perPlayer.map(p => p.strikeouts))
   const weaknessScore = Math.max(0, Math.min(100, Math.round(
-    Math.max(0, 1.05 - hitsAvg) * 32 +
-    Math.max(0, 1.8 - totalBasesAvg) * 18 +
-    Math.max(0, strikeoutsAvg - 0.85) * 38
+    50 +
+    Math.max(-0.5, Math.min(0.5, 1.0 - hitsAvg)) * 34 +
+    Math.max(-0.8, Math.min(0.8, 1.45 - totalBasesAvg)) * 16 +
+    Math.max(-0.5, Math.min(0.8, strikeoutsAvg - 0.85)) * 34
   )))
   const powerScore = Math.max(0, Math.min(100, Math.round(
-    Math.max(0, hitsAvg - 0.85) * 34 +
-    Math.max(0, totalBasesAvg - 1.45) * 24 +
-    Math.max(0, hrrAvg - 1.65) * 16
+    50 +
+    Math.max(-0.45, Math.min(0.55, hitsAvg - 0.9)) * 30 +
+    Math.max(-0.7, Math.min(0.9, totalBasesAvg - 1.45)) * 22 +
+    Math.max(-0.8, Math.min(1.0, hrrAvg - 1.8)) * 14
   )))
   return { team, hitterCount: hitters.length, hitsAvg, totalBasesAvg, hrrAvg, strikeoutsAvg, weaknessScore, powerScore }
 }
@@ -1455,7 +1458,7 @@ export async function GET(req: NextRequest) {
     const homeProps = statReady.filter(p => p.team === home)
     const awayProps = statReady.filter(p => p.team === away)
     const marketSummary = await summarizeMarkets([...homeRaw, ...awayRaw], [...homeProps, ...awayProps], sport, kalshiScan, matchCache)
-    return finishRouteTiming(timing, NextResponse.json({ home: homeProps, away: awayProps, homeTeam: home, awayTeam: away, sport, available: homeProps.length > 0 || awayProps.length > 0, marketSummary } satisfies PropsResponse))
+    return finishRouteTiming(timing, NextResponse.json({ home: homeProps, away: awayProps, homeTeam: home, awayTeam: away, sport, available: homeProps.length > 0 || awayProps.length > 0, marketSummary, ...(sport === 'mlb' ? { mlbMatchupContext } : {}) } satisfies PropsResponse))
   } catch (err) {
     console.error('Props error:', err)
     return finishRouteTiming(timing, NextResponse.json({ error: 'Failed to fetch props' }, { status: 500 }))

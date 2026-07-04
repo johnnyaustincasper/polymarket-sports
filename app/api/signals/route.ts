@@ -14,8 +14,8 @@ import { fetchNewsIntelForSignals, type NewsIntelContext } from '@/app/lib/socia
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v15'
-const TODAY_SIGNAL_SCHEMA = 'v14'
+const SIGNAL_CACHE_SCHEMA = 'v16'
+const TODAY_SIGNAL_SCHEMA = 'v15'
 
 type Sport = 'nba' | 'nfl' | 'mlb' | 'nhl'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
@@ -515,6 +515,8 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
     awayTeam: game.awayTeam.abbr,
     homePitcher: game.mlbMatchup?.homePitcher,
     awayPitcher: game.mlbMatchup?.awayPitcher,
+    homeProfile: data?.mlbMatchupContext?.homeProfile,
+    awayProfile: data?.mlbMatchupContext?.awayProfile,
     totalLine: game.totalLine ?? game.dkTotal,
     venueName: game.venue?.name,
   } : undefined

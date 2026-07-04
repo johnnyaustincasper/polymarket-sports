@@ -230,6 +230,12 @@ describe('signal judgment context', () => {
       label: '7+ strikeouts',
       line: 7,
       last12,
+      mlbGameContext: {
+        playerTeam: 'DET',
+        homeTeam: 'DET',
+        awayTeam: 'TEX',
+        awayProfile: { team: 'TEX', hitterCount: 8, strikeoutsAvg: 1.4, hitsAvg: 0.7, totalBasesAvg: 1.1, weaknessScore: 61 },
+      },
       mlbOpponentProof: [
         'TEX recent lineup profile: 1.4 strikeouts per hitter, 0.7 hits avg, 1.1 total bases avg across 8 hitters.',
         'Opponent weakness score 61/100 from recent contact, total-base, and strikeout form.',
@@ -264,6 +270,13 @@ describe('signal judgment context', () => {
       label: '7+ strikeouts',
       line: 7,
       last12,
+      mlbGameContext: {
+        playerTeam: 'DET',
+        homeTeam: 'DET',
+        awayTeam: 'TEX',
+        awayProfile: { team: 'TEX', hitterCount: 8, strikeoutsAvg: 1.4, hitsAvg: 0.7, totalBasesAvg: 1.1, weaknessScore: 61 },
+      },
+      mlbOpponentProof: ['TEX recent lineup profile: 1.4 strikeouts per hitter, 0.7 hits avg, 1.1 total bases avg across 8 hitters.'],
     })
 
     expect(context?.mlbConviction?.matchupRating).toMatchObject({
@@ -306,6 +319,14 @@ describe('signal judgment context', () => {
       label: '1+ home runs',
       line: 1,
       last12,
+      mlbGameContext: {
+        playerTeam: 'NYY',
+        homeTeam: 'NYY',
+        awayTeam: 'BOS',
+        awayPitcher: { name: 'Target Starter', difficulty: 88 },
+        totalLine: 9.5,
+      },
+      mlbOpponentProof: ['Opponent starter: Target Starter 6.10 ERA / 1.60 WHIP; vulnerability rating 88/100.'],
     })
 
     expect(context?.mlbConviction?.matchupRating?.bestFit).toBe('Home runs')
@@ -314,6 +335,57 @@ describe('signal judgment context', () => {
       label: 'Power matchup flag',
     })
     expect(context?.mlbConviction?.misreadSignal?.reason).toContain('power path fits')
+  })
+
+
+  it('does not fabricate MLB misreads when opponent data is missing', () => {
+    const kLogs = Array.from({ length: 10 }, (_, idx) => ({ eventId: `k${idx}`, stats: { strikeouts: idx % 2 ? 9 : 11 } }))
+    const kContext = buildJudgmentContext({
+      player: 'Hot Pitcher',
+      metric: 'strikeouts',
+      label: '7+ strikeouts',
+      line: 7,
+      last12: kLogs,
+    })
+    expect(kContext?.mlbConviction?.matchupRating?.hasOpponentData).toBe(false)
+    expect(kContext?.mlbConviction?.misreadSignal).toBeUndefined()
+
+    const hrLogs = Array.from({ length: 10 }, (_, idx) => ({ eventId: `b${idx}`, stats: { homeRuns: idx % 3 ? 1 : 2 } }))
+    const hitterContext = buildJudgmentContext({
+      player: 'Hot Bat',
+      metric: 'home runs',
+      label: '1+ home runs',
+      line: 1,
+      last12: hrLogs,
+    })
+    expect(hitterContext?.mlbConviction?.matchupRating?.hasOpponentData).toBe(false)
+    expect(hitterContext?.mlbConviction?.misreadSignal).toBeUndefined()
+  })
+
+  it('keeps low-line MLB ratings from saturating at 99 for normal hitter form', () => {
+    const last12 = [
+      { eventId: 'h1', stats: { hits: 1, totalBases: 1 } },
+      { eventId: 'h2', stats: { hits: 1, totalBases: 2 } },
+      { eventId: 'h3', stats: { hits: 1, totalBases: 1 } },
+      { eventId: 'h4', stats: { hits: 0, totalBases: 0 } },
+      { eventId: 'h5', stats: { hits: 2, totalBases: 3 } },
+      { eventId: 'h6', stats: { hits: 1, totalBases: 1 } },
+    ]
+    const context = buildJudgmentContext({
+      player: 'Everyday Hitter',
+      metric: 'hits',
+      label: '1+ hits',
+      line: 0.5,
+      last12,
+      mlbGameContext: {
+        playerTeam: 'MIN',
+        homeTeam: 'MIN',
+        awayTeam: 'CLE',
+        awayPitcher: { name: 'Average Starter', difficulty: 65 },
+      },
+    })
+    expect(context?.mlbConviction?.matchupRating?.playerRating).toBeLessThanOrEqual(93)
+    expect(context?.overallRatings.player.score).toBeLessThanOrEqual(93)
   })
 
 })
