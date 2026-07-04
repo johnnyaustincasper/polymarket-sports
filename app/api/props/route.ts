@@ -363,29 +363,34 @@ function withMlbMatchupSignals(players: PlayerPropLine[], context: MlbMatchupCon
       let boost = 0
       const tags: string[] = [...(rec.signalTags || [])]
       const notes: string[] = []
+      let proofRows: string[] = []
       if (isPitcher && rec.metric === 'strikeouts' && opponentProfile) {
         const pitcherK = ownPitcher?.kPer9 || rec.last12Avg || 0
         const kBoost = Math.round(Math.max(0, pitcherK - 7.2) * 2.8 + opponentProfile.weaknessScore * 0.16)
-        const proof = mlbProfileProof(opponentProfile, 'pitcher_k', ownPitcher)
+        proofRows = mlbProfileProof(opponentProfile, 'pitcher_k', ownPitcher)
+        notes.push(`Opponent setup: ${ownPitcher?.name || player.player} faces ${opponentProfile.team}. ${proofRows.join(' ')}`)
         if (kBoost >= 5) {
           boost += Math.min(16, kBoost)
           tags.push('K matchup')
-          notes.push(`K matchup: ${ownPitcher?.name || player.player} faces ${opponentProfile.team}. ${proof.join(' ')}`)
         }
-      } else if (!isPitcher && ['hits', 'home runs', 'hits + runs + RBIs', 'total bases'].includes(rec.metric) && opposingPitcher) {
+      } else if (!isPitcher && ['hits', 'home runs', 'hits + runs + RBIs', 'total bases'].includes(rec.metric)) {
         const teamPower = team === home ? context.homeProfile.powerScore : context.awayProfile.powerScore
-        const pitcherTarget = opposingPitcher.difficulty
+        const pitcherTarget = opposingPitcher?.difficulty ?? 50
         const hitterBoost = Math.round(teamPower * 0.12 + Math.max(0, pitcherTarget - 55) * 0.22)
         const ownProfile = team === home ? context.homeProfile : context.awayProfile
-        const proof = mlbProfileProof(ownProfile, 'hitter', opposingPitcher)
+        proofRows = mlbProfileProof(ownProfile, 'hitter', opposingPitcher)
+        notes.push(`Opponent setup: ${team} bats face ${opposingPitcher?.name || 'the opposing starter'}. ${proofRows.join(' ')}`)
         if (hitterBoost >= 5) {
           boost += Math.min(14, hitterBoost)
           tags.push('Pitcher target')
-          notes.push(`Hitting matchup: ${team} bats get ${opposingPitcher.name}. ${proof.join(' ')}`)
         }
       }
-      if (!boost) return rec
-      const boostedQuality: PropQuality = rec.quality === 'watch' && rec.hitRate >= 50 ? 'lean' : rec.quality
+      if (!boost && !proofRows.length) return rec
+      const boostedQuality: PropQuality = boost && rec.quality === 'watch' && rec.hitRate >= 50 ? 'lean' : rec.quality
+      const opponentProof = Array.from(new Set([
+        ...(rec.opponentProof || []),
+        ...proofRows,
+      ])).slice(0, 4)
       return {
         ...rec,
         quality: boostedQuality,
@@ -393,11 +398,8 @@ function withMlbMatchupSignals(players: PlayerPropLine[], context: MlbMatchupCon
         valueScore: rec.valueScore + boost,
         maxYesPrice: Math.min(95, rec.maxYesPrice + Math.round(boost * 0.45)),
         signalTags: Array.from(new Set(tags)),
-        opponentProof: Array.from(new Set([
-          ...(rec.opponentProof || []),
-          ...notes.flatMap(note => note.split(/(?<=\.)\s+/)).filter(Boolean),
-        ])).slice(0, 4),
-        explanation: `${rec.explanation} ${notes.join(' ')}`,
+        opponentProof,
+        explanation: notes.length ? `${rec.explanation} ${notes.join(' ')}` : rec.explanation,
       }
     }).sort((a, b) => (b.valueScore - a.valueScore) || ((a.kalshi?.yesAsk || 99) - (b.kalshi?.yesAsk || 99)))
     return { ...player, recommendations, bestBet: recommendations[0] || player.bestBet }
