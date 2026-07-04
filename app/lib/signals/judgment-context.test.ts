@@ -199,8 +199,8 @@ describe('signal judgment context', () => {
     expect(why).toContain('opponent K-rate')
     expect(why).toContain('umpire zone')
     expect(why).not.toMatch(/odds|market|Pass/i)
-    expect(context?.mlbConviction?.read).toContain('pitcher-K read')
-    expect(context?.mlbConviction?.matchupRating).toMatchObject({ playerLabel: 'Pitcher K rating', opponentLabel: 'Lineup contact risk', bestFit: 'Strikeouts' })
+    expect(context?.mlbConviction?.read).toContain('pitcher strikeout read')
+    expect(context?.mlbConviction?.matchupRating).toMatchObject({ playerLabel: 'Pitcher K rating', opponentLabel: 'Opponent contact', bestFit: 'Strikeouts' })
     expect(context?.mlbConviction?.matchupRating?.playerRating).toBeGreaterThanOrEqual(35)
     expect(context?.mlbConviction?.matchupRating?.opponentRating).toBeGreaterThanOrEqual(35)
     expect(context?.mlbConviction?.matchupRating?.rows.join(' ')).toContain('K form')
@@ -268,7 +268,7 @@ describe('signal judgment context', () => {
 
     expect(context?.mlbConviction?.matchupRating).toMatchObject({
       playerLabel: 'Pitcher K rating',
-      opponentLabel: 'Lineup contact risk',
+      opponentLabel: 'Opponent contact',
       bestFit: 'Strikeouts',
     })
     expect(context?.mlbConviction?.matchupRating?.playerRating).toBeGreaterThanOrEqual(90)
@@ -276,7 +276,7 @@ describe('signal judgment context', () => {
     expect(context?.mlbConviction?.matchupRating?.read).toContain('/100 strikeout profile')
     expect(context?.mlbConviction?.misreadSignal).toMatchObject({
       kind: 'pitcher_k',
-      label: 'Pitcher K misread',
+      label: 'Pitcher K matchup flag',
       severity: 'strong',
       playerRating: expect.any(Number),
       opponentRating: expect.any(Number),
@@ -311,9 +311,9 @@ describe('signal judgment context', () => {
     expect(context?.mlbConviction?.matchupRating?.bestFit).toBe('Home runs')
     expect(context?.mlbConviction?.misreadSignal).toMatchObject({
       kind: 'hitter_power',
-      label: 'Power misread',
+      label: 'Power matchup flag',
     })
-    expect(context?.mlbConviction?.misreadSignal?.reason).toContain('power-path gap')
+    expect(context?.mlbConviction?.misreadSignal?.reason).toContain('power path fits')
   })
 
 })

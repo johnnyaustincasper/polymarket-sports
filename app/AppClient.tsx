@@ -3728,8 +3728,8 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     return (
       <div role="tabpanel" aria-label={`${mlbMisreadTab === 'pitcher' ? 'Pitcher' : 'Hitter'} misreads`} style={{ display: 'grid', gap: 7 }}>
         {rows.map(row => {
-          const edge = row.gap
-          const edgeColor = edge == null ? C.textSecondary : edge >= 8 ? C.green : edge >= 0 ? C.gold : C.red
+          const matchupGap = row.gap
+          const gapColor = matchupGap == null ? C.textSecondary : matchupGap >= 8 ? C.green : matchupGap >= 0 ? C.gold : C.red
           const playerRating = Number.isFinite(row.playerRating) ? Math.round(row.playerRating) : null
           const time = formatMlbMisreadGameTime(row.signal?.gameTime || row.source?.gameTime)
           const proof = row.opponentProof?.[0]
@@ -3761,11 +3761,11 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
               <span style={{ minWidth: 0, display: 'grid', gap: 3 }}>
                 <span style={{ color: C.textPrimary, fontSize: isMobile ? 13.5 : 14, fontWeight: 900, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.signal?.player || row.source?.player}</span>
                 <span style={{ color: C.textSecondary, fontSize: 10.5, fontWeight: 750, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.ratingTitle || row.label} · {row.signal?.label || row.source?.label} · {row.signal?.matchup || row.source?.matchup} · {time}</span>
-                {proof && <span style={{ color: C.green, fontSize: 9.5, fontWeight: 850, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Why vs opponent: {proof}</span>}
+                {proof && <span style={{ color: C.green, fontSize: 9.5, fontWeight: 850, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Why it fits this opponent: {proof}</span>}
               </span>
               <span style={{ display: 'inline-grid', justifyItems: 'end', gap: 2, minWidth: 54 }}>
-                <span aria-label={edge == null ? 'Edge unavailable' : `Edge ${edge > 0 ? '+' : ''}${edge}`} style={{ color: edgeColor, fontSize: 12, fontWeight: 950, borderRadius: 999, padding: '4px 7px', background: 'rgba(0,0,0,0.26)', border: `1px solid ${edge == null ? 'rgba(255,255,255,0.10)' : edge >= 8 ? 'rgba(125,246,255,0.30)' : edge >= 0 ? 'rgba(255,209,102,0.28)' : 'rgba(255,77,109,0.24)'}`, lineHeight: 1 }}>{edge == null ? '—' : `${edge > 0 ? '+' : ''}${edge}`}</span>
-                <span style={{ color: C.textSecondary, fontSize: 8.5, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Edge ›</span>
+                <span aria-label={matchupGap == null ? 'Matchup gap unavailable' : `Matchup gap ${matchupGap > 0 ? '+' : ''}${matchupGap}`} style={{ color: gapColor, fontSize: 12, fontWeight: 950, borderRadius: 999, padding: '4px 7px', background: 'rgba(0,0,0,0.26)', border: `1px solid ${matchupGap == null ? 'rgba(255,255,255,0.10)' : matchupGap >= 8 ? 'rgba(125,246,255,0.30)' : matchupGap >= 0 ? 'rgba(255,209,102,0.28)' : 'rgba(255,77,109,0.24)'}`, lineHeight: 1 }}>{matchupGap == null ? '—' : `${matchupGap > 0 ? '+' : ''}${matchupGap}`}</span>
+                <span style={{ color: C.textSecondary, fontSize: 8.5, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Gap ›</span>
               </span>
             </button>
           )
@@ -3831,7 +3831,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
                 <div style={{ display: 'grid', justifyItems: 'end', gap: 5, flexShrink: 0 }}>
                   {strongestMlbMisread && (
                     <span style={{ color: C.gold, fontSize: 9, fontWeight: 950, borderRadius: 999, padding: '5px 8px', background: 'rgba(2,5,1,0.62)', border: '1px solid rgba(125,246,255,0.28)' }}>
-                      Top edge {strongestMlbMisread.gap == null ? '—' : `${strongestMlbMisread.gap > 0 ? '+' : ''}${strongestMlbMisread.gap}`}
+                      Top matchup gap {strongestMlbMisread.gap == null ? '—' : `${strongestMlbMisread.gap > 0 ? '+' : ''}${strongestMlbMisread.gap}`}
                     </span>
                   )}
                   <span style={{ color: C.green, fontSize: 10, fontWeight: 900 }}>{mlbMisreadsOpen ? 'Hide' : 'Open'} {mlbMisreadsOpen ? '⌃' : '⌄'}</span>
@@ -3873,7 +3873,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
                     )
                   })}
                 </div>
-                {renderMlbMisreadRows(activeMlbMisreadRows, mlbMisreadTab === 'pitcher' ? 'No pitcher K misreads on this board yet.' : 'No hitter contact/power/run-path misreads on this board yet.')}
+                {renderMlbMisreadRows(activeMlbMisreadRows, mlbMisreadTab === 'pitcher' ? 'No pitcher strikeout matchup flags on this board yet.' : 'No hitter matchup flags on this board yet.')}
               </div>
             )}
           </div>
@@ -3887,7 +3887,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
               <span aria-hidden="true" style={{ width: 22, height: 22, borderRadius: 999, border: '2px solid rgba(125,246,255,0.24)', borderTopColor: C.green, borderRightColor: 'rgba(125,246,255,0.84)', boxShadow: '0 0 14px rgba(125,246,255,0.24)', animation: 'aiAnalyzeOrbit 850ms linear infinite', flexShrink: 0 }} />
               <div style={{ minWidth: 0 }}>
                 <div style={{ color: C.textPrimary, fontSize: isMobile ? 13 : 14, fontWeight: 950, letterSpacing: '-0.02em' }}>Loading Signals</div>
-                <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.35, marginTop: 2 }}>Scanning today’s slate, matching props, checking injuries, then ranking edges…</div>
+                <div style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.35, marginTop: 2 }}>Checking today’s slate, matching props, injuries, and matchup fit…</div>
               </div>
             </div>
             {[0, 1, 2].map(i => (
@@ -3920,7 +3920,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
                 })}
               </div>
             ) : (
-              <div style={{ color: C.textSecondary, fontSize: 11 }}>No clean signals passed the current model gate on this slate.</div>
+              <div style={{ color: C.textSecondary, fontSize: 11 }}>No clean signals passed today’s checks yet.</div>
             )}
           </div>
         )}

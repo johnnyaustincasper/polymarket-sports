@@ -55,9 +55,16 @@ function plainLineLabel(label: string) {
 function stripJargon(text: string) {
   return text
     .replace(/\bask\b/gi, 'price')
-    .replace(/\bfair(?: value)?\b/gi, 'true chance')
-    .replace(/\bedge\b/gi, 'value')
-    .replace(/\bladder entry\b/gi, 'safer plan')
+    .replace(/\bfair(?: value)?\b/gi, 'expected chance')
+    .replace(/\bedge\b/gi, 'matchup gap')
+    .replace(/\bladder entry\b/gi, 'safer line')
+    .replace(/\bmisprice\b/gi, 'line looks off')
+    .replace(/\bcushion\b/gi, 'room before it gets too expensive')
+    .replace(/\bmarket\b/gi, 'line')
+    .replace(/\bmodel\b/gi, 'read')
+    .replace(/\bprojection\b/gi, 'expected stat line')
+    .replace(/\bscan(?:ning)?\b/gi, 'check')
+    .replace(/\bresistance\b/gi, 'toughness')
     .replace(/\bQ4\b/g, 'the 4th quarter')
     .replace(/\bB2B\b/gi, 'back-to-back')
     .replace(/\b\d+c\b/g, '')
@@ -71,7 +78,7 @@ function tooMarketHeavy(text: string) {
 
 function simpleRisk(text: string) {
   const clean = stripJargon(text)
-  if (/price|ask|fair|edge|market|c\b/i.test(text)) return 'Do not chase it if the line gets worse before tipoff.'
+  if (/price|ask|fair|edge|market|c\b/i.test(text)) return 'Do not chase it if the line gets worse before game time.'
   if (/blowout|leads? by|lopsided/i.test(text)) return 'A blowout could cut his late-game minutes.'
   if (/minutes?|cap|restriction/i.test(text)) return 'Minutes are the big thing to watch.'
   if (/questionable|scratch|inactive|out\b/i.test(text)) return 'Make sure he is active before the game starts.'
@@ -337,9 +344,9 @@ export default function SignalTerminalCard({
   const activeTabHasContent = !detailTab || (detailTab === 'read' ? hasReadContent : detailTab === 'numbers' ? hasNumbersContent : detailTab === 'risk' ? hasRiskContent : hasStatsContent)
   const showMlbBlock = Boolean(mlbConviction && (!detailTab || (detailTab === 'read' && mlbReadContent) || (detailTab === 'numbers' && mlbNumbersContent) || (detailTab === 'risk' && mlbRiskContent)))
   const tabEmptyText = detailTab === 'numbers'
-    ? 'No extra rating panel for this signal yet. Use READ for the actual call.'
+    ? 'No extra numbers panel for this signal yet. Use READ for the main takeaway.'
     : detailTab === 'risk'
-      ? 'No special risk flags surfaced for this signal. Still respect price and lineup changes.'
+      ? 'No special risk flags surfaced for this signal. Still respect lineup news and line movement.'
       : detailTab === 'stats'
         ? 'No last-12 game log attached to this signal yet.'
         : 'No expanded read is attached to this signal yet.'
@@ -528,13 +535,13 @@ export default function SignalTerminalCard({
             {showFor(['read']) && (mlbConviction.misreadSignal?.summary || mlbConviction.read || mlbConviction.misreadSignal?.reason) && (
               <div style={{ color: C.text, fontSize: 11, lineHeight: 1.42, fontWeight: 850, marginBottom: 9, display: 'grid', gap: 5 }}>
                 {mlbConviction.misreadSignal?.summary && (
-                  <span>{mlbConviction.misreadSignal.summary}{isFiniteNumber(mlbConviction.misreadSignal?.matchupGap) ? ` · Edge ${mlbConviction.misreadSignal.matchupGap > 0 ? '+' : ''}${formatNumber(mlbConviction.misreadSignal.matchupGap)}` : ''}</span>
+                  <span>{mlbConviction.misreadSignal.summary}{isFiniteNumber(mlbConviction.misreadSignal?.matchupGap) ? ` · Matchup gap ${mlbConviction.misreadSignal.matchupGap > 0 ? '+' : ''}${formatNumber(mlbConviction.misreadSignal.matchupGap)}` : ''}</span>
                 )}
                 {mlbConviction.read && mlbConviction.read !== mlbConviction.misreadSignal?.summary && <span>{mlbConviction.read}</span>}
                 {mlbConviction.misreadSignal?.reason && <span style={{ color: C.muted, fontSize: 9.5, lineHeight: 1.35 }}>{mlbConviction.misreadSignal.reason}</span>}
                 {(mlbConviction.misreadSignal?.opponentProof?.length || mlbConviction.opponentProof?.length) ? (
                   <div style={{ marginTop: 3, display: 'grid', gap: 4 }}>
-                    <span style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Why vs opponent</span>
+                    <span style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Why it fits this opponent</span>
                     {(mlbConviction.misreadSignal?.opponentProof?.length ? mlbConviction.misreadSignal.opponentProof : mlbConviction.opponentProof).slice(0, 3).map(row => (
                       <span key={`opponent-proof-${row}`} style={{ color: C.text, fontSize: 9.5, lineHeight: 1.35 }}>• {row}</span>
                     ))}
@@ -545,7 +552,7 @@ export default function SignalTerminalCard({
 
             {showFor(['numbers']) && mlbConviction.matchupRating && (
               <div style={{ marginBottom: 9, borderRadius: 14, padding: 10, background: 'rgba(125,246,255,0.07)', border: '1px solid rgba(125,246,255,0.18)' }}>
-                <div style={{ color: C.green, fontSize: 9, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>{mlbConviction.matchupRating.ratingTitle || 'Video-game rating'}{mlbConviction.matchupRating.bestFit ? ` · Best fit: ${mlbConviction.matchupRating.bestFit}` : ''}</div>
+                <div style={{ color: C.green, fontSize: 9, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>{mlbConviction.matchupRating.ratingTitle || 'Matchup score'}{mlbConviction.matchupRating.bestFit ? ` · Best fit: ${mlbConviction.matchupRating.bestFit}` : ''}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6 }}>
                   <div style={{ borderRadius: 11, padding: '8px 6px', background: 'rgba(2,5,1,0.62)', border: '1px solid rgba(125,246,255,0.16)', textAlign: 'center' }}>
                     <div style={{ color: C.faint, fontSize: 8.5, fontWeight: 900, textTransform: 'uppercase' }}>{mlbConviction.matchupRating.playerLabel || 'Player'}</div>
@@ -556,7 +563,7 @@ export default function SignalTerminalCard({
                     <div style={{ color: C.text, fontSize: 22, fontWeight: 950, lineHeight: 1 }}>{formatNumber(mlbConviction.matchupRating.opponentRating)}</div>
                   </div>
                   <div style={{ borderRadius: 11, padding: '8px 6px', background: 'rgba(255,209,102,0.08)', border: '1px solid rgba(255,209,102,0.18)', textAlign: 'center' }}>
-                    <div style={{ color: C.faint, fontSize: 8.5, fontWeight: 900, textTransform: 'uppercase' }}>Edge</div>
+                    <div style={{ color: C.faint, fontSize: 8.5, fontWeight: 900, textTransform: 'uppercase' }}>Gap</div>
                     <div style={{ color: (mlbConviction.matchupRating.matchupGap || 0) >= 8 ? C.green : (mlbConviction.matchupRating.matchupGap || 0) >= 0 ? C.amber : C.red, fontSize: 22, fontWeight: 950, lineHeight: 1 }}>{(mlbConviction.matchupRating.matchupGap || 0) > 0 ? '+' : ''}{formatNumber(mlbConviction.matchupRating.matchupGap)}</div>
                   </div>
                 </div>
@@ -576,7 +583,7 @@ export default function SignalTerminalCard({
 
             {showFor(['risk']) && (mlbConviction.whyLive.length > 0 || mlbConviction.path || mlbConviction.killSwitch.length > 0 || mlbConviction.numberDiscipline) && (
               <div style={{ borderRadius: 13, padding: 10, background: 'rgba(2,5,1,0.42)', border: '1px solid rgba(255,255,255,0.09)' }}>
-                <div style={{ color: C.green, fontSize: 9, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Why it’s live</div>
+                <div style={{ color: C.green, fontSize: 9, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Why this can hit</div>
                 <div style={{ display: 'grid', gap: 4 }}>
                   {[...mlbConviction.whyLive.slice(0, 3), mlbConviction.path ? `Path: ${mlbConviction.path}` : ''].filter(Boolean).map(row => (
                     <div key={`mlb-live-${row}`} style={{ color: C.muted, fontSize: 9.5, lineHeight: 1.35, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 4 }}>
@@ -585,8 +592,8 @@ export default function SignalTerminalCard({
                     </div>
                   ))}
                 </div>
-                {mlbConviction.killSwitch.length > 0 && <div style={{ color: C.red, fontSize: 9, lineHeight: 1.34, marginTop: 7, fontWeight: 850 }}>Kills it: {mlbConviction.killSwitch.join(' · ')}</div>}
-                {mlbConviction.numberDiscipline && <div style={{ color: C.faint, fontSize: 9, lineHeight: 1.34, marginTop: 6, fontWeight: 800 }}>Number discipline: {mlbConviction.numberDiscipline}</div>}
+                {mlbConviction.killSwitch.length > 0 && <div style={{ color: C.red, fontSize: 9, lineHeight: 1.34, marginTop: 7, fontWeight: 850 }}>What can ruin it: {mlbConviction.killSwitch.join(' · ')}</div>}
+                {mlbConviction.numberDiscipline && <div style={{ color: C.faint, fontSize: 9, lineHeight: 1.34, marginTop: 6, fontWeight: 800 }}>Line note: {mlbConviction.numberDiscipline}</div>}
               </div>
             )}
           </div>
@@ -596,7 +603,7 @@ export default function SignalTerminalCard({
           <div style={{ marginTop: 9, display: 'grid', gap: 8 }}>
             <div style={{ color: C.muted, fontSize: 9.5, fontWeight: 850, lineHeight: 1.35, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {mlbConviction?.misreadSignal
-                ? `MLB MISREAD SCAN · ${mlbConviction.misreadSignal.label}: ${mlbConviction.misreadSignal.summary}`
+                ? `MLB matchup check · ${mlbConviction.misreadSignal.label}: ${mlbConviction.misreadSignal.summary}`
                 : overallRatings?.matchup?.score
                   ? `Overall ${formatNumber(overallRatings.matchup.score)} · ${overallRatings.matchup.label || 'rated'}`
                   : formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}
@@ -621,8 +628,8 @@ export default function SignalTerminalCard({
         {decisionSections.length > 0 && !compact && showFor(['risk']) && (
           <div style={{ marginTop: 10, borderRadius: 14, padding: 10, background: 'rgba(255,255,255,0.032)', border: `1px solid ${C.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 8 }}>
-              <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Decision cockpit</div>
-              <div style={{ color: C.faint, fontSize: 8, fontWeight: 900 }}>role · number · risk</div>
+              <div style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Quick read</div>
+              <div style={{ color: C.faint, fontSize: 8, fontWeight: 900 }}>role · line · risk</div>
             </div>
             <div style={{ display: 'grid', gap: 7 }}>
               {decisionSections.map(section => (
