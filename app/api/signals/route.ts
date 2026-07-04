@@ -14,8 +14,8 @@ import { fetchNewsIntelForSignals, type NewsIntelContext } from '@/app/lib/socia
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v14'
-const TODAY_SIGNAL_SCHEMA = 'v13'
+const SIGNAL_CACHE_SCHEMA = 'v15'
+const TODAY_SIGNAL_SCHEMA = 'v14'
 
 type Sport = 'nba' | 'nfl' | 'mlb' | 'nhl'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
