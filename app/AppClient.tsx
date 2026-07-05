@@ -562,43 +562,47 @@ const GLOBAL_STYLES = `
     0%, 100% { color: #ff4466; opacity: 1; transform: scale(1); text-shadow: 0 0 5px rgba(255,68,102,0.75); }
     50% { color: #ff123f; opacity: 0.55; transform: scale(1.22); text-shadow: 0 0 12px rgba(255,68,102,1); }
   }
-  @keyframes blueFlameFlow {
-    0% { transform: rotate(0deg) scale(1.16); filter: blur(7px); }
-    100% { transform: rotate(360deg) scale(1.16); filter: blur(7px); }
+  @keyframes blueFlameBorderFlow {
+    0% { background-position: 0 0, 0% 50%; box-shadow: 0 0 0 1px rgba(80,218,255,0.42), 0 0 16px rgba(45,177,255,0.52), 0 0 34px rgba(0,102,255,0.28), inset 0 0 14px rgba(85,225,255,0.14); }
+    50% { background-position: 0 0, 100% 50%; box-shadow: 0 0 0 1px rgba(170,246,255,0.72), 0 0 24px rgba(72,205,255,0.74), 0 0 48px rgba(0,120,255,0.38), inset 0 0 18px rgba(85,225,255,0.22); }
+    100% { background-position: 0 0, 0% 50%; box-shadow: 0 0 0 1px rgba(80,218,255,0.42), 0 0 16px rgba(45,177,255,0.52), 0 0 34px rgba(0,102,255,0.28), inset 0 0 14px rgba(85,225,255,0.14); }
+  }
+  @keyframes blueFlameWisp {
+    0% { transform: translateX(-10%) translateY(7%) skewX(-8deg); opacity: 0.42; }
+    100% { transform: translateX(10%) translateY(-7%) skewX(8deg); opacity: 0.82; }
   }
   .blue-flame-prop {
     position: relative;
     overflow: hidden;
     isolation: isolate;
-    border-color: rgba(72, 205, 255, 0.92) !important;
-    box-shadow:
-      0 0 0 1px rgba(72, 205, 255, 0.26),
-      0 0 14px rgba(42, 175, 255, 0.38),
-      0 0 30px rgba(0, 96, 255, 0.22),
-      inset 0 1px 0 rgba(255,255,255,0.16) !important;
+    border: 1px solid transparent !important;
+    background:
+      linear-gradient(145deg, rgba(4,13,23,0.96), rgba(4,18,34,0.82)) padding-box,
+      linear-gradient(115deg, rgba(5,80,255,0.95), rgba(88,232,255,1), rgba(180,250,255,0.95), rgba(0,120,255,0.92), rgba(88,232,255,1)) border-box !important;
+    background-size: 100% 100%, 280% 280% !important;
+    animation: blueFlameBorderFlow 2.65s ease-in-out infinite;
   }
   .blue-flame-prop::before {
     content: '';
     position: absolute;
-    inset: -2px;
+    inset: -22% -18%;
     border-radius: inherit;
-    padding: 2px;
-    background: conic-gradient(from 90deg, rgba(0,80,255,0.08), rgba(85,225,255,0.95), rgba(0,132,255,0.32), rgba(170,245,255,0.78), rgba(0,80,255,0.08));
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+    background:
+      radial-gradient(circle at 18% 30%, rgba(155,244,255,0.58), transparent 24%),
+      radial-gradient(circle at 82% 70%, rgba(0,112,255,0.46), transparent 30%),
+      linear-gradient(90deg, transparent, rgba(94,226,255,0.30), transparent);
+    filter: blur(5px);
     pointer-events: none;
     z-index: 0;
-    animation: blueFlameFlow 7.5s linear infinite;
+    animation: blueFlameWisp 1.85s ease-in-out infinite alternate;
   }
   .blue-flame-prop::after {
     content: '';
     position: absolute;
-    inset: -7px;
+    inset: 1px;
     border-radius: inherit;
-    background: radial-gradient(circle at 28% 8%, rgba(120,236,255,0.28), transparent 34%), radial-gradient(circle at 78% 100%, rgba(0,96,255,0.20), transparent 38%);
+    border: 1px solid rgba(172,247,255,0.34);
     pointer-events: none;
-    opacity: 0.82;
     z-index: 0;
   }
   @keyframes dominoFadeIn {
