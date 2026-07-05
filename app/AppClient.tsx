@@ -3925,8 +3925,9 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
               </span>
               <span style={{ minWidth: 0, display: 'grid', gap: 3 }}>
                 <span style={{ color: C.textPrimary, fontSize: isMobile ? 13.5 : 14, fontWeight: 900, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.signal?.player || row.source?.player}</span>
+                {teamContextText && <span style={{ color: C.green, fontSize: 10, fontWeight: 950, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Player team: {teamContextText.split(/\s+(?:vs|@)\s+/)[0]}</span>}
                 <span style={{ color: C.textSecondary, fontSize: 10.5, fontWeight: 750, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.ratingTitle || row.label} · {row.signal?.label || row.source?.label} · {row.signal?.matchup || row.source?.matchup} · {time}</span>
-                {teamContextText && <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 900, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Team matchup: {teamContextText}</span>}
+                {teamContextText && <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 900, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Opponent: {teamContextText.split(/\s+(?:vs|@)\s+/)[1] || teamContextText}</span>}
                 {proof && <span style={{ color: C.green, fontSize: 9.5, fontWeight: 850, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Why it fits this opponent: {proof}</span>}
               </span>
               <span style={{ display: 'inline-grid', justifyItems: 'end', gap: 2, minWidth: 54 }}>
