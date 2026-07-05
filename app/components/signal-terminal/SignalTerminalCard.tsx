@@ -640,19 +640,39 @@ export default function SignalTerminalCard({
       {compact && onOpen && (
         <style>{`
           @keyframes ${signalCardTapContract.glowAnimationName} {
-            0%, 100% {
-              box-shadow: 0 0 0 1px rgba(125,246,255,0.36), 0 0 14px rgba(125,246,255,0.24), inset 0 1px 0 rgba(255,255,255,0.14);
-              transform: translateY(0);
-            }
-            50% {
-              box-shadow: 0 0 0 1px rgba(125,246,255,0.96), 0 0 28px rgba(125,246,255,0.64), 0 0 54px rgba(46,168,255,0.28), inset 0 1px 0 rgba(255,255,255,0.22);
-              transform: translateY(-1px);
-            }
+            0% { background-position: 0 0, 0% 50%; }
+            100% { background-position: 0 0, 200% 50%; }
+          }
+          @keyframes signalOpenCtaSheen {
+            0% { transform: translateX(-135%) skewX(-18deg); }
+            100% { transform: translateX(135%) skewX(-18deg); }
+          }
+          [data-signal-open-cta="true"] {
+            border: 1px solid transparent !important;
+            background:
+              linear-gradient(135deg, rgba(5,14,22,0.96), rgba(5,24,38,0.90)) padding-box,
+              linear-gradient(110deg, rgba(36,160,255,0.65), rgba(154,245,255,0.98), rgba(67,211,255,0.72), rgba(18,105,255,0.74), rgba(154,245,255,0.98)) border-box !important;
+            background-size: 100% 100%, 220% 220% !important;
+            animation: ${signalCardTapContract.glowAnimationName} 6.8s linear infinite;
+            box-shadow: 0 0 0 1px rgba(125,246,255,0.24), 0 0 24px rgba(72,205,255,0.30), 0 12px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+          }
+          [data-signal-open-cta="true"]::before {
+            content: '';
+            position: absolute;
+            inset: 1px;
+            border-radius: inherit;
+            background: linear-gradient(105deg, transparent 18%, rgba(185,250,255,0.26) 45%, transparent 70%);
+            pointer-events: none;
+            animation: signalOpenCtaSheen 4.8s ease-in-out infinite;
+          }
+          [data-signal-open-cta="true"] > span {
+            position: relative;
+            z-index: 1;
           }
           @media (prefers-reduced-motion: reduce) {
-            [data-signal-open-cta="true"] {
+            [data-signal-open-cta="true"],
+            [data-signal-open-cta="true"]::before {
               animation: none !important;
-              box-shadow: 0 0 0 1px rgba(125,246,255,0.82), 0 0 22px rgba(125,246,255,0.38) !important;
             }
           }
         `}</style>
@@ -831,7 +851,7 @@ export default function SignalTerminalCard({
                   ? `Overall ${formatNumber(overallRatings.matchup.score)} · ${overallRatings.matchup.label || 'rated'}`
                   : formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}
             </div>
-            <div data-signal-open-cta="true" style={{ justifySelf: 'center', position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, minWidth: 196, borderRadius: 999, padding: '10px 17px', background: 'linear-gradient(135deg, rgba(125,246,255,0.30), rgba(25,110,180,0.20), rgba(125,246,255,0.13))', border: '1px solid rgba(125,246,255,0.72)', boxShadow: '0 0 0 1px rgba(125,246,255,0.36), 0 0 22px rgba(125,246,255,0.30), inset 0 1px 0 rgba(255,255,255,0.14)', color: C.green, fontSize: 9.5, fontWeight: 950, letterSpacing: '0.11em', textTransform: 'uppercase', animation: compact && onOpen ? `${signalCardTapContract.glowAnimationName} 2.05s ease-in-out infinite` : undefined, cursor: 'pointer' }}>
+            <div data-signal-open-cta="true" style={{ justifySelf: 'center', position: 'relative', overflow: 'hidden', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, minWidth: 196, borderRadius: 999, padding: '10px 17px', background: 'linear-gradient(135deg, rgba(125,246,255,0.30), rgba(25,110,180,0.20), rgba(125,246,255,0.13))', border: '1px solid rgba(125,246,255,0.72)', boxShadow: '0 0 0 1px rgba(125,246,255,0.36), 0 0 22px rgba(125,246,255,0.30), inset 0 1px 0 rgba(255,255,255,0.14)', color: C.green, fontSize: 9.5, fontWeight: 950, letterSpacing: '0.11em', textTransform: 'uppercase', cursor: 'pointer' }}>
               <span aria-hidden="true">↯</span>
               <span>{tapHint}</span>
             </div>
