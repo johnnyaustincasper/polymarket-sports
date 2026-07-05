@@ -46,4 +46,15 @@ describe('market feed refresh resilience', () => {
     expect(source).toContain('todaySignalsCacheKey(sport, slateDate, activeGameIds)')
     expect(source).toContain('TODAY_SIGNAL_SCHEMA = \'v16\'')
   })
+
+  it('loads a fast Signals board automatically instead of making the phone wait on full AI enrichment', () => {
+    const appSource = readFileSync(join(process.cwd(), 'app', 'AppClient.tsx'), 'utf8')
+    const routeSource = readFileSync(join(process.cwd(), 'app', 'api', 'signals', 'route.ts'), 'utf8')
+
+    expect(appSource).toContain('runSignals(false, true)')
+    expect(appSource).toContain('body: JSON.stringify({ sport, games: activeGames, force, fast, daily: !fast, slateDate: date })')
+    expect(routeSource).toContain('const fast = body.fast === true')
+    expect(routeSource).toContain('const daily = body.daily === true && !fast')
+    expect(routeSource).toContain("SIGNAL_CACHE_SCHEMA = 'v18'")
+  })
 })

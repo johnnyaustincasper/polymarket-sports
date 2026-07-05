@@ -3656,7 +3656,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     loadPerformance()
   }, [sport])
 
-  const runSignals = async (force = false) => {
+  const runSignals = async (force = false, fast = false) => {
     if (!supported || !activeGames.length || scanning) return
     setScanning(true)
     setError(null)
@@ -3664,7 +3664,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
       const res = await fetch('/api/signals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sport, games: activeGames, force, daily: true, slateDate: date }),
+        body: JSON.stringify({ sport, games: activeGames, force, fast, daily: !fast, slateDate: date }),
       })
       const json = await res.json().catch(() => null)
       if (!res.ok) throw new Error(json?.error || 'signal scan failed')
@@ -3710,7 +3710,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
   useEffect(() => {
     if (!autoRun || loading || !supported || !activeGames.length || autoRunKeyRef.current === slateKey) return
     autoRunKeyRef.current = slateKey
-    runSignals(false)
+    runSignals(false, true)
   }, [autoRun, loading, supported, activeGames.length, slateKey])
 
   useEffect(() => {

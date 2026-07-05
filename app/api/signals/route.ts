@@ -14,7 +14,7 @@ import { fetchNewsIntelForSignals, type NewsIntelContext } from '@/app/lib/socia
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v17'
+const SIGNAL_CACHE_SCHEMA = 'v18'
 const TODAY_SIGNAL_SCHEMA = 'v16'
 
 type Sport = 'nba' | 'nfl' | 'mlb' | 'nhl'
@@ -1090,7 +1090,8 @@ export async function POST(req: NextRequest) {
     const slateDate = normalizeSlateDate(body.slateDate || body.date)
     const cacheKey = latestCacheKey(sport, activeGameIds)
     const force = body.force === true
-    const daily = body.daily === true
+    const fast = body.fast === true
+    const daily = body.daily === true && !fast
     const dailyCacheKey = todaySignalsCacheKey(sport, slateDate, activeGameIds)
 
     if (!activeGames.length) {
