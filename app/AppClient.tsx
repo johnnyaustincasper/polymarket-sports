@@ -7307,7 +7307,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       setSport(lastSport)
       setLandingMode('board')
       setGateHasBoardContext(true)
-      startupSportResolvedRef.current = true
+      startupSportResolvedRef.current = lastSport !== 'ufc'
     } else {
       setLoading(false)
     }
@@ -7387,7 +7387,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
       let resolvedDate = date
       let newGames: Game[] = []
 
-      if (!startupSportResolvedRef.current && provider === 'kalshi' && sport === 'mlb') {
+      if (!startupSportResolvedRef.current && provider === 'kalshi' && (sport === 'mlb' || sport === 'ufc')) {
         startupSportResolvedRef.current = true
         const startup = await resolveStartupSport({
           initialDate: date,

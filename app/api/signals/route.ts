@@ -14,8 +14,8 @@ import { fetchNewsIntelForSignals, type NewsIntelContext } from '@/app/lib/socia
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const SIGNAL_CACHE_SCHEMA = 'v16'
-const TODAY_SIGNAL_SCHEMA = 'v15'
+const SIGNAL_CACHE_SCHEMA = 'v17'
+const TODAY_SIGNAL_SCHEMA = 'v16'
 
 type Sport = 'nba' | 'nfl' | 'mlb' | 'nhl'
 type SignalTier = 'A' | 'B' | 'WATCH' | 'KILL'
@@ -405,8 +405,12 @@ function normalizeSlateDate(value: unknown): string {
   return todayKey()
 }
 
-function todaySignalsCacheKey(sport: Sport, slateDate: string): string {
-  return `signals:${TODAY_SIGNAL_SCHEMA}:daily:${sport}:${slateDate}`
+function slateSignature(gameIds: string[]): string {
+  return gameIds.filter(Boolean).sort().join('|') || 'none'
+}
+
+function todaySignalsCacheKey(sport: Sport, slateDate: string, gameIds: string[] = []): string {
+  return `signals:${TODAY_SIGNAL_SCHEMA}:daily:${sport}:${slateDate}:${slateSignature(gameIds)}`
 }
 
 function hasSignalSlateOverlap(response: SignalsResponse | null | undefined, activeGameIds: string[]): boolean {
@@ -1087,7 +1091,7 @@ export async function POST(req: NextRequest) {
     const cacheKey = latestCacheKey(sport, activeGameIds)
     const force = body.force === true
     const daily = body.daily === true
-    const dailyCacheKey = todaySignalsCacheKey(sport, slateDate)
+    const dailyCacheKey = todaySignalsCacheKey(sport, slateDate, activeGameIds)
 
     if (!activeGames.length) {
       const empty: SignalsResponse = {

@@ -29,4 +29,21 @@ describe('market feed refresh resilience', () => {
     expect(source).toContain("sportToLoad === 'mlb' && loadedGames.every(g => g.status === 'post')")
     expect(source).toContain('candidateGames.some(g => g.status !== \'post\')')
   })
+
+  it('does not strand first-load Player Signals on empty UFC when MLB has the active slate', () => {
+    const appSource = readFileSync(join(process.cwd(), 'app', 'AppClient.tsx'), 'utf8')
+    const startupSource = readFileSync(join(process.cwd(), 'app', 'lib', 'startup-sport.ts'), 'utf8')
+
+    expect(appSource).toContain("(sport === 'mlb' || sport === 'ufc')")
+    expect(appSource).toContain("startupSportResolvedRef.current = lastSport !== 'ufc'")
+    expect(startupSource).toContain("STARTUP_SPORT_FALLBACK_ORDER = ['mlb'")
+  })
+
+  it('keys daily signal cache by slate ids so partial scans do not poison full boards', () => {
+    const source = readFileSync(join(process.cwd(), 'app', 'api', 'signals', 'route.ts'), 'utf8')
+
+    expect(source).toContain('function slateSignature')
+    expect(source).toContain('todaySignalsCacheKey(sport, slateDate, activeGameIds)')
+    expect(source).toContain('TODAY_SIGNAL_SCHEMA = \'v16\'')
+  })
 })
