@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { resolveSignalCardMode, signalCardTapContract } from './card-collapse'
 
 describe('resolveSignalCardMode', () => {
@@ -14,5 +16,17 @@ describe('resolveSignalCardMode', () => {
     expect(signalCardTapContract.glowAnimationName).toBe('signal-card-blue-glow')
     expect('ringAnimationName' in signalCardTapContract).toBe(false)
     expect('shimmerAnimationName' in signalCardTapContract).toBe(false)
+  })
+
+  it('keeps MLB signal cards separated into pitcher and hitter lanes without filler', () => {
+    const source = readFileSync(join(process.cwd(), 'app', 'AppClient.tsx'), 'utf8')
+
+    expect(source).toContain('mlbSignalLane')
+    expect(source).toContain('mlbPitcherSignals')
+    expect(source).toContain('mlbHitterSignals')
+    expect(source).toContain('Pitcher Signals')
+    expect(source).toContain('Hitter Signals')
+    expect(source).toContain('no filler cards added')
+    expect(source).toContain('not forcing filler')
   })
 })

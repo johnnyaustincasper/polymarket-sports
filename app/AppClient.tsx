@@ -2096,6 +2096,18 @@ function signalToTerminalSignal(signal: ModelSignal): SignalTerminalSignal {
   }
 }
 
+function mlbSignalLane(signal: Pick<SignalTerminalSignal, 'metric' | 'label' | 'marketTitle' | 'metadata'>): 'pitcher' | 'hitter' {
+  const metric = String(signal.metric || '').toLowerCase()
+  const label = String(signal.label || '').toLowerCase()
+  const marketTitle = String(signal.marketTitle || '').toLowerCase()
+  const conviction = (signal.metadata as any)?.judgmentContext?.mlbConviction || {}
+  const ratingTitle = String(conviction?.misreadSignal?.ratingTitle || conviction?.matchupRating?.ratingTitle || '').toLowerCase()
+  const summary = String(conviction?.misreadSignal?.summary || conviction?.read || '').toLowerCase()
+  const pitcherOnlyText = `${metric} ${label} ${marketTitle} ${ratingTitle} ${summary}`
+  if (/strike\s*out|strikeout|\bk\+|\bks\b|pitcher\s+k/.test(pitcherOnlyText)) return 'pitcher'
+  return 'hitter'
+}
+
 function signalDeltaSnapshot(signal: SignalTerminalSignal): SignalDeltaSnapshot {
   return {
     id: signal.id,
@@ -3584,6 +3596,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
   const [signalSheetMounted, setSignalSheetMounted] = useState(false)
   const [mlbMisreadsOpen, setMlbMisreadsOpen] = useState(false)
   const [mlbMisreadTab, setMlbMisreadTab] = useState<'pitcher' | 'hitter'>('pitcher')
+  const [mlbSignalTab, setMlbSignalTab] = useState<'pitcher' | 'hitter'>('pitcher')
   const [watchlist, setWatchlist] = useState<WatchItem[]>([])
   const [alertEvents, setAlertEvents] = useState<AlertEvent[]>([])
   const [signalDeltaFeed, setSignalDeltaFeed] = useState<SignalDelta[]>([])
@@ -3604,6 +3617,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     setSignalSheetTab('read')
     setMlbMisreadsOpen(false)
     setMlbMisreadTab('pitcher')
+    setMlbSignalTab('pitcher')
     setLatestSignalDeltas([])
   }, [slateKey])
 
@@ -3810,13 +3824,20 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
   }
   const selectedMlbMisreadSignal = mlbMisreadRows.find(row => row.signal?.id === expandedSignalId)?.signal || null
   const sheetSignal = isMobile && expandedSignalId ? allSignalCards.find(signal => signal.id === expandedSignalId) || selectedMlbMisreadSignal : null
-  const visibleTopSignals = topSignals.reduce<SignalTerminalSignal[]>((acc, signal, idx) => {
-    const isBaseCard = idx < 7
-    const isMisreadCard = mlbMisreadRows.some(row => row.signal?.id === signal.id)
-    if ((isBaseCard || isMisreadCard) && !acc.some(existing => existing.id === signal.id)) acc.push(signal)
-    return acc
-  }, [])
+  const mlbPitcherSignals = sport === 'mlb' ? topSignals.filter(signal => mlbSignalLane(signal) === 'pitcher') : []
+  const mlbHitterSignals = sport === 'mlb' ? topSignals.filter(signal => mlbSignalLane(signal) === 'hitter') : []
+  const activeMlbSignals = mlbSignalTab === 'pitcher' ? mlbPitcherSignals : mlbHitterSignals
+  const visibleTopSignals = sport === 'mlb'
+    ? activeMlbSignals.slice(0, 8)
+    : topSignals.reduce<SignalTerminalSignal[]>((acc, signal, idx) => {
+      const isBaseCard = idx < 7
+      const isMisreadCard = mlbMisreadRows.some(row => row.signal?.id === signal.id)
+      if ((isBaseCard || isMisreadCard) && !acc.some(existing => existing.id === signal.id)) acc.push(signal)
+      return acc
+    }, [])
   if (!isMobile && selectedMlbMisreadSignal && !visibleTopSignals.some(signal => signal.id === selectedMlbMisreadSignal.id)) visibleTopSignals.push(selectedMlbMisreadSignal)
+  const activeMlbSignalCount = activeMlbSignals.length
+  const activeMlbSignalLabel = mlbSignalTab === 'pitcher' ? 'pitcher' : 'hitter'
 
   const renderMlbMisreadRows = (rows: typeof mlbMisreadRows, emptyText: string) => {
     if (!rows.length) return <div role="tabpanel" aria-label={`${mlbMisreadTab === 'pitcher' ? 'Pitcher' : 'Hitter'} misreads`} style={{ color: C.textSecondary, fontSize: 10.5, lineHeight: 1.35 }}>{emptyText}</div>
@@ -3996,8 +4017,48 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
 
         {data && (
           <div style={{ marginTop: 13, display: 'grid', gap: isMobile ? 8 : 9 }}>
-            {topSignals.length ? (
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9 }}>
+            {sport === 'mlb' && topSignals.length > 0 && (
+              <div style={{ display: 'grid', gap: 7 }}>
+                <div role="tablist" aria-label="MLB signal type" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, padding: 3, borderRadius: 999, background: 'rgba(0,0,0,0.30)', border: '1px solid rgba(125,246,255,0.16)' }}>
+                  {([
+                    { key: 'pitcher' as const, label: 'Pitcher Signals', count: mlbPitcherSignals.length },
+                    { key: 'hitter' as const, label: 'Hitter Signals', count: mlbHitterSignals.length },
+                  ]).map(tab => {
+                    const active = mlbSignalTab === tab.key
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setMlbSignalTab(tab.key)}
+                        style={{
+                          borderRadius: 999,
+                          minHeight: 44,
+                          padding: isMobile ? '9px 10px' : '10px 12px',
+                          border: '1px solid ' + (active ? 'rgba(125,246,255,0.42)' : 'transparent'),
+                          background: active ? 'linear-gradient(135deg, rgba(125,246,255,0.18), rgba(125,246,255,0.07))' : 'transparent',
+                          color: active ? C.green : C.textSecondary,
+                          fontSize: 10,
+                          fontWeight: 950,
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          cursor: 'pointer',
+                          boxShadow: active ? '0 0 20px rgba(125,246,255,0.16), inset 0 1px 0 rgba(255,255,255,0.08)' : undefined,
+                        }}
+                      >
+                        {tab.label} · {tab.count}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div style={{ color: C.textSecondary, fontSize: 10, fontWeight: 800, textAlign: 'center', lineHeight: 1.35 }}>
+                  Showing {Math.min(visibleTopSignals.length, activeMlbSignalCount)} of {activeMlbSignalCount} {activeMlbSignalLabel} signal{activeMlbSignalCount === 1 ? '' : 's'} — no filler cards added.
+                </div>
+              </div>
+            )}
+            {visibleTopSignals.length ? (
+              <div role={sport === 'mlb' ? 'tabpanel' : undefined} aria-label={sport === 'mlb' ? `${mlbSignalTab === 'pitcher' ? 'Pitcher' : 'Hitter'} signals` : undefined} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 8 : 9 }}>
                 {visibleTopSignals.map((signal, signalIdx) => {
                   const cardMode = resolveSignalCardMode({ signalId: signal.id, expandedSignalId })
                   const compactCard = isMobile ? true : cardMode.compact
@@ -4015,7 +4076,11 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
                 })}
               </div>
             ) : (
-              <div style={{ color: C.textSecondary, fontSize: 11 }}>No clean signals passed today’s checks yet.</div>
+              <div style={{ color: C.textSecondary, fontSize: 11 }}>
+                {sport === 'mlb' && topSignals.length > 0
+                  ? `No clean ${activeMlbSignalLabel} signals passed this board yet — not forcing filler.`
+                  : 'No clean signals passed today’s checks yet.'}
+              </div>
             )}
           </div>
         )}
