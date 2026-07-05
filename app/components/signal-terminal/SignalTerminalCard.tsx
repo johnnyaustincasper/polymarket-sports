@@ -130,6 +130,25 @@ function simpleContext(text: string) {
   return cleaned
 }
 
+function cleanContextValue(value: unknown) {
+  const text = String(value || '').trim()
+  if (!text || /^undefined|null|unknown$/i.test(text)) return ''
+  return text
+}
+
+function teamContextLabel(context?: { team?: string; teamRecord?: string; opponent?: string; opponentRecord?: string; homeAway?: string }) {
+  if (!context) return ''
+  const team = cleanContextValue(context.team)
+  const teamRecord = cleanContextValue(context.teamRecord)
+  const opponent = cleanContextValue(context.opponent)
+  const opponentRecord = cleanContextValue(context.opponentRecord)
+  const homeAway = cleanContextValue(context.homeAway)
+  const left = [team, teamRecord].filter(Boolean).join(' ')
+  const right = [opponent, opponentRecord].filter(Boolean).join(' ')
+  if (!left && !right) return ''
+  return `${left || 'Team'} ${homeAway === 'away' ? '@' : homeAway === 'home' ? 'vs' : 'vs'} ${right || 'Opponent'}`
+}
+
 function lineOptionKey(option: SignalLineOption, idx: number) {
   return option.id || `${option.label}-${option.ask}-${idx}`
 }
@@ -474,6 +493,10 @@ export default function SignalTerminalCard({
     whyPlayerBullets?: string[]
     recentRows?: string[]
   } | undefined
+  const mlbTeamContext = signal.sport === 'mlb'
+    ? signal.metadata?.mlbTeamContext as { team?: string; teamRecord?: string; opponent?: string; opponentRecord?: string; homeAway?: string } | undefined
+    : undefined
+  const mlbTeamContextText = teamContextLabel(mlbTeamContext)
   const intelRows = [
     todayIntel?.lineup?.status ? `Lineup: ${todayIntel.lineup.status}${todayIntel.lineup.reason ? ` — ${todayIntel.lineup.reason}` : ''}` : '',
     ...(Array.isArray(todayIntel?.injuryContext) ? todayIntel.injuryContext.slice(0, 1).map(item => `Injury: ${item}`) : []),
@@ -724,6 +747,12 @@ export default function SignalTerminalCard({
           </div>
           <div style={{ color: C.text, fontSize: compact ? 14 : 16, fontWeight: 950, marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleFor(signal)}</div>
           <div style={{ color: C.muted, fontSize: compact ? 9 : 10, lineHeight: 1.35, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitleFor(signal) || 'No market label supplied'}</div>
+          {mlbTeamContextText && (
+            <div style={{ marginTop: 6, display: 'inline-flex', maxWidth: '100%', alignItems: 'center', gap: 6, borderRadius: 999, padding: compact ? '5px 8px' : '6px 9px', background: 'rgba(125,246,255,0.095)', border: '1px solid rgba(125,246,255,0.24)', color: C.green, fontSize: compact ? 8.5 : 9.5, fontWeight: 950, letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ color: C.faint, fontSize: compact ? 7.5 : 8, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase', flexShrink: 0 }}>Team matchup</span>
+              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{mlbTeamContextText}</span>
+            </div>
+          )}
         </div>
 
         {!compact && showFor(['read', 'numbers']) && overallRows.length > 0 && (

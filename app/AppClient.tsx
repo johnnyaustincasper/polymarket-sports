@@ -2096,6 +2096,53 @@ function signalToTerminalSignal(signal: ModelSignal): SignalTerminalSignal {
   }
 }
 
+function normalizeTeamKey(value?: string | null) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
+function withMlbTeamContext(signal: SignalTerminalSignal, games: Game[]): SignalTerminalSignal {
+  if (signal.sport !== 'mlb') return signal
+  const signalGame = games.find(game => game.id === signal.gameId)
+    || games.find(game => normalizeTeamKey(signal.matchup).includes(`${normalizeTeamKey(game.awayTeam.abbr)}${normalizeTeamKey(game.homeTeam.abbr)}`))
+  if (!signalGame) return signal
+  const teamKey = normalizeTeamKey(signal.team)
+  const opponentKey = normalizeTeamKey(signal.opponent)
+  const homeKey = normalizeTeamKey(signalGame.homeTeam.abbr)
+  const awayKey = normalizeTeamKey(signalGame.awayTeam.abbr)
+  const isHomeTeam = teamKey && (teamKey === homeKey || normalizeTeamKey(signalGame.homeTeam.name) === teamKey)
+  const isAwayTeam = teamKey && (teamKey === awayKey || normalizeTeamKey(signalGame.awayTeam.name) === teamKey)
+  const team = isHomeTeam ? signalGame.homeTeam : isAwayTeam ? signalGame.awayTeam : null
+  const opponent = isHomeTeam ? signalGame.awayTeam : isAwayTeam ? signalGame.homeTeam : opponentKey === homeKey ? signalGame.homeTeam : opponentKey === awayKey ? signalGame.awayTeam : null
+  const inferredTeam = team || (opponent === signalGame.homeTeam ? signalGame.awayTeam : opponent === signalGame.awayTeam ? signalGame.homeTeam : null)
+  if (!inferredTeam && !opponent) return signal
+  return {
+    ...signal,
+    team: signal.team || inferredTeam?.abbr,
+    opponent: signal.opponent || opponent?.abbr,
+    metadata: {
+      ...(signal.metadata || {}),
+      mlbTeamContext: {
+        team: signal.team || inferredTeam?.abbr,
+        teamRecord: inferredTeam?.record,
+        opponent: signal.opponent || opponent?.abbr,
+        opponentRecord: opponent?.record,
+        homeAway: inferredTeam === signalGame.homeTeam ? 'home' : inferredTeam === signalGame.awayTeam ? 'away' : undefined,
+      },
+    },
+  }
+}
+
+function formatMlbTeamContext(context?: { team?: string; teamRecord?: string; opponent?: string; opponentRecord?: string; homeAway?: string }) {
+  const clean = (value: unknown) => String(value || '').trim()
+  const team = clean(context?.team)
+  const teamRecord = clean(context?.teamRecord)
+  const opponent = clean(context?.opponent)
+  const opponentRecord = clean(context?.opponentRecord)
+  if (!team && !opponent) return ''
+  const atVs = context?.homeAway === 'away' ? '@' : 'vs'
+  return `${[team, teamRecord].filter(Boolean).join(' ') || 'Team'} ${atVs} ${[opponent, opponentRecord].filter(Boolean).join(' ') || 'Opponent'}`
+}
+
 function mlbSignalLane(signal: Pick<SignalTerminalSignal, 'metric' | 'label' | 'marketTitle' | 'metadata'>): 'pitcher' | 'hitter' {
   const metric = String(signal.metric || '').toLowerCase()
   const label = String(signal.label || '').toLowerCase()
@@ -3668,7 +3715,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
       })
       const json = await res.json().catch(() => null)
       if (!res.ok) throw new Error(json?.error || 'signal scan failed')
-      const nextSignals: SignalTerminalSignal[] = Array.isArray(json?.signals) ? json.signals.map((signal: ModelSignal) => signalToTerminalSignal(signal)) : []
+      const nextSignals: SignalTerminalSignal[] = Array.isArray(json?.signals) ? json.signals.map((signal: ModelSignal) => withMlbTeamContext(signalToTerminalSignal(signal), activeGames)) : []
       const nextSnapshots = nextSignals.map(signalDeltaSnapshot)
       const deltas = computeSignalDeltas(previousSignalSnapshotsRef.current, nextSnapshots, { thresholds: { edge: 1, ask: 1, fairPrice: 1 } })
       previousSignalSnapshotsRef.current = nextSnapshots
@@ -3780,7 +3827,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
     )
   }
 
-  const allSignalCards = (data?.signals || []).map(signal => signalToTerminalSignal(signal))
+  const allSignalCards = (data?.signals || []).map(signal => withMlbTeamContext(signalToTerminalSignal(signal), activeGames))
   const isMisreadCompanionOnly = (signal: SignalTerminalSignal) => Boolean((signal.metadata as any)?.misreadCompanionOnly)
   const topSignals = allSignalCards.filter(signal => !isMisreadCompanionOnly(signal))
   const mlbMisreadSignals = sport === 'mlb'
@@ -3849,6 +3896,8 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
           const playerRating = Number.isFinite(row.playerRating) ? Math.round(row.playerRating) : null
           const time = formatMlbMisreadGameTime(row.signal?.gameTime || row.source?.gameTime)
           const proof = row.opponentProof?.[0]
+          const rowContextSignal = row.signal || (row.source ? withMlbTeamContext({ id: row.source.id, sport: 'mlb', gameId: row.source.gameId, matchup: row.source.matchup, player: row.source.player, team: row.source.team, opponent: (row.source as any).opponent, label: row.source.label } as SignalTerminalSignal, activeGames) : null)
+          const teamContextText = formatMlbTeamContext((rowContextSignal?.metadata as any)?.mlbTeamContext)
           return (
             <button
               key={`${row.type}-${row.source?.id || row.signal?.id || row.source?.player}`}
@@ -3877,6 +3926,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
               <span style={{ minWidth: 0, display: 'grid', gap: 3 }}>
                 <span style={{ color: C.textPrimary, fontSize: isMobile ? 13.5 : 14, fontWeight: 900, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.signal?.player || row.source?.player}</span>
                 <span style={{ color: C.textSecondary, fontSize: 10.5, fontWeight: 750, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.ratingTitle || row.label} · {row.signal?.label || row.source?.label} · {row.signal?.matchup || row.source?.matchup} · {time}</span>
+                {teamContextText && <span style={{ color: C.textPrimary, fontSize: 10, fontWeight: 900, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Team matchup: {teamContextText}</span>}
                 {proof && <span style={{ color: C.green, fontSize: 9.5, fontWeight: 850, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Why it fits this opponent: {proof}</span>}
               </span>
               <span style={{ display: 'inline-grid', justifyItems: 'end', gap: 2, minWidth: 54 }}>
