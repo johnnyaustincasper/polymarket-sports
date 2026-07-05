@@ -29,4 +29,14 @@ describe('resolveSignalCardMode', () => {
     expect(source).toContain('no filler cards added')
     expect(source).toContain('not forcing filler')
   })
+
+  it('dedupes MLB opponent proof and labels positive matchup evidence clearly', () => {
+    const source = readFileSync(join(process.cwd(), 'app', 'components', 'signal-terminal', 'SignalTerminalCard.tsx'), 'utf8')
+
+    expect(source).toContain('cleanUniqueRows')
+    expect(source).toContain('Opponent proof')
+    expect(source).not.toContain('Misread risk')
+    expect(source).toContain('opponentGap')
+    expect(source).toContain("? 'risk'")
+  })
 })

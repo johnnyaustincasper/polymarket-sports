@@ -72,6 +72,28 @@ function stripJargon(text: string) {
     .trim()
 }
 
+function rowFingerprint(text: string) {
+  return stripJargon(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function cleanUniqueRows(rows: Array<string | null | undefined>, limit: number) {
+  const seen = new Set<string>()
+  const clean: string[] = []
+  for (const row of rows) {
+    const text = stripJargon(String(row || '')).trim()
+    const key = rowFingerprint(text)
+    if (!text || !key || seen.has(key)) continue
+    seen.add(key)
+    clean.push(text)
+    if (clean.length >= limit) break
+  }
+  return clean
+}
+
 function tooMarketHeavy(text: string) {
   return /\b(ask|fair|edge|misprice|cushion|ladder|underpricing|underpriced|market|entry|price)\b/i.test(text)
 }
@@ -285,7 +307,7 @@ function PrimaryPropChip({ option, signal, compact = false }: { option?: SignalL
 }
 
 function OpponentFitPanel({ title, bullets, compact = false, tone = 'fit' }: { title: string; bullets: string[]; compact?: boolean; tone?: 'fit' | 'warn' | 'risk' }) {
-  const cleanBullets = bullets.map(bullet => stripJargon(String(bullet || '')).trim()).filter(Boolean).slice(0, compact ? 2 : 4)
+  const cleanBullets = cleanUniqueRows(bullets, compact ? 2 : 4)
   if (!cleanBullets.length) return null
   const color = tone === 'risk' ? C.red : tone === 'warn' ? C.amber : C.green
   if (compact) {
@@ -520,11 +542,11 @@ export default function SignalTerminalCard({
     ? {
       verdict: String(judgmentContext.mlbConviction.verdict || 'Small lean'),
       read: stripJargon(String(judgmentContext.mlbConviction.read || '')).trim(),
-      whyLive: (Array.isArray(judgmentContext.mlbConviction.whyLive) ? judgmentContext.mlbConviction.whyLive : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3),
+      whyLive: cleanUniqueRows(Array.isArray(judgmentContext.mlbConviction.whyLive) ? judgmentContext.mlbConviction.whyLive : [], 3),
       path: stripJargon(String(judgmentContext.mlbConviction.path || '')).trim(),
       killSwitch: (Array.isArray(judgmentContext.mlbConviction.killSwitch) ? judgmentContext.mlbConviction.killSwitch : []).map(row => simpleRisk(String(row || ''))).filter(Boolean).slice(0, 2),
       numberDiscipline: stripJargon(String(judgmentContext.mlbConviction.numberDiscipline || '')).trim(),
-      opponentProof: (Array.isArray(judgmentContext.mlbConviction.opponentProof) ? judgmentContext.mlbConviction.opponentProof : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 4),
+      opponentProof: cleanUniqueRows(Array.isArray(judgmentContext.mlbConviction.opponentProof) ? judgmentContext.mlbConviction.opponentProof : [], 4),
       misreadSignal: judgmentContext.mlbConviction.misreadSignal ? {
         label: stripJargon(String(judgmentContext.mlbConviction.misreadSignal.label || '')).trim(),
         severity: String(judgmentContext.mlbConviction.misreadSignal.severity || '').trim(),
@@ -533,30 +555,35 @@ export default function SignalTerminalCard({
         matchupGap: judgmentContext.mlbConviction.misreadSignal.matchupGap,
         playerRating: judgmentContext.mlbConviction.misreadSignal.playerRating,
         opponentRating: judgmentContext.mlbConviction.misreadSignal.opponentRating,
-        opponentProof: (Array.isArray(judgmentContext.mlbConviction.misreadSignal.opponentProof) ? judgmentContext.mlbConviction.misreadSignal.opponentProof : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 4),
+        opponentProof: cleanUniqueRows(Array.isArray(judgmentContext.mlbConviction.misreadSignal.opponentProof) ? judgmentContext.mlbConviction.misreadSignal.opponentProof : [], 4),
       } : undefined,
       matchupRating: judgmentContext.mlbConviction.matchupRating ? {
         ...judgmentContext.mlbConviction.matchupRating,
         read: stripJargon(String(judgmentContext.mlbConviction.matchupRating.read || '')).trim(),
-        rows: (Array.isArray(judgmentContext.mlbConviction.matchupRating.rows) ? judgmentContext.mlbConviction.matchupRating.rows : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 3),
-        opponentProof: (Array.isArray(judgmentContext.mlbConviction.matchupRating.opponentProof) ? judgmentContext.mlbConviction.matchupRating.opponentProof : []).map(row => stripJargon(String(row || ''))).filter(Boolean).slice(0, 4),
+        rows: cleanUniqueRows(Array.isArray(judgmentContext.mlbConviction.matchupRating.rows) ? judgmentContext.mlbConviction.matchupRating.rows : [], 3),
+        opponentProof: cleanUniqueRows(Array.isArray(judgmentContext.mlbConviction.matchupRating.opponentProof) ? judgmentContext.mlbConviction.matchupRating.opponentProof : [], 4),
       } : undefined,
     }
     : null
   const opponentFitBullets = mlbConviction
-    ? [
+    ? cleanUniqueRows([
       ...(mlbConviction.misreadSignal?.opponentProof?.length ? mlbConviction.misreadSignal.opponentProof : []),
       ...(mlbConviction.opponentProof || []),
       ...(mlbConviction.matchupRating?.opponentProof || []),
       mlbConviction.misreadSignal?.reason || '',
-    ].filter(Boolean)
+    ], 4)
     : []
   const opponentFitTitle = mlbConviction?.misreadSignal
-    ? `Misread risk${signal.opponent ? ` vs ${signal.opponent}` : ''}`
+    ? `Opponent proof${signal.opponent ? ` vs ${signal.opponent}` : ''}`
     : `Why this fits${signal.opponent ? ` vs ${signal.opponent}` : ''}`
-  const opponentFitTone: 'fit' | 'warn' | 'risk' = mlbConviction?.misreadSignal
-    ? mlbConviction.misreadSignal.severity === 'strong' ? 'risk' : 'warn'
-    : 'fit'
+  const opponentGap = mlbConviction?.misreadSignal?.matchupGap ?? mlbConviction?.matchupRating?.matchupGap
+  const opponentFitTone: 'fit' | 'warn' | 'risk' = !mlbConviction?.misreadSignal
+    ? 'fit'
+    : isFiniteNumber(opponentGap) && opponentGap < 0
+      ? 'risk'
+      : isFiniteNumber(opponentGap) && opponentGap < 8
+        ? 'warn'
+        : 'fit'
   const ladderBestFit = mlbConviction?.matchupRating?.bestFit || null
   const judgmentNotes = [
     ...(Array.isArray(judgmentContext?.matchupNotes) ? judgmentContext.matchupNotes : []),
