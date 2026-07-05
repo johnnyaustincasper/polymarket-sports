@@ -3134,18 +3134,46 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                     </div>
                     <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900 }}>{bets.length} lines</div>
                   </div>
-                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                    {bets.map((bet: any) => {
-                      const key = contractKey(p, bet)
-                      const open = key === expandedContractKey
-                      const selected = !!selectedContracts[key]
-                      const safeHit = Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 9
-                      const liveProgress = sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, bet) : null
-                      const signalLabel = Array.isArray(bet.signalTags) && bet.signalTags.length ? ' · ' + bet.signalTags.join(' + ') : ''
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {Array.from(bets.reduce((map: Map<string, any[]>, bet: any) => {
+                      const metric = activeGroup.metric === 'all' ? (bet.metric || 'props') : activeGroup.metric
+                      const group = map.get(metric) || []
+                      group.push(bet)
+                      group.sort((a: any, b: any) => Number(a.line || 0) - Number(b.line || 0))
+                      map.set(metric, group)
+                      return map
+                    }, new Map<string, any[]>()).entries() as Iterable<[string, any[]]>).map(([metric, metricBets]) => {
+                      const metricTags = Array.from(new Set(metricBets.flatMap((bet: any) => bet.signalTags || [])))
+                      const liveRows = metricBets.map((bet: any) => sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, bet) : null).filter(Boolean)
+                      const liveValue = liveRows[0]?.value
+                      const hotCount = metricBets.filter((bet: any) => Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 9).length
                       return (
-                        <button key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ borderRadius: 999, padding: '7px 9px', border: '1px solid ' + (open || safeHit || signalLabel ? C.borderHot : selected ? 'rgba(125,246,255,0.45)' : C.border), background: open ? 'rgba(125,246,255,0.18)' : safeHit || signalLabel ? 'rgba(125,246,255,0.13)' : selected ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || safeHit || signalLabel ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', animation: safeHit ? 'safePropThrob 1.25s ease-in-out infinite' : undefined, willChange: safeHit ? 'transform, box-shadow' : undefined }}>
-                          {bet.line}+ {formatPropMetricShort(activeGroup.metric === 'all' ? bet.metric : activeGroup.metric)}{safeHit ? ` · ${bet.hits}/${bet.games}` : ''}{signalLabel}{liveProgress ? ' · LIVE ' + liveProgress.label : ''}
-                        </button>
+                        <div key={`${p.player}-${metric}`} style={{ borderRadius: 13, padding: 8, background: 'rgba(0,0,0,0.18)', border: `1px solid ${metricTags.length ? C.borderHot : C.border}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 7 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ color: metricTags.length ? C.green : C.textPrimary, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{formatPropMetricLabel(metric)}</div>
+                              {metricTags.length > 0 && <div style={{ color: C.cyan, fontSize: 8, fontWeight: 950, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{metricTags.join(' + ')}</div>}
+                            </div>
+                            <div style={{ flexShrink: 0, color: liveRows.length ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950, textAlign: 'right' }}>
+                              {metricBets.length} lines{hotCount ? ` · ${hotCount} hot` : ''}{liveRows.length ? <><br />LIVE {liveValue ?? 0}</> : null}
+                            </div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(74px, 1fr))', gap: 5 }}>
+                            {metricBets.map((bet: any) => {
+                              const key = contractKey(p, bet)
+                              const open = key === expandedContractKey
+                              const selected = !!selectedContracts[key]
+                              const safeHit = Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 9
+                              const liveProgress = sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, bet) : null
+                              return (
+                                <button key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ minHeight: 42, borderRadius: 10, padding: '6px 5px', border: '1px solid ' + (open || safeHit ? C.borderHot : selected ? 'rgba(125,246,255,0.45)' : C.border), background: open ? 'rgba(125,246,255,0.18)' : safeHit ? 'rgba(125,246,255,0.13)' : selected ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || safeHit ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', display: 'grid', alignContent: 'center', gap: 2, textAlign: 'center', animation: safeHit ? 'safePropThrob 1.25s ease-in-out infinite' : undefined, willChange: safeHit ? 'transform, box-shadow' : undefined }}>
+                                  <span>{bet.line}+</span>
+                                  <span style={{ color: liveProgress ? C.green : C.textSecondary, fontSize: 7, fontWeight: 900 }}>{safeHit ? `${bet.hits}/${bet.games}` : liveProgress ? liveProgress.label : formatPropMetricShort(metric)}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
                       )
                     })}
                   </div>
