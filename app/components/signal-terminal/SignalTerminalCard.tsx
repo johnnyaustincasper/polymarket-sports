@@ -112,9 +112,223 @@ function lineOptionKey(option: SignalLineOption, idx: number) {
   return option.id || `${option.label}-${option.ask}-${idx}`
 }
 
+function lineThreshold(option: SignalLineOption) {
+  if (isFiniteNumber(option.line)) return option.line
+  const match = String(option.label || '').match(/(-?\d+(?:\.\d+)?)\s*\+?/)
+  return match ? Number(match[1]) : null
+}
+
+function lineUnitSuffix(options: SignalLineOption[]) {
+  const suffixes = options
+    .map(option => String(option.label || '').replace(/^\s*-?\d+(?:\.\d+)?\s*\+?\s*/i, '').trim())
+    .filter(Boolean)
+  if (!suffixes.length) return ''
+  const first = suffixes[0].toLowerCase()
+  return suffixes.every(suffix => suffix.toLowerCase() === first) ? suffixes[0] : ''
+}
+
+function compactLineOptionLabel(option: SignalLineOption, unit: string) {
+  const label = formatLineOption(option)
+  return unit ? label.replace(new RegExp(`\\s*${unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'), '').trim() || label : label
+}
+
+function lineOptionRecord(option: SignalLineOption, recentValues: number[]) {
+  const threshold = lineThreshold(option)
+  const games = isFiniteNumber(option.games) ? option.games : recentValues.length || null
+  const hits = isFiniteNumber(option.hits)
+    ? option.hits
+    : threshold != null && recentValues.length
+      ? recentValues.filter(value => value >= threshold).length
+      : null
+  const pct = isFiniteNumber(hits) && isFiniteNumber(games) && games > 0 ? (hits / games) * 100 : null
+  return { threshold, hits, games, pct }
+}
+
+function pctColor(value: number | null | undefined) {
+  if (!isFiniteNumber(value)) return C.faint
+  if (value >= 75) return C.green
+  if (value >= 50) return C.text
+  if (value >= 25) return C.muted
+  return C.faint
+}
+
+function bestFitMatches(option: SignalLineOption, bestFit?: string | null) {
+  if (!bestFit) return false
+  const haystack = `${option.label || ''} ${option.line ?? ''}`.toLowerCase()
+  return haystack.includes(String(bestFit).toLowerCase()) || String(bestFit).toLowerCase().includes(String(option.label || '').toLowerCase())
+}
+
+function PropLadder({
+  options,
+  recentValues,
+  bestFit,
+  compact = false,
+  selectedThreshold,
+  onSelectThreshold,
+}: {
+  options: SignalLineOption[]
+  recentValues: number[]
+  bestFit?: string | null
+  compact?: boolean
+  selectedThreshold?: number | null
+  onSelectThreshold?: (threshold: number | null) => void
+}) {
+  if (options.length <= 1) return null
+  const unit = lineUnitSuffix(options)
+  const visibleOptions = compact ? options.slice(0, 4) : options
+  const hiddenCount = Math.max(0, options.length - visibleOptions.length)
+  const hasRecent = recentValues.length > 0 || options.some(option => isFiniteNumber(option.hits) && isFiniteNumber(option.games))
+  const hasPrice = options.some(option => isFiniteNumber(option.ask) && option.ask > 0)
+  const columns = hasRecent && hasPrice
+    ? '48px minmax(58px,1fr) 42px 58px'
+    : hasRecent
+      ? '48px minmax(58px,1fr) 42px'
+      : hasPrice
+        ? '48px minmax(0,1fr) 58px'
+        : '48px minmax(0,1fr)'
+
+  return (
+    <div style={{ borderRadius: compact ? 13 : 15, padding: compact ? '8px 9px' : 10, background: compact ? 'rgba(125,246,255,0.055)' : 'rgba(2,5,1,0.42)', border: '1px solid rgba(125,246,255,0.16)', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 6 }}>
+        <div style={{ color: C.green, fontSize: compact ? 8 : 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{unit ? `${unit} ladder` : 'Line ladder'}</div>
+        <div style={{ color: C.faint, fontSize: 7.5, fontWeight: 900 }}>{options.length} lines</div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: columns, columnGap: 8, alignItems: 'center', color: C.faint, fontSize: 7.2, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.055)' }}>
+        <span>Line</span>
+        {hasRecent ? <span>L{recentValues.length || '—'}</span> : <span>Read</span>}
+        {hasRecent && <span style={{ textAlign: 'right' }}>Hit%</span>}
+        {hasPrice && <span style={{ textAlign: 'right' }}>Live</span>}
+      </div>
+      <div style={{ display: 'grid' }}>
+        {visibleOptions.map((option, idx) => {
+          const record = lineOptionRecord(option, recentValues)
+          const price = formatCents(toCents(option.ask))
+          const isBest = bestFitMatches(option, bestFit) || (idx === 0 && !bestFit)
+          const selected = selectedThreshold != null && record.threshold === selectedThreshold
+          const rowColor = pctColor(record.pct)
+          const row = (
+            <div
+              onClick={(event) => { event.stopPropagation(); onSelectThreshold?.(record.threshold) }}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: columns,
+                columnGap: 8,
+                alignItems: 'center',
+                minHeight: compact ? 25 : 29,
+                padding: compact ? '4px 0' : '5px 0',
+                borderBottom: idx === visibleOptions.length - 1 && hiddenCount === 0 ? '0' : '1px solid rgba(255,255,255,0.045)',
+                borderLeft: isBest || selected ? `2px solid ${isBest ? C.green : C.amber}` : '2px solid transparent',
+                paddingLeft: isBest || selected ? 6 : 4,
+                background: isBest ? 'rgba(125,246,255,0.055)' : selected ? 'rgba(255,209,102,0.055)' : 'transparent',
+                cursor: onSelectThreshold ? 'pointer' : option.url ? 'pointer' : 'default',
+              }}
+            >
+              <span title={option.label} style={{ color: isBest ? C.green : C.text, fontSize: compact ? 10.5 : 11.5, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {compactLineOptionLabel(option, unit)}
+              </span>
+              {hasRecent ? (
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ color: C.text, fontSize: compact ? 9.5 : 10.5, fontWeight: 900 }}>{isFiniteNumber(record.hits) && isFiniteNumber(record.games) ? `${formatNumber(record.hits)}/${formatNumber(record.games)}` : '—'}</span>
+                  {!compact && isFiniteNumber(record.pct) && (
+                    <span style={{ display: 'block', marginTop: 2, height: 3, width: '100%', borderRadius: 999, background: 'rgba(255,255,255,0.055)', overflow: 'hidden' }}>
+                      <span style={{ display: 'block', height: '100%', width: `${Math.max(4, Math.min(100, record.pct))}%`, borderRadius: 999, background: rowColor }} />
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span style={{ color: C.muted, fontSize: 9, fontWeight: 850, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isBest ? 'Best fit' : 'Available'}</span>
+              )}
+              {hasRecent && <span style={{ color: rowColor, fontSize: compact ? 9.5 : 10.5, fontWeight: 950, textAlign: 'right' }}>{formatNumber(record.pct, '—')}{isFiniteNumber(record.pct) ? '%' : ''}</span>}
+              {hasPrice && (
+                <span style={{ display: 'inline-flex', justifyContent: 'flex-end', alignItems: 'center', gap: 5, color: C.text, fontSize: compact ? 9 : 10, fontWeight: 900 }}>
+                  <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 999, background: isFiniteNumber(option.ask) ? C.green : 'transparent', border: `1px solid ${isFiniteNumber(option.ask) ? C.green : C.faint}`, boxShadow: isFiniteNumber(option.ask) ? '0 0 7px rgba(125,246,255,0.62)' : 'none' }} />
+                  {price}
+                </span>
+              )}
+            </div>
+          )
+          return option.url ? (
+            <a key={lineOptionKey(option, idx)} href={option.url} target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()} style={{ textDecoration: 'none' }}>
+              {row}
+            </a>
+          ) : <div key={lineOptionKey(option, idx)}>{row}</div>
+        })}
+        {hiddenCount > 0 && <div style={{ color: C.faint, fontSize: 8.5, fontWeight: 900, paddingTop: 5, textAlign: 'center' }}>+{hiddenCount} more lines</div>}
+      </div>
+    </div>
+  )
+}
+
+function PrimaryPropChip({ option, signal, compact = false }: { option?: SignalLineOption; signal: SignalTerminalSignal; compact?: boolean }) {
+  const label = option?.label || signal.label || signal.marketTitle || signal.metric || 'Prop line'
+  const line = isFiniteNumber(option?.line) ? `${formatNumber(option?.line)}+` : isFiniteNumber(signal.line) ? `${formatNumber(signal.line)}+` : null
+  const metric = signal.metric || compactLineOptionLabel(option || { label }, '')
+  const hits = isFiniteNumber(option?.hits) && isFiniteNumber(option?.games)
+    ? `${formatNumber(option?.hits)}/${formatNumber(option?.games)}`
+    : isFiniteNumber(signal.hits) && isFiniteNumber(signal.games)
+      ? `${formatNumber(signal.hits)}/${formatNumber(signal.games)}`
+      : null
+  const ask = toCents(option?.ask ?? signal.ask)
+  const content = (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderRadius: compact ? 13 : 15, padding: compact ? '8px 10px' : '9px 10px', background: 'rgba(125,246,255,0.075)', border: '1px solid rgba(125,246,255,0.22)', boxShadow: '0 0 18px rgba(125,246,255,0.08)' }}>
+      <div style={{ minWidth: 0, textAlign: 'left' }}>
+        <div style={{ color: C.green, fontSize: compact ? 8 : 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Prop</div>
+        <div style={{ color: C.text, fontSize: compact ? 11 : 12, fontWeight: 950, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{line ? `${line} ${metric || label}` : label}</div>
+      </div>
+      <div style={{ flexShrink: 0, display: 'grid', gap: 2, textAlign: 'right' }}>
+        {hits && <span style={{ color: C.text, fontSize: compact ? 9 : 10, fontWeight: 950 }}>{hits}</span>}
+        {isFiniteNumber(ask) && <span style={{ color: C.cyan, fontSize: compact ? 8 : 9, fontWeight: 950 }}>Live {formatCents(ask)}</span>}
+      </div>
+    </div>
+  )
+  return option?.url ? <a href={option.url} target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()} style={{ textDecoration: 'none' }}>{content}</a> : content
+}
+
+function OpponentFitPanel({ title, bullets, compact = false, tone = 'fit' }: { title: string; bullets: string[]; compact?: boolean; tone?: 'fit' | 'warn' | 'risk' }) {
+  const cleanBullets = bullets.map(bullet => stripJargon(String(bullet || '')).trim()).filter(Boolean).slice(0, compact ? 2 : 4)
+  if (!cleanBullets.length) return null
+  const color = tone === 'risk' ? C.red : tone === 'warn' ? C.amber : C.green
+  if (compact) {
+    return (
+      <div style={{ marginTop: 9, borderRadius: 12, padding: '7px 9px', background: `${color}10`, border: `1px solid ${color}33`, color: C.text, fontSize: 9, lineHeight: 1.32, fontWeight: 850, textAlign: 'left', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <span style={{ color, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{title}</span> · {cleanBullets.join(' · ')}
+      </div>
+    )
+  }
+  return (
+    <div style={{ marginTop: 10, borderRadius: 15, padding: 10, background: `${color}0f`, border: `1px solid ${color}2f`, boxShadow: `0 0 24px ${color}12` }}>
+      <div style={{ color, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 7 }}>{title}</div>
+      <div style={{ display: 'grid', gap: 5 }}>
+        {cleanBullets.map(row => (
+          <div key={row} style={{ color: C.text, fontSize: 9.5, lineHeight: 1.35, fontWeight: 850, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 4 }}>
+            <span style={{ color }}>›</span>
+            <span>{row}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function getLineOptions(signal: SignalTerminalSignal): SignalLineOption[] {
   const raw = signal.metadata?.lineOptions
   if (Array.isArray(raw) && raw.length) return raw as SignalLineOption[]
+  if (signal.label || signal.metric || isFiniteNumber(signal.line)) {
+    return [{
+      id: signal.id,
+      label: signal.label || signal.metric || 'Prop line',
+      line: isFiniteNumber(signal.line) ? signal.line : undefined,
+      ask: signal.ask ?? undefined,
+      fairPrice: signal.fairPrice ?? undefined,
+      edge: signal.edge ?? undefined,
+      maxBuy: signal.maxBuy ?? undefined,
+      hits: signal.hits ?? undefined,
+      games: signal.games ?? undefined,
+      avg: signal.avg ?? undefined,
+      url: signal.url ?? undefined,
+      ticker: signal.ticker ?? undefined,
+    }]
+  }
   return []
 }
 
@@ -329,6 +543,21 @@ export default function SignalTerminalCard({
       } : undefined,
     }
     : null
+  const opponentFitBullets = mlbConviction
+    ? [
+      ...(mlbConviction.misreadSignal?.opponentProof?.length ? mlbConviction.misreadSignal.opponentProof : []),
+      ...(mlbConviction.opponentProof || []),
+      ...(mlbConviction.matchupRating?.opponentProof || []),
+      mlbConviction.misreadSignal?.reason || '',
+    ].filter(Boolean)
+    : []
+  const opponentFitTitle = mlbConviction?.misreadSignal
+    ? `Misread risk${signal.opponent ? ` vs ${signal.opponent}` : ''}`
+    : `Why this fits${signal.opponent ? ` vs ${signal.opponent}` : ''}`
+  const opponentFitTone: 'fit' | 'warn' | 'risk' = mlbConviction?.misreadSignal
+    ? mlbConviction.misreadSignal.severity === 'strong' ? 'risk' : 'warn'
+    : 'fit'
+  const ladderBestFit = mlbConviction?.matchupRating?.bestFit || null
   const judgmentNotes = [
     ...(Array.isArray(judgmentContext?.matchupNotes) ? judgmentContext.matchupNotes : []),
     ...(Array.isArray(judgmentContext?.injuryNotes) ? judgmentContext.injuryNotes : []),
@@ -352,6 +581,7 @@ export default function SignalTerminalCard({
         : 'No expanded read is attached to this signal yet.'
   const tapHint = selected ? signalCardTapContract.expandedCta : signalCardTapContract.collapsedCta
   const [shareState, setShareState] = useState<CardExportStatus>('idle')
+  const [selectedThreshold, setSelectedThreshold] = useState<number | null>(null)
 
   async function handleShareCard(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault()
@@ -486,23 +716,24 @@ export default function SignalTerminalCard({
           </div>
         )}
 
-        {!compact && showFor(['read']) && lineOptions.length > 1 && (
-          <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: `repeat(${Math.min(lineOptions.length, 3)}, minmax(0, 1fr))`, gap: 6 }}>
-            {lineOptions.slice(0, 3).map((option, idx) => (
-              <a
-                key={lineOptionKey(option, idx)}
-                href={option.url || undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={event => { if (!option.url) event.preventDefault(); event.stopPropagation() }}
-                style={{ textDecoration: 'none', borderRadius: 11, padding: '8px 7px', background: idx === 0 ? 'rgba(125,246,255,0.105)' : 'rgba(255,255,255,0.045)', border: `1px solid ${idx === 0 ? 'rgba(125,246,255,0.26)' : C.border}` }}
-              >
-                <div style={{ color: idx === 0 ? C.green : C.text, fontSize: 10, fontWeight: 950, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatLineOption(option)}</div>
-                <div style={{ color: C.muted, fontSize: 8, fontWeight: 900, marginTop: 3 }}>{idx === 0 ? 'Main look' : idx === 1 ? 'Bigger night' : 'Long shot'}</div>
-                <div style={{ color: C.faint, fontSize: 7.5, fontWeight: 900, marginTop: 1 }}>{idx === 0 ? 'Lower bar to clear' : 'Needs more from him'}</div>
-              </a>
-            ))}
+        {!compact && showFor(['read', 'numbers']) && lineOptions.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            {lineOptions.length > 1 ? (
+              <PropLadder
+                options={lineOptions}
+                recentValues={recentValues}
+                bestFit={ladderBestFit}
+                selectedThreshold={selectedThreshold}
+                onSelectThreshold={setSelectedThreshold}
+              />
+            ) : (
+              <PrimaryPropChip option={lineOptions[0]} signal={signal} />
+            )}
           </div>
+        )}
+
+        {!compact && showFor(['read']) && opponentFitBullets.length > 0 && (
+          <OpponentFitPanel title={opponentFitTitle} bullets={opponentFitBullets} tone={opponentFitTone} />
         )}
 
         {formCheckRows.length > 0 && !compact && showFor(['read']) && (
@@ -601,6 +832,14 @@ export default function SignalTerminalCard({
 
         {compact ? (
           <div style={{ marginTop: 9, display: 'grid', gap: 8 }}>
+            {opponentFitBullets.length > 0 && (
+              <OpponentFitPanel title={opponentFitTitle} bullets={opponentFitBullets} tone={opponentFitTone} compact />
+            )}
+            {lineOptions.length > 0 && (
+              lineOptions.length > 1
+                ? <PropLadder options={lineOptions} recentValues={recentValues} bestFit={ladderBestFit} compact />
+                : <PrimaryPropChip option={lineOptions[0]} signal={signal} compact />
+            )}
             <div style={{ color: C.muted, fontSize: 9.5, fontWeight: 850, lineHeight: 1.35, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {mlbConviction?.misreadSignal
                 ? `MLB matchup check · ${mlbConviction.misreadSignal.label}: ${mlbConviction.misreadSignal.summary}`
