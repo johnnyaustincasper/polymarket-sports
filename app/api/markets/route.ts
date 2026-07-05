@@ -38,6 +38,40 @@ const NO_STORE_HEADERS = {
   Expires: '0',
 }
 
+function chicagoYmd(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const get = (type: string) => parts.find(part => part.type === type)?.value || ''
+  return `${get('year')}${get('month')}${get('day')}`
+}
+
+function addChicagoDays(yyyymmdd: string, daysToAdd: number): string {
+  const year = Number(yyyymmdd.slice(0, 4))
+  const month = Number(yyyymmdd.slice(4, 6))
+  const day = Number(yyyymmdd.slice(6, 8))
+  const base = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+  base.setUTCDate(base.getUTCDate() + daysToAdd)
+  return chicagoYmd(base)
+}
+
+function normalizeMarketDateParam(raw: string | null): { espnDate: string; displayDate: string } {
+  const today = chicagoYmd()
+  const value = String(raw || '').trim().toLowerCase()
+  const displayDate = value === 'tomorrow'
+    ? addChicagoDays(today, 1)
+    : value === 'yesterday'
+      ? addChicagoDays(today, -1)
+      : value === 'today' || !value
+        ? today
+        : value.replace(/[^0-9]/g, '').slice(0, 8)
+  const safeDisplayDate = /^\d{8}$/.test(displayDate) ? displayDate : today
+  return { espnDate: safeDisplayDate, displayDate: safeDisplayDate }
+}
+
 // ESPN abbreviation/name → Polymarket-friendly terms. Keep team nicknames first.
 const PRO_TEAM_KEYWORDS: Record<string, string[]> = {
   CBJ: ['blue jackets', 'columbus blue jackets', 'columbus'], MTL: ['canadiens', 'montreal canadiens', 'montreal'],
@@ -413,9 +447,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const requestedSport = (searchParams.get('sport') || 'nba').toLowerCase() as SportKey
     const sport: SportKey = requestedSport in SPORTS ? requestedSport : 'nba'
-    const toCST = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
-    const dateParam = searchParams.get('date') || toCST(new Date())
-    const displayDate = searchParams.get('displayDate') || (dateParam.includes('-') ? dateParam.split('-')[1] : dateParam)
+    const normalizedDate = normalizeMarketDateParam(searchParams.get('date'))
+    const dateParam = searchParams.get('date')?.includes('-')
+      ? searchParams.get('date')!
+      : normalizedDate.espnDate
+    const rawDisplayDate = searchParams.get('displayDate')
+    const displayDate = /^\d{8}$/.test(String(rawDisplayDate || '')) ? String(rawDisplayDate) : normalizedDate.displayDate
 
     const [leagueResults, polyFetch] = await Promise.all([
       Promise.all(SPORTS[sport].leaguePaths.map(async league => {
@@ -425,7 +462,7 @@ export async function GET(req: NextRequest) {
           if (!res.ok) return { league, ok: false, events: [] as any[] }
           const data = await res.json()
           const events = (data?.events || [])
-            .filter((event: any) => toCST(new Date(event.date)) === displayDate)
+            .filter((event: any) => chicagoYmd(new Date(event.date)) === displayDate)
             .map((event: any) => ({ ...event, aiLeagueLabel: league.label, aiLeaguePath: league.path }))
           return { league, ok: true, events }
         } catch {

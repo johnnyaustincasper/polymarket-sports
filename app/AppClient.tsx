@@ -7172,13 +7172,23 @@ function MarketModeDock() {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 function chicagoYmd(date = new Date()): string {
-  return date.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const get = (type: string) => parts.find(part => part.type === type)?.value || ''
+  return `${get('year')}${get('month')}${get('day')}`
 }
 
 function addChicagoDays(yyyymmdd: string, daysToAdd: number): string {
-  const d = new Date(`${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}T12:00:00`)
-  d.setDate(d.getDate() + daysToAdd)
-  return d.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }).replace(/-/g, '')
+  const year = Number(yyyymmdd.slice(0, 4))
+  const month = Number(yyyymmdd.slice(4, 6))
+  const day = Number(yyyymmdd.slice(6, 8))
+  const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+  d.setUTCDate(d.getUTCDate() + daysToAdd)
+  return chicagoYmd(d)
 }
 
 function espnRequestDateForChicagoDay(yyyymmdd: string): string {
@@ -7286,9 +7296,15 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         let resolvedDate = startDate
         let loadedGames = await loadDate(sportToLoad, startDate)
 
-        // Only jump forward when ESPN has no games for the selected day. If games
-        // are final, keep them on screen so the slate buttons still show scores.
-        if (provider === 'kalshi' && loadedGames.length === 0) {
+        // Advance the betting board when the selected day cannot produce active
+        // Signals. A full slate of finals is useful as a scoreboard, but it makes
+        // MLB Player Signals show "no active games" overnight while tomorrow's
+        // markets are already live.
+        const shouldSeekNextActiveSlate = provider === 'kalshi' && (
+          loadedGames.length === 0 ||
+          (sportToLoad === 'mlb' && loadedGames.every(g => g.status === 'post'))
+        )
+        if (shouldSeekNextActiveSlate) {
           for (let i = 1; i <= 3; i++) {
             const candidateDate = addChicagoDays(startDate, i)
             const candidateGames = await loadDate(sportToLoad, candidateDate)
