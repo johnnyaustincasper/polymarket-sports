@@ -567,15 +567,13 @@ export default function SignalTerminalCard({
     : null
   const opponentFitBullets = mlbConviction
     ? cleanUniqueRows([
-      ...(mlbConviction.misreadSignal?.opponentProof?.length ? mlbConviction.misreadSignal.opponentProof : []),
       ...(mlbConviction.opponentProof || []),
       ...(mlbConviction.matchupRating?.opponentProof || []),
+      ...(mlbConviction.misreadSignal?.opponentProof || []),
       mlbConviction.misreadSignal?.reason || '',
     ], 4)
     : []
-  const opponentFitTitle = mlbConviction?.misreadSignal
-    ? `Opponent proof${signal.opponent ? ` vs ${signal.opponent}` : ''}`
-    : `Why this fits${signal.opponent ? ` vs ${signal.opponent}` : ''}`
+  const opponentFitTitle = `Opponent proof${signal.opponent ? ` vs ${signal.opponent}` : ''}`
   const opponentGap = mlbConviction?.misreadSignal?.matchupGap ?? mlbConviction?.matchupRating?.matchupGap
   const opponentFitTone: 'fit' | 'warn' | 'risk' = !mlbConviction?.misreadSignal
     ? 'fit'

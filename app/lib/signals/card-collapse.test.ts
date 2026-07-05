@@ -39,4 +39,15 @@ describe('resolveSignalCardMode', () => {
     expect(source).toContain('opponentGap')
     expect(source).toContain("? 'risk'")
   })
+
+  it('puts opponent proof on regular compact MLB signal cards before misread-specific proof', () => {
+    const source = readFileSync(join(process.cwd(), 'app', 'components', 'signal-terminal', 'SignalTerminalCard.tsx'), 'utf8')
+
+    expect(source).toContain('const opponentFitTitle = `Opponent proof')
+    expect(source).toContain('...(mlbConviction.opponentProof || [])')
+    expect(source).toContain('...(mlbConviction.matchupRating?.opponentProof || [])')
+    expect(source).toContain('...(mlbConviction.misreadSignal?.opponentProof || [])')
+    expect(source.indexOf('...(mlbConviction.opponentProof || [])')).toBeLessThan(source.indexOf('...(mlbConviction.misreadSignal?.opponentProof || [])'))
+    expect(source).toContain('<OpponentFitPanel title={opponentFitTitle} bullets={opponentFitBullets} tone={opponentFitTone} compact />')
+  })
 })
