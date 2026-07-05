@@ -615,7 +615,6 @@ export default function SignalTerminalCard({
   return (
     <div
       data-card-export-root="true"
-      data-signal-glow={compact && onOpen ? 'true' : undefined}
       role={onOpen ? 'button' : 'article'}
       tabIndex={onOpen ? 0 : undefined}
       onClick={() => onOpen?.(signal)}
@@ -639,39 +638,24 @@ export default function SignalTerminalCard({
       }}
     >
       {compact && onOpen && (
-        <>
-          <style>{`
-            @keyframes ${signalCardTapContract.glowAnimationName} {
-              0%, 100% {
-                opacity: 0.34;
-                box-shadow: 0 0 0 1px rgba(125,246,255,0.22), 0 0 10px rgba(125,246,255,0.14);
-              }
-              50% {
-                opacity: 1;
-                box-shadow: 0 0 0 1px rgba(125,246,255,0.78), 0 0 24px rgba(125,246,255,0.50), 0 0 44px rgba(125,246,255,0.20);
-              }
+        <style>{`
+          @keyframes ${signalCardTapContract.glowAnimationName} {
+            0%, 100% {
+              box-shadow: 0 0 0 1px rgba(125,246,255,0.36), 0 0 14px rgba(125,246,255,0.24), inset 0 1px 0 rgba(255,255,255,0.14);
+              transform: translateY(0);
             }
-            @media (prefers-reduced-motion: reduce) {
-              [data-signal-glow="true"] [data-signal-blue-glow="true"] {
-                animation: none !important;
-                opacity: 0.74;
-              }
+            50% {
+              box-shadow: 0 0 0 1px rgba(125,246,255,0.96), 0 0 28px rgba(125,246,255,0.64), 0 0 54px rgba(46,168,255,0.28), inset 0 1px 0 rgba(255,255,255,0.22);
+              transform: translateY(-1px);
             }
-          `}</style>
-          <span
-            aria-hidden="true"
-            data-signal-blue-glow="true"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: 18,
-              border: '1px solid rgba(125,246,255,0.68)',
-              pointerEvents: 'none',
-              animation: `${signalCardTapContract.glowAnimationName} 2.35s ease-in-out infinite`,
-              zIndex: 2,
-            }}
-          />
-        </>
+          }
+          @media (prefers-reduced-motion: reduce) {
+            [data-signal-open-cta="true"] {
+              animation: none !important;
+              box-shadow: 0 0 0 1px rgba(125,246,255,0.82), 0 0 22px rgba(125,246,255,0.38) !important;
+            }
+          }
+        `}</style>
       )}
       <div style={{ position: 'absolute', inset: 0, opacity: selected ? 0.18 : 0.10, background: 'radial-gradient(circle at 20% 0%, rgba(125,246,255,0.36), transparent 34%), radial-gradient(circle at 90% 12%, rgba(141,247,255,0.22), transparent 30%)', pointerEvents: 'none' }} />
       <div style={{ position: 'relative', borderRadius: compact ? 16 : 19, padding: compact ? '10px 11px 11px' : 14, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: `1px solid ${selected ? C.borderHot : compact ? 'rgba(125,246,255,0.24)' : C.border}` }}>
@@ -847,7 +831,7 @@ export default function SignalTerminalCard({
                   ? `Overall ${formatNumber(overallRatings.matchup.score)} · ${overallRatings.matchup.label || 'rated'}`
                   : formCheckRows[0] || whyCare[0] || 'Tap for full decision cockpit.'}
             </div>
-            <div style={{ justifySelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 176, borderRadius: 999, padding: '8px 14px', background: 'linear-gradient(135deg, rgba(125,246,255,0.22), rgba(125,246,255,0.09))', border: '1px solid rgba(125,246,255,0.45)', boxShadow: '0 0 20px rgba(125,246,255,0.18)', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.11em', textTransform: 'uppercase' }}>
+            <div data-signal-open-cta="true" style={{ justifySelf: 'center', position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, minWidth: 196, borderRadius: 999, padding: '10px 17px', background: 'linear-gradient(135deg, rgba(125,246,255,0.30), rgba(25,110,180,0.20), rgba(125,246,255,0.13))', border: '1px solid rgba(125,246,255,0.72)', boxShadow: '0 0 0 1px rgba(125,246,255,0.36), 0 0 22px rgba(125,246,255,0.30), inset 0 1px 0 rgba(255,255,255,0.14)', color: C.green, fontSize: 9.5, fontWeight: 950, letterSpacing: '0.11em', textTransform: 'uppercase', animation: compact && onOpen ? `${signalCardTapContract.glowAnimationName} 2.05s ease-in-out infinite` : undefined, cursor: 'pointer' }}>
               <span aria-hidden="true">↯</span>
               <span>{tapHint}</span>
             </div>
