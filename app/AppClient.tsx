@@ -562,9 +562,44 @@ const GLOBAL_STYLES = `
     0%, 100% { color: #ff4466; opacity: 1; transform: scale(1); text-shadow: 0 0 5px rgba(255,68,102,0.75); }
     50% { color: #ff123f; opacity: 0.55; transform: scale(1.22); text-shadow: 0 0 12px rgba(255,68,102,1); }
   }
-  @keyframes safePropThrob {
-    0%, 100% { transform: scale(1); border-color: rgba(125,246,255,0.58); box-shadow: 0 0 0 rgba(125,246,255,0), inset 0 1px 0 rgba(255,255,255,0.10); }
-    50% { transform: scale(1.045); border-color: rgba(125,246,255,0.98); box-shadow: 0 0 18px rgba(125,246,255,0.42), 0 0 34px rgba(125,246,255,0.16), inset 0 1px 0 rgba(255,255,255,0.16); }
+  @keyframes blueFlameFlow {
+    0% { transform: rotate(0deg) scale(1.16); filter: blur(7px); }
+    100% { transform: rotate(360deg) scale(1.16); filter: blur(7px); }
+  }
+  .blue-flame-prop {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border-color: rgba(72, 205, 255, 0.92) !important;
+    box-shadow:
+      0 0 0 1px rgba(72, 205, 255, 0.26),
+      0 0 14px rgba(42, 175, 255, 0.38),
+      0 0 30px rgba(0, 96, 255, 0.22),
+      inset 0 1px 0 rgba(255,255,255,0.16) !important;
+  }
+  .blue-flame-prop::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    padding: 2px;
+    background: conic-gradient(from 90deg, rgba(0,80,255,0.08), rgba(85,225,255,0.95), rgba(0,132,255,0.32), rgba(170,245,255,0.78), rgba(0,80,255,0.08));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 0;
+    animation: blueFlameFlow 7.5s linear infinite;
+  }
+  .blue-flame-prop::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+    border-radius: inherit;
+    background: radial-gradient(circle at 28% 8%, rgba(120,236,255,0.28), transparent 34%), radial-gradient(circle at 78% 100%, rgba(0,96,255,0.20), transparent 38%);
+    pointer-events: none;
+    opacity: 0.82;
+    z-index: 0;
   }
   @keyframes dominoFadeIn {
     0% { opacity: 0; transform: translateY(-34px) scale(0.965); filter: blur(12px); box-shadow: 0 0 0 rgba(125,246,255,0); }
@@ -3146,7 +3181,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                       const metricTags = Array.from(new Set(metricBets.flatMap((bet: any) => bet.signalTags || [])))
                       const liveRows = metricBets.map((bet: any) => sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, bet) : null).filter(Boolean)
                       const liveValue = liveRows[0]?.value
-                      const hotCount = metricBets.filter((bet: any) => Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 9).length
+                      const hotCount = metricBets.filter((bet: any) => Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 8).length
                       return (
                         <div key={`${p.player}-${metric}`} style={{ borderRadius: 13, padding: 8, background: 'rgba(0,0,0,0.18)', border: `1px solid ${metricTags.length ? C.borderHot : C.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 7 }}>
@@ -3163,12 +3198,12 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                               const key = contractKey(p, bet)
                               const open = key === expandedContractKey
                               const selected = !!selectedContracts[key]
-                              const safeHit = Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 9
+                              const hotProp = Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 8
                               const liveProgress = sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, bet) : null
                               return (
-                                <button key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ minHeight: 42, borderRadius: 10, padding: '6px 5px', border: '1px solid ' + (open || safeHit ? C.borderHot : selected ? 'rgba(125,246,255,0.45)' : C.border), background: open ? 'rgba(125,246,255,0.18)' : safeHit ? 'rgba(125,246,255,0.13)' : selected ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || safeHit ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', display: 'grid', alignContent: 'center', gap: 2, textAlign: 'center', animation: safeHit ? 'safePropThrob 1.25s ease-in-out infinite' : undefined, willChange: safeHit ? 'transform, box-shadow' : undefined }}>
-                                  <span>{bet.line}+</span>
-                                  <span style={{ color: liveProgress ? C.green : C.textSecondary, fontSize: 7, fontWeight: 900 }}>{safeHit ? `${bet.hits}/${bet.games}` : liveProgress ? liveProgress.label : formatPropMetricShort(metric)}</span>
+                                <button className={hotProp ? 'blue-flame-prop' : undefined} key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ minHeight: 42, borderRadius: 10, padding: '6px 5px', border: '1px solid ' + (open || hotProp ? C.borderHot : selected ? 'rgba(125,246,255,0.45)' : C.border), background: open ? 'rgba(125,246,255,0.18)' : hotProp ? 'linear-gradient(145deg, rgba(30,150,255,0.18), rgba(4,10,18,0.56))' : selected ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || hotProp ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', display: 'grid', alignContent: 'center', gap: 2, textAlign: 'center' }}>
+                                  <span style={{ position: 'relative', zIndex: 1 }}>{bet.line}+</span>
+                                  <span style={{ position: 'relative', zIndex: 1, color: liveProgress ? C.green : C.textSecondary, fontSize: 7, fontWeight: 900 }}>{hotProp ? `${bet.hits}/${bet.games}` : liveProgress ? liveProgress.label : formatPropMetricShort(metric)}</span>
                                 </button>
                               )
                             })}
@@ -3196,7 +3231,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
                           </div>
                         )}
                         {(() => {
-                          const safeHit = Number(expandedBet.games || 0) >= 12 && Number(expandedBet.hits || 0) >= 9
+                          const safeHit = Number(expandedBet.games || 0) >= 12 && Number(expandedBet.hits || 0) >= 8
                           const reads = buildPropEdgeRead(p, expandedBet, intel)
                           return (
                             <div style={{ marginTop: 9, borderRadius: 12, padding: 10, background: safeHit ? 'linear-gradient(135deg, rgba(125,246,255,0.13), rgba(255,255,255,0.035))' : 'rgba(255,255,255,0.035)', border: `1px solid ${safeHit ? C.borderHot : C.border}` }}>
