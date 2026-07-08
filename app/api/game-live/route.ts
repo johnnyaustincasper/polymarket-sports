@@ -12,6 +12,11 @@ const NO_STORE_HEADERS = {
   Expires: '0',
 }
 
+function timedHeaders(startedAt: number) {
+  const duration = Date.now() - startedAt
+  return { ...NO_STORE_HEADERS, 'X-Route-Duration-Ms': String(duration), 'Server-Timing': `route;dur=${duration}` }
+}
+
 const SPORT_PATH: Record<Sport, string[]> = {
   mlb: ['baseball/mlb'],
   nba: ['basketball/nba'],
@@ -219,13 +224,14 @@ function parseCompetitor(comp: any, homeAway: 'home' | 'away') {
 }
 
 export async function GET(req: NextRequest) {
+  const startedAt = Date.now()
   const rateLimited = enforceRateLimit(req, 'game-live', { limit: 60, windowMs: 60_000 })
   if (rateLimited) return rateLimited
 
   const { searchParams } = req.nextUrl
   const eventId = searchParams.get('eventId')
   const sport = parseSport(searchParams.get('sport'))
-  if (!eventId) return NextResponse.json({ error: 'Missing eventId' }, { status: 400, headers: NO_STORE_HEADERS })
+  if (!eventId) return NextResponse.json({ error: 'Missing eventId' }, { status: 400, headers: timedHeaders(startedAt) })
 
   try {
     let summary: any = null
@@ -234,7 +240,7 @@ export async function GET(req: NextRequest) {
       summary = await fetchEspnJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/summary?event=${encodeURIComponent(eventId)}`)
       if (summary) { sourcePath = path; break }
     }
-    if (!summary) return NextResponse.json({ available: false, source: 'ESPN', updatedAt: new Date().toISOString() }, { headers: NO_STORE_HEADERS })
+    if (!summary) return NextResponse.json({ available: false, source: 'ESPN', updatedAt: new Date().toISOString() }, { headers: timedHeaders(startedAt) })
 
     const comp = summary.header?.competitions?.[0] || {}
     const status = comp.status || {}
@@ -311,9 +317,9 @@ export async function GET(req: NextRequest) {
       players: parsedStats.players,
       playerStatsById: parsedStats.byId,
       playerStatsByName: parsedStats.byName,
-    }, { headers: NO_STORE_HEADERS })
+    }, { headers: timedHeaders(startedAt) })
   } catch (err) {
     console.error('Game live error:', err)
-    return NextResponse.json({ available: false, source: 'ESPN', updatedAt: new Date().toISOString(), error: 'Failed to fetch live game data' }, { status: 500, headers: NO_STORE_HEADERS })
+    return NextResponse.json({ available: false, source: 'ESPN', updatedAt: new Date().toISOString(), error: 'Failed to fetch live game data' }, { status: 500, headers: timedHeaders(startedAt) })
   }
 }

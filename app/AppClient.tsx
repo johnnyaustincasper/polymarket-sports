@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { memo, useState, useEffect, useCallback, useRef, useSyncExternalStore, type MouseEvent } from 'react'
+import { memo, useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import AccountMenu from './components/AccountMenu'
 import LoadingMarketCards from './components/LoadingMarketCards'
@@ -2730,8 +2730,7 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
     }
     let cancelled = false
     setLineupsLoading(true)
-    fetch(`/api/lineups?eventId=${game.id}&sport=mlb&t=${Date.now()}`, { cache: 'no-store' })
-      .then(r => r.json())
+    fetchJsonCached<LineupsData>(cacheKey('/api/lineups', { eventId: game.id, sport: 'mlb' }), 30_000, 20_000)
       .then(d => { if (!cancelled) setLineups(d) })
       .catch(() => { if (!cancelled) setLineups(null) })
       .finally(() => { if (!cancelled) setLineupsLoading(false) })
@@ -2776,7 +2775,8 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
   }, [game.homeTeam.abbr, game.awayTeam.abbr, game.id, sport, supportedKalshiSport, shouldLoadIntelAndProps])
 
   useEffect(() => {
-    if (!shouldLoadIntelAndProps) {
+    const shouldFetchLive = shouldLoadIntelAndProps && (game.status === 'in' || activeLiveTab === 'feed' || activeLiveTab === 'box')
+    if (!shouldFetchLive) {
       setLiveGame(null)
       setLiveLoading(false)
       setLiveError(null)
@@ -2809,18 +2809,24 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
       }
     }
     fetchLive(true)
-    const intervalMs = game.status === 'in' ? 9_000 : 60_000
-    const iv = setInterval(() => fetchLive(false), intervalMs)
+    if (game.status !== 'in') return () => { cancelled = true }
+    const intervalMs = isMobile ? 15_000 : 9_000
+    const iv = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      fetchLive(false)
+    }, intervalMs)
     return () => {
       cancelled = true
       clearInterval(iv)
     }
-  }, [game.awayTeam.abbr, game.homeTeam.abbr, game.gameDate, game.id, game.status, sport, shouldLoadIntelAndProps])
+  }, [activeLiveTab, game.awayTeam.abbr, game.homeTeam.abbr, game.gameDate, game.id, game.status, isMobile, sport, shouldLoadIntelAndProps] )
 
   const fullBoardSport = sport === 'nba' || sport === 'mlb' || sport === 'nhl'
-  const players = props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (fullBoardSport || (p.last12 || []).length >= 4) && (p.recommendations || []).length) : []
-  const allContracts = players.flatMap((p: any) => (p.recommendations || []).map((bet: any) => ({ player: p, bet })))
-  const categoryOrder = sport === 'nba'
+  const players = useMemo(() => (
+    props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (fullBoardSport || (p.last12 || []).length >= 4) && (p.recommendations || []).length) : []
+  ), [fullBoardSport, props])
+  const allContracts = useMemo(() => players.flatMap((p: any) => (p.recommendations || []).map((bet: any) => ({ player: p, bet }))), [players])
+  const categoryOrder = useMemo(() => sport === 'nba'
     ? ['points', 'assists', 'rebounds', 'threes', 'steals', 'blocks', 'PTS+REB+AST']
     : sport === 'nfl'
       ? ['passing yards', 'passing TDs', 'rushing yards', 'receiving yards', 'receptions']
@@ -2828,26 +2834,26 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
         ? ['hits', 'home runs', 'hits + runs + RBIs', 'total bases', 'strikeouts']
         : sport === 'nhl'
           ? ['goals', 'points', 'assists']
-          : ['points', 'rebounds', 'assists']
-  const metricGroups = categoryOrder
+          : ['points', 'rebounds', 'assists'], [sport])
+  const metricGroups = useMemo(() => categoryOrder
     .map(metric => ({ metric, items: allContracts.filter((x: any) => x.bet.metric === metric).sort((a: any, b: any) => (b.bet.hitRate - a.bet.hitRate) || ((a.bet.kalshi?.yesAsk || 99) - (b.bet.kalshi?.yesAsk || 99))) }))
-    .filter(g => g.items.length)
-  const categoryGroups = fullBoardSport && allContracts.length
+    .filter(g => g.items.length), [allContracts, categoryOrder])
+  const categoryGroups = useMemo(() => fullBoardSport && allContracts.length
     ? [{ metric: 'all', items: [...allContracts].sort((a: any, b: any) => String(a.player.team).localeCompare(String(b.player.team)) || String(a.player.player).localeCompare(String(b.player.player)) || categoryOrder.indexOf(a.bet.metric) - categoryOrder.indexOf(b.bet.metric) || a.bet.line - b.bet.line) }, ...metricGroups]
-    : metricGroups
-  const availableTabs = categoryGroups.map(g => g.metric)
+    : metricGroups, [allContracts, categoryOrder, fullBoardSport, metricGroups])
+  const availableTabs = useMemo(() => categoryGroups.map(g => g.metric), [categoryGroups])
   const currentTab = availableTabs.includes(activePropTab) ? activePropTab : (availableTabs[0] || 'points')
-  const activeGroup = categoryGroups.find(g => g.metric === currentTab)
-  const activePlayerGroups = activeGroup ? Array.from(activeGroup.items.reduce((map: Map<string, any>, item: any) => {
+  const activeGroup = useMemo(() => categoryGroups.find(g => g.metric === currentTab), [categoryGroups, currentTab])
+  const activePlayerGroups = useMemo(() => activeGroup ? Array.from(activeGroup.items.reduce((map: Map<string, any>, item: any) => {
     const playerName = item.player.player
     const existing = map.get(playerName) || { player: item.player, bets: [] }
     existing.bets.push(item.bet)
     existing.bets.sort((a: any, b: any) => categoryOrder.indexOf(a.metric) - categoryOrder.indexOf(b.metric) || a.line - b.line)
     map.set(playerName, existing)
     return map
-  }, new Map()).values()) : []
-  const contractKey = (p: any, bet: any) => `${p.team}|${p.player}|${bet.metric}|${bet.line}|${bet.kalshi?.legTicker || bet.kalshi?.ticker || ''}`
-  const selectedItems = allContracts.filter((x: any) => selectedContracts[contractKey(x.player, x.bet)])
+  }, new Map()).values()) : [], [activeGroup, categoryOrder])
+  const contractKey = useCallback((p: any, bet: any) => `${p.team}|${p.player}|${bet.metric}|${bet.line}|${bet.kalshi?.legTicker || bet.kalshi?.ticker || ''}`, [])
+  const selectedItems = useMemo(() => allContracts.filter((x: any) => selectedContracts[contractKey(x.player, x.bet)]), [allContracts, contractKey, selectedContracts])
   const copySelected = async () => {
     const text = selectedItems.map((x: any, i: number) => `${i + 1}. ${x.player.player} — ${x.bet.label} — ${x.bet.kalshi?.legTicker || x.bet.kalshi?.ticker || ''}`).join('\n')
     try { await navigator.clipboard?.writeText(text) } catch {}
@@ -7464,6 +7470,24 @@ function espnRequestDateForChicagoDay(yyyymmdd: string): string {
   return `${addChicagoDays(yyyymmdd, -1)}-${addChicagoDays(yyyymmdd, 1)}`
 }
 
+function gameFeedSignature(games: Game[]) {
+  return games.map(g => [
+    g.id,
+    g.status,
+    g.gameTime,
+    g.gameDate,
+    g.awayTeam.abbr,
+    g.awayTeam.score,
+    g.awayTeam.record,
+    g.homeTeam.abbr,
+    g.homeTeam.score,
+    g.homeTeam.record,
+    g.hasWinnerOdds ? g.homeWinOdds : '',
+    g.hasSpreadOdds ? `${g.spreadLine}:${g.spreadHomeOdds}:${g.spreadAwayOdds}` : '',
+    g.hasTotalOdds ? `${g.totalLine}:${g.overOdds}:${g.underOdds}` : '',
+  ].join('~')).join('|')
+}
+
 export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
   const today = chicagoYmd()
   const tomorrow = addChicagoDays(today, 1)
@@ -7554,7 +7578,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
     try {
       const loadDate = async (sportToLoad: SupportedSport, yyyymmdd: string): Promise<Game[]> => {
-        const res = await fetch(`/api/markets?date=${espnRequestDateForChicagoDay(yyyymmdd)}&sport=${sportToLoad}&displayDate=${yyyymmdd}&t=${Date.now()}`, { cache: 'no-store', signal: controller.signal })
+        const res = await fetch(`/api/markets?date=${espnRequestDateForChicagoDay(yyyymmdd)}&sport=${sportToLoad}&displayDate=${yyyymmdd}`, { signal: controller.signal })
         const json = await res.json().catch(() => null)
         if (!res.ok) throw new Error(json?.error || `market feed failed (${res.status})`)
         return Array.isArray(json) ? json : []
@@ -7624,14 +7648,19 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         }
       }
 
+      const nextSignature = gameFeedSignature(newGames)
+      const prevSignature = gameFeedSignature(Array.from(prevGamesRef.current.values()))
+
       // Update previous games ref
       const newMap = new Map<string, Game>()
       for (const g of newGames) newMap.set(g.id, g)
       prevGamesRef.current = newMap
 
-      setGames(newGames)
+      if (nextSignature !== prevSignature) {
+        setGames(newGames)
+        setLastUpdated(new Date())
+      }
       if (Object.keys(newDrift).length > 0) setOddsDrift(newDrift)
-      setLastUpdated(new Date())
     } catch (err) {
       if (!isCurrentFeedRequest() || (err instanceof DOMException && err.name === 'AbortError')) return
       setFeedError(err instanceof Error ? err.message : 'market feed unavailable')
@@ -7661,11 +7690,11 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
     }
   })
 
-  const live = games.filter(g => g.status === 'in')
-  const upcoming = games.filter(g => g.status === 'pre')
-  const final = games.filter(g => g.status === 'post')
-  const pendingBets = bets.filter(b => b.result === 'pending').length
-  const kalshiGridColumns = isMobile ? 'repeat(3, minmax(0, 1fr))' : `repeat(${cols}, 1fr)`
+  const live = useMemo(() => games.filter(g => g.status === 'in'), [games])
+  const upcoming = useMemo(() => games.filter(g => g.status === 'pre'), [games])
+  const final = useMemo(() => games.filter(g => g.status === 'post'), [games])
+  const pendingBets = useMemo(() => bets.filter(b => b.result === 'pending').length, [bets])
+  const kalshiGridColumns = useMemo(() => isMobile ? 'repeat(3, minmax(0, 1fr))' : `repeat(${cols}, 1fr)`, [cols, isMobile])
   const markKalshiGameLoaded = useCallback((gameId: string) => {
     setLoadedKalshiGameIds(prev => prev[gameId] ? prev : { ...prev, [gameId]: true })
   }, [])

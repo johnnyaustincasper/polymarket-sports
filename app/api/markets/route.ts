@@ -38,6 +38,11 @@ const NO_STORE_HEADERS = {
   Expires: '0',
 }
 
+function timedHeaders(startedAt: number) {
+  const duration = Date.now() - startedAt
+  return { ...NO_STORE_HEADERS, 'X-Route-Duration-Ms': String(duration), 'Server-Timing': `route;dur=${duration}` }
+}
+
 function chicagoYmd(date = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Chicago',
@@ -440,6 +445,7 @@ async function getPolyOdds(
 }
 
 export async function GET(req: NextRequest) {
+  const startedAt = Date.now()
   const rateLimited = enforceRateLimit(req, 'markets', { limit: 240, windowMs: 60_000 })
   if (rateLimited) return rateLimited
 
@@ -472,7 +478,7 @@ export async function GET(req: NextRequest) {
       fetchPolyEvents(sport),
     ])
     const events = leagueResults.flatMap(result => result.events)
-    if (!events.length) return NextResponse.json([], { headers: NO_STORE_HEADERS })
+    if (!events.length) return NextResponse.json([], { headers: timedHeaders(startedAt) })
     const sourceHealth = {
       espn: { ok: leagueResults.some(result => result.ok), events: events.length, date: dateParam, leagues: leagueResults.map(result => ({ label: result.league.label, path: result.league.path, ok: result.ok, events: result.events.length })) },
       polymarket: { ok: polyFetch.fetchOk, events: polyFetch.events.length, tags: SPORTS[sport].polyTags, error: polyFetch.error },
@@ -567,9 +573,9 @@ export async function GET(req: NextRequest) {
     }))
 
     games.sort((a: any, b: any) => new Date(a.gameDate).getTime() - new Date(b.gameDate).getTime())
-    return NextResponse.json(games, { headers: NO_STORE_HEADERS })
+    return NextResponse.json(games, { headers: timedHeaders(startedAt) })
   } catch (err) {
     console.error(err)
-    return NextResponse.json([], { status: 500, headers: NO_STORE_HEADERS })
+    return NextResponse.json([], { status: 500, headers: timedHeaders(startedAt) })
   }
 }
