@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useEffect, useCallback, useRef, type MouseEvent } from 'react'
+import { memo, useState, useEffect, useCallback, useRef, useSyncExternalStore, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import AccountMenu from './components/AccountMenu'
 import LoadingMarketCards from './components/LoadingMarketCards'
@@ -474,7 +474,7 @@ function AppPropMatrixBackdrop() {
   )
 }
 
-function TeamBadge({ abbr, name, sport, size = 40, selected = false, compact = false }: { abbr?: string | null; name?: string | null; sport?: TeamBadgeSport | null; size?: number; selected?: boolean; compact?: boolean }) {
+const TeamBadge = memo(function TeamBadge({ abbr, name, sport, size = 40, selected = false, compact = false }: { abbr?: string | null; name?: string | null; sport?: TeamBadgeSport | null; size?: number; selected?: boolean; compact?: boolean }) {
   const tone = getTeamBadgeTone(sport)
   const text = getTeamBadgeText(abbr)
   const fontSize = Math.max(8, Math.round(size * (text.length > 3 ? 0.24 : text.length > 2 ? 0.27 : 0.31)))
@@ -509,7 +509,7 @@ function TeamBadge({ abbr, name, sport, size = 40, selected = false, compact = f
       <span style={{ position: 'relative', zIndex: 1 }}>{text}</span>
     </span>
   )
-}
+})
 
 function TeamLeagueCard({ abbr, name, sport, selected = false, compact = false }: { abbr?: string | null; name?: string | null; sport?: TeamBadgeSport | null; selected?: boolean; compact?: boolean }) {
   const tone = getTeamBadgeTone(sport)
@@ -619,10 +619,9 @@ const GLOBAL_STYLES = `
     z-index: 0;
   }
   @keyframes dominoFadeIn {
-    0% { opacity: 0; transform: translateY(-34px) scale(0.965); filter: blur(12px); box-shadow: 0 0 0 rgba(125,246,255,0); }
-    45% { opacity: 1; transform: translateY(7px) scale(1.012); filter: blur(2px); box-shadow: 0 0 34px rgba(125,246,255,0.20); }
-    72% { transform: translateY(-2px) scale(1.003); filter: blur(0); }
-    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); box-shadow: 0 0 0 rgba(125,246,255,0); }
+    0% { opacity: 0; transform: translateY(10px) scale(0.992); }
+    55% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
   }
   @keyframes driftFadeOut {
     0%   { opacity: 1; }
@@ -673,6 +672,7 @@ const GLOBAL_STYLES = `
     --load-board-angle: 0deg;
     position: relative;
     transform: translateZ(0);
+    contain: layout paint;
     background: conic-gradient(from var(--load-board-angle), rgba(125,246,255,0.18) 0deg, rgba(125,246,255,0.95) 24deg, rgba(168,240,255,0.52) 40deg, rgba(125,246,255,0.22) 66deg, rgba(125,246,255,0.10) 124deg, rgba(125,246,255,0.18) 360deg) !important;
     animation: loadBoardPulse 2.2s ease-in-out infinite, loadBoardSweep 2.45s linear infinite;
     transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
@@ -725,6 +725,24 @@ const GLOBAL_STYLES = `
   }
   @media (prefers-reduced-motion: reduce) {
     .gate-hero-pulse { animation: none !important; }
+    .load-board-card, .blue-flame-prop, .blue-flame-prop::before, [data-card-export-root="true"] { animation: none !important; }
+  }
+  @media (max-width: 639px) {
+    .load-board-card {
+      animation: loadBoardPulse 4.8s ease-in-out infinite !important;
+    }
+    .load-board-card:hover {
+      transform: translateZ(0);
+      filter: none;
+    }
+    .blue-flame-prop::before {
+      filter: none !important;
+      opacity: 0.34 !important;
+    }
+    [data-card-export-root="true"] {
+      content-visibility: auto;
+      contain-intrinsic-size: 230px;
+    }
   }
   .no-scrollbar {
     scrollbar-width: none;
@@ -1863,15 +1881,42 @@ function useColCount() {
   return cols
 }
 
+const getIsMobileSnapshot = () => typeof window !== 'undefined' && window.innerWidth < 640
+const getServerIsMobileSnapshot = () => false
+let mobileViewportSubscribers = new Set<() => void>()
+let mobileViewportListening = false
+let lastMobileSnapshot = false
+
+function subscribeToMobileViewport(listener: () => void) {
+  if (typeof window === 'undefined') return () => {}
+  mobileViewportSubscribers.add(listener)
+  if (!mobileViewportListening) {
+    lastMobileSnapshot = getIsMobileSnapshot()
+    const notifyIfChanged = () => {
+      const next = getIsMobileSnapshot()
+      if (next === lastMobileSnapshot) return
+      lastMobileSnapshot = next
+      mobileViewportSubscribers.forEach(fn => fn())
+    }
+    window.addEventListener('resize', notifyIfChanged, { passive: true })
+    window.addEventListener('orientationchange', notifyIfChanged, { passive: true })
+    ;(subscribeToMobileViewport as any)._cleanup = () => {
+      window.removeEventListener('resize', notifyIfChanged)
+      window.removeEventListener('orientationchange', notifyIfChanged)
+    }
+    mobileViewportListening = true
+  }
+  return () => {
+    mobileViewportSubscribers.delete(listener)
+    if (mobileViewportSubscribers.size === 0 && mobileViewportListening) {
+      ;(subscribeToMobileViewport as any)._cleanup?.()
+      mobileViewportListening = false
+    }
+  }
+}
+
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false)
-  useEffect(() => {
-    const update = () => setIsMobile(window.innerWidth < 640)
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
-  return isMobile
+  return useSyncExternalStore(subscribeToMobileViewport, getIsMobileSnapshot, getServerIsMobileSnapshot)
 }
 
 function useNearViewport<T extends HTMLElement>(rootMargin = '700px') {
@@ -2612,7 +2657,7 @@ function ExactKalshiBetButton({ player, bet, compact = false }: { player: string
   )
 }
 
-function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, onBoardCollapse }: { game: Game; sport: SupportedSport; autoLoad?: boolean; onBoardLoadRequested?: (gameId: string) => void; onBoardCollapse?: (gameId: string) => void }) {
+const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, onBoardCollapse }: { game: Game; sport: SupportedSport; autoLoad?: boolean; onBoardLoadRequested?: (gameId: string) => void; onBoardCollapse?: (gameId: string) => void }) {
   const [props, setProps] = useState<PropsPanelData | null>(null)
   const [intel, setIntel] = useState<TeamIntelData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -3323,7 +3368,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               const lastGameMinutes = formatLastGameMinutes(p)
               const playerSignalTags = Array.from(new Set(bets.flatMap((bet: any) => bet.signalTags || [])))
               return (
-                <div data-card-export-root="true" key={`${game.id}-${p.team}-${p.player}-${activeGroup.metric}`} style={{ position: 'relative', borderRadius: 14, padding: 11, paddingRight: 48, background: 'rgba(125,246,255,0.045)', border: '1px solid rgba(255,255,255,0.10)', opacity: 0, animation: 'dominoFadeIn 860ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(playerIdx * 150, 1350)}ms` }}>
+                <div data-card-export-root="true" key={`${game.id}-${p.team}-${p.player}-${activeGroup.metric}`} style={{ position: 'relative', borderRadius: 14, padding: 11, paddingRight: 48, background: 'rgba(125,246,255,0.045)', border: '1px solid rgba(255,255,255,0.10)', opacity: 0, animation: 'dominoFadeIn 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards', animationDelay: `${Math.min(playerIdx * 35, 210)}ms` }}>
                   <NativeShareButton
                     title={`${p.player} · Athlete Intelligence`}
                     text={propShareText(game, p, expandedBet || bets[0])}
@@ -3498,7 +3543,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   }
 
   return expandedBoard
-}
+}, (prev, next) => prev.game === next.game && prev.sport === next.sport && prev.autoLoad === next.autoLoad && prev.onBoardLoadRequested === next.onBoardLoadRequested && prev.onBoardCollapse === next.onBoardCollapse)
 
 function SportSlateParlayBuilder({ sport, games, isMobile, autoRun = false }: { sport: SupportedSport; games: Game[]; isMobile: boolean; autoRun?: boolean }) {
   const [loading, setLoading] = useState(false)
@@ -4746,7 +4791,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
 }
 
 // ─── Game Card ────────────────────────────────────────────────────────────────
-function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, onOpenAnalysis, bankroll }: {
+const GameCard = memo(function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, onOpenAnalysis, bankroll }: {
   game: Game
   onLogBet: (bet: Omit<BetLog, 'id' | 'createdAt' | 'stake' | 'result'>) => void
   drift?: OddsDrift
@@ -5153,7 +5198,7 @@ function GameCard({ game, onLogBet, drift, isActive, isAnalyzing, onOpenIntel, o
       )}
     </>
   )
-}
+}, (prev, next) => prev.game === next.game && prev.drift === next.drift && prev.isActive === next.isActive && prev.isAnalyzing === next.isAnalyzing && prev.bankroll === next.bankroll && prev.onLogBet === next.onLogBet && prev.onOpenIntel === next.onOpenIntel && prev.onOpenAnalysis === next.onOpenAnalysis)
 
 // ─── UFC Types ────────────────────────────────────────────────────────────────
 interface UFCFighter {
