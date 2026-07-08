@@ -154,6 +154,13 @@ interface TeamIntelData {
   bettingSplits?: BettingSplits | null
   altitudeNote?: string | null
 }
+interface TeamDetailData {
+  team?: { id?: string; abbr?: string; name?: string; shortName?: string; record?: string | null }
+  stats?: { label: string; value: string; category?: string; name?: string }[]
+  roster?: any[]
+  injuries?: any[]
+  generatedAt?: string
+}
 interface StreakTeam {
   name: string; abbr: string; streak: number; streakLabel: string
   lastGames: ('W' | 'L')[]; analysis: string; keyFactors: string[]
@@ -183,6 +190,12 @@ interface PropsPanelData {
   away: any[]
   available: boolean
   marketSummary?: PropsMarketSummary
+  mlbMatchupContext?: {
+    homePitcher?: any
+    awayPitcher?: any
+    homeProfile?: any
+    awayProfile?: any
+  } | null
 }
 interface ModelSignal {
   id: string
@@ -2611,6 +2624,8 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   const [loadRequested, setLoadRequested] = useState(false)
   const [lineups, setLineups] = useState<LineupsData | null>(null)
   const [lineupsLoading, setLineupsLoading] = useState(false)
+  const [teamDetails, setTeamDetails] = useState<{ away: TeamDetailData | null; home: TeamDetailData | null }>({ away: null, home: null })
+  const [teamDetailsLoading, setTeamDetailsLoading] = useState(false)
   const [liveGame, setLiveGame] = useState<LiveGameData | null>(null)
   const [liveLoading, setLiveLoading] = useState(false)
   const [liveError, setLiveError] = useState<string | null>(null)
@@ -2634,6 +2649,7 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
     setExpandedContractKey('')
     setActivePropDetail(null)
     setLineups(null)
+    setTeamDetails({ away: null, home: null })
     setLiveGame(null)
     setLiveError(null)
     setLiveUpdatedAt(null)
@@ -2676,6 +2692,24 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
       .finally(() => { if (!cancelled) setLineupsLoading(false) })
     return () => { cancelled = true }
   }, [game.id, sport, shouldLoadIntelAndProps])
+
+  useEffect(() => {
+    if (sport !== 'mlb' || !shouldLoadIntelAndProps) {
+      setTeamDetails({ away: null, home: null })
+      setTeamDetailsLoading(false)
+      return
+    }
+    let cancelled = false
+    setTeamDetailsLoading(true)
+    Promise.all([
+      fetchJsonCached<TeamDetailData>(cacheKey('/api/teams', { sport: 'mlb', team: game.awayTeam.abbr }), 5 * 60_000),
+      fetchJsonCached<TeamDetailData>(cacheKey('/api/teams', { sport: 'mlb', team: game.homeTeam.abbr }), 5 * 60_000),
+    ])
+      .then(([awayDetail, homeDetail]) => { if (!cancelled) setTeamDetails({ away: awayDetail, home: homeDetail }) })
+      .catch(() => { if (!cancelled) setTeamDetails({ away: null, home: null }) })
+      .finally(() => { if (!cancelled) setTeamDetailsLoading(false) })
+    return () => { cancelled = true }
+  }, [game.awayTeam.abbr, game.homeTeam.abbr, sport, shouldLoadIntelAndProps])
 
   useEffect(() => {
     if (!supportedKalshiSport) {
@@ -2805,9 +2839,18 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
   ]
   const liveNextText = arrayFromUnknown(liveSituation.nextBatters).map((p: any) => compactText(p?.name || p)).filter(Boolean).join(' · ')
   const lineupSides = [
-    { key: 'away' as const, side: 'left' as const, team: game.awayTeam, pitcher: lineups?.awayPitcher || null, fallbackPitcher: game.mlbMatchup?.awayPitcher, players: lineups?.away || [], source: lineups?.awaySource, sourceGame: lineups?.awaySourceGame },
-    { key: 'home' as const, side: 'right' as const, team: game.homeTeam, pitcher: lineups?.homePitcher || null, fallbackPitcher: game.mlbMatchup?.homePitcher, players: lineups?.home || [], source: lineups?.homeSource, sourceGame: lineups?.homeSourceGame },
+    { key: 'away' as const, side: 'left' as const, team: game.awayTeam, detail: teamDetails.away, pitcher: lineups?.awayPitcher || null, fallbackPitcher: game.mlbMatchup?.awayPitcher, profile: props?.mlbMatchupContext?.awayProfile, players: lineups?.away || [], source: lineups?.awaySource, sourceGame: lineups?.awaySourceGame },
+    { key: 'home' as const, side: 'right' as const, team: game.homeTeam, detail: teamDetails.home, pitcher: lineups?.homePitcher || null, fallbackPitcher: game.mlbMatchup?.homePitcher, profile: props?.mlbMatchupContext?.homeProfile, players: lineups?.home || [], source: lineups?.homeSource, sourceGame: lineups?.homeSourceGame },
   ]
+  const statValue = (detail: TeamDetailData | null, labels: string[], category?: string) => {
+    const wanted = labels.map(x => x.toLowerCase())
+    return detail?.stats?.find(stat => (!category || stat.category === category) && wanted.includes(String(stat.label || stat.name || '').toLowerCase()))?.value || '—'
+  }
+  const recordPct = (record?: string | null) => {
+    const [w, l] = String(record || '').split('-').map(Number)
+    if (!Number.isFinite(w) || !Number.isFinite(l) || w + l <= 0) return '—'
+    return `${Math.round((w / (w + l)) * 100)}%`
+  }
 
   if (!loadRequested) {
     if (hasScore) {
@@ -2978,6 +3021,69 @@ function KalshiGameCard({ game, sport, autoLoad = false, onBoardLoadRequested, o
               </div>
             )}
           </div>
+          {sport === 'mlb' && (
+            <div style={{ borderRadius: 18, padding: isMobile ? 10 : 12, background: 'linear-gradient(145deg, rgba(125,246,255,0.060), rgba(255,255,255,0.024))', border: `1px solid ${C.border}`, minWidth: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 10 }}>
+                <span style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Team Snapshot</span>
+                <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>{teamDetailsLoading ? 'loading ESPN team stats' : 'record · hitting · pitching'}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 8 : 10 }}>
+                {lineupSides.map(side => {
+                  const detail = side.detail
+                  const record = side.team.record || detail?.team?.record || '—'
+                  const starter = side.pitcher || side.fallbackPitcher
+                  const starterKPer9 = (starter as any)?.kPer9
+                  const profile = side.profile
+                  const chips = [
+                    { label: 'Record', value: record },
+                    { label: 'Win rate', value: recordPct(record) },
+                    { label: 'AVG', value: statValue(detail, ['AVG', 'avg'], 'batting') },
+                    { label: 'OPS', value: statValue(detail, ['OPS'], 'batting') },
+                    { label: 'Runs', value: statValue(detail, ['R', 'runs'], 'batting') },
+                    { label: 'HR', value: statValue(detail, ['HR', 'homeRuns'], 'batting') },
+                    { label: 'Team ERA', value: statValue(detail, ['ERA'], 'pitching') },
+                    { label: 'WHIP', value: statValue(detail, ['WHIP'], 'pitching') },
+                    { label: 'K/9', value: statValue(detail, ['K/9', 'strikeoutsPerNineInnings'], 'pitching') },
+                    { label: 'Opp AVG', value: statValue(detail, ['OBA', 'opponentAvg'], 'pitching') },
+                  ]
+                  return (
+                    <div key={'snapshot-' + side.team.abbr} style={{ minWidth: 0, borderRadius: 14, padding: 10, background: 'rgba(0,0,0,0.22)', border: `1px solid ${C.border}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                          <TeamBadge abbr={side.team.abbr} name={side.team.name} sport={sport} size={24} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 950, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{side.team.name || side.team.abbr}</div>
+                            <div style={{ color: C.textSecondary, fontSize: 8, fontWeight: 850 }}>{side.key === 'away' ? 'Away' : 'Home'} · {side.team.abbr}</div>
+                          </div>
+                        </div>
+                        <div style={{ color: C.green, fontSize: 14, fontWeight: 950 }}>{recordPct(record)}</div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(5, minmax(0,1fr))', gap: 6 }}>
+                        {chips.map(chip => (
+                          <div key={side.team.abbr + chip.label} style={{ minWidth: 0, borderRadius: 9, padding: '6px 7px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.075)' }}>
+                            <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>{chip.label}</div>
+                            <div style={{ color: chip.value !== '—' ? C.textPrimary : C.textSecondary, fontSize: 10, fontWeight: 950, marginTop: 2 }}>{chip.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 8, borderTop: `1px solid ${C.border}`, paddingTop: 7, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 7 }}>
+                        <div>
+                          <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Probable starter</div>
+                          <div style={{ color: C.gold, fontSize: 10, fontWeight: 950, marginTop: 2 }}>{starter?.name || 'Starter TBA'}</div>
+                          <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 1 }}>{starter?.era != null ? `${starter.era} ERA` : 'ERA —'}{starter?.whip != null ? ` · ${starter.whip} WHIP` : ''}{starterKPer9 != null ? ` · ${starterKPer9} K/9` : ''}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Recent lineup rates</div>
+                          <div style={{ color: C.green, fontSize: 10, fontWeight: 950, marginTop: 2 }}>{profile ? `${Number(profile.hitsAvg || 0).toFixed(1)} H avg · ${Number(profile.totalBasesAvg || 0).toFixed(1)} TB avg` : 'Filling from player logs'}</div>
+                          <div style={{ color: C.textSecondary, fontSize: 8, marginTop: 1 }}>{profile ? `${Number(profile.strikeoutsAvg || 0).toFixed(1)} K profile · ${profile.hitterCount || 0} hitters` : 'Opens when props scan completes'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {sport === 'mlb' && activeLiveTab === 'lineups' && (
             <div style={{ borderRadius: 18, padding: isMobile ? 10 : 12, background: 'linear-gradient(145deg, rgba(125,246,255,0.070), rgba(255,255,255,0.026))', border: `1px solid ${C.borderHot}`, minWidth: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 10 }}>

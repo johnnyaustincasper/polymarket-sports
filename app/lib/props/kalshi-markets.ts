@@ -8,7 +8,9 @@ export function kalshiTeamCode(abbr: string, sport: Sport): string {
   }
   if (sport === 'mlb') {
     const map: Record<string, string> = {
-      AZ: 'ARI', ARI: 'ARI',
+      // Kalshi encodes the Diamondbacks as AZ in MLB player-prop event tickers
+      // (for example KXMLBHIT-26JUL072140AZSD), while ESPN/slate data uses ARI.
+      AZ: 'AZ', ARI: 'AZ',
       ATH: 'ATH', OAK: 'ATH',
       CWS: 'CWS', CHW: 'CWS',
       WSH: 'WSH', WAS: 'WSH',

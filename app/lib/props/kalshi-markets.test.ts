@@ -13,6 +13,7 @@ describe('Kalshi market filters', () => {
     expect(kalshiTeamCode('SA', 'nba')).toBe('SAS')
     expect(kalshiTeamCode('CHW', 'mlb')).toBe('CWS')
     expect(kalshiTeamCode('OAK', 'mlb')).toBe('ATH')
+    expect(kalshiTeamCode('ARI', 'mlb')).toBe('AZ')
     expect(kalshiTeamCode('KC', 'nfl')).toBe('KC')
   })
 
@@ -36,6 +37,19 @@ describe('Kalshi market filters', () => {
     expect(isExecutableGamePropMarket({ ...market, yes_ask_size_fp: '0' }, 'KXNBA', 'LAL', 'BOS')).toBe(false)
     expect(isExecutableGamePropMarket({ ...market, status: 'closed' }, 'KXNBA', 'LAL', 'BOS')).toBe(false)
     expect(isExecutableGamePropMarket({ ...market, mve_selected_legs: [{ market_ticker: 'KXNFLPASSYDS-KCDEN-MAHOMES-250' }] }, 'KXNBA', 'LAL', 'BOS')).toBe(false)
+  })
+
+  it('matches Kalshi AZ event tickers for ESPN ARI slates', () => {
+    const market = {
+      ticker: 'KXMLBHIT-26JUL072140AZSD-AZTTAWA13-1',
+      event_ticker: 'KXMLBHIT-26JUL072140AZSD',
+      title: 'Tim Tawa: 1+ hits?',
+      status: 'active',
+      yes_ask_dollars: '0.55',
+      yes_ask_size_fp: '217',
+    }
+
+    expect(isExecutableStandaloneGamePropMarket(market, ['KXMLBHIT'], kalshiTeamCode('SD', 'mlb'), kalshiTeamCode('ARI', 'mlb'))).toBe(true)
   })
 
   it('recognizes executable standalone player props by supported prefix and game context', () => {

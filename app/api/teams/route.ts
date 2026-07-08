@@ -34,24 +34,39 @@ async function fetchEspnJson(url: string, timeoutMs = 8000): Promise<any | null>
   }
 }
 
-function flattenStats(data: any) {
+function flattenStats(data: any, sport?: TeamSport) {
   const categories = data?.results?.stats?.categories || []
-  const wanted = new Set([
-    'gamesPlayed', 'pointsPerGame', 'avgPoints', 'avgRebounds', 'avgAssists', 'avgTurnovers',
-    'battingAverage', 'runs', 'homeRuns', 'era', 'whip', 'goals', 'goalsPerGame', 'avgGoalsFor', 'avgGoalsAgainst', 'shotsPerGame', 'savePct', 'pointsFor', 'pointsAgainst',
-    'totalYardsPerGame', 'passingYardsPerGame', 'rushingYardsPerGame', 'yardsPerGame',
-  ])
-  const stats: { label: string; value: string }[] = []
+  const wanted = sport === 'mlb'
+    ? new Set([
+        'teamGamesPlayed', 'wins', 'losses', 'winPct',
+        'runs', 'hits', 'homeRuns', 'RBIs', 'avg', 'onBasePct', 'slugAvg', 'OPS', 'strikeouts', 'stolenBases',
+        'ERA', 'WHIP', 'strikeoutsPerNineInnings', 'opponentAvg', 'opponentOPS', 'qualityStarts', 'saves',
+      ])
+    : new Set([
+        'gamesPlayed', 'pointsPerGame', 'avgPoints', 'avgRebounds', 'avgAssists', 'avgTurnovers',
+        'battingAverage', 'runs', 'homeRuns', 'era', 'whip', 'goals', 'goalsPerGame', 'avgGoalsFor', 'avgGoalsAgainst', 'shotsPerGame', 'savePct', 'pointsFor', 'pointsAgainst',
+        'totalYardsPerGame', 'passingYardsPerGame', 'rushingYardsPerGame', 'yardsPerGame',
+      ])
+  const stats: { label: string; value: string; category?: string; name?: string }[] = []
+  const perCategoryLimit = sport === 'mlb' ? 12 : 10
+  const totalLimit = sport === 'mlb' ? 28 : 10
   for (const category of categories) {
+    let categoryCount = 0
+    const categoryName = String(category?.name || category?.displayName || '').toLowerCase()
     for (const stat of category?.stats || []) {
-      if (!wanted.has(stat?.name) && stats.length >= 8) continue
+      if (!wanted.has(stat?.name) && categoryCount >= 8) continue
       const label = stat?.shortDisplayName || stat?.abbreviation || stat?.displayName
       const value = stat?.displayValue || stat?.perGameDisplayValue
-      if (label && value && !stats.some(item => item.label === label)) stats.push({ label, value })
-      if (stats.length >= 10) return stats
+      const key = `${categoryName}:${label}`
+      if (label && value && !stats.some(item => `${item.category}:${item.label}` === key)) {
+        stats.push({ label, value, category: categoryName || undefined, name: stat?.name })
+        categoryCount += 1
+      }
+      if (categoryCount >= perCategoryLimit || stats.length >= totalLimit) break
     }
+    if (stats.length >= totalLimit) break
   }
-  return stats.slice(0, 10)
+  return stats.slice(0, totalLimit)
 }
 
 function normalizeTeam(raw: any, sport: TeamSport) {
@@ -156,7 +171,7 @@ export async function GET(req: NextRequest) {
 
   const roster = normalizeRoster(rosterData?.athletes || [])
   const injuries = normalizeInjuries(injuryData, roster)
-  const stats = flattenStats(statsData)
+  const stats = flattenStats(statsData, sport)
 
   return finishRouteTiming(routeTimer, NextResponse.json({
     sport,
