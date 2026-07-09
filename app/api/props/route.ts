@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ESPN_ABBR } from '@/app/lib/nba-api'
+import { applyUnavailableInjuryFilter } from '@/app/lib/props/injury-filter'
 import { finishRouteTiming, startRouteTiming } from '@/app/lib/route-observability'
 import { enforceRateLimit } from '@/app/lib/rate-limit'
 import { getJsonCache, setJsonCache } from '@/app/lib/durable-cache'
@@ -808,13 +809,7 @@ async function fetchSportInjuries(sport: Sport, teamAbbrs: string[]): Promise<Ma
 }
 
 function applyInjuryFilter(players: PlayerPropLine[], injuries: Map<string, PlayerInjuryReport>): PlayerPropLine[] {
-  if (!injuries.size) return players
-  return players
-    .map(player => {
-      const injury = Array.from(injuries.values()).find(report => playerNameMatches(player.player, report.name))
-      return injury ? { ...player, injuryStatus: injury.status, injuryDetail: injury.detail } : player
-    })
-    .filter(player => !player.injuryStatus)
+  return applyUnavailableInjuryFilter(players, injuries)
 }
 
 async function fetchKalshiMarketByTicker(ticker: string): Promise<any | null> {
