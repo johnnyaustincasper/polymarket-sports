@@ -609,7 +609,7 @@ async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
   const inflight = kalshiRawInflight.get(sport)
   if (inflight) return inflight
 
-  const durableKey = `kalshi:raw:v4-nhl:${sport}`
+  const durableKey = `kalshi:raw:v5-series-first:${sport}`
   const durableCached = await getJsonCache<KalshiRawScan>(durableKey)
   if (durableCached && Date.now() - durableCached.fetchedAt < KALSHI_RAW_TTL_MS) {
     kalshiRawCache.set(sport, durableCached)
@@ -622,21 +622,10 @@ async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
       let cursor = ''
       let pages = 0
       // Player props can sit outside the generic open-market pagination. Pull
-      // the broad book for combos, then pull each supported player-prop series
-      // directly so standalone Kalshi props (KXNBAPTS/KXNBAREB/etc.) are not
-      // missed just because they are past the first ~1200 generic markets.
-      for (let page = 0; page < 20; page++) {
-        const params = new URLSearchParams({ status: 'open', limit: '200' })
-        if (cursor) params.set('cursor', cursor)
-        const res = await fetch(`${KALSHI_API}/markets?${params.toString()}`, { signal: AbortSignal.timeout(12000), next: { revalidate: 30 } })
-        if (!res.ok) break
-        const data = await res.json()
-        markets.push(...(data.markets || []))
-        pages += 1
-        cursor = String(data.cursor || '')
-        if (!cursor) break
-      }
-
+      // the sport-specific player-prop series first so one game cannot look
+      // empty just because the broad market book is long/slow or the serverless
+      // route runs out of time before reaching KXMLBKS/KXMLBHIT/etc. Keep a
+      // smaller broad-book pass afterward for combo legs and legacy markets.
       for (const seriesTicker of kalshiSupportedEventPrefixes(sport)) {
         cursor = ''
         for (let page = 0; page < 20; page++) {
@@ -650,6 +639,18 @@ async function fetchKalshiRawMarkets(sport: Sport): Promise<KalshiRawScan> {
           cursor = String(data.cursor || '')
           if (!cursor) break
         }
+      }
+
+      for (let page = 0; page < 6; page++) {
+        const params = new URLSearchParams({ status: 'open', limit: '200' })
+        if (cursor) params.set('cursor', cursor)
+        const res = await fetch(`${KALSHI_API}/markets?${params.toString()}`, { signal: AbortSignal.timeout(12000), next: { revalidate: 30 } })
+        if (!res.ok) break
+        const data = await res.json()
+        markets.push(...(data.markets || []))
+        pages += 1
+        cursor = String(data.cursor || '')
+        if (!cursor) break
       }
       const scan = { markets, scanned: markets.length, pages, fetchedAt: Date.now() }
       kalshiRawCache.set(sport, scan)
