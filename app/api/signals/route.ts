@@ -10,6 +10,7 @@ import { containsPublicJargon, publicResponse, stripPublicJargon } from '@/app/l
 import { buildJudgmentContext, statValueForMetric, type SignalJudgmentContext } from '@/app/lib/signals/judgment-context'
 import { fetchXIntelForSignals, type XIntelContext } from '@/app/lib/social/x-intel'
 import { fetchNewsIntelForSignals, type NewsIntelContext } from '@/app/lib/social/news-intel'
+import { buildMlbTeamWinnerSignal, type MlbTeamWinnerSignal } from '@/app/lib/mlb/team-winner-signals'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -25,8 +26,8 @@ type SignalGame = {
   gameTime?: string
   gameDate?: string
   status?: string
-  homeTeam: { abbr: string; name?: string }
-  awayTeam: { abbr: string; name?: string }
+  homeTeam: { abbr: string; name?: string; record?: string }
+  awayTeam: { abbr: string; name?: string; record?: string }
   mlbMatchup?: {
     homePitcher?: { name?: string; era?: number; difficulty?: number; label?: string }
     awayPitcher?: { name?: string; era?: number; difficulty?: number; label?: string }
@@ -172,6 +173,7 @@ type SignalsResponse = {
   contractsScored: number
   signals: ModelSignal[]
   mlbMisreads?: MlbMisreadRow[]
+  mlbTeamWinnerSignals?: MlbTeamWinnerSignal[]
   changeSinceRefresh?: SignalDelta[]
   summary: {
     a: number
@@ -510,7 +512,7 @@ async function fetchProps(sport: Sport, game: SignalGame, authHeaders?: HeadersI
   return data
 }
 
-function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string): { contracts: number; signals: ModelSignal[]; mlbMisreads: MlbMisreadRow[]; misreadSignals: ModelSignal[] } {
+function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string): { contracts: number; signals: ModelSignal[]; mlbMisreads: MlbMisreadRow[]; misreadSignals: ModelSignal[]; mlbTeamWinnerSignal?: MlbTeamWinnerSignal | null } {
   const matchup = `${game.awayTeam.abbr} @ ${game.homeTeam.abbr}`
   const players = [...(data?.away || []), ...(data?.home || [])]
   const mlbGameContextFor = (team?: string) => sport === 'mlb' ? {
@@ -528,6 +530,25 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
   const signals: ModelSignal[] = []
   const mlbMisreads: MlbMisreadRow[] = []
   const misreadSignals: ModelSignal[] = []
+  const mlbTeamWinnerSignal = sport === 'mlb' && data?.mlbMatchupContext ? buildMlbTeamWinnerSignal({
+    gameId: game.id,
+    matchup,
+    gameTime: game.gameTime || game.gameDate || '',
+    home: {
+      abbr: game.homeTeam.abbr,
+      name: game.homeTeam.name,
+      record: game.homeTeam.record,
+      pitcher: data.mlbMatchupContext.homePitcher || game.mlbMatchup?.homePitcher || null,
+      battingProfile: data.mlbMatchupContext.homeProfile || null,
+    },
+    away: {
+      abbr: game.awayTeam.abbr,
+      name: game.awayTeam.name,
+      record: game.awayTeam.record,
+      pitcher: data.mlbMatchupContext.awayPitcher || game.mlbMatchup?.awayPitcher || null,
+      battingProfile: data.mlbMatchupContext.awayProfile || null,
+    },
+  }) : null
 
   for (const player of players) {
     for (const bet of player.recommendations || []) {
@@ -641,7 +662,7 @@ function scoreProps(sport: Sport, game: SignalGame, data: any, createdAt: string
     }
   }
 
-  return { contracts, signals, mlbMisreads: dedupeMlbMisreads(mlbMisreads), misreadSignals }
+  return { contracts, signals, mlbMisreads: dedupeMlbMisreads(mlbMisreads), misreadSignals, mlbTeamWinnerSignal }
 }
 
 
@@ -1131,6 +1152,7 @@ export async function POST(req: NextRequest) {
     const allSignals: ModelSignal[] = []
     const allMlbMisreads: MlbMisreadRow[] = []
     const allMisreadSignals: ModelSignal[] = []
+    const allMlbTeamWinnerSignals: MlbTeamWinnerSignal[] = []
     let contractsScored = 0
 
     const requestCookie = req.headers.get('cookie') || ''
@@ -1151,6 +1173,7 @@ export async function POST(req: NextRequest) {
         allSignals.push(...item.signals)
         allMlbMisreads.push(...item.mlbMisreads)
         allMisreadSignals.push(...item.misreadSignals)
+        if (item.mlbTeamWinnerSignal) allMlbTeamWinnerSignals.push(item.mlbTeamWinnerSignal)
       }
     }
 
@@ -1173,6 +1196,9 @@ export async function POST(req: NextRequest) {
     const boardSignals = attachSignalDeltas(rankedSignals, changeSinceRefresh)
 
     const mlbMisreads = sport === 'mlb' ? dedupeMlbMisreads(allMlbMisreads) : undefined
+    const mlbTeamWinnerSignals = sport === 'mlb'
+      ? allMlbTeamWinnerSignals.sort((a, b) => b.score - a.score || b.edge - a.edge).slice(0, 8)
+      : undefined
     const signals = (() => {
       if (sport !== 'mlb' || !mlbMisreads?.length) return boardSignals
       const presentIds = new Set(boardSignals.map(signal => signal.id))
@@ -1195,6 +1221,7 @@ export async function POST(req: NextRequest) {
       contractsScored,
       signals,
       ...(mlbMisreads ? { mlbMisreads } : {}),
+      ...(mlbTeamWinnerSignals?.length ? { mlbTeamWinnerSignals } : {}),
       changeSinceRefresh: changeSinceRefresh.length ? changeSinceRefresh : undefined,
       summary: {
         a: signals.filter(s => s.tier === 'A').length,

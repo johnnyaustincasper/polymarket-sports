@@ -299,6 +299,32 @@ type MlbMisreadUiRow = {
   opponentProof?: string[]
 }
 
+interface MlbTeamWinnerData {
+  id: string
+  gameId: string
+  matchup: string
+  gameTime?: string
+  pick: 'home' | 'away'
+  team: string
+  opponent: string
+  label: 'Strong look' | 'Small lean' | 'Price watch' | 'Needs better setup'
+  score: number
+  edge: number
+  starterEdge: number
+  offenseEdge: number
+  recordEdge: number
+  confidence: number
+  read: string
+  whyLive: string[]
+  path: string
+  risk: string[]
+  numberDiscipline: string
+  components?: {
+    team?: { starter?: number; offense?: number; record?: number; homeField?: number }
+    opponent?: { starter?: number; offense?: number; record?: number; homeField?: number }
+  }
+}
+
 interface SignalsPanelData {
   sport: SupportedSport
   generatedAt: string
@@ -306,6 +332,7 @@ interface SignalsPanelData {
   contractsScored: number
   signals: ModelSignal[]
   mlbMisreads?: MlbMisreadData[]
+  mlbTeamWinnerSignals?: MlbTeamWinnerData[]
   summary: { a: number; b: number; watch: number; avgEdge: number; bestEdge: number }
 }
 
@@ -4042,6 +4069,7 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
   if (!isMobile && selectedMlbMisreadSignal && !visibleTopSignals.some(signal => signal.id === selectedMlbMisreadSignal.id)) visibleTopSignals.push(selectedMlbMisreadSignal)
   const activeMlbSignalCount = activeMlbSignals.length
   const activeMlbSignalLabel = mlbSignalTab === 'pitcher' ? 'pitcher' : 'hitter'
+  const mlbTeamWinnerSignals = sport === 'mlb' ? (data?.mlbTeamWinnerSignals || []).slice(0, 4) : []
 
   const renderMlbMisreadRows = (rows: typeof mlbMisreadRows, emptyText: string) => {
     if (!rows.length) return <div role="tabpanel" aria-label={`${mlbMisreadTab === 'pitcher' ? 'Pitcher' : 'Hitter'} misreads`} style={{ color: C.textSecondary, fontSize: 10.5, lineHeight: 1.35 }}>{emptyText}</div>
@@ -4138,6 +4166,42 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
         </button>
 
         {data?.generatedAt && <div style={{ marginTop: 8, color: C.textSecondary, fontSize: 10, textAlign: 'center', fontWeight: 750 }}>Updated {new Date(data.generatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · full slate scanned</div>}
+
+        {mlbTeamWinnerSignals.length > 0 && (
+          <div style={{ marginTop: 10, borderRadius: 16, padding: isMobile ? 11 : 12, background: 'linear-gradient(135deg, rgba(125,246,255,0.10), rgba(2,5,1,0.72))', border: '1px solid rgba(125,246,255,0.30)', display: 'grid', gap: 9 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>MLB Team Winner Reads</div>
+                <div style={{ color: C.textPrimary, fontSize: isMobile ? 13.5 : 14.5, fontWeight: 950, marginTop: 3 }}>Starting pitcher + team-stat game paths</div>
+              </div>
+              <span style={{ color: C.gold, fontSize: 9, fontWeight: 950, borderRadius: 999, padding: '5px 8px', background: 'rgba(2,5,1,0.62)', border: '1px solid rgba(125,246,255,0.24)', whiteSpace: 'nowrap' }}>{mlbTeamWinnerSignals.length} read{mlbTeamWinnerSignals.length === 1 ? '' : 's'}</span>
+            </div>
+            <div style={{ display: 'grid', gap: 7 }}>
+              {mlbTeamWinnerSignals.map(read => {
+                const labelColor = read.label === 'Strong look' ? C.green : read.label === 'Small lean' ? C.textPrimary : read.label === 'Price watch' ? C.gold : C.textSecondary
+                const proof = Array.isArray(read.whyLive) ? read.whyLive.slice(0, 2) : []
+                return (
+                  <div key={read.id} style={{ borderRadius: 14, padding: isMobile ? 10 : 11, background: 'rgba(2,5,1,0.62)', border: '1px solid rgba(255,255,255,0.09)', display: 'grid', gap: 7 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '52px minmax(0,1fr) auto', gap: 10, alignItems: 'center' }}>
+                      <span style={{ width: 48, height: 48, borderRadius: 13, display: 'grid', placeItems: 'center', alignContent: 'center', background: 'linear-gradient(180deg, rgba(125,246,255,0.20), rgba(125,246,255,0.06))', border: '1px solid rgba(125,246,255,0.24)' }}>
+                        <span style={{ color: C.textPrimary, fontSize: 18, fontWeight: 950, lineHeight: 1 }}>{Math.round(read.score)}</span>
+                        <span style={{ color: C.textSecondary, fontSize: 8, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1 }}>GAME</span>
+                      </span>
+                      <span style={{ minWidth: 0, display: 'grid', gap: 3 }}>
+                        <span style={{ color: C.textPrimary, fontSize: isMobile ? 14 : 15, fontWeight: 950, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{read.team} over {read.opponent}</span>
+                        <span style={{ color: C.textSecondary, fontSize: 10.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{read.matchup} · Starter edge {read.starterEdge > 0 ? '+' : ''}{read.starterEdge} · Offense {read.offenseEdge > 0 ? '+' : ''}{read.offenseEdge}</span>
+                      </span>
+                      <span style={{ color: labelColor, fontSize: 9.5, fontWeight: 950, borderRadius: 999, padding: '5px 8px', background: 'rgba(0,0,0,0.26)', border: '1px solid rgba(125,246,255,0.20)', whiteSpace: 'nowrap' }}>{read.label}</span>
+                    </div>
+                    <div style={{ color: C.textPrimary, fontSize: 11, fontWeight: 850, lineHeight: 1.35 }}>{read.read}</div>
+                    {proof.map((line, idx) => <div key={idx} style={{ color: idx === 0 ? C.green : C.textSecondary, fontSize: 10, fontWeight: 800, lineHeight: 1.35 }}>• {line}</div>)}
+                    <div style={{ color: C.gold, fontSize: 10, fontWeight: 850, lineHeight: 1.35 }}>Number discipline: {read.numberDiscipline}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {mlbMisreadRows.length > 0 && (
           <div style={{ marginTop: 10, borderRadius: 16, overflow: 'hidden', background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.28)' }}>
