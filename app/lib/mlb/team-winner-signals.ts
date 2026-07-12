@@ -39,6 +39,9 @@ export type MlbTeamWinnerSignal = {
   team: string
   opponent: string
   label: 'Strong look' | 'Small lean' | 'Price watch' | 'Needs better setup'
+  decision: 'PLAY' | 'WATCH' | 'PASS'
+  decisionLabel: 'Play' | 'Watch' | 'Pass'
+  playabilityScore: number
   score: number
   edge: number
   starterEdge: number
@@ -50,6 +53,8 @@ export type MlbTeamWinnerSignal = {
   path: string
   risk: string[]
   numberDiscipline: string
+  playabilityReasons: string[]
+  passReasons: string[]
   components: {
     team: { starter: number; offense: number; record: number; homeField: number }
     opponent: { starter: number; offense: number; record: number; homeField: number }
@@ -133,10 +138,56 @@ function profileText(team: string, profile?: MlbWinnerTeamProfile | null) {
 }
 
 function labelFor(score: number, edge: number): MlbTeamWinnerSignal['label'] {
-  if (score >= 78 && edge >= 8) return 'Strong look'
-  if (score >= 66 && edge >= 4) return 'Small lean'
-  if (score >= 56 && edge >= 1) return 'Price watch'
+  if (score >= 80 && edge >= 12) return 'Strong look'
+  if (score >= 69 && edge >= 7) return 'Small lean'
+  if (score >= 58 && edge >= 3) return 'Price watch'
   return 'Needs better setup'
+}
+
+function playabilityFor(args: {
+  score: number
+  edge: number
+  starterEdge: number
+  offenseEdge: number
+  recordEdge: number
+  picked: MlbWinnerTeamInput
+  other: MlbWinnerTeamInput
+}): { decision: MlbTeamWinnerSignal['decision']; decisionLabel: MlbTeamWinnerSignal['decisionLabel']; playabilityScore: number; reasons: string[]; passReasons: string[]; numberDiscipline: string } {
+  const starter = starterScore(args.picked.pitcher)
+  const opponentStarter = starterScore(args.other.pitcher)
+  const offense = offenseScore(args.picked.battingProfile)
+  const opponentOffense = offenseScore(args.other.battingProfile)
+  const dataPenalty = (!args.picked.pitcher?.name ? 8 : 0) + (!args.picked.battingProfile ? 7 : 0) + (!args.other.battingProfile ? 5 : 0)
+  const starterGate = args.starterEdge >= 8 && starter >= 62
+  const offenseGate = args.offenseEdge >= 6 && offense >= 58
+  const suppressGate = opponentOffense <= 52 || args.starterEdge >= 12
+  const opponentStarterGate = opponentStarter <= 48 || finite(args.other.pitcher?.difficulty) != null && Number(args.other.pitcher?.difficulty) >= 58
+  const contextGate = args.picked.side === 'home' || args.recordEdge >= 5
+  const gates = [starterGate, offenseGate, suppressGate, opponentStarterGate, contextGate].filter(Boolean).length
+  const playabilityScore = clamp(38 + args.edge * 2.2 + (args.score - 56) * 1.15 + gates * 6 - dataPenalty)
+  const reasons: string[] = []
+  const passReasons: string[] = []
+  if (starterGate) reasons.push('Starting-pitching edge clears the first gate.')
+  else passReasons.push('Starting-pitching edge is not wide enough by itself.')
+  if (offenseGate) reasons.push('Recent team-bat profile supports the side.')
+  else passReasons.push('Offense gap is too thin to force a winner bet.')
+  if (suppressGate) reasons.push('Matchup gives the starter a cleaner path through the lineup.')
+  else passReasons.push('Opponent bats are live enough to keep this volatile.')
+  if (opponentStarterGate) reasons.push('Opposing starter looks attackable enough for early traffic.')
+  else passReasons.push('Opposing starter is not weak enough to create a clean price edge.')
+  if (dataPenalty) passReasons.push('Lineup/bullpen/price data is incomplete, so this cannot be an auto-play.')
+  const decision: MlbTeamWinnerSignal['decision'] = playabilityScore >= 72 && gates >= 4 && args.edge >= 10
+    ? 'PLAY'
+    : playabilityScore >= 58 && gates >= 3 && args.edge >= 5
+      ? 'WATCH'
+      : 'PASS'
+  const decisionLabel = decision === 'PLAY' ? 'Play' : decision === 'WATCH' ? 'Watch' : 'Pass'
+  const numberDiscipline = decision === 'PLAY'
+    ? 'Playable only if the moneyline is still fair; downgrade immediately after a hard move.'
+    : decision === 'WATCH'
+      ? 'Watch the number and confirmed lineup; only upgrade if price and bullpen news cooperate.'
+      : 'Pass unless late lineup, bullpen, or price news materially improves the setup.'
+  return { decision, decisionLabel, playabilityScore, reasons: reasons.slice(0, 3), passReasons: passReasons.slice(0, 3), numberDiscipline }
 }
 
 export function buildMlbTeamWinnerSignal(input: {
@@ -161,6 +212,7 @@ export function buildMlbTeamWinnerSignal(input: {
   const offenseEdge = offenseScore(picked.battingProfile) - offenseScore(other.battingProfile)
   const recordEdge = recordPct(picked.record) - recordPct(other.record)
   const label = labelFor(score, edge)
+  const playability = playabilityFor({ score, edge, starterEdge, offenseEdge, recordEdge, picked, other })
   const starterLine = `${picked.abbr} starter edge: ${pitcherText(picked.pitcher)} vs ${pitcherText(other.pitcher)}.`
   const offenseLine = profileText(picked.abbr, picked.battingProfile)
   const opponentLine = `${other.abbr} lineup pressure check: ${profileText(other.abbr, other.battingProfile)}`
@@ -173,22 +225,29 @@ export function buildMlbTeamWinnerSignal(input: {
     team: picked.abbr,
     opponent: other.abbr,
     label,
+    decision: playability.decision,
+    decisionLabel: playability.decisionLabel,
+    playabilityScore: playability.playabilityScore,
     score,
     edge,
     starterEdge: Math.round(starterEdge),
     offenseEdge: Math.round(offenseEdge),
     recordEdge: Math.round(recordEdge),
     confidence: clamp(50 + edge * 3 + (score - 60) * 0.6),
-    read: `${picked.abbr} has the cleaner win path because the starter/offense blend grades better than ${other.abbr} tonight.`,
+    read: playability.decision === 'PASS'
+      ? `${picked.abbr} grades as the cleaner side, but baseball variance makes this a pass unless late context improves.`
+      : playability.decision === 'WATCH'
+        ? `${picked.abbr} has a possible win path, but the setup needs price/lineup confirmation before forcing it.`
+        : `${picked.abbr} clears enough starter, matchup, and team-form gates to be a playable game read if the price stays fair.`,
     whyLive: [starterLine, offenseLine, opponentLine].slice(0, 3),
     path: `${picked.abbr} can cash the game read if the starter gets through the middle innings and the lineup creates early traffic against ${other.pitcher?.name || `${other.abbr}'s starter`}.`,
     risk: [
       starterEdge < 4 ? 'Starting-pitcher edge is thin; downgrade if pitch count/news looks shaky.' : 'A short starter leash or early walks can erase the pitcher edge.',
       offenseEdge < 3 ? 'Offense gap is not wide enough to chase a bad number.' : `${other.abbr} still has a live counter if their top bats create early traffic.`,
     ],
-    numberDiscipline: label === 'Strong look' || label === 'Small lean'
-      ? 'Playable only at a fair moneyline; do not chase after a hard move.'
-      : 'Keep this as a watch unless the number improves or lineups confirm the edge.',
+    numberDiscipline: playability.numberDiscipline,
+    playabilityReasons: playability.reasons,
+    passReasons: playability.passReasons,
     components: {
       team: { starter: starterScore(picked.pitcher), offense: offenseScore(picked.battingProfile), record: recordPct(picked.record), homeField: picked.side === 'home' ? 54 : 48 },
       opponent: { starter: starterScore(other.pitcher), offense: offenseScore(other.battingProfile), record: recordPct(other.record), homeField: other.side === 'home' ? 54 : 48 },

@@ -308,6 +308,9 @@ interface MlbTeamWinnerData {
   team: string
   opponent: string
   label: 'Strong look' | 'Small lean' | 'Price watch' | 'Needs better setup'
+  decision?: 'PLAY' | 'WATCH' | 'PASS'
+  decisionLabel?: 'Play' | 'Watch' | 'Pass'
+  playabilityScore?: number
   score: number
   edge: number
   starterEdge: number
@@ -319,6 +322,8 @@ interface MlbTeamWinnerData {
   path: string
   risk: string[]
   numberDiscipline: string
+  playabilityReasons?: string[]
+  passReasons?: string[]
   components?: {
     team?: { starter?: number; offense?: number; record?: number; homeField?: number }
     opponent?: { starter?: number; offense?: number; record?: number; homeField?: number }
@@ -4083,6 +4088,18 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
         ? 'Price watch'
         : 'Setup watch'
 
+  const mlbWinnerDecisionLabel = (read: MlbTeamWinnerData) => read.decisionLabel || mlbWinnerConfidenceLabel(read.label)
+  const mlbWinnerDecisionColor = (read: MlbTeamWinnerData) => read.decision === 'PLAY'
+    ? '#75e3ed'
+    : read.decision === 'WATCH'
+      ? '#d8b45a'
+      : '#9eadbc'
+  const mlbWinnerDecisionAccent = (read: MlbTeamWinnerData) => read.decision === 'PLAY'
+    ? '#35d6e8'
+    : read.decision === 'WATCH'
+      ? '#d8b45a'
+      : 'rgba(158,173,188,0.55)'
+
   const renderMlbMisreadRows = (rows: typeof mlbMisreadRows, emptyText: string) => {
     if (!rows.length) return <div role="tabpanel" aria-label={`${mlbMisreadTab === 'pitcher' ? 'Pitcher' : 'Hitter'} misreads`} style={{ color: C.textSecondary, fontSize: 10.5, lineHeight: 1.35 }}>{emptyText}</div>
     return (
@@ -4184,32 +4201,32 @@ function SignalsModelPanel({ sport, games, loading, isMobile, autoRun = false, d
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ color: '#75e3ed', fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>MLB Game Reads</div>
-                <div style={{ color: '#f4f7fa', fontSize: isMobile ? 13.5 : 14.5, fontWeight: 920, marginTop: 3, lineHeight: 1.25 }}>Best team matchups, explained by pitching and recent form.</div>
+                <div style={{ color: '#f4f7fa', fontSize: isMobile ? 13.5 : 14.5, fontWeight: 920, marginTop: 3, lineHeight: 1.25 }}>Play / watch / pass filter for baseball’s ugly 50-50 variance.</div>
               </div>
               <span style={{ color: '#9eadbc', fontSize: 9, fontWeight: 850, borderRadius: 999, padding: '5px 8px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap' }}>{mlbTeamWinnerSignals.length} read{mlbTeamWinnerSignals.length === 1 ? '' : 's'}</span>
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
               {mlbTeamWinnerSignals.map(read => {
-                const confidence = mlbWinnerConfidenceLabel(read.label)
+                const confidence = mlbWinnerDecisionLabel(read)
                 const teamName = mlbWinnerTeamName(read, read.team)
                 const opponentName = mlbWinnerTeamName(read, read.opponent)
-                const labelColor = read.label === 'Strong look' ? '#75e3ed' : read.label === 'Small lean' ? '#dce4eb' : read.label === 'Price watch' ? '#d8b45a' : '#9eadbc'
-                const proof = Array.isArray(read.whyLive) ? read.whyLive.slice(0, 2) : []
-                const condition = (Array.isArray(read.risk) && read.risk[0]) || read.numberDiscipline
+                const labelColor = mlbWinnerDecisionColor(read)
+                const proof = (read.decision === 'PASS' ? (read.passReasons || []) : (read.playabilityReasons || [])).concat(read.whyLive || []).slice(0, 2)
+                const condition = read.numberDiscipline || (Array.isArray(read.risk) && read.risk[0])
                 return (
-                  <article key={read.id} style={{ borderRadius: 15, padding: isMobile ? 12 : 14, background: '#111821', border: '1px solid rgba(255,255,255,0.08)', borderLeft: `4px solid ${read.label === 'Strong look' ? '#35d6e8' : read.label === 'Small lean' ? 'rgba(53,214,232,0.72)' : read.label === 'Price watch' ? '#d8b45a' : 'rgba(158,173,188,0.55)'}`, display: 'grid', gap: 10 }}>
+                  <article key={read.id} style={{ borderRadius: 15, padding: isMobile ? 12 : 14, background: '#111821', border: '1px solid rgba(255,255,255,0.08)', borderLeft: `4px solid ${mlbWinnerDecisionAccent(read)}`, display: 'grid', gap: 10 }}>
                     <div style={{ display: isMobile ? 'grid' : 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ color: '#9eadbc', fontSize: 11, fontWeight: 750, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{read.matchup.replace('@', 'at')} · {read.gameTime || 'Today'}</div>
                         <div style={{ color: '#f4f7fa', fontSize: isMobile ? 16 : 17, fontWeight: 950, lineHeight: 1.22, marginTop: 4 }}><span style={{ color: '#62dce8' }}>{teamName}</span> to beat {opponentName}</div>
                       </div>
-                      <span style={{ justifySelf: 'start', color: labelColor, fontSize: 10.5, fontWeight: 850, borderRadius: 999, padding: '5px 8px', background: read.label === 'Strong look' ? 'rgba(53,214,232,0.09)' : 'rgba(255,255,255,0.035)', border: `1px solid ${read.label === 'Strong look' ? 'rgba(53,214,232,0.24)' : 'rgba(255,255,255,0.08)'}`, whiteSpace: 'nowrap' }}>{confidence}</span>
+                      <span style={{ justifySelf: 'start', color: labelColor, fontSize: 10.5, fontWeight: 950, borderRadius: 999, padding: '6px 9px', background: read.decision === 'PLAY' ? 'rgba(53,214,232,0.10)' : read.decision === 'WATCH' ? 'rgba(216,180,90,0.10)' : 'rgba(255,255,255,0.035)', border: `1px solid ${read.decision === 'PLAY' ? 'rgba(53,214,232,0.26)' : read.decision === 'WATCH' ? 'rgba(216,180,90,0.24)' : 'rgba(255,255,255,0.08)'}`, whiteSpace: 'nowrap', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{confidence}</span>
                     </div>
                     <div style={{ color: '#dce4eb', fontSize: isMobile ? 13 : 13.5, fontWeight: 760, lineHeight: 1.42 }}>{read.read}</div>
                     <div aria-label={`Why ${teamName}`} style={{ display: 'grid', gap: 7 }}>
                       {proof.map((line, idx) => (
                         <div key={idx} style={{ borderRadius: 10, padding: '9px 10px', background: '#161f2b', border: '1px solid rgba(255,255,255,0.055)' }}>
-                          <div style={{ color: '#9eadbc', fontSize: 10.5, fontWeight: 850, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{idx === 0 ? 'Starting pitching' : 'Recent team form'}</div>
+                          <div style={{ color: '#9eadbc', fontSize: 10.5, fontWeight: 850, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{read.decision === 'PASS' ? (idx === 0 ? 'Why pass' : 'Variance check') : idx === 0 ? 'Playability gate' : 'Supporting evidence'}</div>
                           <div style={{ color: '#f4f7fa', fontSize: 12.5, fontWeight: 850, lineHeight: 1.35, marginTop: 3 }}>{line}</div>
                         </div>
                       ))}

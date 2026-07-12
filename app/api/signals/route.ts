@@ -1197,7 +1197,12 @@ export async function POST(req: NextRequest) {
 
     const mlbMisreads = sport === 'mlb' ? dedupeMlbMisreads(allMlbMisreads) : undefined
     const mlbTeamWinnerSignals = sport === 'mlb'
-      ? allMlbTeamWinnerSignals.sort((a, b) => b.score - a.score || b.edge - a.edge).slice(0, 8)
+      ? allMlbTeamWinnerSignals
+        .sort((a, b) => {
+          const rank = (decision?: MlbTeamWinnerSignal['decision']) => decision === 'PLAY' ? 3 : decision === 'WATCH' ? 2 : 1
+          return rank(b.decision) - rank(a.decision) || b.playabilityScore - a.playabilityScore || b.edge - a.edge || b.score - a.score
+        })
+        .slice(0, 8)
       : undefined
     const signals = (() => {
       if (sport !== 'mlb' || !mlbMisreads?.length) return boardSignals

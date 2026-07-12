@@ -27,7 +27,10 @@ describe('buildMlbTeamWinnerSignal', () => {
     expect(signal?.edge).toBeGreaterThan(10)
     expect(signal?.whyLive.join(' ')).toContain('Ace Starter')
     expect(signal?.whyLive.join(' ')).toContain('recent bats')
-    expect(signal?.numberDiscipline).toMatch(/do not chase/i)
+    expect(signal?.decision).toBe('PLAY')
+    expect(signal?.playabilityScore).toBeGreaterThan(70)
+    expect(signal?.playabilityReasons?.length).toBeGreaterThan(0)
+    expect(signal?.numberDiscipline).toMatch(/fair|downgrade/i)
   })
 
   it('does not fake strength when the matchup gap is thin', () => {
@@ -50,5 +53,7 @@ describe('buildMlbTeamWinnerSignal', () => {
 
     expect(signal).not.toBeNull()
     expect(['Price watch', 'Needs better setup']).toContain(signal?.label)
+    expect(signal?.decision).toBe('PASS')
+    expect(signal?.passReasons?.join(' ')).toMatch(/thin|volatile|force/i)
   })
 })
