@@ -4,6 +4,17 @@ import { getMarketReadiness, lineGap, totalGap, type SportsGameLike } from '@/ap
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+const NO_STORE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  Pragma: 'no-cache',
+  Expires: '0',
+}
+
+function timedHeaders(startedAt: number) {
+  const duration = Date.now() - startedAt
+  return { ...NO_STORE_HEADERS, 'X-Route-Duration-Ms': String(duration), 'Server-Timing': `route;dur=${duration}` }
+}
+
 const DOME_HINTS = ['dome', 'ford field', 'at&t stadium', 'caesars superdome', 'sofi stadium', 'allegiant stadium', 'state farm stadium', 'lucas oil stadium', 'u.s. bank stadium', 'mercedes-benz stadium']
 const DIVISIONS: Record<string, string> = {
   BUF: 'AFC East', MIA: 'AFC East', NE: 'AFC East', NYJ: 'AFC East',
@@ -60,6 +71,7 @@ function cleanAbbr(v: string | null) {
 }
 
 export async function GET(req: Request) {
+  const startedAt = Date.now()
   const { searchParams } = new URL(req.url)
   const away = cleanAbbr(searchParams.get('away'))
   const home = cleanAbbr(searchParams.get('home'))
@@ -140,7 +152,7 @@ export async function GET(req: Request) {
     35 + readiness.matchQuality * 0.35 + (Boolean(game.hasDkOdds) ? 12 : 0) + Math.min(14, spreadGap * 4 + ttlGap * 2) + (dome ? 5 : 0) + (divisional ? 4 : 0)
   ))
 
-  return NextResponse.json({
+  const payload = {
     matchup: `${away} @ ${home}`,
     sport,
     prepScore,
@@ -172,5 +184,7 @@ export async function GET(req: Request) {
       { label: 'Injury/QB timing', value: daysOut >= 4 ? 'Wait for practice reports' : 'Game-week reports closer', status: 'watch' },
     ],
     warnings,
-  })
+  }
+
+  return NextResponse.json(payload, { headers: timedHeaders(startedAt) })
 }

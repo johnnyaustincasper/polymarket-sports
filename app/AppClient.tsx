@@ -1289,6 +1289,7 @@ function GameIntelPanel({ home, away, gameId, venue, sport = 'nba', onClose }: {
   const [lineups, setLineups] = useState<LineupsData | null>(null)
   const [lineupsLoading, setLineupsLoading] = useState(false)
   const [props, setProps] = useState<PropsPanelData | null>(null)
+  const [teamDetails, setTeamDetails] = useState<{ away: TeamDetailData | null; home: TeamDetailData | null }>({ away: null, home: null })
   const [propsLoading, setPropsLoading] = useState(true)
 
   useEffect(() => {
@@ -4766,6 +4767,59 @@ function nflSlateHook(game: Game, marketReady: boolean, marketReadiness: ReturnT
   return 'Open for schedule context — market links still forming.'
 }
 
+
+function numericStat(detail: TeamDetailData | null, names: string[]) {
+  const wanted = names.map(name => name.toLowerCase())
+  const found = detail?.stats?.find(stat => wanted.includes(String(stat.name || stat.label || '').toLowerCase()))
+  if (!found) return null
+  const value = Number(String(found.value || '').replace(/[^0-9.-]/g, ''))
+  return Number.isFinite(value) ? value : null
+}
+
+function formatStatValue(value: number | null, suffix = '') {
+  if (value == null) return '—'
+  const rounded = Math.abs(value) >= 10 ? Math.round(value * 10) / 10 : Math.round(value * 100) / 100
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(Math.abs(rounded) >= 10 ? 1 : 2)}${suffix}`
+}
+
+function compareNumber(awayValue: number | null, homeValue: number | null, higherIsBetter = true) {
+  if (awayValue == null || homeValue == null) return 'even' as const
+  if (Math.abs(awayValue - homeValue) < 0.1) return 'even' as const
+  const awayBetter = higherIsBetter ? awayValue > homeValue : awayValue < homeValue
+  return awayBetter ? 'away' as const : 'home' as const
+}
+
+function buildNflTeamComparison(game: Game, awayDetail: TeamDetailData | null, homeDetail: TeamDetailData | null) {
+  const away = game.awayTeam.abbr
+  const home = game.homeTeam.abbr
+  const metrics = [
+    { label: 'Scoring', names: ['totalPointsPerGame'], suffix: ' ppg', note: 'points per game', higher: true },
+    { label: 'Total offense', names: ['yardsPerGame'], suffix: ' ypg', note: 'yards per game', higher: true },
+    { label: 'Pass lane', names: ['passingYardsPerGame'], suffix: ' ypg', note: 'passing volume', higher: true },
+    { label: 'Run lane', names: ['rushingYardsPerGame'], suffix: ' ypg', note: 'rushing volume', higher: true },
+    { label: 'Red zone', names: ['redzoneTouchdownPct'], suffix: '%', note: 'TD finish rate', higher: true },
+    { label: 'Turnovers', names: ['turnOverDifferential'], suffix: '', note: 'turnover differential', higher: true },
+  ]
+  const rows = metrics.map(metric => {
+    const awayValue = numericStat(awayDetail, metric.names)
+    const homeValue = numericStat(homeDetail, metric.names)
+    const leader = compareNumber(awayValue, homeValue, metric.higher)
+    return {
+      ...metric,
+      awayValue,
+      homeValue,
+      leader,
+      read: leader === 'away'
+        ? `${away} has the ${metric.note} edge.`
+        : leader === 'home'
+          ? `${home} has the ${metric.note} edge.`
+          : `${metric.label} is close or unavailable.`,
+    }
+  })
+  const read = rows.filter(row => row.leader !== 'even').slice(0, 3).map(row => row.read)
+  return { rows, read }
+}
+
 function nflSetupRows(game: Game, intel: FootballIntelData | null, props: PropsPanelData | null) {
   const propCount = [...(props?.away || []), ...(props?.home || [])].length
   const bestLooks = [...(props?.away || []), ...(props?.home || [])].filter((p: any) => p.bestBet).length
@@ -4780,6 +4834,7 @@ function nflSetupRows(game: Game, intel: FootballIntelData | null, props: PropsP
 function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void }) {
   const [intel, setIntel] = useState<FootballIntelData | null>(null)
   const [props, setProps] = useState<PropsPanelData | null>(null)
+  const [teamDetails, setTeamDetails] = useState<{ away: TeamDetailData | null; home: TeamDetailData | null }>({ away: null, home: null })
   const matched = game.hasWinnerOdds || game.hasSpreadOdds || game.hasTotalOdds
   const readiness = getMarketReadiness(game)
   const spreadGap = game.hasDkOdds && game.hasSpreadOdds && game.dkSpread != null
@@ -4824,6 +4879,18 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
     return () => { cancelled = true }
   }, [game])
 
+  useEffect(() => {
+    if (game.sport !== 'nfl') return
+    let cancelled = false
+    Promise.all([
+      fetchJsonCached<TeamDetailData>(cacheKey('/api/teams', { sport: 'nfl', team: game.awayTeam.abbr }), 5 * 60_000),
+      fetchJsonCached<TeamDetailData>(cacheKey('/api/teams', { sport: 'nfl', team: game.homeTeam.abbr }), 5 * 60_000),
+    ])
+      .then(([awayDetail, homeDetail]) => { if (!cancelled) setTeamDetails({ away: awayDetail, home: homeDetail }) })
+      .catch(() => { if (!cancelled) setTeamDetails({ away: null, home: null }) })
+    return () => { cancelled = true }
+  }, [game.awayTeam.abbr, game.homeTeam.abbr, game.sport])
+
   const items = [
     { label: 'Market match', value: matched ? `${readiness.matchLabel} · ${readiness.matchQuality}%` : 'No matched market yet', color: matched && readiness.matchQuality >= 55 ? C.green : C.gold },
     { label: 'Winner market', value: game.hasWinnerOdds ? `${game.awayTeam.abbr} ${Math.round(game.awayWinOdds * 100)}% / ${game.homeTeam.abbr} ${Math.round(game.homeWinOdds * 100)}%` : 'Waiting', color: game.hasWinnerOdds ? C.cyan : C.textSecondary },
@@ -4838,6 +4905,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
     : [nflSlateHook(game, readiness.matchQuality >= 55, readiness, spreadGap || 0, totalGap || 0)]
   const propFocusRows = intel?.intelligence?.propFocus || []
   const dataGapRows = intel?.intelligence?.dataGaps || []
+  const teamComparison = buildNflTeamComparison(game, teamDetails.away, teamDetails.home)
 
   return (
     <GlowCard hot color={C.green}>
@@ -4874,6 +4942,29 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
               </div>
             ))}
           </div>
+        </div>
+
+        <div style={{ borderRadius: 16, padding: 14, background: 'rgba(125,246,255,0.032)', border: '1px solid rgba(125,246,255,0.14)', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', marginBottom: 10 }}>
+            <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Team comparison</div>
+            <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{game.awayTeam.abbr} vs {game.homeTeam.abbr}</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(158px, 1fr))', gap: 8 }}>
+            {teamComparison.rows.map(row => (
+              <div key={row.label} style={{ borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.20)', border: `1px solid ${row.leader === 'even' ? 'rgba(255,255,255,0.08)' : 'rgba(125,246,255,0.16)'}` }}>
+                <div style={{ color: C.textSecondary, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{row.label}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 6 }}>
+                  <div style={{ color: row.leader === 'away' ? C.green : C.textSecondary, fontSize: 11, fontWeight: 950 }}>{game.awayTeam.abbr} {formatStatValue(row.awayValue, row.suffix)}</div>
+                  <div style={{ color: row.leader === 'home' ? C.green : C.textSecondary, fontSize: 11, fontWeight: 950, textAlign: 'right' }}>{game.homeTeam.abbr} {formatStatValue(row.homeValue, row.suffix)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {teamComparison.read.length > 0 && (
+            <div style={{ display: 'grid', gap: 4, marginTop: 10 }}>
+              {teamComparison.read.map(row => <div key={row} style={{ color: 'rgba(247,255,240,0.78)', fontSize: 10, lineHeight: 1.36 }}>• {row}</div>)}
+            </div>
+          )}
         </div>
 
         {intel && (
