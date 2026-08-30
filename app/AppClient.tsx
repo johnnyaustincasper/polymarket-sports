@@ -2006,6 +2006,33 @@ function formatPropMetricShort(metric: string): string {
   return map[key] || key.toUpperCase()
 }
 
+type PropTrustTier = 'recommended' | 'watch' | 'thin' | 'all'
+
+function propTrustState(bet: any): { tier: PropTrustTier; label: string; reason: string; color: string } {
+  const quality = String(bet?.quality || '').toLowerCase()
+  const ask = Number(bet?.kalshi?.yesAsk ?? bet?.kalshi?.ask ?? NaN)
+  const bid = Number(bet?.kalshi?.yesBid ?? bet?.kalshi?.bid ?? NaN)
+  const askSize = Number(bet?.kalshi?.yesAskSize ?? bet?.kalshi?.askSize ?? 0)
+  const maxPrice = Number(bet?.maxYesPrice ?? NaN)
+  const games = Number(bet?.games ?? 0)
+  const stale = Boolean(bet?.kalshi?.stale || bet?.stale)
+  const hasQuote = Number.isFinite(ask) && ask > 0
+  const tooExpensive = hasQuote && Number.isFinite(maxPrice) && ask > maxPrice
+  const wide = hasQuote && Number.isFinite(bid) && bid >= 0 && ask - bid >= 18
+  if (!hasQuote || askSize <= 0) return { tier: 'thin', label: 'Thin', reason: 'No clean executable ask/size yet.', color: C.textSecondary }
+  if (stale) return { tier: 'thin', label: 'Stale', reason: 'Quote needs refresh before trusting it.', color: C.gold }
+  if (tooExpensive) return { tier: 'watch', label: 'Bad number', reason: 'The line moved past the model max; do not chase.', color: C.gold }
+  if (wide) return { tier: 'watch', label: 'Wide', reason: 'Bid/ask spread is too wide for primary placement.', color: C.gold }
+  if ((quality === 'bet' || quality === 'lean') && games >= 6) return { tier: 'recommended', label: 'Recommended', reason: 'Fresh executable line with usable recent sample.', color: C.green }
+  if (quality === 'watch' || games < 6) return { tier: 'watch', label: 'Watch', reason: 'Readable, but needs stronger sample or confirmation.', color: C.gold }
+  return { tier: 'thin', label: 'Skip', reason: 'Not strong enough for the primary board.', color: C.textSecondary }
+}
+
+function propTrustRank(bet: any) {
+  const tier = propTrustState(bet).tier
+  return tier === 'recommended' ? 0 : tier === 'watch' ? 1 : tier === 'thin' ? 2 : 3
+}
+
 function formatPropMetricLabel(metric: string): string {
   const key = String(metric || '')
   const map: Record<string, string> = {
@@ -2705,6 +2732,7 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activePropTab, setActivePropTab] = useState<string>('all')
+  const [activeTrustTab, setActiveTrustTab] = useState<PropTrustTier>('recommended')
   const [selectedContracts, setSelectedContracts] = useState<Record<string, boolean>>({})
   const [expandedContractKey, setExpandedContractKey] = useState<string>('')
   const [activePropDetail, setActivePropDetail] = useState<SignalTerminalSignal | null>(null)
@@ -2867,7 +2895,14 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
   const players = useMemo(() => (
     props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (fullBoardSport || (p.last12 || []).length >= 4) && (p.recommendations || []).length) : []
   ), [fullBoardSport, props])
-  const allContracts = useMemo(() => players.flatMap((p: any) => (p.recommendations || []).map((bet: any) => ({ player: p, bet }))), [players])
+  const allContracts = useMemo(() => players.flatMap((p: any) => (p.recommendations || []).map((bet: any) => ({ player: p, bet }))).sort((a: any, b: any) => propTrustRank(a.bet) - propTrustRank(b.bet) || (b.bet.valueScore - a.bet.valueScore) || ((a.bet.kalshi?.yesAsk || 99) - (b.bet.kalshi?.yesAsk || 99))), [players])
+  const trustCounts = useMemo(() => allContracts.reduce((acc: Record<PropTrustTier, number>, item: any) => {
+    const tier = propTrustState(item.bet).tier
+    acc[tier] = (acc[tier] || 0) + 1
+    acc.all += 1
+    return acc
+  }, { recommended: 0, watch: 0, thin: 0, all: 0 }), [allContracts])
+  const visibleContracts = useMemo(() => activeTrustTab === 'all' ? allContracts : allContracts.filter((x: any) => propTrustState(x.bet).tier === activeTrustTab), [activeTrustTab, allContracts])
   const categoryOrder = useMemo(() => sport === 'nba'
     ? ['points', 'assists', 'rebounds', 'threes', 'steals', 'blocks', 'PTS+REB+AST']
     : sport === 'nfl'
@@ -2878,11 +2913,11 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
           ? ['goals', 'points', 'assists']
           : ['points', 'rebounds', 'assists'], [sport])
   const metricGroups = useMemo(() => categoryOrder
-    .map(metric => ({ metric, items: allContracts.filter((x: any) => x.bet.metric === metric).sort((a: any, b: any) => (b.bet.hitRate - a.bet.hitRate) || ((a.bet.kalshi?.yesAsk || 99) - (b.bet.kalshi?.yesAsk || 99))) }))
-    .filter(g => g.items.length), [allContracts, categoryOrder])
-  const categoryGroups = useMemo(() => fullBoardSport && allContracts.length
-    ? [{ metric: 'all', items: [...allContracts].sort((a: any, b: any) => String(a.player.team).localeCompare(String(b.player.team)) || String(a.player.player).localeCompare(String(b.player.player)) || categoryOrder.indexOf(a.bet.metric) - categoryOrder.indexOf(b.bet.metric) || a.bet.line - b.bet.line) }, ...metricGroups]
-    : metricGroups, [allContracts, categoryOrder, fullBoardSport, metricGroups])
+    .map(metric => ({ metric, items: visibleContracts.filter((x: any) => x.bet.metric === metric).sort((a: any, b: any) => propTrustRank(a.bet) - propTrustRank(b.bet) || (b.bet.hitRate - a.bet.hitRate) || ((a.bet.kalshi?.yesAsk || 99) - (b.bet.kalshi?.yesAsk || 99))) }))
+    .filter(g => g.items.length), [visibleContracts, categoryOrder])
+  const categoryGroups = useMemo(() => fullBoardSport && visibleContracts.length
+    ? [{ metric: 'all', items: [...visibleContracts].sort((a: any, b: any) => propTrustRank(a.bet) - propTrustRank(b.bet) || String(a.player.team).localeCompare(String(b.player.team)) || String(a.player.player).localeCompare(String(b.player.player)) || categoryOrder.indexOf(a.bet.metric) - categoryOrder.indexOf(b.bet.metric) || a.bet.line - b.bet.line) }, ...metricGroups]
+    : metricGroups, [visibleContracts, categoryOrder, fullBoardSport, metricGroups])
   const availableTabs = useMemo(() => categoryGroups.map(g => g.metric), [categoryGroups])
   const currentTab = availableTabs.includes(activePropTab) ? activePropTab : (availableTabs[0] || 'points')
   const activeGroup = useMemo(() => categoryGroups.find(g => g.metric === currentTab), [categoryGroups, currentTab])
@@ -2906,6 +2941,7 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
     if (first) window.open(first, '_blank', 'noopener,noreferrer')
   }
   const hasVisibleContracts = allContracts.length > 0
+  const hasFilteredContracts = visibleContracts.length > 0
   const scanActive = loading || (loadRequested && !props && !error)
   const hasEspnScore = game.status !== 'pre' && (game.awayTeam.score !== '' || game.homeTeam.score !== '')
   const hasScore = game.status === 'in' || game.status === 'post' || hasEspnScore
@@ -3369,17 +3405,28 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
           </div>
         )}
 
-        {activeLiveTab === 'props' && !loading && categoryGroups.length > 0 && (
-          <div style={{ display: 'grid', gap: 9, paddingBottom: 8, marginBottom: 10 }}>
+        {activeLiveTab === 'props' && !loading && hasVisibleContracts && (
+          <div style={{ display: 'grid', gap: 8, paddingBottom: 8, marginBottom: 10 }}>
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', overflow: 'visible' }}>
-              {categoryGroups.map(group => {
-                const active = group.metric === currentTab
-                const label = formatPropMetricShort(group.metric)
-                return <button key={group.metric} title={formatPropMetricLabel(group.metric)} onClick={() => setActivePropTab(group.metric)} style={{ flex: '0 0 auto', borderRadius: 999, padding: '7px 10px', border: `1px solid ${active ? C.borderHot : C.border}`, background: active ? 'rgba(125,246,255,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                  {label} · {group.items.length}
+              {(['recommended', 'watch', 'thin', 'all'] as PropTrustTier[]).map(tier => {
+                const active = activeTrustTab === tier
+                const label = tier === 'recommended' ? 'Recommended' : tier === 'watch' ? 'Watch' : tier === 'thin' ? 'Thin' : 'All'
+                return <button key={tier} onClick={() => { setActiveTrustTab(tier); setExpandedContractKey('') }} style={{ flex: '0 0 auto', borderRadius: 999, padding: '7px 10px', border: `1px solid ${active ? C.borderHot : C.border}`, background: active ? 'rgba(125,246,255,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                  {label} · {trustCounts[tier] || 0}
                 </button>
               })}
             </div>
+            {hasFilteredContracts && (
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', overflow: 'visible' }}>
+                {categoryGroups.map(group => {
+                  const active = group.metric === currentTab
+                  const label = formatPropMetricShort(group.metric)
+                  return <button key={group.metric} title={formatPropMetricLabel(group.metric)} onClick={() => setActivePropTab(group.metric)} style={{ flex: '0 0 auto', borderRadius: 999, padding: '7px 10px', border: `1px solid ${active ? C.borderHot : C.border}`, background: active ? 'rgba(125,246,255,0.14)' : 'rgba(255,255,255,0.035)', color: active ? C.green : C.textSecondary, fontSize: 9, fontWeight: 950, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                    {label} · {group.items.length}
+                  </button>
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -3405,6 +3452,10 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
           </div>
         ) : error ? (
           <p style={{ color: C.gold, fontSize: 11 }}>Kalshi scan unavailable: {error}</p>
+        ) : hasVisibleContracts && !hasFilteredContracts ? (
+          <div style={{ borderRadius: 14, padding: 12, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.16)', color: C.gold, fontSize: 11, lineHeight: 1.45 }}>
+            No {activeTrustTab === 'recommended' ? 'recommended' : activeTrustTab} lines clear the trust filter yet. Open Watch/Thin/All when you want raw context, but the primary board stays disciplined.
+          </div>
         ) : activeGroup ? (
           <div style={{ display: 'grid', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.border}`, paddingBottom: 5 }}>
@@ -3461,11 +3512,12 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
                               const open = key === expandedContractKey
                               const selected = !!selectedContracts[key]
                               const hotProp = Number(bet.games || 0) >= 12 && Number(bet.hits || 0) >= 8
+                              const trust = propTrustState(bet)
                               const liveProgress = sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, bet) : null
                               return (
                                 <button className={hotProp ? 'blue-flame-prop' : undefined} key={key} onClick={() => setExpandedContractKey(open ? '' : key)} style={{ minHeight: 42, borderRadius: 10, padding: '6px 5px', border: '1px solid ' + (open || hotProp ? C.borderHot : selected ? 'rgba(125,246,255,0.45)' : C.border), background: open ? 'rgba(125,246,255,0.18)' : hotProp ? 'linear-gradient(145deg, rgba(30,150,255,0.18), rgba(4,10,18,0.56))' : selected ? 'rgba(125,246,255,0.10)' : 'rgba(255,255,255,0.035)', color: open || selected || hotProp ? C.green : C.textPrimary, fontSize: 10, fontWeight: 950, cursor: 'pointer', display: 'grid', alignContent: 'center', gap: 2, textAlign: 'center' }}>
                                   <span style={{ position: 'relative', zIndex: 1 }}>{bet.line}+</span>
-                                  <span style={{ position: 'relative', zIndex: 1, color: liveProgress ? C.green : C.textSecondary, fontSize: 7, fontWeight: 900 }}>{hotProp ? `${bet.hits}/${bet.games}` : liveProgress ? liveProgress.label : formatPropMetricShort(metric)}</span>
+                                  <span style={{ position: 'relative', zIndex: 1, color: liveProgress ? C.green : trust.color, fontSize: 7, fontWeight: 900 }}>{hotProp ? `${bet.hits}/${bet.games}` : liveProgress ? liveProgress.label : trust.label}</span>
                                 </button>
                               )
                             })}
@@ -3478,12 +3530,13 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
                     const key = contractKey(p, expandedBet)
                     const selected = !!selectedContracts[key]
                     const liveProgress = sport === 'mlb' ? getLiveMlbPropProgress(liveGame, p, expandedBet) : null
+                    const expandedTrust = propTrustState(expandedBet)
                     return (
                       <div style={{ marginTop: 10, borderRadius: 13, padding: 10, background: 'rgba(0,0,0,0.24)', border: `1px solid ${selected ? C.borderHot : C.border}` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                           <div>
                             <div style={{ color: expandedBet.quality === 'bet' ? C.green : expandedBet.quality === 'lean' ? C.gold : C.textPrimary, fontSize: 12, fontWeight: 950 }}>{expandedBet.label}</div>
-                            <div style={{ color: C.cyan, fontSize: 9, fontWeight: 900, marginTop: 2 }}>Matched exact contract · check line before placing</div>
+                            <div style={{ color: expandedTrust.color, fontSize: 9, fontWeight: 900, marginTop: 2 }}>{expandedTrust.label} · {expandedTrust.reason}</div>
                           </div>
                           <div style={{ color: C.textSecondary, fontSize: 9, fontWeight: 900, textAlign: 'right' }}>{expandedBet.hits}/{expandedBet.games}<br />hit</div>
                         </div>
