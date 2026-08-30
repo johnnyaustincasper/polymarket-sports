@@ -36,6 +36,32 @@ async function fetchEspnJson(url: string, timeoutMs = 8000): Promise<any | null>
 
 function flattenStats(data: any, sport?: TeamSport) {
   const categories = data?.results?.stats?.categories || []
+  const stats: { label: string; value: string; category?: string; name?: string }[] = []
+
+  if (sport === 'nfl') {
+    const priority = [
+      'totalPointsPerGame', 'yardsPerGame', 'passingYardsPerGame', 'rushingYardsPerGame',
+      'passingTouchdowns', 'rushingTouchdowns', 'receivingTouchdowns', 'redzoneTouchdownPct',
+      'thirdDownConvPct', 'turnOverDifferential', 'sacks', 'interceptions',
+      'fieldGoalPct', 'totalYards', 'totalTouchdowns', 'gamesPlayed',
+    ]
+    const rows: { label: string; value: string; category?: string; name?: string; rank: number }[] = []
+    for (const category of categories) {
+      const categoryName = String(category?.name || category?.displayName || '').toLowerCase()
+      for (const stat of category?.stats || []) {
+        const name = String(stat?.name || '')
+        const rank = priority.indexOf(name)
+        if (rank < 0) continue
+        const label = stat?.shortDisplayName || stat?.abbreviation || stat?.displayName
+        const value = stat?.displayValue || stat?.perGameDisplayValue
+        if (label && value && !rows.some(item => item.name === name && item.category === categoryName)) {
+          rows.push({ label, value, category: categoryName || undefined, name, rank })
+        }
+      }
+    }
+    return rows.sort((a, b) => a.rank - b.rank).slice(0, 16).map(({ rank: _rank, ...row }) => row)
+  }
+
   const wanted = sport === 'mlb'
     ? new Set([
         'teamGamesPlayed', 'wins', 'losses', 'winPct',
@@ -47,7 +73,6 @@ function flattenStats(data: any, sport?: TeamSport) {
         'battingAverage', 'runs', 'homeRuns', 'era', 'whip', 'goals', 'goalsPerGame', 'avgGoalsFor', 'avgGoalsAgainst', 'shotsPerGame', 'savePct', 'pointsFor', 'pointsAgainst',
         'totalYardsPerGame', 'passingYardsPerGame', 'rushingYardsPerGame', 'yardsPerGame',
       ])
-  const stats: { label: string; value: string; category?: string; name?: string }[] = []
   const perCategoryLimit = sport === 'mlb' ? 12 : 10
   const totalLimit = sport === 'mlb' ? 28 : 10
   for (const category of categories) {
