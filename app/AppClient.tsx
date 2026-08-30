@@ -440,6 +440,7 @@ interface FootballIntelData {
     read: string[]
     propFocus: string[]
     dataGaps: string[]
+    gamePlan?: { theRead: string; attackPath: string; playerLanes: string[]; killSwitch: string; lineDiscipline: string }
   }
 }
 
@@ -5008,6 +5009,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
     : [nflSlateHook(game, readiness.matchQuality >= 55, readiness, spreadGap || 0, totalGap || 0)]
   const propFocusRows = intel?.intelligence?.propFocus || []
   const dataGapRows = intel?.intelligence?.dataGaps || []
+  const gamePlan = intel?.intelligence?.gamePlan
   const teamComparison = buildNflTeamComparison(game, teamDetails.away, teamDetails.home)
   const decisionMatrix = buildNflDecisionMatrix(game, teamComparison, teamDetails.away, teamDetails.home, intel)
 
@@ -5053,6 +5055,27 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
               ))}
             </div>
           </div>
+          {gamePlan && (
+            <div style={{ borderRadius: 16, padding: 13, background: 'rgba(0,0,0,0.24)', border: '1px solid rgba(125,246,255,0.16)', marginBottom: 10 }}>
+              <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>NFL Game Plan</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 8 }}>
+                {[
+                  ['The read', gamePlan.theRead],
+                  ['Attack path', gamePlan.attackPath],
+                  ['What kills it', gamePlan.killSwitch],
+                  ['Line discipline', gamePlan.lineDiscipline],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ color: label === 'What kills it' ? C.gold : C.cyan, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</div>
+                    <div style={{ color: 'rgba(247,255,240,0.80)', fontSize: 10.5, lineHeight: 1.4, marginTop: 5 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 9 }}>
+                {gamePlan.playerLanes.slice(0, 4).map(lane => <span key={lane} style={{ borderRadius: 999, padding: '5px 8px', background: 'rgba(125,246,255,0.07)', border: '1px solid rgba(125,246,255,0.16)', color: C.textSecondary, fontSize: 8.5, fontWeight: 850 }}>{lane}</span>)}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 8, marginBottom: 10 }}>
             {[
               ['Pass', decisionMatrix.away.pass, decisionMatrix.home.pass],

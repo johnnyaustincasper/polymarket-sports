@@ -66,6 +66,37 @@ function focusLane(hasSpread: boolean, hasTotal: boolean, hasWinner: boolean, sp
   return 'Schedule intelligence only'
 }
 
+function gamePlanRead(home: string, away: string, homeOdds: number, awayOdds: number, spreadLine: number, totalLine: number, dome: boolean, lane: string, dataGaps: string[]) {
+  const favorite = spreadLine < 0 ? home : spreadLine > 0 ? away : homeOdds >= awayOdds ? home : away
+  const dog = favorite === home ? away : home
+  const highTotal = totalLine >= 47
+  const largeSpread = Math.abs(spreadLine) >= 7
+  const tightSpread = Math.abs(spreadLine) <= 2
+  return {
+    theRead: tightSpread
+      ? `This profiles as a possession-by-possession football read, not a blind favorite spot. Start with QB pressure, turnovers, and late-game coaching.`
+      : largeSpread
+        ? `${favorite || 'Favorite'} has the control script, but ${dog || 'dog'} can still create late receiving volume if the game stretches.`
+        : `${favorite || 'Favorite'} has the first script advantage; the read is whether ${dog || 'the dog'} can keep it neutral past halftime.`,
+    attackPath: highTotal
+      ? `High-total setup: prioritize pass volume, red-zone conversion, and TD-path props before forcing a side.`
+      : dome
+        ? `Controlled environment: cleaner pace/efficiency read; use spread and player-usage lanes before weather concerns.`
+        : `Outdoor setup: confirm wind/weather, then decide whether total and pass-game lanes are trustworthy.`,
+    playerLanes: largeSpread
+      ? ['Favorite RB / clock-control volume', 'Underdog WR/TE catch-up volume', 'TD scorer only if red-zone profile supports it']
+      : highTotal
+        ? ['QB passing stack', 'WR/TE receptions and yards', 'Anytime TD only with role confirmation']
+        : ['RB workload and short-area usage', 'Kicker/field-position game', 'Avoid thin long-shot overs'],
+    killSwitch: dataGaps[0] || 'Late QB/inactive/weather news changes the read.',
+    lineDiscipline: lane.includes('Spread')
+      ? 'Treat the spread gap as the first checkpoint; do not chase after the number moves through the key zone.'
+      : lane.includes('Total')
+        ? 'Treat the total gap as the checkpoint; avoid overs if weather or pace confirmation is missing.'
+        : 'Only upgrade after winner, spread, total, and player markets agree with the football profile.',
+  }
+}
+
 function cleanAbbr(v: string | null) {
   return (v || '').trim().toUpperCase()
 }
@@ -147,6 +178,7 @@ export async function GET(req: Request) {
     dome ? '' : 'Wind/weather confirmation',
     readiness.matchQuality < 55 ? 'Cleaner market match' : '',
   ].filter(Boolean)
+  const gamePlan = gamePlanRead(home, away, homeWinOdds, awayWinOdds, spreadLine, totalLine, dome, intelligenceLane, dataGaps)
 
   const prepScore = Math.min(100, Math.round(
     35 + readiness.matchQuality * 0.35 + (Boolean(game.hasDkOdds) ? 12 : 0) + Math.min(14, spreadGap * 4 + ttlGap * 2) + (dome ? 5 : 0) + (divisional ? 4 : 0)
@@ -175,6 +207,7 @@ export async function GET(req: Request) {
       read: footballRead,
       propFocus,
       dataGaps,
+      gamePlan,
     },
     checklist: [
       { label: 'Market match quality', value: readiness.matchLabel, status: readiness.matchQuality >= 55 ? 'ready' : 'watch' },
