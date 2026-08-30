@@ -435,6 +435,12 @@ interface FootballIntelData {
   checklist: { label: string; value: string; status: 'ready' | 'watch' | 'edge' }[]
   warnings: string[]
   brief?: { gameSetup: string; marketPressure: string; risk: string; watchPoint: string }
+  intelligence?: {
+    lane: string
+    read: string[]
+    propFocus: string[]
+    dataGaps: string[]
+  }
 }
 
 // ─── UFC accent ───────────────────────────────────────────────────────────────
@@ -4826,6 +4832,11 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
   const setupRows = nflSetupRows(game, intel, props)
   const propRows = [...(props?.away || []), ...(props?.home || [])]
   const bestPropRows = propRows.filter((p: any) => p.bestBet).slice(0, 8)
+  const nflReadRows = intel?.intelligence?.read?.length
+    ? intel.intelligence.read
+    : [nflSlateHook(game, readiness.matchQuality >= 55, readiness, spreadGap || 0, totalGap || 0)]
+  const propFocusRows = intel?.intelligence?.propFocus || []
+  const dataGapRows = intel?.intelligence?.dataGaps || []
 
   return (
     <GlowCard hot color={C.green}>
@@ -4865,11 +4876,41 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
         </div>
 
         {intel && (
-          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(125,246,255,0.035)', border: '1px solid rgba(125,246,255,0.16)', marginBottom: 12 }}>
+          <div style={{ borderRadius: 18, padding: 14, background: 'linear-gradient(145deg, rgba(125,246,255,0.06), rgba(255,255,255,0.025))', border: '1px solid rgba(125,246,255,0.18)', marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>NFL Prep Score</div>
-              <div style={{ color: intel.prepScore >= 70 ? C.green : C.gold, fontSize: 20, fontWeight: 950 }}>{intel.prepScore}</div>
+              <div>
+                <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>NFL Intelligence Read</div>
+                <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 3 }}>{intel.intelligence?.lane || 'Prep board'}</div>
+              </div>
+              <div style={{ color: intel.prepScore >= 70 ? C.green : C.gold, fontSize: 22, fontWeight: 950 }}>{intel.prepScore}</div>
             </div>
+            <div style={{ borderRadius: 14, padding: 11, background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(125,246,255,0.14)', marginBottom: 10 }}>
+              <div style={{ color: C.cyan, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 7 }}>The football read</div>
+              <div style={{ display: 'grid', gap: 6 }}>
+                {nflReadRows.slice(0, 3).map(row => (
+                  <div key={row} style={{ color: 'rgba(247,255,240,0.84)', fontSize: 11, lineHeight: 1.42, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 5 }}>
+                    <span style={{ color: C.green }}>›</span>
+                    <span>{row}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {(propFocusRows.length > 0 || dataGapRows.length > 0) && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 8, marginBottom: 10 }}>
+                {propFocusRows.length > 0 && (
+                  <div style={{ borderRadius: 13, padding: 10, background: 'rgba(125,246,255,0.045)', border: '1px solid rgba(125,246,255,0.14)' }}>
+                    <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Player-prop lanes</div>
+                    {propFocusRows.slice(0, 3).map(row => <div key={row} style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.38, marginTop: 4 }}>• {row}</div>)}
+                  </div>
+                )}
+                {dataGapRows.length > 0 && (
+                  <div style={{ borderRadius: 13, padding: 10, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.16)' }}>
+                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Still needs confirmation</div>
+                    {dataGapRows.slice(0, 4).map(row => <div key={row} style={{ color: C.textSecondary, fontSize: 10, lineHeight: 1.38, marginTop: 4 }}>• {row}</div>)}
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 8 }}>
               {intel.checklist.map(item => (
                 <div key={item.label} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${item.status === 'edge' ? 'rgba(125,246,255,0.35)' : C.border}` }}>
@@ -4937,13 +4978,9 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
         )}
 
         <div style={{ borderRadius: 16, padding: 14, background: 'rgba(255,255,255,0.025)', border: `1px solid ${C.border}` }}>
-          <div style={{ color: C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>Next NFL utility layer</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
-            {['QB status adjustment', 'Weather/wind scoring impact', 'Short-week travel penalty', 'Divisional rematch flag', 'CLOB freshness + liquidity'].map(x => (
-              <div key={x} style={{ color: 'rgba(247,255,240,0.78)', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: `0 0 8px ${C.gold}` }} />{x}
-              </div>
-            ))}
+          <div style={{ color: C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 8 }}>NFL honesty guardrail</div>
+          <div style={{ color: 'rgba(247,255,240,0.78)', fontSize: 11, lineHeight: 1.48 }}>
+            This is the matchup intelligence layer: game script, market readiness, venue/weather, and prop-lane guidance. It does not pretend to know QB practice status, inactive reports, or route-level usage until those feeds are confirmed.
           </div>
         </div>
       </div>
