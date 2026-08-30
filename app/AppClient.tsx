@@ -8135,6 +8135,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const hasLiveGames = games.some(g => g.status === 'in')
   const [dailyFocusSports, setDailyFocusSports] = useState<GateSportValue[]>([])
   const [dailyFocusLoading, setDailyFocusLoading] = useState(false)
+  const [slateSeekNotice, setSlateSeekNotice] = useState<string | null>(null)
 
   useEffect(() => resetInitialSlateScroll(), [])
 
@@ -8231,16 +8232,17 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         let resolvedDate = startDate
         let loadedGames = await loadDate(sportToLoad, startDate)
 
-        // Advance the betting board when the selected day cannot produce active
-        // Signals. A full slate of finals is useful as a scoreboard, but it makes
-        // MLB Player Signals show "no active games" overnight while tomorrow's
-        // markets are already live.
+        // Advance the board when the selected day cannot produce active reads.
+        // NFL needs a longer runway than daily sports: if today is dark, jump to
+        // the next scheduled football slate so the board becomes a prep room.
+        const seekWindowDays = sportToLoad === 'nfl' ? 21 : sportToLoad === 'ncaaf' ? 14 : 3
         const shouldSeekNextActiveSlate = provider === 'kalshi' && (
           loadedGames.length === 0 ||
-          (sportToLoad === 'mlb' && loadedGames.every(g => g.status === 'post'))
+          (sportToLoad === 'mlb' && loadedGames.every(g => g.status === 'post')) ||
+          ((sportToLoad === 'nfl' || sportToLoad === 'ncaaf') && loadedGames.every(g => g.status === 'post'))
         )
         if (shouldSeekNextActiveSlate) {
-          for (let i = 1; i <= 3; i++) {
+          for (let i = 1; i <= seekWindowDays; i++) {
             const candidateDate = addChicagoDays(startDate, i)
             const candidateGames = await loadDate(sportToLoad, candidateDate)
             if (candidateGames.some(g => g.status !== 'post')) {
@@ -8304,6 +8306,10 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
         setGames(newGames)
         setLastUpdated(new Date())
       }
+      const advancedDays = resolvedDate !== date
+        ? Math.round((new Date(`${resolvedDate.slice(0, 4)}-${resolvedDate.slice(4, 6)}-${resolvedDate.slice(6, 8)}T12:00:00`).getTime() - new Date(`${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T12:00:00`).getTime()) / 86400000)
+        : 0
+      setSlateSeekNotice(advancedDays > 0 && (sport === 'nfl' || sport === 'ncaaf') ? `No football board on the selected day — jumped ${advancedDays} day${advancedDays === 1 ? '' : 's'} to the next prep slate.` : null)
       if (Object.keys(newDrift).length > 0) setOddsDrift(newDrift)
     } catch (err) {
       if (!isCurrentFeedRequest() || (err instanceof DOMException && err.name === 'AbortError')) return
@@ -8529,6 +8535,12 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
         {sport !== 'ufc' && subtab === 'slate' && <SlateBriefingBoard sport={sport} games={games} loading={loading} lastUpdatedAt={lastUpdated} isMobile={isMobile} />}
 
+        {sport !== 'ufc' && subtab === 'slate' && slateSeekNotice && !loading && !feedError && (
+          <div style={{ borderRadius: 18, padding: 14, background: 'rgba(125,246,255,0.055)', border: '1px solid rgba(125,246,255,0.18)', color: C.green, fontSize: 11, fontWeight: 850, lineHeight: 1.45, marginBottom: 14 }}>
+            {slateSeekNotice} The NFL board now opens as a forward-looking prep room instead of going blank between game days.
+          </div>
+        )}
+
         {sport !== 'ufc' && subtab === 'slate' && (loading ? (
           <LoadingMarketCards cols={cols} count={6} label="Slate" detail="Loading games, markets, and playable prices before the board opens." />
         ) : feedError ? (
@@ -8540,7 +8552,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
           </div>
         ) : games.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0' }}>
-            <p style={{ color: C.textSecondary, fontSize: 16 }}>No games scheduled</p>
+            <p style={{ color: C.textPrimary, fontSize: 17, fontWeight: 900 }}>{sport === 'nfl' ? 'No NFL slate found in the next prep window.' : 'No games scheduled'}</p>
+            <p style={{ color: C.textSecondary, fontSize: 12, marginTop: 8 }}>{sport === 'nfl' ? 'Try the date rail around the next Sunday/Monday board, or switch to today’s live sport while football markets form.' : 'Pick another date or sport with an active board.'}</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
