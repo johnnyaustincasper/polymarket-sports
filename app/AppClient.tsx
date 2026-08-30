@@ -2853,7 +2853,7 @@ const KalshiGameCard = memo(function KalshiGameCard({ game, sport, autoLoad = fa
     }
   }, [activeLiveTab, game.awayTeam.abbr, game.homeTeam.abbr, game.gameDate, game.id, game.status, isMobile, sport, shouldLoadIntelAndProps] )
 
-  const fullBoardSport = sport === 'nba' || sport === 'mlb' || sport === 'nhl'
+  const fullBoardSport = sport === 'nba' || sport === 'mlb' || sport === 'nhl' || sport === 'nfl'
   const players = useMemo(() => (
     props ? [...(props.away || []), ...(props.home || [])].filter((p: any) => (fullBoardSport || (p.last12 || []).length >= 4) && (p.recommendations || []).length) : []
   ), [fullBoardSport, props])
@@ -6850,7 +6850,7 @@ type SportGateCardConfig = { value: GateSportValue; label: string; tier: SportGa
 const SPORT_GATE_COPY: Record<string, Omit<SportGateCardConfig, 'value' | 'label'>> = {
   ufc: { tier: 'hero', tag: 'FIGHT BOARD', line: 'Kalshi fight markets, model reads, and settled signal history.' },
   mlb: { tier: 'cohero', tag: 'DAILY SLATE', line: 'Full slate, live prices, and player prop signals every day.' },
-  nfl: { tier: 'std', tag: 'GAME LINES', line: 'Spreads, totals, winners.' },
+  nfl: { tier: 'std', tag: 'NFL BOARD', line: 'Spreads, totals, winners, prep intel, and Kalshi player props.' },
   nhl: { tier: 'std', tag: 'GAME LINES', line: 'Puck lines and totals.' },
   soccer: { tier: 'std', tag: 'MATCH BOARDS', line: 'Three-way market boards.' },
   nba: { tier: 'std', tag: 'PROPS + LINES', line: 'Lineups, props, edges.' },
@@ -6866,65 +6866,118 @@ function getSportGateCards(): SportGateCardConfig[] {
 
 function SportGate({ isMobile, currentSport, showCurrent, onPick }: { isMobile: boolean; currentSport: GateSportValue; showCurrent: boolean; onPick: (sport: GateSportValue) => void }) {
   const cards = getSportGateCards()
-  const desktopStdCards = cards.filter(card => card.tier === 'std')
+  const heroCards = cards.filter(card => card.tier !== 'std')
+  const standardCards = cards.filter(card => card.tier === 'std')
   const renderCard = (card: SportGateCardConfig, index: number) => (
     <SportGateCard key={card.value} card={card} isMobile={isMobile} current={showCurrent && currentSport === card.value} index={index} onPick={() => onPick(card.value)} />
   )
 
   return (
-    <section aria-label="Choose your sport board" style={{ display: 'grid', gap: isMobile ? 14 : 18, maxWidth: isMobile ? 560 : 760, margin: isMobile ? '0 auto' : '4px auto 0', padding: isMobile ? '0 0 18px' : '4px 0 28px', ...getLoadInAnimationStyle(0, { durationMs: 740 }) }}>
-      <div style={{ textAlign: 'center', padding: isMobile ? '0 8px' : 0 }}>
-        <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.22em', textTransform: 'uppercase' }}>Pick your board</div>
-        <div style={{ color: C.textSecondary, fontSize: isMobile ? 12 : 13, marginTop: 4 }}>Live markets. Model reads. One tap in.</div>
+    <section aria-label="Choose your sport board" data-sport-gate="premium" style={{
+      position: 'relative',
+      display: 'grid',
+      gap: isMobile ? 14 : 18,
+      maxWidth: isMobile ? 560 : 920,
+      margin: isMobile ? '0 auto' : '2px auto 0',
+      padding: isMobile ? '0 0 16px' : '2px 0 28px',
+      ...getLoadInAnimationStyle(0, { durationMs: 740 }),
+    }}>
+      <div aria-hidden="true" style={{ position: 'absolute', inset: isMobile ? '-18px -10px auto' : '-42px -80px auto', height: isMobile ? 220 : 320, borderRadius: 36, background: 'radial-gradient(circle at 50% 0%, rgba(125,246,255,0.18), transparent 46%), radial-gradient(circle at 18% 34%, rgba(255,255,255,0.07), transparent 32%)', filter: 'blur(2px)', pointerEvents: 'none' }} />
+      <div style={{ position: 'relative', textAlign: 'center', padding: isMobile ? '0 10px' : '0 28px' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999, padding: '7px 11px', background: 'rgba(0,0,0,0.58)', border: '1px solid rgba(125,246,255,0.28)', color: C.green, boxShadow: '0 0 24px rgba(125,246,255,0.12), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
+          <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 999, background: C.green, boxShadow: '0 0 12px rgba(125,246,255,0.95)' }} />
+          <span style={{ fontSize: 9, fontWeight: 950, letterSpacing: '0.20em', textTransform: 'uppercase' }}>Board room is open</span>
+        </div>
+        <h1 style={{ color: C.textPrimary, fontSize: isMobile ? 31 : 48, lineHeight: 0.95, letterSpacing: '-0.06em', margin: isMobile ? '12px 0 0' : '16px 0 0', fontWeight: 950 }}>
+          Choose the edge board.
+        </h1>
+        <p style={{ color: 'rgba(221,232,244,0.70)', fontSize: isMobile ? 12.5 : 15, lineHeight: 1.45, maxWidth: 560, margin: isMobile ? '9px auto 0' : '12px auto 0' }}>
+          Tap into the slate you want: live markets, player props, prep intel, and model reads without the cheap casino-card look.
+        </p>
       </div>
-      <div style={{ display: 'grid', gap: isMobile ? 10 : 12 }}>
-        {isMobile ? cards.map(renderCard) : (
-          <>
-            {cards.filter(card => card.tier !== 'std').map(renderCard)}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
-              {desktopStdCards.map((card, index) => renderCard(card, index + 2))}
-            </div>
-          </>
-        )}
+      <div style={{ position: 'relative', display: 'grid', gap: isMobile ? 10 : 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.18fr 0.82fr', gap: isMobile ? 10 : 14 }}>
+          {heroCards.map(renderCard)}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: isMobile ? 9 : 12 }}>
+          {standardCards.map((card, index) => renderCard(card, index + heroCards.length))}
+        </div>
       </div>
-      <div style={{ color: C.textSecondary, fontSize: 10, textAlign: 'center', letterSpacing: '0.06em' }}>Members only. Every board is live.</div>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ borderRadius: 999, padding: '8px 12px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.10)', color: C.textSecondary, fontSize: 10, fontWeight: 850, letterSpacing: '0.06em' }}>
+          Members only · UFC first · MLB second · NFL fully wired
+        </div>
+      </div>
     </section>
   )
 }
 
+function sportGateMeta(value: GateSportValue) {
+  if (value === 'ufc') return { icon: '✦', metrics: ['Fight board', 'Shared cards', 'History'] }
+  if (value === 'mlb') return { icon: '◆', metrics: ['Props', 'Pitchers', 'Signals'] }
+  if (value === 'nfl') return { icon: '◇', metrics: ['Lines', 'Prep', 'Props'] }
+  if (value === 'nhl') return { icon: '⬡', metrics: ['Puck line', 'Totals', 'Props'] }
+  if (value === 'soccer') return { icon: '○', metrics: ['1X2', 'Totals', 'Match'] }
+  return { icon: '●', metrics: ['Lineups', 'Props', 'Edges'] }
+}
+
 function SportGateCard({ card, isMobile, current, index, onPick }: { card: SportGateCardConfig; isMobile: boolean; current: boolean; index: number; onPick: () => void }) {
   const accent = sportAccent(card.value)
+  const meta = sportGateMeta(card.value)
   const isHero = card.tier === 'hero'
   const isCohero = card.tier === 'cohero'
-  const minHeight = isMobile ? (isHero ? 148 : isCohero ? 112 : 92) : (isHero ? 180 : isCohero ? 132 : 104)
-  const frameAlpha = isHero ? ['0.62', '0.12', '0.20', '0.14'] : isCohero ? ['0.38', '0.10', '0.14', '0.08'] : null
+  const minHeight = isMobile ? (isHero ? 160 : isCohero ? 132 : 116) : (isHero ? 214 : isCohero ? 214 : 132)
+  const labelSize = isMobile ? (isHero ? 38 : isCohero ? 30 : 22) : (isHero ? 56 : isCohero ? 42 : 24)
   const button = (
     <button type="button" onClick={onPick} aria-label={`Enter ${card.label} board`} style={{
-      width: '100%', minHeight, border: 0, borderRadius: isHero || isCohero ? 20 : 16, padding: isMobile ? (isHero ? 18 : 14) : (isHero ? 22 : 16),
-      position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', color: C.textPrimary,
-      background: 'linear-gradient(150deg, rgba(10,16,20,0.97), rgba(3,7,10,0.98))',
-      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-      display: 'grid', alignContent: 'space-between', gap: 14,
-      transition: 'transform 120ms ease, border-color 120ms ease, filter 120ms ease',
-      ...getLoadInAnimationStyle(index, { durationMs: 760, delayStepMs: 80, maxDelayMs: 480 }),
-    }} onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.06)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'brightness(1)' }} onPointerDown={e => { e.currentTarget.style.transform = 'scale(0.985)' }} onPointerUp={e => { e.currentTarget.style.transform = 'scale(1)' }} onPointerCancel={e => { e.currentTarget.style.transform = 'scale(1)' }}>
-      <span aria-hidden="true" style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 88% 12%, ${accent}24, transparent 30%), radial-gradient(circle at 10% 120%, rgba(255,255,255,0.08), transparent 38%)`, pointerEvents: 'none' }} />
-      {current && <span style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, borderRadius: 999, padding: '4px 8px', background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.14)', color: C.textSecondary, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Current</span>}
+      width: '100%',
+      minHeight,
+      border: 0,
+      borderRadius: isHero || isCohero ? 24 : 18,
+      padding: isMobile ? (isHero ? 18 : 14) : (isHero ? 24 : 18),
+      position: 'relative',
+      overflow: 'hidden',
+      textAlign: 'left',
+      cursor: 'pointer',
+      color: C.textPrimary,
+      background: isHero
+        ? 'linear-gradient(150deg, rgba(13,27,33,0.98), rgba(3,6,8,0.99) 54%, rgba(0,0,0,0.98))'
+        : 'linear-gradient(155deg, rgba(10,16,20,0.98), rgba(3,6,8,0.985))',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
+      display: 'grid',
+      alignContent: 'space-between',
+      gap: 14,
+      transition: 'transform 120ms ease, filter 120ms ease',
+      WebkitTapHighlightColor: 'transparent',
+      ...getLoadInAnimationStyle(index, { durationMs: 760, delayStepMs: 70, maxDelayMs: 420 }),
+    }} onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.07)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'brightness(1)' }} onPointerDown={e => { e.currentTarget.style.transform = 'scale(0.985)' }} onPointerUp={e => { e.currentTarget.style.transform = 'scale(1)' }} onPointerCancel={e => { e.currentTarget.style.transform = 'scale(1)' }}>
+      <span aria-hidden="true" style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 88% 10%, ${accent}2e, transparent 28%), linear-gradient(135deg, rgba(255,255,255,0.095), transparent 28%, transparent 68%, ${accent}12)`, pointerEvents: 'none' }} />
+      <span aria-hidden="true" style={{ position: 'absolute', right: isHero ? -26 : -18, top: isHero ? -20 : -14, width: isHero ? 150 : 92, height: isHero ? 150 : 92, borderRadius: 999, border: `1px solid ${accent}30`, boxShadow: `inset 0 0 34px ${accent}12`, opacity: 0.9 }} />
+      {current && <span style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, borderRadius: 999, padding: '5px 9px', background: 'rgba(125,246,255,0.10)', border: '1px solid rgba(125,246,255,0.36)', color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Current</span>}
       <span style={{ position: 'relative', zIndex: 1, display: 'grid', gap: isHero ? 14 : 10 }}>
-        <span style={{ width: 'fit-content', borderRadius: 999, padding: '5px 9px', background: 'rgba(125,246,255,0.10)', border: '1px solid rgba(125,246,255,0.30)', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{card.tag}</span>
-        <span style={{ color: C.textPrimary, fontSize: isMobile ? (isHero ? 34 : isCohero ? 26 : 18) : (isHero ? 40 : isCohero ? 30 : 20), fontWeight: 950, letterSpacing: '0.06em', lineHeight: 0.95 }}>{card.label}</span>
-        <span style={{ color: C.textSecondary, fontSize: isHero || isCohero ? 11 : 10, lineHeight: 1.4, maxWidth: '34ch', display: '-webkit-box', WebkitLineClamp: isMobile && !isHero && !isCohero ? 2 : 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{card.line}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span aria-hidden="true" style={{ width: isHero ? 34 : 28, height: isHero ? 34 : 28, borderRadius: 12, display: 'grid', placeItems: 'center', background: `${accent}18`, border: `1px solid ${accent}42`, color: accent, boxShadow: `0 0 22px ${accent}18`, fontSize: isHero ? 16 : 13 }}>{meta.icon}</span>
+          <span style={{ width: 'fit-content', borderRadius: 999, padding: '6px 9px', background: 'rgba(0,0,0,0.34)', border: '1px solid rgba(255,255,255,0.11)', color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.15em', textTransform: 'uppercase' }}>{card.tag}</span>
+        </span>
+        <span style={{ color: C.textPrimary, fontSize: labelSize, fontWeight: 950, letterSpacing: isHero ? '-0.02em' : '0.03em', lineHeight: 0.92 }}>{card.label}</span>
+        <span style={{ color: 'rgba(221,232,244,0.70)', fontSize: isHero || isCohero ? (isMobile ? 12 : 13) : 10.5, lineHeight: 1.4, maxWidth: isHero ? '42ch' : '34ch', display: '-webkit-box', WebkitLineClamp: isMobile && !isHero ? 2 : 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{card.line}</span>
       </span>
-      <span style={{ position: 'relative', zIndex: 1, justifySelf: 'end', color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{isHero ? 'Enter the board >' : 'Enter >'}</span>
+      <span style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'end', flexWrap: 'wrap' }}>
+        <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {meta.metrics.map(metric => <span key={metric} style={{ borderRadius: 999, padding: '5px 7px', background: 'rgba(255,255,255,0.045)', border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(221,232,244,0.72)', fontSize: 8.5, fontWeight: 850, letterSpacing: '0.05em' }}>{metric}</span>)}
+        </span>
+        <span style={{ color: C.green, fontSize: 9.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Open board →</span>
+      </span>
     </button>
   )
 
-  if (!frameAlpha) return (
-    <div style={{ borderRadius: 17, padding: 1, background: 'rgba(125,246,255,0.16)', border: '1px solid rgba(125,246,255,0.08)' }}>{button}</div>
-  )
-
   return (
-    <div className={isHero ? 'gate-hero-pulse' : undefined} style={{ borderRadius: 21, padding: 1, background: `linear-gradient(135deg, rgba(125,246,255,${frameAlpha[0]}), rgba(255,255,255,${frameAlpha[1]}), rgba(125,246,255,${frameAlpha[2]}))`, boxShadow: `0 16px 42px rgba(0,0,0,0.34), 0 0 26px rgba(125,246,255,${frameAlpha[3]})`, animation: isHero ? 'gateHeroPulse 3.2s ease-in-out infinite' : undefined }}>{button}</div>
+    <div style={{
+      borderRadius: isHero || isCohero ? 25 : 19,
+      padding: 1,
+      background: isHero ? `linear-gradient(135deg, ${accent}b8, rgba(255,255,255,0.16), ${accent}24)` : `linear-gradient(135deg, ${accent}42, rgba(255,255,255,0.10), rgba(255,255,255,0.04))`,
+      boxShadow: isHero ? `0 22px 70px rgba(0,0,0,0.44), 0 0 42px ${accent}22` : '0 14px 40px rgba(0,0,0,0.30)',
+    }}>{button}</div>
   )
 }
 

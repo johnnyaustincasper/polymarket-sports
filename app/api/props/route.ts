@@ -103,7 +103,9 @@ const xaiPropIntelCache = new Map<string, TimedCache<PlayerPropLine[]>>()
 const injuryReportCache = new Map<string, TimedCache<PlayerInjuryReport[]>>()
 
 function isFullBoardSport(sport: Sport): boolean {
-  return sport === 'nba' || sport === 'mlb' || sport === 'nhl'
+  // Full-board sports need every executable Kalshi contract visible, even
+  // when recent-game stats are thin or preseason/week-one data is sparse.
+  return sport === 'nba' || sport === 'mlb' || sport === 'nhl' || sport === 'nfl'
 }
 
 function getFreshCache<T>(cache: Map<string, TimedCache<T>>, key: string, ttlMs: number): T | null {
