@@ -4853,6 +4853,76 @@ function buildNflTeamComparison(game: Game, awayDetail: TeamDetailData | null, h
   return { rows, fitRows, read }
 }
 
+
+function clampScore(value: number) {
+  return Math.max(0, Math.min(99, Math.round(value)))
+}
+
+function nflRatingLabel(score: number) {
+  if (score >= 84) return 'Elite'
+  if (score >= 74) return 'Strong'
+  if (score >= 62) return 'Solid'
+  if (score >= 50) return 'Volatile'
+  return 'Thin'
+}
+
+function statScore(value: number | null, baseline: number, spread: number, invert = false) {
+  if (value == null) return 58
+  const raw = 68 + ((value - baseline) / spread) * 16
+  return clampScore(invert ? 136 - raw : raw)
+}
+
+function marketTiltScore(game: Game, side: 'away' | 'home') {
+  if (!game.hasWinnerOdds) return 0
+  const p = side === 'away' ? game.awayWinOdds : game.homeWinOdds
+  return Math.max(-8, Math.min(8, (p - 0.5) * 40))
+}
+
+function buildNflDecisionMatrix(game: Game, comparison: ReturnType<typeof buildNflTeamComparison>, awayDetail: TeamDetailData | null, homeDetail: TeamDetailData | null, intel: FootballIntelData | null) {
+  const calcTeam = (side: 'away' | 'home', detail: TeamDetailData | null) => {
+    const scoring = statScore(numericStat(detail, ['totalPointsPerGame']), 22, 7)
+    const offense = statScore(numericStat(detail, ['yardsPerGame']), 335, 80)
+    const pass = statScore(numericStat(detail, ['passingYardsPerGame']), 220, 65)
+    const rush = statScore(numericStat(detail, ['rushingYardsPerGame']), 112, 45)
+    const redzone = statScore(numericStat(detail, ['redzoneTouchdownPct']), 58, 22)
+    const third = statScore(numericStat(detail, ['thirdDownConvPct']), 39, 13)
+    const turnover = statScore(numericStat(detail, ['turnOverDifferential']), 0, 10)
+    const overall = clampScore(scoring * 0.19 + offense * 0.15 + pass * 0.13 + rush * 0.12 + redzone * 0.17 + third * 0.12 + turnover * 0.08 + 5 + marketTiltScore(game, side))
+    return { overall, scoring, offense, pass, rush, redzone, third, turnover }
+  }
+  const away = calcTeam('away', awayDetail)
+  const home = calcTeam('home', homeDetail)
+  const favoriteSide = game.hasWinnerOdds
+    ? game.homeWinOdds >= game.awayWinOdds ? 'home' as const : 'away' as const
+    : home.overall >= away.overall ? 'home' as const : 'away' as const
+  const aiSide = away.overall > home.overall + 2 ? 'away' as const : home.overall > away.overall + 2 ? 'home' as const : favoriteSide
+  const aiTeam = aiSide === 'away' ? game.awayTeam.abbr : game.homeTeam.abbr
+  const marketTeam = favoriteSide === 'away' ? game.awayTeam.abbr : game.homeTeam.abbr
+  const gradeGap = Math.abs(away.overall - home.overall)
+  const marketAgreement = aiTeam === marketTeam ? 'Market agrees with the football profile.' : 'Football profile pushes against the market favorite.'
+  const bestFit = comparison.fitRows.find(row => row.leader !== 'Neutral')
+  const actionPlan = [
+    gradeGap >= 8 ? `${aiTeam} owns the strongest blended team profile; start the read there.` : 'Team grades are close; do not force a side without line movement or injury confirmation.',
+    bestFit ? `${bestFit.label}: ${bestFit.note}` : 'No clean lane fit yet; keep the board in watch mode.',
+    intel?.intelligence?.lane ? `${intel.intelligence.lane}; use that as the board priority.` : 'Use winner/spread/total readiness before opening player props.',
+  ]
+  const riskFlags = [
+    gradeGap < 5 ? 'Small team-grade gap' : '',
+    game.hasTotalOdds && game.totalLine >= 47 ? 'High-total volatility' : '',
+    game.hasSpreadOdds && Math.abs(game.spreadLine) >= 7 ? 'Large-spread garbage-time risk' : '',
+    ...(intel?.intelligence?.dataGaps || []).slice(0, 2),
+  ].filter(Boolean)
+  return {
+    away,
+    home,
+    leader: aiTeam,
+    label: `${aiTeam} ${nflRatingLabel(aiSide === 'away' ? away.overall : home.overall)}`,
+    marketAgreement,
+    actionPlan,
+    riskFlags,
+  }
+}
+
 function nflSetupRows(game: Game, intel: FootballIntelData | null, props: PropsPanelData | null) {
   const propCount = [...(props?.away || []), ...(props?.home || [])].length
   const bestLooks = [...(props?.away || []), ...(props?.home || [])].filter((p: any) => p.bestBet).length
@@ -4939,6 +5009,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
   const propFocusRows = intel?.intelligence?.propFocus || []
   const dataGapRows = intel?.intelligence?.dataGaps || []
   const teamComparison = buildNflTeamComparison(game, teamDetails.away, teamDetails.home)
+  const decisionMatrix = buildNflDecisionMatrix(game, teamComparison, teamDetails.away, teamDetails.home, intel)
 
   return (
     <GlowCard hot color={C.green}>
@@ -4963,6 +5034,51 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
               <div style={{ color: item.color, fontSize: 14, fontWeight: 900, marginTop: 5 }}>{item.value}</div>
             </div>
           ))}
+        </div>
+
+        <div style={{ borderRadius: 18, padding: 15, background: 'linear-gradient(145deg, rgba(125,246,255,0.085), rgba(255,255,255,0.025))', border: '1px solid rgba(125,246,255,0.22)', boxShadow: '0 0 28px rgba(125,246,255,0.08)', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+            <div>
+              <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.17em', textTransform: 'uppercase' }}>Athlete Intelligence Matrix</div>
+              <div style={{ color: C.textPrimary, fontSize: 16, fontWeight: 950, marginTop: 4 }}>{decisionMatrix.label}</div>
+              <div style={{ color: C.textSecondary, fontSize: 10, marginTop: 4 }}>{decisionMatrix.marketAgreement}</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, minWidth: 134 }}>
+              {[{ side: game.awayTeam.abbr, score: decisionMatrix.away.overall }, { side: game.homeTeam.abbr, score: decisionMatrix.home.overall }].map(row => (
+                <div key={row.side} style={{ borderRadius: 12, padding: '8px 9px', background: row.side === decisionMatrix.leader ? 'rgba(125,246,255,0.14)' : 'rgba(255,255,255,0.035)', border: `1px solid ${row.side === decisionMatrix.leader ? 'rgba(125,246,255,0.35)' : 'rgba(255,255,255,0.08)'}`, textAlign: 'center' }}>
+                  <div style={{ color: row.side === decisionMatrix.leader ? C.green : C.textSecondary, fontSize: 8, fontWeight: 950 }}>{row.side}</div>
+                  <div style={{ color: C.textPrimary, fontSize: 20, fontWeight: 950, lineHeight: 1 }}>{row.score}</div>
+                  <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 850 }}>{nflRatingLabel(row.score)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 8, marginBottom: 10 }}>
+            {[
+              ['Pass', decisionMatrix.away.pass, decisionMatrix.home.pass],
+              ['Run', decisionMatrix.away.rush, decisionMatrix.home.rush],
+              ['Red zone', decisionMatrix.away.redzone, decisionMatrix.home.redzone],
+              ['Turnovers', decisionMatrix.away.turnover, decisionMatrix.home.turnover],
+            ].map(([label, awayScore, homeScore]) => (
+              <div key={String(label)} style={{ borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ color: C.textSecondary, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 7 }}>
+                  <span style={{ color: Number(awayScore) >= Number(homeScore) ? C.green : C.textSecondary, fontSize: 12, fontWeight: 950 }}>{game.awayTeam.abbr} {awayScore}</span>
+                  <span style={{ color: Number(homeScore) >= Number(awayScore) ? C.green : C.textSecondary, fontSize: 12, fontWeight: 950, textAlign: 'right' }}>{game.homeTeam.abbr} {homeScore}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+            <div style={{ borderRadius: 13, padding: 10, background: 'rgba(125,246,255,0.04)', border: '1px solid rgba(125,246,255,0.13)' }}>
+              <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase', marginBottom: 6 }}>Action plan</div>
+              {decisionMatrix.actionPlan.map(row => <div key={row} style={{ color: 'rgba(247,255,240,0.80)', fontSize: 10.5, lineHeight: 1.4, marginTop: 4 }}>• {row}</div>)}
+            </div>
+            <div style={{ borderRadius: 13, padding: 10, background: 'rgba(255,215,0,0.04)', border: '1px solid rgba(255,215,0,0.14)' }}>
+              <div style={{ color: C.gold, fontSize: 8, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase', marginBottom: 6 }}>Risk flags</div>
+              {(decisionMatrix.riskFlags.length ? decisionMatrix.riskFlags : ['No extra risk flag from wired data; still confirm injuries/inactives.']).map(row => <div key={row} style={{ color: C.textSecondary, fontSize: 10.5, lineHeight: 1.4, marginTop: 4 }}>• {row}</div>)}
+            </div>
+          </div>
         </div>
 
         <div style={{ borderRadius: 16, padding: 14, background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.10)', marginBottom: 12 }}>
