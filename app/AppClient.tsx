@@ -6809,6 +6809,69 @@ function UFCSection() {
 }
 
 
+
+function SlateBriefingBoard({ sport, games, loading, lastUpdatedAt, isMobile }: {
+  sport: SupportedSport | 'ufc'
+  games: Game[]
+  loading: boolean
+  lastUpdatedAt: Date | null
+  isMobile: boolean
+}) {
+  if (sport === 'ufc') return null
+  const live = games.filter(g => g.status === 'in').length
+  const upcoming = games.filter(g => g.status === 'pre').length
+  const finals = games.filter(g => g.status === 'post').length
+  const matched = games.filter(g => g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds).length
+  const executable = games.filter(g => Boolean(g.polyWinnerUrl || g.polySpreadUrl || g.polyTotalUrl)).length
+  const withReads = games.filter(g => getMarketReadiness(g).matched && (g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds)).length
+  const topGame = games.find(g => Boolean(g.polyWinnerUrl || g.polySpreadUrl || g.polyTotalUrl)) || games.find(g => g.status === 'in') || games.find(g => g.status === 'pre') || games[0]
+  const sportLabel = sport.toUpperCase()
+  const headline = loading
+    ? `Building today’s ${sportLabel} board…`
+    : games.length
+      ? `${sportLabel} scouting room: ${games.length} games · ${live} live · ${withReads || matched} with reads`
+      : `No ${sportLabel} games on this date`
+  const plainRead = loading
+    ? 'Checking the slate, matching lines, and preparing player/game context before the board opens.'
+    : topGame
+      ? `${topGame.awayTeam.abbr} @ ${topGame.homeTeam.abbr} is the first board to review: ${topGame.status === 'in' ? 'live tracking is active' : topGame.hasWinnerOdds || topGame.hasSpreadOdds || topGame.hasTotalOdds ? 'game lines are available' : 'schedule context is ready, lines may still be forming'}.`
+      : 'Pick another date or sport with a live slate.'
+  const cards = [
+    { label: 'Live', value: live, detail: live ? 'Track now' : 'None now' },
+    { label: 'Reads', value: withReads || matched, detail: executable ? `${executable} linked` : 'Review only' },
+    { label: 'Upcoming', value: upcoming, detail: 'Pregame' },
+    { label: 'Finals', value: finals, detail: 'Settled' },
+  ]
+  return (
+    <section aria-label="Slate briefing" style={{ marginBottom: isMobile ? 12 : 16, borderRadius: isMobile ? 19 : 24, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.55), rgba(255,255,255,0.10), rgba(125,246,255,0.16))', boxShadow: '0 18px 54px rgba(0,0,0,0.34), 0 0 30px rgba(125,246,255,0.10)' }}>
+      <div style={{ borderRadius: isMobile ? 18 : 23, padding: isMobile ? 13 : 16, background: 'linear-gradient(145deg, rgba(8,13,6,0.98), rgba(2,5,1,0.97))', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 12 }}>
+        <div style={{ display: isMobile ? 'grid' : 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Today’s Slate</div>
+            <div style={{ color: C.textPrimary, fontSize: isMobile ? 17 : 22, fontWeight: 950, letterSpacing: '-0.045em', lineHeight: 1.08, marginTop: 5 }}>{headline}</div>
+            <div style={{ color: C.textSecondary, fontSize: isMobile ? 11 : 12, lineHeight: 1.45, marginTop: 6 }}>{plainRead}</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(78px, 1fr))', gap: 7, minWidth: isMobile ? 0 : 250 }}>
+            {cards.map(card => (
+              <div key={card.label} style={{ borderRadius: 13, padding: '8px 9px', background: 'rgba(255,255,255,0.035)', border: `1px solid ${card.label === 'Reads' && Number(card.value) > 0 ? 'rgba(125,246,255,0.24)' : 'rgba(255,255,255,0.08)'}` }}>
+                <div style={{ color: card.label === 'Reads' && Number(card.value) > 0 ? C.green : C.textPrimary, fontSize: 16, fontWeight: 950, lineHeight: 1 }}>{card.value}</div>
+                <div style={{ color: C.textSecondary, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>{card.label}</div>
+                <div style={{ color: C.textSecondary, fontSize: 8.5, fontWeight: 800, marginTop: 2 }}>{card.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+          {['Open the game with the cleanest read', 'Players before dense line grids', 'Live context when the game starts'].map(item => (
+            <span key={item} style={{ borderRadius: 999, padding: '6px 9px', background: 'rgba(125,246,255,0.07)', border: '1px solid rgba(125,246,255,0.16)', color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{item}</span>
+          ))}
+          <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, alignSelf: 'center' }}><UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Waiting on slate refresh." /></span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function MarketCommandDeck({ sport, games, loading, lastUpdatedAt, isMobile }: {
   sport: SupportedSport | 'ufc'
   games: Game[]
@@ -8164,6 +8227,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
         {sport === 'ufc' && subtab === 'slate' && <KalshiUFCSection />}
 
+        {sport !== 'ufc' && subtab === 'slate' && <SlateBriefingBoard sport={sport} games={games} loading={loading} lastUpdatedAt={lastUpdated} isMobile={isMobile} />}
+
         {sport !== 'ufc' && subtab === 'slate' && (loading ? (
           <LoadingMarketCards cols={cols} count={6} label="Slate" detail="Loading games, markets, and playable prices before the board opens." />
         ) : feedError ? (
@@ -8183,7 +8248,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
               <section>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan, boxShadow: `0 0 8px ${C.cyan}`, display: 'inline-block', animation: 'liveDotPulse 1.2s ease-in-out infinite' }} />
-                  <span style={{ color: C.cyan, fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase' }}>Live Now</span>
+                  <span style={{ color: C.cyan, fontSize: 10, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase' }}>Live / In Progress</span>
                 </div>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
@@ -8209,7 +8274,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
             )}
             {upcoming.length > 0 && (
               <section>
-                <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Upcoming</p>
+                <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Full Slate / Upcoming</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
                     {upcoming.map((g, idx) => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined, ...getLoadInAnimationStyle(idx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 }) }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
