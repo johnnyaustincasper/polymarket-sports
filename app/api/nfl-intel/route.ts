@@ -63,6 +63,17 @@ export async function GET(req: Request) {
   if (divisional) warnings.push('Divisional game: rematch volatility')
   if (daysOut >= 4) warnings.push('Early-week board: QB/injury status can move hard')
 
+  const gameSetup = `${away || 'Away'} @ ${home || 'Home'}${venue ? ` · ${venue}` : ''}${location ? ` · ${location}` : ''}`
+  const marketPressure = readiness.matched
+    ? `${readiness.matchLabel}; compare winner, spread, and total before treating the board as playable.`
+    : 'No clean matched market yet; use this as schedule/prep context until links firm up.'
+  const risk = warnings[0] || 'Football context can move late from QB status, injuries, weather, and inactive reports.'
+  const watchPoint = spreadGap >= 1.5 || ttlGap >= 2
+    ? `Reference line gap is live: spread ${spreadGap.toFixed(1)}, total ${ttlGap.toFixed(1)}.`
+    : dome
+      ? 'Controlled venue lowers weather noise; still wait for final injury and inactive reports.'
+      : 'Outdoor setup: check wind/weather before trusting total reads.'
+
   const prepScore = Math.min(100, Math.round(
     35 + readiness.matchQuality * 0.35 + (game.hasDkOdds ? 12 : 0) + Math.min(14, spreadGap * 4 + ttlGap * 2) + (dome ? 5 : 0) + (divisional ? 4 : 0)
   ))
@@ -78,6 +89,12 @@ export async function GET(req: Request) {
       daysOut,
       spreadGap,
       totalGap: ttlGap,
+    },
+    brief: {
+      gameSetup,
+      marketPressure,
+      risk,
+      watchPoint,
     },
     checklist: [
       { label: 'Market match quality', value: readiness.matchLabel, status: readiness.matchQuality >= 55 ? 'ready' : 'watch' },

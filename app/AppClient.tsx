@@ -434,6 +434,7 @@ interface FootballIntelData {
   flags: { dome: boolean; divisional: boolean; daysOut: number; spreadGap: number; totalGap: number }
   checklist: { label: string; value: string; status: 'ready' | 'watch' | 'edge' }[]
   warnings: string[]
+  brief?: { gameSetup: string; marketPressure: string; risk: string; watchPoint: string }
 }
 
 // ─── UFC accent ───────────────────────────────────────────────────────────────
@@ -4745,6 +4746,30 @@ function RowGroup({ games, cols, activeGame, panel, analysisLoadingGameId, onAna
 }
 
 
+
+function nflRecordLine(game: Game) {
+  return `${game.awayTeam.abbr} ${game.awayTeam.record || 'record pending'} · ${game.homeTeam.abbr} ${game.homeTeam.record || 'record pending'}`
+}
+
+function nflSlateHook(game: Game, marketReady: boolean, marketReadiness: ReturnType<typeof getMarketReadiness>, spreadGap: number, totalGap: number) {
+  if (game.status === 'in') return 'Live board open — score and lines can move fast.'
+  if (marketReady) return 'Open because winner/spread/total links are live and matched cleanly.'
+  if (spreadGap >= 1.5 || totalGap >= 2) return 'Open because reference lines disagree enough to review before kickoff.'
+  if (game.hasSpreadOdds || game.hasTotalOdds || game.hasWinnerOdds) return `Open for prep — ${marketReadiness.matchLabel.toLowerCase()} with numbers to monitor.`
+  return 'Open for schedule context — market links still forming.'
+}
+
+function nflSetupRows(game: Game, intel: FootballIntelData | null, props: PropsPanelData | null) {
+  const propCount = [...(props?.away || []), ...(props?.home || [])].length
+  const bestLooks = [...(props?.away || []), ...(props?.home || [])].filter((p: any) => p.bestBet).length
+  return [
+    { label: 'Game setup', value: intel?.brief?.gameSetup || `${nflRecordLine(game)} · ${game.venue?.name || 'venue pending'}` },
+    { label: 'Market pressure', value: intel?.brief?.marketPressure || (game.hasSpreadOdds || game.hasTotalOdds ? 'Lines available — compare spread, total, and winner before trusting any one read.' : 'Lines are not fully available yet.') },
+    { label: 'Risk', value: intel?.brief?.risk || (intel?.warnings?.[0] || 'QB/injury/weather context can swing football boards hard.') },
+    { label: 'Watch point', value: intel?.brief?.watchPoint || (propCount ? `${propCount} player rows surfaced, ${bestLooks} with a current best-line read.` : 'Player props may be thin until books/markets post stronger lines.') },
+  ]
+}
+
 function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void }) {
   const [intel, setIntel] = useState<FootballIntelData | null>(null)
   const [props, setProps] = useState<PropsPanelData | null>(null)
@@ -4793,11 +4818,14 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
   }, [game])
 
   const items = [
-    { label: 'Market match', value: matched ? `${readiness.matchLabel} · ${readiness.matchQuality}%` : 'No Polymarket match yet', color: matched && readiness.matchQuality >= 55 ? C.green : C.gold },
+    { label: 'Market match', value: matched ? `${readiness.matchLabel} · ${readiness.matchQuality}%` : 'No matched market yet', color: matched && readiness.matchQuality >= 55 ? C.green : C.gold },
     { label: 'Winner market', value: game.hasWinnerOdds ? `${game.awayTeam.abbr} ${Math.round(game.awayWinOdds * 100)}% / ${game.homeTeam.abbr} ${Math.round(game.homeWinOdds * 100)}%` : 'Waiting', color: game.hasWinnerOdds ? C.cyan : C.textSecondary },
     { label: 'Spread gap', value: spreadGap != null ? `${spreadGap.toFixed(1)} pts` : 'Need market spread', color: spreadGap != null && spreadGap >= 1 ? C.green : C.textSecondary },
     { label: 'Total gap', value: totalGap != null ? `${totalGap.toFixed(1)} pts` : 'Need market total', color: totalGap != null && totalGap >= 1.5 ? C.green : C.textSecondary },
   ]
+  const setupRows = nflSetupRows(game, intel, props)
+  const propRows = [...(props?.away || []), ...(props?.home || [])]
+  const bestPropRows = propRows.filter((p: any) => p.bestBet).slice(0, 8)
 
   return (
     <GlowCard hot color={C.green}>
@@ -4822,6 +4850,18 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
               <div style={{ color: item.color, fontSize: 14, fontWeight: 900, marginTop: 5 }}>{item.value}</div>
             </div>
           ))}
+        </div>
+
+        <div style={{ borderRadius: 16, padding: 14, background: 'rgba(255,255,255,0.028)', border: '1px solid rgba(255,255,255,0.10)', marginBottom: 12 }}>
+          <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>Pregame briefing</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 9 }}>
+            {setupRows.map(row => (
+              <div key={row.label} style={{ borderRadius: 12, padding: 10, background: 'rgba(0,0,0,0.20)', border: '1px solid rgba(125,246,255,0.12)' }}>
+                <div style={{ color: C.cyan, fontSize: 8, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase' }}>{row.label}</div>
+                <div style={{ color: 'rgba(247,255,240,0.80)', fontSize: 11, lineHeight: 1.45, marginTop: 5 }}>{row.value}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {intel && (
@@ -4856,7 +4896,7 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
           <div style={{ borderRadius: 16, padding: 14, background: 'rgba(125,246,255,0.035)', border: '1px solid rgba(125,246,255,0.16)', marginBottom: 12 }}>
             <div style={{ color: C.green, fontSize: 10, fontWeight: 950, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>NFL Player Prop Reads</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
-              {[...(props.away || []), ...(props.home || [])].filter((p: any) => p.bestBet).slice(0, 8).map((p: any) => (
+              {bestPropRows.map((p: any) => (
                 <div key={`${p.team}-${p.player}`} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${p.bestBet?.quality === 'bet' ? 'rgba(125,246,255,0.32)' : C.border}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
                     <div>
@@ -4881,6 +4921,18 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
                 </div>
               ))}
             </div>
+            {bestPropRows.length === 0 && (
+              <div style={{ borderRadius: 12, padding: 12, background: 'rgba(255,215,0,0.045)', border: '1px solid rgba(255,215,0,0.16)', color: C.gold, fontSize: 11, lineHeight: 1.45 }}>
+                NFL props are present only when the market and player feed line up cleanly. If the board is thin, keep this as a prep read and wait for stronger posted player lines.
+              </div>
+            )}
+          </div>
+        )}
+
+        {!props?.available && game.sport === 'nfl' && (
+          <div style={{ borderRadius: 16, padding: 14, background: 'rgba(255,215,0,0.035)', border: '1px solid rgba(255,215,0,0.16)', marginBottom: 12 }}>
+            <div style={{ color: C.gold, fontSize: 10, fontWeight: 950, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>Player props not ready yet</div>
+            <div style={{ color: 'rgba(247,255,240,0.76)', fontSize: 11, lineHeight: 1.5 }}>This game still has a usable prep board, but player props need cleaner market/player matching before they should be trusted.</div>
           </div>
         )}
 
@@ -4995,6 +5047,7 @@ const GameCard = memo(function GameCard({ game, onLogBet, drift, isActive, isAna
     : marketReadiness.matched
       ? `Watch only · match ${marketReadiness.matchQuality}%`
       : 'Watch only · no market'
+  const nflHook = game.sport === 'nfl' ? nflSlateHook(game, marketReady, marketReadiness, dkSpreadDiff, dkTotalDiff) : null
 
   // Drift helpers
   const awayWinDelta = drift?.winnerHomeDelta != null ? -(drift.winnerHomeDelta) : null
@@ -5188,6 +5241,28 @@ const GameCard = memo(function GameCard({ game, onLogBet, drift, isActive, isAna
                     <p style={{ color: C.textPrimary, fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em' }}>{game.homeTeam.abbr}</p>
                     <p style={{ color: C.textSecondary, fontSize: 10 }}>{game.homeTeam.record}</p>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {game.sport === 'nfl' && nflHook && (
+              <div style={{ display: 'grid', gap: 7, margin: '-2px 0 12px' }}>
+                <div style={{ borderRadius: 14, padding: '10px 11px', background: 'linear-gradient(135deg, rgba(125,246,255,0.075), rgba(255,255,255,0.025))', border: '1px solid rgba(125,246,255,0.18)' }}>
+                  <div style={{ color: C.green, fontSize: 8, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>Why open this game</div>
+                  <div style={{ color: C.textPrimary, fontSize: 11, lineHeight: 1.45, fontWeight: 800 }}>{nflHook}</div>
+                  <div style={{ color: C.textSecondary, fontSize: 9, lineHeight: 1.35, marginTop: 5 }}>{nflRecordLine(game)}</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+                  {[
+                    ['Spread', game.hasSpreadOdds ? `${game.homeTeam.abbr} ${homeSpreadLabel}` : 'Pending'],
+                    ['Total', game.hasTotalOdds ? String(game.totalLine) : 'Pending'],
+                    ['Freshness', marketReadiness.stale ? marketReadiness.staleLabel : 'Fresh enough'],
+                  ].map(([label, value]) => (
+                    <div key={label} style={{ borderRadius: 10, padding: '7px 8px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ color: C.textSecondary, fontSize: 7, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</div>
+                      <div style={{ color: value === 'Pending' ? C.textSecondary : C.textPrimary, fontSize: 10, fontWeight: 900, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
