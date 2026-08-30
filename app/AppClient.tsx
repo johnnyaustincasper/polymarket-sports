@@ -7125,6 +7125,79 @@ function UFCSection() {
 
 
 
+
+function TodaysIntelligenceCommandCenter({ sport, games, loading, dailyFocusSports, slateSeekNotice, lastUpdatedAt, isMobile }: {
+  sport: SupportedSport | 'ufc'
+  games: Game[]
+  loading: boolean
+  dailyFocusSports: GateSportValue[]
+  slateSeekNotice: string | null
+  lastUpdatedAt: Date | null
+  isMobile: boolean
+}) {
+  const live = games.filter(g => g.status === 'in').length
+  const upcoming = games.filter(g => g.status === 'pre').length
+  const readable = games.filter(g => getMarketReadiness(g).matched || g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds).length
+  const executable = games.filter(g => Boolean(g.polyWinnerUrl || g.polySpreadUrl || g.polyTotalUrl)).length
+  const topGame = games.find(g => getMarketReadiness(g).matched && (g.hasWinnerOdds || g.hasSpreadOdds || g.hasTotalOdds)) || games.find(g => g.status === 'in') || games.find(g => g.status === 'pre') || games[0]
+  const focusNames = dailyFocusSports.length ? dailyFocusSports.map(s => s.toUpperCase()).join(' + ') : sport.toUpperCase()
+  const primaryAction = loading
+    ? 'Let the board finish syncing before judging the slate.'
+    : topGame
+      ? `Open ${topGame.awayTeam.abbr} @ ${topGame.homeTeam.abbr} first — ${topGame.status === 'in' ? 'live context is active' : getMarketReadiness(topGame).matched ? 'the cleanest matched read is ready' : 'it is the first prep target on this board'}.`
+      : sport === 'nfl'
+        ? 'Use the NFL prep-room seek to jump to the next football board.'
+        : 'Switch to the live sport with the cleanest slate today.'
+  const nflPrepLine = sport === 'nfl'
+    ? (slateSeekNotice || (topGame ? `NFL Prep Room: ${topGame.awayTeam.abbr} @ ${topGame.homeTeam.abbr} is the current prep target.` : 'NFL Prep Room: waiting for the next slate to form.'))
+    : dailyFocusSports.includes('nfl') ? 'NFL is active today — open the football board for game-plan reads.' : 'NFL prep stays available from the sport dock when football markets are forming.'
+  const commandRows = [
+    { label: 'Open first', value: primaryAction, tone: C.green },
+    { label: 'NFL continuity', value: nflPrepLine, tone: C.cyan },
+    { label: 'Risk check', value: sport === 'nfl' ? 'QB status, inactives, weather, and line movement are the kill switches.' : 'Lineups, late scratches, weather, and thin markets can change the read.', tone: C.gold },
+  ]
+  const statCards = [
+    { label: 'Focus', value: focusNames, detail: dailyFocusSports.length ? 'today active' : 'selected board' },
+    { label: 'Live', value: live, detail: live ? 'track now' : 'none now' },
+    { label: 'Readable', value: readable || executable, detail: executable ? `${executable} linked` : 'prep reads' },
+    { label: 'Upcoming', value: upcoming, detail: 'prep room' },
+  ]
+  return (
+    <section aria-label="Today’s Intelligence Command Center" style={{ marginBottom: isMobile ? 12 : 16, borderRadius: isMobile ? 20 : 26, padding: 1, background: 'linear-gradient(135deg, rgba(125,246,255,0.62), rgba(248,217,74,0.20), rgba(255,255,255,0.10))', boxShadow: '0 22px 68px rgba(0,0,0,0.38), 0 0 34px rgba(125,246,255,0.10)' }}>
+      <div style={{ borderRadius: isMobile ? 19 : 25, padding: isMobile ? 14 : 18, background: 'linear-gradient(145deg, rgba(4,13,15,0.98), rgba(3,5,1,0.98) 58%, rgba(8,20,22,0.94))', border: '1px solid rgba(255,255,255,0.09)', display: 'grid', gap: 13 }}>
+        <div style={{ display: isMobile ? 'grid' : 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: C.green, fontSize: 9, fontWeight: 950, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Today’s Intelligence</div>
+            <div style={{ color: C.textPrimary, fontSize: isMobile ? 19 : 25, fontWeight: 950, letterSpacing: '-0.05em', lineHeight: 1.05, marginTop: 5 }}>Command Center: where to look first.</div>
+            <div style={{ color: C.textSecondary, fontSize: isMobile ? 11 : 12, lineHeight: 1.45, marginTop: 7 }}>{loading ? 'Syncing today’s board, live status, and available game reads.' : `${sport.toUpperCase()} board has ${games.length} games · ${live} live · ${readable || executable} with readable market/game context.`}</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(88px, 1fr))', gap: 7, minWidth: isMobile ? 0 : 300 }}>
+            {statCards.map(card => (
+              <div key={card.label} style={{ borderRadius: 13, padding: '9px 10px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ color: card.label === 'Focus' ? C.green : C.textPrimary, fontSize: card.label === 'Focus' ? 12 : 18, fontWeight: 950, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
+                <div style={{ color: C.textSecondary, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 4 }}>{card.label}</div>
+                <div style={{ color: C.textSecondary, fontSize: 8.5, fontWeight: 800, marginTop: 2 }}>{card.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+          {commandRows.map(row => (
+            <div key={row.label} style={{ borderRadius: 14, padding: 11, background: 'rgba(0,0,0,0.22)', border: `1px solid ${row.tone}33` }}>
+              <div style={{ color: row.tone, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{row.label}</div>
+              <div style={{ color: 'rgba(247,255,240,0.82)', fontSize: 10.5, lineHeight: 1.42, marginTop: 5 }}>{row.value}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+          {['Day-aware board focus', 'NFL prep room stays alive', 'Open the cleanest read first'].map(item => <span key={item} style={{ borderRadius: 999, padding: '6px 9px', background: 'rgba(125,246,255,0.07)', border: '1px solid rgba(125,246,255,0.15)', color: C.textSecondary, fontSize: 9, fontWeight: 850 }}>{item}</span>)}
+          <span style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800 }}><UpdatedAgeLabel updatedAt={lastUpdatedAt} empty="Waiting on command sync." /></span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function SlateBriefingBoard({ sport, games, loading, lastUpdatedAt, isMobile }: {
   sport: SupportedSport | 'ufc'
   games: Game[]
@@ -8555,6 +8628,8 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
 
         {sport === 'ufc' && subtab === 'slate' && <KalshiUFCSection />}
+
+        {sport !== 'ufc' && subtab === 'slate' && <TodaysIntelligenceCommandCenter sport={sport} games={games} loading={loading} dailyFocusSports={dailyFocusSports} slateSeekNotice={slateSeekNotice} lastUpdatedAt={lastUpdated} isMobile={isMobile} />}
 
         {sport !== 'ufc' && subtab === 'slate' && <SlateBriefingBoard sport={sport} games={games} loading={loading} lastUpdatedAt={lastUpdated} isMobile={isMobile} />}
 
