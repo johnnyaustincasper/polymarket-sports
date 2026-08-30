@@ -4760,11 +4760,14 @@ function nflRecordLine(game: Game) {
 }
 
 function nflSlateHook(game: Game, marketReady: boolean, marketReadiness: ReturnType<typeof getMarketReadiness>, spreadGap: number, totalGap: number) {
-  if (game.status === 'in') return 'Live board open — score and lines can move fast.'
-  if (marketReady) return 'Open because winner/spread/total links are live and matched cleanly.'
-  if (spreadGap >= 1.5 || totalGap >= 2) return 'Open because reference lines disagree enough to review before kickoff.'
-  if (game.hasSpreadOdds || game.hasTotalOdds || game.hasWinnerOdds) return `Open for prep — ${marketReadiness.matchLabel.toLowerCase()} with numbers to monitor.`
-  return 'Open for schedule context — market links still forming.'
+  const totalText = game.hasTotalOdds ? `total ${game.totalLine.toFixed(1)}` : 'total pending'
+  const spreadText = game.hasSpreadOdds ? `spread ${game.spreadLine > 0 ? '+' : ''}${game.spreadLine.toFixed(1)}` : 'spread pending'
+  if (game.status === 'in') return `Live intelligence: score, ${spreadText}, and ${totalText} can flip prop lanes fast.`
+  if (spreadGap >= 1.5) return `Open for line disagreement: ${spreadGap.toFixed(1)}-point spread gap before kickoff.`
+  if (totalGap >= 2) return `Open for environment check: ${totalGap.toFixed(1)}-point total gap plus weather/pace context.`
+  if (marketReady) return `Open matchup cockpit: matched winner/spread/total with ${marketReadiness.matchQuality}% market quality.`
+  if (game.hasSpreadOdds || game.hasTotalOdds || game.hasWinnerOdds) return `Prep read: ${marketReadiness.matchLabel.toLowerCase()} · ${spreadText} · ${totalText}.`
+  return 'Schedule intelligence only — wait for cleaner winner/spread/total links.'
 }
 
 
@@ -4793,12 +4796,13 @@ function buildNflTeamComparison(game: Game, awayDetail: TeamDetailData | null, h
   const away = game.awayTeam.abbr
   const home = game.homeTeam.abbr
   const metrics = [
-    { label: 'Scoring', names: ['totalPointsPerGame'], suffix: ' ppg', note: 'points per game', higher: true },
-    { label: 'Total offense', names: ['yardsPerGame'], suffix: ' ypg', note: 'yards per game', higher: true },
-    { label: 'Pass lane', names: ['passingYardsPerGame'], suffix: ' ypg', note: 'passing volume', higher: true },
-    { label: 'Run lane', names: ['rushingYardsPerGame'], suffix: ' ypg', note: 'rushing volume', higher: true },
-    { label: 'Red zone', names: ['redzoneTouchdownPct'], suffix: '%', note: 'TD finish rate', higher: true },
-    { label: 'Turnovers', names: ['turnOverDifferential'], suffix: '', note: 'turnover differential', higher: true },
+    { key: 'scoring', label: 'Scoring', names: ['totalPointsPerGame'], suffix: ' ppg', note: 'points per game', higher: true },
+    { key: 'offense', label: 'Total offense', names: ['yardsPerGame'], suffix: ' ypg', note: 'yards per game', higher: true },
+    { key: 'pass', label: 'Pass lane', names: ['passingYardsPerGame'], suffix: ' ypg', note: 'passing volume', higher: true },
+    { key: 'rush', label: 'Run lane', names: ['rushingYardsPerGame'], suffix: ' ypg', note: 'rushing volume', higher: true },
+    { key: 'redzone', label: 'Red zone', names: ['redzoneTouchdownPct'], suffix: '%', note: 'TD finish rate', higher: true },
+    { key: 'third', label: 'Third down', names: ['thirdDownConvPct'], suffix: '%', note: 'drive-extension rate', higher: true },
+    { key: 'turnovers', label: 'Turnovers', names: ['turnOverDifferential'], suffix: '', note: 'turnover differential', higher: true },
   ]
   const rows = metrics.map(metric => {
     const awayValue = numericStat(awayDetail, metric.names)
@@ -4816,8 +4820,37 @@ function buildNflTeamComparison(game: Game, awayDetail: TeamDetailData | null, h
           : `${metric.label} is close or unavailable.`,
     }
   })
+  const rowByKey = (key: string) => rows.find(row => row.key === key)
+  const leaderFor = (key: string) => rowByKey(key)?.leader || 'even'
+  const laneScore = (team: 'away' | 'home', keys: string[]) => keys.reduce((score, key) => {
+    const leader = leaderFor(key)
+    return score + (leader === team ? 1 : leader === 'even' ? 0 : -1)
+  }, 0)
+  const passAway = laneScore('away', ['pass', 'third', 'redzone'])
+  const passHome = laneScore('home', ['pass', 'third', 'redzone'])
+  const runAway = laneScore('away', ['rush', 'offense', 'turnovers'])
+  const runHome = laneScore('home', ['rush', 'offense', 'turnovers'])
+  const redAway = laneScore('away', ['scoring', 'redzone', 'turnovers'])
+  const redHome = laneScore('home', ['scoring', 'redzone', 'turnovers'])
+  const fitRows = [
+    {
+      label: 'Pass-script fit',
+      leader: passAway > passHome ? away : passHome > passAway ? home : 'Neutral',
+      note: passAway > passHome ? `${away} has the cleaner pass/third-down setup.` : passHome > passAway ? `${home} has the cleaner pass/third-down setup.` : 'Passing profile is too close or incomplete.',
+    },
+    {
+      label: 'Run/control fit',
+      leader: runAway > runHome ? away : runHome > runAway ? home : 'Neutral',
+      note: runAway > runHome ? `${away} profiles better for clock-control and rushing volume.` : runHome > runAway ? `${home} profiles better for clock-control and rushing volume.` : 'Run-control edge is thin; let game script decide.',
+    },
+    {
+      label: 'Scoring-zone fit',
+      leader: redAway > redHome ? away : redHome > redAway ? home : 'Neutral',
+      note: redAway > redHome ? `${away} has the better scoring/red-zone profile.` : redHome > redAway ? `${home} has the better scoring/red-zone profile.` : 'Scoring-zone edge is not clear enough to overstate.',
+    },
+  ]
   const read = rows.filter(row => row.leader !== 'even').slice(0, 3).map(row => row.read)
-  return { rows, read }
+  return { rows, fitRows, read }
 }
 
 function nflSetupRows(game: Game, intel: FootballIntelData | null, props: PropsPanelData | null) {
@@ -4965,6 +4998,20 @@ function FootballPrepPanel({ game, onClose }: { game: Game; onClose: () => void 
               {teamComparison.read.map(row => <div key={row} style={{ color: 'rgba(247,255,240,0.78)', fontSize: 10, lineHeight: 1.36 }}>• {row}</div>)}
             </div>
           )}
+          <div style={{ marginTop: 12, borderTop: '1px solid rgba(125,246,255,0.10)', paddingTop: 10 }}>
+            <div style={{ color: C.cyan, fontSize: 8, fontWeight: 950, letterSpacing: '0.13em', textTransform: 'uppercase', marginBottom: 7 }}>Matchup fit ladder</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: 8 }}>
+              {teamComparison.fitRows.map(row => (
+                <div key={row.label} style={{ borderRadius: 12, padding: 10, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                    <span style={{ color: C.textSecondary, fontSize: 7.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{row.label}</span>
+                    <span style={{ color: row.leader === 'Neutral' ? C.gold : C.green, fontSize: 10, fontWeight: 950 }}>{row.leader}</span>
+                  </div>
+                  <div style={{ color: 'rgba(247,255,240,0.76)', fontSize: 10, lineHeight: 1.38, marginTop: 6 }}>{row.note}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {intel && (
