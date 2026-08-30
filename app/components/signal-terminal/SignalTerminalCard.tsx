@@ -206,7 +206,7 @@ function PropLadder({
   const visibleOptions = compact ? options.slice(0, 4) : options
   const hiddenCount = Math.max(0, options.length - visibleOptions.length)
   const hasRecent = recentValues.length > 0 || options.some(option => isFiniteNumber(option.hits) && isFiniteNumber(option.games))
-  const hasPrice = options.some(option => isFiniteNumber(option.ask) && option.ask > 0)
+  const hasPrice = !compact && options.some(option => isFiniteNumber(option.ask) && option.ask > 0)
   const columns = hasRecent && hasPrice
     ? '48px minmax(58px,1fr) 42px 58px'
     : hasRecent
@@ -305,7 +305,7 @@ function PrimaryPropChip({ option, signal, compact = false }: { option?: SignalL
       </div>
       <div style={{ flexShrink: 0, display: 'grid', gap: 2, textAlign: 'right' }}>
         {hits && <span style={{ color: C.text, fontSize: compact ? 9 : 10, fontWeight: 950 }}>{hits}</span>}
-        {isFiniteNumber(ask) && <span style={{ color: C.cyan, fontSize: compact ? 8 : 9, fontWeight: 950 }}>Live {formatCents(ask)}</span>}
+        {!compact && isFiniteNumber(ask) && <span style={{ color: C.cyan, fontSize: 9, fontWeight: 950 }}>Live {formatCents(ask)}</span>}
       </div>
     </div>
   )
@@ -617,6 +617,24 @@ export default function SignalTerminalCard({
   const [shareState, setShareState] = useState<CardExportStatus>('idle')
   const [selectedThreshold, setSelectedThreshold] = useState<number | null>(null)
 
+  const MlbConvictionSection = ({ title, children, tone = 'default' }: { title: string; children: React.ReactNode; tone?: 'default' | 'risk' | 'hot' }) => (
+    <div style={{ borderRadius: 13, padding: 10, background: tone === 'risk' ? 'rgba(255,77,109,0.055)' : tone === 'hot' ? 'rgba(125,246,255,0.07)' : 'rgba(2,5,1,0.42)', border: `1px solid ${tone === 'risk' ? 'rgba(255,77,109,0.18)' : tone === 'hot' ? 'rgba(125,246,255,0.22)' : 'rgba(255,255,255,0.09)'}` }}>
+      <div style={{ color: tone === 'risk' ? C.red : tone === 'hot' ? C.green : C.amber, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>{title}</div>
+      <div style={{ color: C.text, fontSize: 10, lineHeight: 1.42, fontWeight: 850 }}>{children}</div>
+    </div>
+  )
+
+  const MlbBulletRows = ({ rows, color = C.muted }: { rows: string[]; color?: string }) => (
+    <div style={{ display: 'grid', gap: 5 }}>
+      {cleanUniqueRows(rows, 3).map(row => (
+        <div key={row} style={{ color, fontSize: 9.5, lineHeight: 1.35, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 4 }}>
+          <span style={{ color: C.green }}>›</span>
+          <span>{row}</span>
+        </div>
+      ))}
+    </div>
+  )
+
   async function handleShareCard(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault()
     event.stopPropagation()
@@ -809,7 +827,7 @@ export default function SignalTerminalCard({
         {mlbConviction && showMlbBlock && !compact && showFor(['read', 'numbers', 'risk']) && (
           <div style={{ marginTop: 11, borderRadius: 16, padding: 11, background: 'rgba(255,209,102,0.055)', border: '1px solid rgba(255,209,102,0.20)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 9 }}>
-              <div style={{ color: C.amber, fontSize: 9, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>MLB read</div>
+              <div style={{ color: C.amber, fontSize: 9, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>MLB conviction layer</div>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <span style={{ color: C.text, fontSize: 9, fontWeight: 900, borderRadius: 999, padding: '4px 8px', background: 'rgba(255,209,102,0.10)', border: '1px solid rgba(255,209,102,0.22)' }}>{mlbConviction.verdict}</span>
                 {mlbConviction.misreadSignal?.label && <span style={{ color: C.green, fontSize: 9, fontWeight: 900, borderRadius: 999, padding: '4px 8px', background: 'rgba(125,246,255,0.10)', border: '1px solid rgba(125,246,255,0.20)' }}>{mlbConviction.misreadSignal.label}</span>}
@@ -817,20 +835,31 @@ export default function SignalTerminalCard({
             </div>
 
             {showFor(['read']) && (mlbConviction.misreadSignal?.summary || mlbConviction.read || mlbConviction.misreadSignal?.reason) && (
-              <div style={{ color: C.text, fontSize: 11, lineHeight: 1.42, fontWeight: 850, marginBottom: 9, display: 'grid', gap: 5 }}>
-                {mlbConviction.misreadSignal?.summary && (
-                  <span>{mlbConviction.misreadSignal.summary}{isFiniteNumber(mlbConviction.misreadSignal?.matchupGap) ? ` · Matchup gap ${mlbConviction.misreadSignal.matchupGap > 0 ? '+' : ''}${formatNumber(mlbConviction.misreadSignal.matchupGap)}` : ''}</span>
+              <div style={{ display: 'grid', gap: 8, marginBottom: 9 }}>
+                <MlbConvictionSection title="The read" tone="hot">
+                  {mlbConviction.read || mlbConviction.misreadSignal?.summary || `${titleFor(signal)} has the cleanest MLB setup on this board.`}
+                  {isFiniteNumber(mlbConviction.misreadSignal?.matchupGap) && <span style={{ color: C.green, fontWeight: 950 }}> · Matchup gap {mlbConviction.misreadSignal!.matchupGap! > 0 ? '+' : ''}{formatNumber(mlbConviction.misreadSignal!.matchupGap)}</span>}
+                </MlbConvictionSection>
+                {(mlbConviction.whyLive.length > 0 || mlbConviction.opponentProof.length > 0) && (
+                  <MlbConvictionSection title="Why it’s live">
+                    <MlbBulletRows rows={[...mlbConviction.whyLive, ...mlbConviction.opponentProof]} />
+                  </MlbConvictionSection>
                 )}
-                {mlbConviction.read && mlbConviction.read !== mlbConviction.misreadSignal?.summary && <span>{mlbConviction.read}</span>}
-                {mlbConviction.misreadSignal?.reason && <span style={{ color: C.muted, fontSize: 9.5, lineHeight: 1.35 }}>{mlbConviction.misreadSignal.reason}</span>}
-                {(mlbConviction.misreadSignal?.opponentProof?.length || mlbConviction.opponentProof?.length) ? (
-                  <div style={{ marginTop: 3, display: 'grid', gap: 4 }}>
-                    <span style={{ color: C.green, fontSize: 8.5, fontWeight: 950, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Why it fits this opponent</span>
-                    {(mlbConviction.misreadSignal?.opponentProof?.length ? mlbConviction.misreadSignal.opponentProof : mlbConviction.opponentProof).slice(0, 3).map(row => (
-                      <span key={`opponent-proof-${row}`} style={{ color: C.text, fontSize: 9.5, lineHeight: 1.35 }}>• {row}</span>
-                    ))}
-                  </div>
-                ) : null}
+                {(mlbConviction.path || mlbConviction.misreadSignal?.reason) && (
+                  <MlbConvictionSection title="Path">
+                    {mlbConviction.path || mlbConviction.misreadSignal?.reason}
+                  </MlbConvictionSection>
+                )}
+                {mlbConviction.killSwitch.length > 0 && (
+                  <MlbConvictionSection title="What kills it" tone="risk">
+                    <MlbBulletRows rows={mlbConviction.killSwitch} color={C.muted} />
+                  </MlbConvictionSection>
+                )}
+                {mlbConviction.numberDiscipline && (
+                  <MlbConvictionSection title="Number discipline">
+                    {mlbConviction.numberDiscipline}
+                  </MlbConvictionSection>
+                )}
               </div>
             )}
 
@@ -865,21 +894,6 @@ export default function SignalTerminalCard({
               </div>
             )}
 
-            {showFor(['risk']) && (mlbConviction.whyLive.length > 0 || mlbConviction.path || mlbConviction.killSwitch.length > 0 || mlbConviction.numberDiscipline) && (
-              <div style={{ borderRadius: 13, padding: 10, background: 'rgba(2,5,1,0.42)', border: '1px solid rgba(255,255,255,0.09)' }}>
-                <div style={{ color: C.green, fontSize: 9, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 6 }}>Why this can hit</div>
-                <div style={{ display: 'grid', gap: 4 }}>
-                  {[...mlbConviction.whyLive.slice(0, 3), mlbConviction.path ? `Path: ${mlbConviction.path}` : ''].filter(Boolean).map(row => (
-                    <div key={`mlb-live-${row}`} style={{ color: C.muted, fontSize: 9.5, lineHeight: 1.35, display: 'grid', gridTemplateColumns: '12px minmax(0,1fr)', gap: 4 }}>
-                      <span style={{ color: C.green }}>›</span>
-                      <span>{row}</span>
-                    </div>
-                  ))}
-                </div>
-                {mlbConviction.killSwitch.length > 0 && <div style={{ color: C.red, fontSize: 9, lineHeight: 1.34, marginTop: 7, fontWeight: 850 }}>What can ruin it: {mlbConviction.killSwitch.join(' · ')}</div>}
-                {mlbConviction.numberDiscipline && <div style={{ color: C.faint, fontSize: 9, lineHeight: 1.34, marginTop: 6, fontWeight: 800 }}>Line note: {mlbConviction.numberDiscipline}</div>}
-              </div>
-            )}
           </div>
         )}
 
