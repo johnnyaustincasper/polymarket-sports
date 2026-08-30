@@ -54,7 +54,7 @@ function flattenStats(data: any, sport?: TeamSport) {
         if (rank < 0) continue
         const label = stat?.shortDisplayName || stat?.abbreviation || stat?.displayName
         const value = stat?.displayValue || stat?.perGameDisplayValue
-        if (label && value && !rows.some(item => item.name === name && item.category === categoryName)) {
+        if (label && value && !rows.some(item => item.name === name)) {
           rows.push({ label, value, category: categoryName || undefined, name, rank })
         }
       }
