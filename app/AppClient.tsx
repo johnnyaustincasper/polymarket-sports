@@ -1909,53 +1909,54 @@ function LiveScoreStrip({ game, compact = false }: { game: Game; compact?: boole
 }
 
 // ─── useColCount / chunkArray / RowGroup ─────────────────────────────────────
-function useColCount() {
-  const [cols, setCols] = useState(1)
-  useEffect(() => {
-    const update = () => setCols(window.innerWidth >= 1280 ? 3 : window.innerWidth >= 640 ? 2 : 1)
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
-  return cols
-}
-
-const getIsMobileSnapshot = () => typeof window !== 'undefined' && window.innerWidth < 640
+const getViewportColsSnapshot = () => typeof window !== 'undefined'
+  ? window.innerWidth >= 1280 ? 3 : window.innerWidth >= 640 ? 2 : 1
+  : 1
+const getServerViewportColsSnapshot = () => 1
+const getIsMobileSnapshot = () => getViewportColsSnapshot() === 1
 const getServerIsMobileSnapshot = () => false
-let mobileViewportSubscribers = new Set<() => void>()
-let mobileViewportListening = false
+let viewportSubscribers = new Set<() => void>()
+let viewportListening = false
+let lastViewportColsSnapshot = 1
 let lastMobileSnapshot = false
 
-function subscribeToMobileViewport(listener: () => void) {
+function subscribeToViewport(listener: () => void) {
   if (typeof window === 'undefined') return () => {}
-  mobileViewportSubscribers.add(listener)
-  if (!mobileViewportListening) {
+  viewportSubscribers.add(listener)
+  if (!viewportListening) {
+    lastViewportColsSnapshot = getViewportColsSnapshot()
     lastMobileSnapshot = getIsMobileSnapshot()
     const notifyIfChanged = () => {
-      const next = getIsMobileSnapshot()
-      if (next === lastMobileSnapshot) return
-      lastMobileSnapshot = next
-      mobileViewportSubscribers.forEach(fn => fn())
+      const nextCols = getViewportColsSnapshot()
+      const nextMobile = getIsMobileSnapshot()
+      if (nextCols === lastViewportColsSnapshot && nextMobile === lastMobileSnapshot) return
+      lastViewportColsSnapshot = nextCols
+      lastMobileSnapshot = nextMobile
+      viewportSubscribers.forEach(fn => fn())
     }
     window.addEventListener('resize', notifyIfChanged, { passive: true })
     window.addEventListener('orientationchange', notifyIfChanged, { passive: true })
-    ;(subscribeToMobileViewport as any)._cleanup = () => {
+    ;(subscribeToViewport as any)._cleanup = () => {
       window.removeEventListener('resize', notifyIfChanged)
       window.removeEventListener('orientationchange', notifyIfChanged)
     }
-    mobileViewportListening = true
+    viewportListening = true
   }
   return () => {
-    mobileViewportSubscribers.delete(listener)
-    if (mobileViewportSubscribers.size === 0 && mobileViewportListening) {
-      ;(subscribeToMobileViewport as any)._cleanup?.()
-      mobileViewportListening = false
+    viewportSubscribers.delete(listener)
+    if (viewportSubscribers.size === 0 && viewportListening) {
+      ;(subscribeToViewport as any)._cleanup?.()
+      viewportListening = false
     }
   }
 }
 
+function useColCount() {
+  return useSyncExternalStore(subscribeToViewport, getViewportColsSnapshot, getServerViewportColsSnapshot)
+}
+
 function useIsMobile() {
-  return useSyncExternalStore(subscribeToMobileViewport, getIsMobileSnapshot, getServerIsMobileSnapshot)
+  return useSyncExternalStore(subscribeToViewport, getIsMobileSnapshot, getServerIsMobileSnapshot)
 }
 
 function useNearViewport<T extends HTMLElement>(rootMargin = '700px') {
@@ -6925,7 +6926,7 @@ function MarketCommandDeck({ sport, games, loading, lastUpdatedAt, isMobile }: {
     }
     const update = () => setFeedAgeSec(Math.max(0, Math.floor((Date.now() - lastUpdatedAt.getTime()) / 1000)))
     update()
-    const iv = setInterval(update, 1000)
+    const iv = setInterval(update, 10_000)
     return () => clearInterval(iv)
   }, [lastUpdatedAt])
   // Mobile screen space is for decisions, not slate-count vanity stats.
@@ -8066,9 +8067,13 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
     }
     setLoading(true)
     fetchGames()
-    const iv = setInterval(fetchGames, hasLiveGames ? 5000 : 60000)
+    const intervalMs = hasLiveGames ? (isMobile ? 15_000 : 9_000) : 90_000
+    const iv = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      fetchGames()
+    }, intervalMs)
     return () => clearInterval(iv)
-  }, [fetchGames, hasLiveGames, landingMode])
+  }, [fetchGames, hasLiveGames, isMobile, landingMode])
 
   const days = Array.from({ length: 5 }, (_, i) => {
     const value = addChicagoDays(today, i - 2)
@@ -8084,6 +8089,10 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const final = useMemo(() => games.filter(g => g.status === 'post'), [games])
   const pendingBets = useMemo(() => bets.filter(b => b.result === 'pending').length, [bets])
   const kalshiGridColumns = useMemo(() => isMobile ? 'repeat(3, minmax(0, 1fr))' : `repeat(${cols}, 1fr)`, [cols, isMobile])
+  const offscreenCardStyle = useMemo<React.CSSProperties>(() => ({
+    contentVisibility: 'auto',
+    containIntrinsicSize: isMobile ? '260px' : '320px',
+  }), [isMobile])
   const markKalshiGameLoaded = useCallback((gameId: string) => {
     setLoadedKalshiGameIds(prev => prev[gameId] ? prev : { ...prev, [gameId]: true })
   }, [])
@@ -8289,12 +8298,12 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 </div>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
-                    {live.map((g, idx) => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined, ...getLoadInAnimationStyle(idx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 }) }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
+                    {live.map((g, idx) => <div key={g.id} id={'game-board-' + g.id} style={{ ...offscreenCardStyle, gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined, ...getLoadInAnimationStyle(idx, { durationMs: 620, delayStepMs: 45, maxDelayMs: 260 }) }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {chunkArray(live, cols).map((row, rowIdx) => (
-                      <div key={rowIdx} style={getLoadInAnimationStyle(rowIdx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 })}>
+                      <div key={rowIdx} style={{ ...offscreenCardStyle, ...getLoadInAnimationStyle(rowIdx, { durationMs: 620, delayStepMs: 45, maxDelayMs: 260 }) }}>
                         <RowGroup games={row} cols={cols}
                           activeGame={activeIntelGame || activeAnalysisGame}
                           panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
@@ -8314,12 +8323,12 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Full Slate / Upcoming</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
-                    {upcoming.map((g, idx) => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined, ...getLoadInAnimationStyle(idx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 }) }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
+                    {upcoming.map((g, idx) => <div key={g.id} id={'game-board-' + g.id} style={{ ...offscreenCardStyle, gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined, ...getLoadInAnimationStyle(idx, { durationMs: 620, delayStepMs: 45, maxDelayMs: 260 }) }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {chunkArray(upcoming, cols).map((row, rowIdx) => (
-                      <div key={rowIdx} style={getLoadInAnimationStyle(rowIdx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 })}>
+                      <div key={rowIdx} style={{ ...offscreenCardStyle, ...getLoadInAnimationStyle(rowIdx, { durationMs: 620, delayStepMs: 45, maxDelayMs: 260 }) }}>
                         <RowGroup games={row} cols={cols}
                           activeGame={activeIntelGame || activeAnalysisGame}
                           panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
@@ -8339,12 +8348,12 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
                 <p style={{ color: C.textSecondary, fontSize: 9, fontWeight: 800, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 12 }}>Final</p>
                 {provider === 'kalshi' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: kalshiGridColumns, gap: isMobile ? 8 : 16 }}>
-                    {final.map((g, idx) => <div key={g.id} id={'game-board-' + g.id} style={{ gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined, ...getLoadInAnimationStyle(idx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 }) }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
+                    {final.map((g, idx) => <div key={g.id} id={'game-board-' + g.id} style={{ ...offscreenCardStyle, gridColumn: loadedKalshiGameIds[g.id] ? '1 / -1' : undefined, ...getLoadInAnimationStyle(idx, { durationMs: 620, delayStepMs: 45, maxDelayMs: 260 }) }}><KalshiGameCard game={g} sport={sport as SupportedSport} onBoardLoadRequested={markKalshiGameLoaded} onBoardCollapse={markKalshiGameCollapsed} /></div>)}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {chunkArray(final, cols).map((row, rowIdx) => (
-                      <div key={rowIdx} style={getLoadInAnimationStyle(rowIdx, { durationMs: 820, delayStepMs: 90, maxDelayMs: 540 })}>
+                      <div key={rowIdx} style={{ ...offscreenCardStyle, ...getLoadInAnimationStyle(rowIdx, { durationMs: 620, delayStepMs: 45, maxDelayMs: 260 }) }}>
                         <RowGroup games={row} cols={cols}
                           activeGame={activeIntelGame || activeAnalysisGame}
                           panel={activeIntelGame ? 'intel' : activeAnalysisGame ? 'analysis' : null}
