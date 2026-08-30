@@ -6848,26 +6848,55 @@ type SportGateTier = 'hero' | 'cohero' | 'std'
 type SportGateCardConfig = { value: GateSportValue; label: string; tier: SportGateTier; tag: string; line: string }
 
 const SPORT_GATE_COPY: Record<string, Omit<SportGateCardConfig, 'value' | 'label'>> = {
-  ufc: { tier: 'hero', tag: 'FIGHT BOARD', line: 'Kalshi fight markets, model reads, and settled signal history.' },
-  mlb: { tier: 'cohero', tag: 'DAILY SLATE', line: 'Full slate, live prices, and player prop signals every day.' },
+  ufc: { tier: 'std', tag: 'FIGHT BOARD', line: 'Kalshi fight markets, model reads, and settled signal history.' },
+  mlb: { tier: 'std', tag: 'DAILY SLATE', line: 'Full slate, live prices, and player prop signals every day.' },
   nfl: { tier: 'std', tag: 'NFL BOARD', line: 'Spreads, totals, winners, prep intel, and Kalshi player props.' },
   nhl: { tier: 'std', tag: 'GAME LINES', line: 'Puck lines and totals.' },
   soccer: { tier: 'std', tag: 'MATCH BOARDS', line: 'Three-way market boards.' },
   nba: { tier: 'std', tag: 'PROPS + LINES', line: 'Lineups, props, edges.' },
 }
 
+const DAILY_FOCUS_PRIORITY: GateSportValue[] = ['nfl', 'mlb', 'ufc', 'nhl', 'nba', 'soccer']
+const DAILY_TEAM_FOCUS_SPORTS: SupportedSport[] = ['nfl', 'mlb', 'nhl', 'nba', 'soccer']
+
+function rankDailyFocusSports(sports: GateSportValue[]): GateSportValue[] {
+  const unique = Array.from(new Set(sports))
+  return unique.sort((a, b) => DAILY_FOCUS_PRIORITY.indexOf(a) - DAILY_FOCUS_PRIORITY.indexOf(b))
+}
+
+function sportGateTierFor(value: GateSportValue, dailyFocusSports: GateSportValue[]): SportGateTier {
+  const idx = dailyFocusSports.indexOf(value)
+  if (idx === 0) return 'hero'
+  if (idx === 1) return 'cohero'
+  return 'std'
+}
+
 function isValidGateSport(value: string | null): value is GateSportValue {
   return !!value && mobileDockSportOptions.some(option => option.value === value)
 }
 
-function getSportGateCards(): SportGateCardConfig[] {
-  return mobileDockSportOptions.map(option => ({ ...option, ...SPORT_GATE_COPY[option.value] }))
+function getSportGateCards(dailyFocusSports: GateSportValue[] = []): SportGateCardConfig[] {
+  const focus = rankDailyFocusSports(dailyFocusSports)
+  return mobileDockSportOptions
+    .map(option => ({ ...option, ...SPORT_GATE_COPY[option.value], tier: sportGateTierFor(option.value, focus) }))
+    .sort((a, b) => {
+      const aFocus = focus.indexOf(a.value)
+      const bFocus = focus.indexOf(b.value)
+      if (aFocus !== -1 || bFocus !== -1) return (aFocus === -1 ? 99 : aFocus) - (bFocus === -1 ? 99 : bFocus)
+      return mobileDockSportOptions.findIndex(option => option.value === a.value) - mobileDockSportOptions.findIndex(option => option.value === b.value)
+    })
 }
 
-function SportGate({ isMobile, currentSport, showCurrent, onPick }: { isMobile: boolean; currentSport: GateSportValue; showCurrent: boolean; onPick: (sport: GateSportValue) => void }) {
-  const cards = getSportGateCards()
+function SportGate({ isMobile, currentSport, showCurrent, dailyFocusSports, dailyFocusLoading, onPick }: { isMobile: boolean; currentSport: GateSportValue; showCurrent: boolean; dailyFocusSports: GateSportValue[]; dailyFocusLoading: boolean; onPick: (sport: GateSportValue) => void }) {
+  const rankedFocus = rankDailyFocusSports(dailyFocusSports)
+  const cards = getSportGateCards(rankedFocus)
   const heroCards = cards.filter(card => card.tier !== 'std')
   const standardCards = cards.filter(card => card.tier === 'std')
+  const focusText = dailyFocusLoading
+    ? 'Checking today’s live boards…'
+    : rankedFocus.length
+      ? `Today’s focus: ${rankedFocus.map(s => s.toUpperCase()).join(' + ')}`
+      : 'No live team slate found yet — pick any board.'
   const renderCard = (card: SportGateCardConfig, index: number) => (
     <SportGateCard key={card.value} card={card} isMobile={isMobile} current={showCurrent && currentSport === card.value} index={index} onPick={() => onPick(card.value)} />
   )
@@ -6886,13 +6915,13 @@ function SportGate({ isMobile, currentSport, showCurrent, onPick }: { isMobile: 
       <div style={{ position: 'relative', textAlign: 'center', padding: isMobile ? '0 10px' : '0 28px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999, padding: '7px 11px', background: 'rgba(0,0,0,0.58)', border: '1px solid rgba(125,246,255,0.28)', color: C.green, boxShadow: '0 0 24px rgba(125,246,255,0.12), inset 0 1px 0 rgba(255,255,255,0.08)' }}>
           <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 999, background: C.green, boxShadow: '0 0 12px rgba(125,246,255,0.95)' }} />
-          <span style={{ fontSize: 9, fontWeight: 950, letterSpacing: '0.20em', textTransform: 'uppercase' }}>Board room is open</span>
+          <span style={{ fontSize: 9, fontWeight: 950, letterSpacing: '0.20em', textTransform: 'uppercase' }}>{focusText}</span>
         </div>
         <h1 style={{ color: C.textPrimary, fontSize: isMobile ? 31 : 48, lineHeight: 0.95, letterSpacing: '-0.06em', margin: isMobile ? '12px 0 0' : '16px 0 0', fontWeight: 950 }}>
-          Choose the edge board.
+          Choose today’s board.
         </h1>
         <p style={{ color: 'rgba(221,232,244,0.70)', fontSize: isMobile ? 12.5 : 15, lineHeight: 1.45, maxWidth: 560, margin: isMobile ? '9px auto 0' : '12px auto 0' }}>
-          Tap into the slate you want: live markets, player props, prep intel, and model reads without the cheap casino-card look.
+          The app now promotes the sports actually on today, then keeps every other board one tap away.
         </p>
       </div>
       <div style={{ position: 'relative', display: 'grid', gap: isMobile ? 10 : 14 }}>
@@ -6905,7 +6934,7 @@ function SportGate({ isMobile, currentSport, showCurrent, onPick }: { isMobile: 
       </div>
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
         <div style={{ borderRadius: 999, padding: '8px 12px', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.10)', color: C.textSecondary, fontSize: 10, fontWeight: 850, letterSpacing: '0.06em' }}>
-          Members only · UFC first · MLB second · NFL fully wired
+          Members only · Daily slate focus · NFL fully wired
         </div>
       </div>
     </section>
@@ -7648,7 +7677,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const today = chicagoYmd()
   const tomorrow = addChicagoDays(today, 1)
   const [date, setDate] = useState(today)
-  const [sport, setSport] = useState<SupportedSport | 'ufc'>('ufc')
+  const [sport, setSport] = useState<SupportedSport | 'ufc'>('mlb')
   const [landingMode, setLandingMode] = useState<LandingMode>('gate')
   const [gateHasBoardContext, setGateHasBoardContext] = useState(false)
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
@@ -7674,8 +7703,37 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const cols = useColCount()
   const isMobile = useIsMobile()
   const hasLiveGames = games.some(g => g.status === 'in')
+  const [dailyFocusSports, setDailyFocusSports] = useState<GateSportValue[]>([])
+  const [dailyFocusLoading, setDailyFocusLoading] = useState(false)
 
   useEffect(() => resetInitialSlateScroll(), [])
+
+  useEffect(() => {
+    if (landingMode !== 'gate') return
+    let cancelled = false
+    async function loadDailyFocus() {
+      setDailyFocusLoading(true)
+      const focus: GateSportValue[] = []
+      await Promise.all(DAILY_TEAM_FOCUS_SPORTS.map(async sportToCheck => {
+        try {
+          const res = await fetch(`/api/markets?date=${espnRequestDateForChicagoDay(today)}&sport=${sportToCheck}&displayDate=${today}`, { cache: 'no-store' })
+          const json = await res.json().catch(() => null)
+          if (Array.isArray(json) && json.some((game: Game) => game.status !== 'post')) focus.push(sportToCheck)
+        } catch {}
+      }))
+      try {
+        const res = await fetch('/api/ufc', { cache: 'no-store' })
+        const events = await res.json().catch(() => null)
+        if (Array.isArray(events) && events.some((event: any) => event?.status !== 'post' && chicagoYmd(new Date(event.date)) === today)) focus.push('ufc')
+      } catch {}
+      if (!cancelled) {
+        setDailyFocusSports(rankDailyFocusSports(focus))
+        setDailyFocusLoading(false)
+      }
+    }
+    loadDailyFocus()
+    return () => { cancelled = true }
+  }, [landingMode, today])
 
   useEffect(() => {
     const stored = localStorage.getItem('poly-bets')
@@ -7963,7 +8021,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
 
       <div id="market-content-top" style={{ position: 'relative', zIndex: 1, maxWidth: 1200, margin: '0 auto', padding: landingMode === 'gate' ? '0 16px 24px' : '0 16px calc(148px + env(safe-area-inset-bottom, 0px))', scrollMarginTop: 12 }}>
         {landingMode === 'gate' ? (
-          <SportGate isMobile={isMobile} currentSport={sport} showCurrent={gateHasBoardContext} onPick={enterBoard} />
+          <SportGate isMobile={isMobile} currentSport={sport} showCurrent={gateHasBoardContext} dailyFocusSports={dailyFocusSports} dailyFocusLoading={dailyFocusLoading} onPick={enterBoard} />
         ) : (
           <>
             <SportRail sport={sport} onPick={enterBoard} isMobile={isMobile} />

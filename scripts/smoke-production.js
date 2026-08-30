@@ -218,6 +218,82 @@ async function checkStatusEndpoints() {
   }
 }
 
+function chicagoYmd(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const get = type => parts.find(part => part.type === type)?.value || ''
+  return `${get('year')}${get('month')}${get('day')}`
+}
+
+function addChicagoDays(yyyymmdd, daysToAdd) {
+  const year = Number(yyyymmdd.slice(0, 4))
+  const month = Number(yyyymmdd.slice(4, 6))
+  const day = Number(yyyymmdd.slice(6, 8))
+  const base = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+  base.setUTCDate(base.getUTCDate() + daysToAdd)
+  return chicagoYmd(base)
+}
+
+function espnRequestDateForChicagoDay(yyyymmdd) {
+  return `${addChicagoDays(yyyymmdd, -1)}-${addChicagoDays(yyyymmdd, 1)}`
+}
+
+async function checkPublicSurface() {
+  try {
+    const res = await request('/', { method: 'GET', accept: 'text/html,*/*;q=0.1' })
+    const location = res.headers.get('location') || ''
+    if ([301, 302, 303, 307, 308].includes(res.status) && location.startsWith('/login')) {
+      pass('GET / paid-only redirect', `HTTP ${res.status} -> ${location}`)
+    } else if (res.status === 200) {
+      warn('GET / paid-only redirect', 'home returned 200; verify authenticated/public access strategy')
+    } else {
+      fail('GET / paid-only redirect', `unexpected HTTP ${res.status}`)
+    }
+  } catch (error) {
+    fail('GET / paid-only redirect', error.message)
+  }
+}
+
+async function checkDailySportFeeds() {
+  const today = chicagoYmd()
+  const teamSports = ['nfl', 'mlb', 'nhl', 'nba', 'soccer']
+  const active = []
+  for (const sport of teamSports) {
+    try {
+      const data = await getJson(`/api/markets?sport=${sport}&date=${espnRequestDateForChicagoDay(today)}&displayDate=${today}`)
+      if (!Array.isArray(data)) {
+        fail(`GET /api/markets ${sport}`, 'expected array')
+        continue
+      }
+      const liveish = data.filter(game => game && game.status !== 'post').length
+      pass(`GET /api/markets ${sport}`, `${data.length} games, ${liveish} active/today`)
+      if (liveish > 0) active.push(sport)
+    } catch (error) {
+      warn(`GET /api/markets ${sport}`, error.message)
+    }
+  }
+
+  try {
+    const events = await getJson('/api/ufc')
+    if (!Array.isArray(events)) {
+      fail('GET /api/ufc', 'expected array')
+    } else {
+      const todayEvents = events.filter(event => event && event.status !== 'post' && event.date && chicagoYmd(new Date(event.date)) === today).length
+      pass('GET /api/ufc', `${events.length} events, ${todayEvents} today`)
+      if (todayEvents > 0) active.push('ufc')
+    }
+  } catch (error) {
+    warn('GET /api/ufc', error.message)
+  }
+
+  if (active.length > 0) pass('daily-focus:candidates', active.join(', '))
+  else warn('daily-focus:candidates', 'no active sports found for today')
+}
+
 async function checkAdminStatus() {
   const acceptable = new Set([200, 301, 302, 303, 307, 308, 401, 403, 405])
 
@@ -249,7 +325,9 @@ async function checkAdminStatus() {
 
 async function main() {
   console.log(`Athlete Intelligence production smoke: ${baseUrl()}`)
+  await checkPublicSurface()
   await checkStatusEndpoints()
+  await checkDailySportFeeds()
   await checkAdminStatus()
 
   const failures = checks.filter(check => !check.ok)
