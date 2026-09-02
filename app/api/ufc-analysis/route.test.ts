@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildBaselineUFCEventAnalysis } from '../../lib/ufc/deep-analysis-service'
+import { buildBaselineUFCEventAnalysis, summarizeUFCAnalysisHealth } from '../../lib/ufc/deep-analysis-service'
 
 describe('UFC analysis route baseline fallback', () => {
   it('returns an available partial ESPN-backed analysis instead of unavailable stale/missing state', () => {
@@ -37,5 +37,9 @@ describe('UFC analysis route baseline fallback', () => {
     expect(analysis.fights[0].bettingAngles[0].label).not.toMatch(/pass/i)
     expect(analysis.cardSummary.headline).toContain('baseline UFC matchup snapshot')
     expect(analysis.cardSummary.passFights.join(' ')).not.toContain('pass')
+    expect(summarizeUFCAnalysisHealth(analysis)).toMatchObject({
+      fight_count: 1,
+      pass_ai_labels: 0,
+    })
   })
 })

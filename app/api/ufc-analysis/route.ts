@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceRateLimit } from '@/app/lib/rate-limit'
 import { fetchUFCEvents } from '@/app/lib/ufc/events'
-import { buildRuntimeBaselineUFCEventAnalysis, getCachedUFCEventAnalysis, getNextUFCEventForAnalysis } from '@/app/lib/ufc/deep-analysis-service'
+import { buildRuntimeBaselineUFCEventAnalysis, getCachedUFCEventAnalysis, getNextUFCEventForAnalysis, summarizeUFCAnalysisHealth } from '@/app/lib/ufc/deep-analysis-service'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -27,15 +27,18 @@ export async function GET(req: NextRequest) {
 
     const cached = await getCachedUFCEventAnalysis(event.id, event)
     if (!cached || cached.status === 'stale') {
-      const status = cached?.status || 'missing'
+      const cacheStatus = cached?.status || 'missing'
+      const analysis = await buildRuntimeBaselineUFCEventAnalysis(event, cacheStatus)
       return NextResponse.json({
         available: true,
         status: 'partial',
-        sourceStatus: status,
+        sourceStatus: 'runtime-baseline',
+        cacheStatus,
         eventId: event.id,
         eventName: event.name,
         eventDate: event.date,
-        analysis: await buildRuntimeBaselineUFCEventAnalysis(event, status),
+        ...summarizeUFCAnalysisHealth(analysis),
+        analysis,
         message: cached?.status === 'stale'
           ? 'Deep UFC analysis cache is stale; serving ESPN-backed baseline until regenerated.'
           : 'Deep UFC analysis cache is missing; serving ESPN-backed baseline until regenerated.',
@@ -45,6 +48,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       available: true,
       status: cached.status,
+      sourceStatus: 'cache',
+      cacheStatus: cached.status,
+      ...summarizeUFCAnalysisHealth(cached),
       analysis: cached,
     })
   } catch (err) {

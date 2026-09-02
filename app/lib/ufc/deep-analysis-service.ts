@@ -131,6 +131,35 @@ export async function getNextUFCEventForAnalysis(events?: UFCEvent[]): Promise<U
   return actionable.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] || list[0] || null
 }
 
+export function summarizeUFCAnalysisHealth(analysis: UFCEventDeepAnalysis) {
+  let recentRows = 0
+  let unknownRecentResults = 0
+  let missingStyleFighters = 0
+  let sourceUrls = 0
+  let passAiLabels = 0
+
+  for (const fight of analysis.fights || []) {
+    sourceUrls += fight.sources?.length || 0
+    if (String(fight.ai?.pick || '').toLowerCase() === 'pass') passAiLabels += 1
+    for (const fighter of [fight.fighterA, fight.fighterB]) {
+      const style = String(fighter?.fightingStyle || fighter?.style || '').trim().toLowerCase()
+      if (!style || style === 'unknown' || style === 'style not listed') missingStyleFighters += 1
+      const rows = Array.isArray(fighter?.lastFive) ? fighter.lastFive : []
+      recentRows += rows.length
+      unknownRecentResults += rows.filter(row => String(row?.result || 'unknown').toLowerCase() === 'unknown').length
+    }
+  }
+
+  return {
+    fight_count: analysis.fights?.length || 0,
+    missing_style_fighters: missingStyleFighters,
+    recent_rows: recentRows,
+    unknown_recent_results: unknownRecentResults,
+    source_urls: sourceUrls,
+    pass_ai_labels: passAiLabels,
+  }
+}
+
 type ResearchFn = typeof researchUFCFightWithAi
 
 export interface BuildUFCEventDeepAnalysisOptions {
