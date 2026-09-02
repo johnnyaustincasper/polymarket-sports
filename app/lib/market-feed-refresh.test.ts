@@ -30,10 +30,11 @@ describe('market feed refresh resilience', () => {
     expect(source).toContain('candidateGames.some(g => g.status !== \'post\')')
   })
 
-  it('does not strand first-load Player Signals on empty UFC when MLB has the active slate', () => {
+  it('starts at UFC while preserving MLB-first team-slate fallback when UFC is empty', () => {
     const appSource = readFileSync(join(process.cwd(), 'app', 'AppClient.tsx'), 'utf8')
     const startupSource = readFileSync(join(process.cwd(), 'app', 'lib', 'startup-sport.ts'), 'utf8')
 
+    expect(appSource).toContain("useState<SupportedSport | 'ufc'>('ufc')")
     expect(appSource).toContain("(sport === 'mlb' || sport === 'ufc')")
     expect(appSource).toContain("startupSportResolvedRef.current = lastSport !== 'ufc'")
     expect(startupSource).toContain("STARTUP_SPORT_FALLBACK_ORDER = ['mlb'")

@@ -42,8 +42,8 @@ describe('mobile bottom dock configuration', () => {
     expect(getMobileDockActiveTab('playerSignals')).toBe('signals')
   })
 
-  it('uses a neutral daily-slate order instead of hard-coding UFC first in the mobile Sport drawer', () => {
-    expect(mobileDockSportOptions.map(option => option.label)).toEqual(['MLB', 'NFL', 'UFC', 'NHL', 'Soccer', 'NBA'])
+  it('prioritizes UFC first and MLB second in the mobile Sport drawer while NBA stays last', () => {
+    expect(mobileDockSportOptions.map(option => option.label)).toEqual(['UFC', 'MLB', 'NFL', 'NHL', 'Soccer', 'NBA'])
   })
 
   it('keeps all five available day options in the Dates helper for non-dock consumers', () => {

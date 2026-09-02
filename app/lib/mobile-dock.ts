@@ -6,9 +6,9 @@ export type MobileSportOption = { value: SupportedSport | 'ufc'; label: string }
 export type MobileDateOption = { label: string; value: string }
 
 export const mobileDockSportOptions: MobileSportOption[] = [
+  { value: 'ufc', label: 'UFC' },
   { value: 'mlb', label: 'MLB' },
   { value: 'nfl', label: 'NFL' },
-  { value: 'ufc', label: 'UFC' },
   { value: 'nhl', label: 'NHL' },
   { value: 'soccer', label: 'Soccer' },
   { value: 'nba', label: 'NBA' },

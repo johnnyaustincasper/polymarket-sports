@@ -7435,8 +7435,8 @@ const SPORT_GATE_COPY: Record<string, Omit<SportGateCardConfig, 'value' | 'label
   nba: { tier: 'std', tag: 'PROPS + LINES', line: 'Lineups, props, edges.' },
 }
 
-const DAILY_FOCUS_PRIORITY: GateSportValue[] = ['nfl', 'mlb', 'ufc', 'nhl', 'nba', 'soccer']
-const DAILY_TEAM_FOCUS_SPORTS: SupportedSport[] = ['nfl', 'mlb', 'nhl', 'nba', 'soccer']
+const DAILY_FOCUS_PRIORITY: GateSportValue[] = ['ufc', 'mlb', 'nfl', 'nhl', 'soccer', 'nba']
+const DAILY_TEAM_FOCUS_SPORTS: SupportedSport[] = ['mlb', 'nfl', 'nhl', 'soccer', 'nba']
 
 function rankDailyFocusSports(sports: GateSportValue[]): GateSportValue[] {
   const unique = Array.from(new Set(sports))
@@ -8256,7 +8256,7 @@ export default function Home({ clerkEnabled = false }: { clerkEnabled?: boolean 
   const today = chicagoYmd()
   const tomorrow = addChicagoDays(today, 1)
   const [date, setDate] = useState(today)
-  const [sport, setSport] = useState<SupportedSport | 'ufc'>('mlb')
+  const [sport, setSport] = useState<SupportedSport | 'ufc'>('ufc')
   const [landingMode, setLandingMode] = useState<LandingMode>('gate')
   const [gateHasBoardContext, setGateHasBoardContext] = useState(false)
   const [subtab, setSubtab] = useState<SportSubtab>('slate')
